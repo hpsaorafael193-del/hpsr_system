@@ -1,10 +1,11 @@
 import { createClient, isSupabaseConfigured } from "@/lib/supabase";
+import { setLoginPersistence } from "@/lib/auth-persistence";
 
 export type GoogleAuthMode = "login" | "register";
 
 export type GoogleRegistrationData = { name: string; passport: string; crm: string; email?: string; cityPhone?: string; specialty?: string; requestedRole?: string };
 
-export async function startGoogleAuth(mode: GoogleAuthMode, registrationData?: GoogleRegistrationData) {
+export async function startGoogleAuth(mode: GoogleAuthMode, registrationData?: GoogleRegistrationData, rememberConnected = true) {
   if (!isSupabaseConfigured()) {
     return { ok: false, error: "Configure o Supabase para habilitar o acesso com Google." };
   }
@@ -19,6 +20,8 @@ export async function startGoogleAuth(mode: GoogleAuthMode, registrationData?: G
     sessionStorage.setItem("hpsr-google-registration", JSON.stringify({ ...registrationData, createdAt: new Date().toISOString(), status: "Pendente" }));
   }
 
+  if (mode === "login") setLoginPersistence(rememberConnected);
+
   const next = mode === "register" ? "/?auth=pending" : "/dashboard";
   const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}&mode=${mode}`;
   const { error } = await client.auth.signInWithOAuth({
@@ -29,5 +32,7 @@ export async function startGoogleAuth(mode: GoogleAuthMode, registrationData?: G
     },
   });
 
-  return error ? { ok: false, error: error.message } : { ok: true };
+  if (!error) return { ok: true };
+  const providerDisabled = error.message.toLowerCase().includes("provider is not enabled") || error.message.toLowerCase().includes("unsupported provider");
+  return { ok: false, error: providerDisabled ? "O login com Google ainda não está habilitado no Supabase. Ative o provedor Google em Authentication → Providers e configure o Client ID e o Client Secret." : error.message };
 }

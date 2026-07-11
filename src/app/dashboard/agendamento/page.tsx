@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { currentUserProfile } from "@/data/current-user-profile";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { doctorCanAccessSpecialty, doctorVisibleSpecialties } from "@/data/appointment-rules";
 import { createClient } from "@/lib/supabase";
 
@@ -152,6 +152,7 @@ const baseVisibleAppointments = scheduledAppointments.filter((item) =>
 );
 
 export default function AppointmentsPage() {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
   const [activeTab, setActiveTab] = useState<TabId>("solicitacoes");
   const [searchTerm, setSearchTerm] = useState("");
   const [publicRequests, setPublicRequests] = useState<PublicAppointmentRequest[]>([]);

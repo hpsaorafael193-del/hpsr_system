@@ -18,11 +18,9 @@ import {
   Upload,
   UserRound,
 } from "lucide-react";
-import {
-  currentUserProfile,
-  profileDocuments,
-  profileHistory,
-} from "@/data/current-user-profile";
+import { profileDocuments, profileHistory } from "@/data/current-user-profile";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 
 type EditableProfile = {
   characterName: string;
@@ -34,41 +32,49 @@ type EditableProfile = {
   signatureName: string;
 };
 
-const initialEditableProfile: EditableProfile = {
-  characterName: currentUserProfile.characterName,
-  passport: currentUserProfile.passport,
-  crm: currentUserProfile.crm,
-  cityPhone: currentUserProfile.cityPhone,
-  email: currentUserProfile.email,
-  department: currentUserProfile.department,
-  signatureName: currentUserProfile.signatureName,
-};
+
 
 const inputClass =
   "min-h-[38px] w-full rounded-[14px] border border-hpsr-border bg-white/[0.92] px-3 text-sm font-bold text-hpsr-text outline-none transition placeholder:text-zinc-400 focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20";
 
 export default function PerfilPage() {
+  const { profile: currentUserProfile, updateProfile: persistProfile } = useCurrentUserProfile();
+  const initialEditableProfile: EditableProfile = {
+    characterName: currentUserProfile.characterName,
+    passport: currentUserProfile.passport,
+    crm: currentUserProfile.crm,
+    cityPhone: currentUserProfile.cityPhone,
+    email: currentUserProfile.email,
+    department: currentUserProfile.department,
+    signatureName: currentUserProfile.signatureName,
+  };
   const [serviceStatus, setServiceStatus] = useState(currentUserProfile.serviceStatus);
+  const statusStorageKey = `hpsr-service-status:${currentUserProfile.passport || currentUserProfile.systemName}`;
   const [editing, setEditing] = useState(false);
   const [profile, setProfile] = useState<EditableProfile>(initialEditableProfile);
+  const [saveMessage, setSaveMessage] = useState("");
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedStatus = localStorage.getItem("hpsr-service-status");
+    const storedStatus = localStorage.getItem(statusStorageKey);
     if (storedStatus) setServiceStatus(storedStatus);
-
-    const storedProfile = localStorage.getItem("hpsr-profile-edits");
-    if (storedProfile) {
-      try {
-        setProfile({ ...initialEditableProfile, ...JSON.parse(storedProfile) });
-      } catch {
-        setProfile(initialEditableProfile);
-      }
-    }
 
     const storedSignature = localStorage.getItem("hpsr-profile-signature-png");
     if (storedSignature) setSignatureImage(storedSignature);
-  }, []);
+  }, [statusStorageKey]);
+
+  useEffect(() => {
+    setProfile({
+      characterName: currentUserProfile.characterName,
+      passport: currentUserProfile.passport,
+      crm: currentUserProfile.crm,
+      cityPhone: currentUserProfile.cityPhone,
+      email: currentUserProfile.email,
+      department: currentUserProfile.department,
+      signatureName: currentUserProfile.signatureName,
+    });
+    setServiceStatus(currentUserProfile.serviceStatus);
+  }, [currentUserProfile]);
 
   const isInService = serviceStatus === "Em serviço";
 
@@ -90,9 +96,16 @@ export default function PerfilPage() {
     setProfile((current) => ({ ...current, [field]: value }));
   }
 
-  function saveProfile() {
+  async function saveProfile() {
+    setSaveMessage("Salvando...");
+    const result = await persistProfile(profile);
+    if (!result.ok) {
+      setSaveMessage(`Não foi possível salvar: ${result.error || "erro desconhecido"}`);
+      return;
+    }
     localStorage.setItem("hpsr-profile-edits", JSON.stringify(profile));
     setEditing(false);
+    setSaveMessage("Dados atualizados no sistema.");
   }
 
   function handleSignatureUpload(event: ChangeEvent<HTMLInputElement>) {
@@ -100,7 +113,7 @@ export default function PerfilPage() {
     if (!file) return;
 
     if (file.type !== "image/png") {
-      alert("Envie apenas arquivo PNG.");
+      void hpsrAlert("Envie apenas arquivo PNG.", "Arquivo inválido");
       event.target.value = "";
       return;
     }
@@ -176,6 +189,8 @@ export default function PerfilPage() {
                 </div>
               </div>
             </div>
+
+            {saveMessage && <p className="mx-3.5 mt-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-xs font-bold text-hpsr-text">{saveMessage}</p>}
 
             {editing ? (
               <div className="grid gap-3 p-3.5 md:grid-cols-2 xl:grid-cols-3">

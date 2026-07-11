@@ -8,6 +8,7 @@ import { GoogleAuthButton } from "@/components/ui/GoogleAuthButton";
 import { registerSystemActivity } from "@/lib/administrative-storage";
 import { mirrorRecord } from "@/lib/data-bridge";
 import { createClient } from "@/lib/supabase";
+import { setLoginPersistence } from "@/lib/auth-persistence";
 
 const KEY = "hpsr-staff-registration-requests";
 
@@ -47,6 +48,7 @@ function LoginContent() {
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [rememberConnected, setRememberConnected] = useState(true);
 
   useEffect(() => {
     const authState = searchParams.get("auth");
@@ -90,6 +92,7 @@ function LoginContent() {
       setBusy(false);
       return;
     }
+    setLoginPersistence(rememberConnected);
     window.location.href = "/dashboard";
   }
 
@@ -187,7 +190,7 @@ function LoginContent() {
 
         {!register ? (
           <form onSubmit={handleLogin} className="hpsr-public-card p-4 shadow-soft">
-            <GoogleAuthButton mode="login" onError={setMessage} />
+            <GoogleAuthButton mode="login" rememberConnected={rememberConnected} onError={setMessage} />
             <div className="my-4 flex items-center gap-3 text-[10px] font-black uppercase tracking-[.14em] text-hpsr-muted">
               <span className="h-px flex-1 bg-hpsr-border" /> ou use as credenciais <span className="h-px flex-1 bg-hpsr-border" />
             </div>
@@ -195,6 +198,10 @@ function LoginContent() {
               <FormField label="E-mail institucional"><input className={inputClass} type="email" value={loginEmail} onChange={(e)=>setLoginEmail(e.target.value)} /></FormField>
               <FormField label="Senha"><input className={inputClass} type="password" value={loginPassword} onChange={(e)=>setLoginPassword(e.target.value)} /></FormField>
             </div>
+            <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3">
+              <input type="checkbox" checked={rememberConnected} onChange={(event) => setRememberConnected(event.target.checked)} className="mt-0.5 h-4 w-4 accent-hpsr-wine" />
+              <span><span className="block text-sm font-black text-hpsr-text">Manter conectado</span><span className="mt-0.5 block text-xs text-hpsr-muted">Mantém o acesso ativo mesmo depois de fechar e abrir o navegador.</span></span>
+            </label>
             {message && <p className="mt-4 rounded-[14px] border border-hpsr-border bg-[#fff8f0] px-3 py-2 text-sm font-semibold">{message}</p>}
             <button disabled={busy} className="mt-6 flex w-full justify-center rounded-[14px] bg-hpsr-wineLight px-4 py-3 font-black text-white disabled:opacity-60">{busy ? "Validando..." : "Entrar no painel"}</button>
           </form>
@@ -233,7 +240,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="grid min-h-screen place-items-center">Carregando...</div>}>
+    <Suspense fallback={<div className="grid min-h-screen place-items-center bg-hpsr-bg px-4"><div className="rounded-[18px] border border-hpsr-border bg-white px-6 py-5 text-center shadow-soft"><p className="text-sm font-black text-hpsr-text">Carregando acesso...</p></div></div>}>
       <LoginContent />
     </Suspense>
   );

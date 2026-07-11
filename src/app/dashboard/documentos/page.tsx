@@ -32,7 +32,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import { currentUserProfile } from "@/data/current-user-profile";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 
 type PatientDraft = {
   name: string;
@@ -118,28 +118,6 @@ const emptyPatient: PatientDraft = {
   age: "",
   bloodType: "",
 };
-
-const initialDoctor: DoctorDraft = {
-  name:
-    currentUserProfile.signatureName ||
-    currentUserProfile.characterName ||
-    currentUserProfile.systemName ||
-    "",
-  crm: currentUserProfile.crm || "",
-  role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico",
-  specialty: currentUserProfile.specialty || "Clínico Geral",
-};
-
-const availableDoctors: DoctorOption[] = [
-  {
-    id: "current-user",
-    name: initialDoctor.name,
-    crm: initialDoctor.crm,
-    role: initialDoctor.role,
-    specialty: initialDoctor.specialty,
-    signatureStorageKey: "hpsr-profile-signature-png",
-  },
-];
 
 const patientSuggestions: PatientDraft[] = [];
 
@@ -545,6 +523,23 @@ function PatientQuickRegisterModal({
 }
 
 export default function DocumentsPage() {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
+  const initialDoctor: DoctorDraft = {
+    name: currentUserProfile.signatureName || currentUserProfile.characterName || currentUserProfile.systemName || "",
+    crm: currentUserProfile.crm || "",
+    role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico",
+    specialty: currentUserProfile.specialty || "Clínico Geral",
+  };
+  const availableDoctors: DoctorOption[] = [
+    {
+      id: "current-user",
+      name: initialDoctor.name,
+      crm: initialDoctor.crm,
+      role: initialDoctor.role,
+      specialty: initialDoctor.specialty,
+      signatureStorageKey: "hpsr-profile-signature-png",
+    },
+  ];
   const editorRef = useRef<HTMLDivElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [patient, setPatient] = useState<PatientDraft>(emptyPatient);

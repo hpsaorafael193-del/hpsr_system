@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { hpsrAlert, hpsrPrompt } from "@/components/ui/HpsrDialogProvider";
 import {
   AlertTriangle,
   BedDouble,
@@ -290,8 +291,8 @@ function AdmissionModal({ bed, mode, onClose, onSave }: { bed: BedRecord; mode: 
   const editing = mode === "edit";
   const [patientOptions, setPatientOptions] = useState(patients);
 
-  function handleAddPatient() {
-    const name = window.prompt("Nome completo do novo paciente:")?.trim();
+  async function handleAddPatient() {
+    const name = (await hpsrPrompt("Nome completo do novo paciente:", "", "Cadastro rápido"))?.trim();
     if (!name) return;
     if (!patientOptions.some((item) => item.toLowerCase() === name.toLowerCase())) setPatientOptions((current) => [...current, name]);
   }
@@ -300,7 +301,7 @@ function AdmissionModal({ bed, mode, onClose, onSave }: { bed: BedRecord; mode: 
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const patient = String(data.get("patient") || "").trim();
-    if (!patient) { window.alert("Selecione um paciente para continuar."); return; }
+    if (!patient) { void hpsrAlert("Selecione um paciente para continuar.", "Paciente obrigatório"); return; }
     const admissionDate = String(data.get("admittedAt") || "");
     const dischargeDate = String(data.get("expectedDischarge") || "");
     const record: BedRecord = {

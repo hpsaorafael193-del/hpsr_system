@@ -52,7 +52,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import { currentUserProfile } from "@/data/current-user-profile";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { createClient } from "@/lib/supabase";
 import {
   createInitialAdaptiveConfiguration,
   renderAdaptiveExamReport,
@@ -141,22 +142,6 @@ const emptyPatient: PatientDraft = {
   age: "",
   bloodType: "",
 };
-
-const initialDoctor: DoctorDraft = {
-  name: currentUserProfile.signatureName || currentUserProfile.characterName || currentUserProfile.systemName || "",
-  crm: currentUserProfile.crm || "",
-};
-
-const availableDoctors: DoctorOption[] = [
-  {
-    id: "current-user",
-    name: initialDoctor.name,
-    crm: initialDoctor.crm,
-    role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico",
-    specialty: currentUserProfile.specialty || "Clínico Geral",
-    signatureStorageKey: "hpsr-profile-signature-png",
-  },
-];
 
 const patientSuggestions: PatientDraft[] = [];
 
@@ -686,6 +671,21 @@ function AppDialog({
 
 
 export default function ExamesPage() {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
+  const initialDoctor: DoctorDraft = {
+    name: currentUserProfile.signatureName || currentUserProfile.characterName || currentUserProfile.systemName || "",
+    crm: currentUserProfile.crm || "",
+  };
+  const availableDoctors: DoctorOption[] = [
+    {
+      id: "current-user",
+      name: initialDoctor.name,
+      crm: initialDoctor.crm,
+      role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico",
+      specialty: currentUserProfile.specialty || "Clínico Geral",
+      signatureStorageKey: "hpsr-profile-signature-png",
+    },
+  ];
   const editorRef = useRef<HTMLDivElement | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const editorHtmlRef = useRef("");
@@ -702,6 +702,10 @@ export default function ExamesPage() {
   const [automaticAttachmentNotes, setAutomaticAttachmentNotes] = useState("");
   const [doctor, setDoctor] = useState<DoctorDraft>(initialDoctor);
   const [selectedDoctorId, setSelectedDoctorId] = useState("current-user");
+
+  useEffect(() => {
+    setDoctor(initialDoctor);
+  }, [currentUserProfile.characterName, currentUserProfile.crm, currentUserProfile.signatureName, currentUserProfile.systemName]);
   const [selectedCategory, setSelectedCategory] =
     useState<string>("laboratorio");
   const [selectedExamId, setSelectedExamId] = useState<string>(
@@ -1386,29 +1390,81 @@ export default function ExamesPage() {
     return document;
   }
 
-  function saveExam() {
-    syncEditorFromDom();
-    const document = buildPreviewDocument();
-    const savedAt = new Date().toISOString();
-    saveDraft({
-      patient,
-      doctor,
-      selectedDoctorId,
-      selectedExamId: selectedExam?.id || selectedExamId,
-      adaptiveConfig,
-      html: editorRef.current?.innerHTML || editorHtmlRef.current,
-      protocol,
-      attachments,
-      savedAt,
-    });
-    const time = new Date(savedAt).toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    setLastSavedAt(time);
-    setSaveStatus(`Salvo às ${time}`);
-    setPreviewImage(null);
-    setPreview({ open: true, document, pageIndex: 0 });
+  async function saveExam() {
+    try {
+      syncEditorFromDom();
+      const document = buildPreviewDocument();
+      const savedAt = new Date().toISOString();
+      const html = editorRef.current?.innerHTML || editorHtmlRef.current;
+
+      try {
+        saveDraft({
+          patient,
+          doctor,
+          selectedDoctorId,
+          selectedExamId: selectedExam?.id || selectedExamId,
+          adaptiveConfig,
+          html,
+          protocol,
+          attachments,
+          savedAt,
+        });
+      } catch {
+        // Anexos em base64 podem ultrapassar o limite do localStorage. O exame
+        // continua sendo salvo no banco e a visualização não é bloqueada.
+        saveDraft({
+          patient,
+          doctor,
+          selectedDoctorId,
+          selectedExamId: selectedExam?.id || selectedExamId,
+          adaptiveConfig,
+          html,
+          protocol,
+          attachments: [],
+          savedAt,
+        });
+      }
+
+      const client = createClient();
+      if (client) {
+        const recordId = `exam-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const payload = {
+          protocol,
+          patient,
+          doctor,
+          examId: selectedExam?.id || selectedExamId,
+          examName: metadata.examName,
+          reportHtml: html,
+          attachments: attachments.map(({ id, name, size }) => ({ id, name, size })),
+          savedAt,
+        };
+        const { error } = await client.from("clinical_records").insert({
+          id: recordId,
+          patient_passport: patient.passport || null,
+          record_type: "Exame",
+          payload,
+        });
+        if (error) throw error;
+      }
+
+      const time = new Date(savedAt).toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      setLastSavedAt(time);
+      setSaveStatus(`Salvo às ${time}`);
+      setPreviewImage(null);
+      setPreview({ open: true, document, pageIndex: 0 });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Erro desconhecido ao salvar o exame.";
+      setSaveStatus("Falha ao salvar");
+      setAppDialog({
+        title: "Não foi possível salvar o exame",
+        message,
+        tone: "danger",
+        actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
+      });
+    }
   }
 
   async function renderPreviewPage(

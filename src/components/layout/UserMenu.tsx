@@ -4,18 +4,22 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Circle, LogOut, UserRound } from "lucide-react";
-import { currentUserProfile } from "@/data/current-user-profile";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { createClient } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { clearLoginPersistence } from "@/lib/auth-persistence";
 
 export function UserMenu() {
+  const { profile: currentUserProfile, updateProfile } = useCurrentUserProfile();
   const [open, setOpen] = useState(false);
   const [serviceStatus, setServiceStatus] = useState(currentUserProfile.serviceStatus);
+  const statusStorageKey = `hpsr-service-status:${currentUserProfile.passport || currentUserProfile.systemName}`;
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   useEffect(() => {
-    const storedStatus = localStorage.getItem("hpsr-service-status");
-    if (storedStatus) setServiceStatus(storedStatus);
+    const storedStatus = localStorage.getItem(statusStorageKey);
+    setServiceStatus((storedStatus as typeof currentUserProfile.serviceStatus) || currentUserProfile.serviceStatus);
 
     function handleClickOutside(event: MouseEvent) {
       if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
@@ -32,12 +36,21 @@ export function UserMenu() {
       document.removeEventListener("mousedown", handleClickOutside);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [currentUserProfile.serviceStatus, statusStorageKey]);
 
-  function handleLogout() {
-    localStorage.setItem("hpsr-service-status", "Fora de serviço");
+  useEffect(() => {
+    setServiceStatus(currentUserProfile.serviceStatus);
+  }, [currentUserProfile.serviceStatus, currentUserProfile.passport, currentUserProfile.systemName]);
+
+  async function handleLogout() {
+    localStorage.setItem(statusStorageKey, "Fora de serviço");
+    await updateProfile({ serviceStatus: "Fora de serviço" });
+    const client = createClient();
+    if (client) await client.auth.signOut();
     localStorage.removeItem("hpsr-demo-session");
+    localStorage.removeItem("hpsr-service-status");
     localStorage.removeItem("hpsr-local-auth-session");
+    clearLoginPersistence();
     setServiceStatus("Fora de serviço");
     setOpen(false);
     router.push("/");

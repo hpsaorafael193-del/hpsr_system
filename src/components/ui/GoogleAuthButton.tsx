@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { startGoogleAuth, type GoogleAuthMode, type GoogleRegistrationData } from "@/lib/google-auth";
 
-export function GoogleAuthButton({ mode, registrationData, onError }: { mode: GoogleAuthMode; registrationData?: GoogleRegistrationData; onError?: (message: string) => void }) {
+export function GoogleAuthButton({ mode, registrationData, rememberConnected = true, onError }: { mode: GoogleAuthMode; registrationData?: GoogleRegistrationData; rememberConnected?: boolean; onError?: (message: string) => void }) {
   const [loading, setLoading] = useState(false);
 
   async function handleClick() {
     setLoading(true);
-    const result = await startGoogleAuth(mode, registrationData);
+    const result = await startGoogleAuth(mode, registrationData, rememberConnected);
     if (!result.ok) {
       onError?.(result.error || "Não foi possível acessar com Google.");
       setLoading(false);

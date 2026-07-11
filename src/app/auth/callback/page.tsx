@@ -88,7 +88,7 @@ function AuthCallbackContent() {
 
 export default function AuthCallbackPage() {
   return (
-    <Suspense fallback={<div className="grid min-h-screen place-items-center">Processando autenticação...</div>}>
+    <Suspense fallback={<div className="grid min-h-screen place-items-center bg-hpsr-bg px-4"><div className="rounded-[18px] border border-hpsr-border bg-white px-6 py-5 text-center shadow-soft"><p className="text-sm font-black text-hpsr-text">Processando autenticação...</p></div></div>}>
       <AuthCallbackContent />
     </Suspense>
   );

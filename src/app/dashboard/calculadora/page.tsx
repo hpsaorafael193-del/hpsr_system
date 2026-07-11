@@ -21,8 +21,9 @@ import {
   Trash2,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import { currentUserProfile } from "@/data/current-user-profile";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { registerSystemActivity, saveFinancialReceipt, type FinancialReceipt } from "@/lib/administrative-storage";
+import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 
 type CategoryId = "medicamentos" | "procedimentos" | "farmacia";
 type ConvenioId = "sem" | "plano" | "parceria";
@@ -442,6 +443,7 @@ const allProducts = [...medicamentos, ...procedimentos, ...farmacia];
 const tabletHpProductIds = new Set(["p0", "p1", "p2", "p3", "p4", "p5", "p8"]);
 
 export default function CalculatorPage() {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
   const [activeTab, setActiveTab] = useState<CategoryId>("medicamentos");
   const [cart, setCart] = useState<Record<string, number>>(() =>
     Object.fromEntries(allProducts.map((product) => [product.id, 0]))
@@ -515,7 +517,7 @@ export default function CalculatorPage() {
 
   function createReceipt(): FinancialReceipt | null {
     if (!selectedItems.length) {
-      window.alert("Selecione pelo menos um item antes de gerar o recibo.");
+      void hpsrAlert("Selecione pelo menos um item antes de gerar o recibo.", "Nenhum item selecionado");
       return null;
     }
 

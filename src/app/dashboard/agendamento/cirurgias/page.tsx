@@ -21,7 +21,8 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { currentUserProfile } from "@/data/current-user-profile";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 
 type ProcedureType =
   | "parto-normal"
@@ -188,6 +189,7 @@ function createInitialForm(): ProcedureFormState {
 }
 
 export default function ProcedureSchedulePage() {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
   const [procedures, setProcedures] = useState<ProcedureRequest[]>(initialProcedureRequests);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [editingProcedure, setEditingProcedure] = useState<ProcedureRequest | null>(null);
@@ -243,10 +245,10 @@ export default function ProcedureSchedulePage() {
     setEditingProcedure(null);
   }
 
-  function analyzeProcedure(item: ProcedureRequest) {
+  async function analyzeProcedure(item: ProcedureRequest) {
     const conflict = hasRoomConflict(item, procedures);
-    if (conflict) { window.alert("Não é possível confirmar enquanto houver conflito de sala."); return; }
-    if (!window.confirm(`Confirmar a análise e aprovar o procedimento de ${item.patient}?`)) return;
+    if (conflict) { void hpsrAlert("Não é possível confirmar enquanto houver conflito de sala.", "Conflito de agendamento"); return; }
+    if (!(await hpsrConfirm(`Confirmar a análise e aprovar o procedimento de ${item.patient}?`, "Aprovar procedimento"))) return;
     setProcedures((current) => current.map((procedure) => procedure.id === item.id ? { ...procedure, status: "confirmado" } : procedure));
   }
 

@@ -17,7 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import { currentUserProfile } from "@/data/current-user-profile";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 
 type Answer = "sim" | "nao" | "na";
 type ResultKey = "apto" | "inapto-temporario" | "inapto" | "avaliacao" | "nao-autorizada";
@@ -158,14 +158,14 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function createInitialForm(): DonorForm {
+function createInitialForm(responsibleDoctor = ""): DonorForm {
   return {
     nome: "",
     idade: "",
     passaporte: "",
     peso: "",
     telefone: "",
-    medicoResponsavel: currentUserProfile.systemName,
+    medicoResponsavel: responsibleDoctor,
     dataTriagem: today(),
     senteBem: "sim",
     dormiuSeisHoras: "sim",
@@ -315,7 +315,8 @@ function statusClass(result: ResultKey) {
 }
 
 export default function BloodBankPage() {
-  const [form, setForm] = useState<DonorForm>(() => createInitialForm());
+  const { profile: currentUserProfile } = useCurrentUserProfile();
+  const [form, setForm] = useState<DonorForm>(() => createInitialForm(currentUserProfile.systemName));
   const [records, setRecords] = useState<DonationRecord[]>(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -375,7 +376,7 @@ export default function BloodBankPage() {
   }
 
   function resetForm() {
-    setForm(createInitialForm());
+    setForm(createInitialForm(currentUserProfile.systemName));
     setSelectedRecord(null);
   }
 

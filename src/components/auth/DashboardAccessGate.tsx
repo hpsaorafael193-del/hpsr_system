@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase";
 import { readLocalAuthSession } from "@/lib/local-auth";
+import { hasValidLoginPersistence } from "@/lib/auth-persistence";
 
 export function DashboardAccessGate({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -26,6 +27,12 @@ export function DashboardAccessGate({ children }: { children: React.ReactNode })
 
       const client = createClient();
       if (!client) {
+        router.replace("/?auth=required");
+        return;
+      }
+
+      if (!hasValidLoginPersistence()) {
+        await client.auth.signOut();
         router.replace("/?auth=required");
         return;
       }

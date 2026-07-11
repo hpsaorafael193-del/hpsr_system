@@ -11,7 +11,8 @@ import {
   type FinancialPlanEntry,
   type FinancialReceipt,
 } from "@/lib/administrative-storage";
-import { currentUserProfile } from "@/data/current-user-profile";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 import { createClient } from "@/lib/supabase";
 
 function money(value: number) {
@@ -110,6 +111,7 @@ function downloadReceipt(receipt: FinancialReceipt) {
 }
 
 export default function FinancePage() {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
   const [receipts, setReceipts] = useState<FinancialReceipt[]>([]);
   const [planEntries, setPlanEntries] = useState<FinancialPlanEntry[]>([]);
   const [search, setSearch] = useState("");
@@ -167,8 +169,8 @@ export default function FinancePage() {
   const discounts = receipts.reduce((sum, item) => sum + item.discountValue, 0);
   const plansTotal = planEntries.reduce((sum, item) => sum + item.value, 0);
 
-  function removeReceipt(receipt: FinancialReceipt) {
-    if (!window.confirm(`Excluir o recibo ${receipt.number} do histórico financeiro?`)) return;
+  async function removeReceipt(receipt: FinancialReceipt) {
+    if (!(await hpsrConfirm(`Excluir o recibo ${receipt.number} do histórico financeiro?`, "Excluir recibo"))) return;
     removeFinancialReceipt(receipt.id);
     setReceipts((current) => current.filter((item) => item.id !== receipt.id));
     registerSystemActivity({ module: "Financeiro", action: "Recibo excluído", description: `Recibo ${receipt.number} removido do histórico financeiro.`, actor: currentUserProfile.systemName, reference: receipt.number });

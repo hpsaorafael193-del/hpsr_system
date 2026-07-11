@@ -30,10 +30,11 @@ import {
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { roles } from "@/data/mock";
-import { currentUserProfile } from "@/data/current-user-profile";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { mirrorRecord, removeRecord } from "@/lib/data-bridge";
 import { createClient } from "@/lib/supabase";
 import { registerSystemActivity } from "@/lib/administrative-storage";
+import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 
 type TeamCategory = "Sistema" | "Direção" | "Corpo Médico" | "Formação";
 type ServiceStatus = "Em serviço" | "Fora de serviço" | "Em atendimento" | "Em procedimento";
@@ -67,6 +68,13 @@ type TeamMember = {
     procedures: number;
     lastActivity?: string;
   };
+};
+
+
+type PendingAdministrativeAction = {
+  member: TeamMember;
+  action: "Editar cargo" | "Promover" | "Ajustar permissões" | "Registrar conduta" | "Aplicar advertência" | "Desligar";
+  value: string;
 };
 
 const STAFF_APPLICATIONS_KEY = "hpsr-staff-applications";
@@ -158,17 +166,6 @@ const categoryOrder: TeamCategory[] = ["Sistema", "Direção", "Corpo Médico", 
 const serviceStatuses: ServiceStatus[] = ["Em serviço", "Fora de serviço", "Em atendimento", "Em procedimento"];
 
 const administrativeRoles = ["Diretora", "Vice Diretor"];
-const isDevUser = currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema";
-const isDirectorUser = isDevUser || currentUserProfile.role === "Diretora";
-const isViceDirectorOrAboveUser =
-  isDevUser ||
-  currentUserProfile.role === "Diretora" ||
-  currentUserProfile.role === "Vice Diretor";
-const isClinicalDirectorUser = currentUserProfile.role === "Diretor Clínico";
-const hasTeamAdminAccess =
-  isDevUser ||
-  administrativeRoles.includes(currentUserProfile.role);
-const canAccessTeamPage = hasTeamAdminAccess || isClinicalDirectorUser;
 
 
 function formatDate(value: string) {
@@ -316,6 +313,13 @@ function saveRegistrationRequests(items: StaffRegistrationRequest[]) {
 }
 
 export default function TeamPage() {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
+  const isDevUser = currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema";
+  const isDirectorUser = isDevUser || currentUserProfile.role === "Diretora";
+  const isViceDirectorOrAboveUser = isDevUser || administrativeRoles.includes(currentUserProfile.role);
+  const isClinicalDirectorUser = currentUserProfile.role === "Diretor Clínico";
+  const hasTeamAdminAccess = isDevUser || administrativeRoles.includes(currentUserProfile.role);
+  const canAccessTeamPage = hasTeamAdminAccess || isClinicalDirectorUser;
   const [members, setMembers] = useState<TeamMember[]>(initialTeamMembers);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedId, setSelectedId] = useState("");
@@ -328,6 +332,7 @@ export default function TeamPage() {
   const [registrationRequestsLoading, setRegistrationRequestsLoading] = useState(false);
   const [registrationRequestError, setRegistrationRequestError] = useState("");
   const [registrationDecisionId, setRegistrationDecisionId] = useState("");
+  const [pendingAdministrativeAction, setPendingAdministrativeAction] = useState<PendingAdministrativeAction | null>(null);
 
   useEffect(() => {
     async function loadAdministrativeData() {
@@ -481,8 +486,8 @@ export default function TeamPage() {
   const traineeCount = members.filter((member) => member.category === "Formação").length;
 
 
-  function handleContractAction(member: TeamMember, action: string) {
-    if (!window.confirm(`Confirmar a ação "${action}" para ${member.name}?`)) return;
+  async function handleContractAction(member: TeamMember, action: string) {
+    if (!(await hpsrConfirm(`Confirmar a ação "${action}" para ${member.name}?`, "Ação contratual"))) return;
     const timestamp = new Date().toLocaleString("pt-BR");
     if (action.includes("Desligar")) {
       setMembers((current) => current.filter((item) => item.id !== member.id));
@@ -511,44 +516,73 @@ export default function TeamPage() {
   }
 
   function handleAdministrativeAction(member: TeamMember, action: string) {
+    if (!["Editar cargo", "Promover", "Ajustar permissões", "Registrar conduta", "Aplicar advertência", "Desligar"].includes(action)) return;
+    const suggested = member.hospitalRole === "Estagiário de Enfermagem" ? "Residente" : member.hospitalRole === "Residente" ? "Médico Clínico" : "Médico Especialista";
+    const initialValue = action === "Promover" ? suggested : action === "Editar cargo" ? member.hospitalRole : action === "Ajustar permissões" ? member.permissions.join("; ") : "";
+    setPendingAdministrativeAction({ member, action: action as PendingAdministrativeAction["action"], value: initialValue });
+  }
+
+  function submitAdministrativeAction() {
+    if (!pendingAdministrativeAction) return;
+    const { member, action, value } = pendingAdministrativeAction;
     const timestamp = new Date().toLocaleString("pt-BR");
-    if (action === "Aplicar advertência" || action === "Registrar conduta") {
-      const reason = window.prompt(action === "Aplicar advertência" ? "Informe o motivo da advertência:" : "Descreva a conduta administrativa:");
-      if (!reason?.trim()) return;
+    const trimmedValue = value.trim();
+
+    if ((action === "Registrar conduta" || action === "Aplicar advertência" || action === "Desligar") && !trimmedValue) return;
+    if ((action === "Editar cargo" || action === "Promover") && (!trimmedValue || trimmedValue === member.hospitalRole)) {
+      setPendingAdministrativeAction(null);
+      return;
+    }
+
+    if (action === "Registrar conduta" || action === "Aplicar advertência") {
       setMembers((current) => current.flatMap((item) => {
         if (item.id !== member.id) return [item];
-        if (action === "Registrar conduta") return [{ ...item, history: [`Conduta registrada em ${timestamp}: ${reason.trim()}`, ...item.history] }];
-        let warnings = item.warnings + 1; let suspensions = item.suspensions;
-        const history = [`Advertência aplicada em ${timestamp}: ${reason.trim()}`, ...item.history];
-        if (warnings >= 3) { warnings = 0; suspensions += 1; history.unshift(`Suspensão automática registrada em ${timestamp} após 3 advertências.`); }
-        if (suspensions >= 3 && window.confirm(`${item.name} atingiu 3 suspensões. Confirmar desligamento automático?`)) return [];
+        if (action === "Registrar conduta") return [{ ...item, history: [`Conduta registrada em ${timestamp}: ${trimmedValue}`, ...item.history] }];
+        let warnings = item.warnings + 1;
+        let suspensions = item.suspensions;
+        const history = [`Advertência aplicada em ${timestamp}: ${trimmedValue}`, ...item.history];
+        if (warnings >= 3) {
+          warnings = 0;
+          suspensions += 1;
+          history.unshift(`Suspensão automática registrada em ${timestamp} após 3 advertências.`);
+        }
+        if (suspensions >= 3) {
+          history.unshift(`Desligamento automático registrado em ${timestamp} após 3 suspensões.`);
+          return [];
+        }
         return [{ ...item, warnings, suspensions, history }];
       }));
+      if (member.suspensions + (member.warnings + 1 >= 3 ? 1 : 0) >= 3) {
+        void removeRecord("team_members", member.id);
+        setSelectedId("");
+      }
+      setPendingAdministrativeAction(null);
       return;
     }
+
     if (action === "Editar cargo" || action === "Promover") {
-      const suggested = member.hospitalRole === "Estagiário de Enfermagem" ? "Residente" : member.hospitalRole === "Residente" ? "Médico Clínico" : "Médico Especialista";
-      const nextRole = window.prompt("Informe o novo cargo:", action === "Promover" ? suggested : member.hospitalRole);
-      if (!nextRole?.trim() || nextRole === member.hospitalRole) return;
-      setMembers((current) => current.map((item) => item.id === member.id ? { ...item, hospitalRole: nextRole.trim(), accessLevel: getAccessLevel(nextRole.trim(), item.systemRole), category: getCategory(nextRole.trim(), item.systemRole), permissions: getDefaultPermissions(nextRole.trim(), item.systemRole), history: [`Cargo alterado de ${item.hospitalRole} para ${nextRole.trim()} em ${timestamp}`, ...item.history] } : item));
+      setMembers((current) => current.map((item) => item.id === member.id ? { ...item, hospitalRole: trimmedValue, accessLevel: getAccessLevel(trimmedValue, item.systemRole), category: getCategory(trimmedValue, item.systemRole), permissions: getDefaultPermissions(trimmedValue, item.systemRole), history: [`Cargo alterado de ${item.hospitalRole} para ${trimmedValue} em ${timestamp}`, ...item.history] } : item));
+      setPendingAdministrativeAction(null);
       return;
     }
+
     if (action === "Ajustar permissões") {
-      const value = window.prompt("Informe as permissões separadas por ponto e vírgula:", member.permissions.join("; "));
-      if (!value) return;
       const permissions = value.split(";").map((item) => item.trim()).filter(Boolean);
       setMembers((current) => current.map((item) => item.id === member.id ? { ...item, permissions, history: [`Permissões atualizadas em ${timestamp}`, ...item.history] } : item));
+      setPendingAdministrativeAction(null);
       return;
     }
+
     if (action === "Desligar") {
-      const reason = window.prompt(`Informe o motivo do desligamento de ${member.name}:`);
-      if (!reason?.trim() || !window.confirm(`Confirmar desligamento de ${member.name}?`)) return;
-      setMembers((current) => current.filter((item) => item.id !== member.id)); void removeRecord("team_members", member.id); setSelectedId("");
+      setMembers((current) => current.filter((item) => item.id !== member.id));
+      void removeRecord("team_members", member.id);
+      setSelectedId("");
+      setPendingAdministrativeAction(null);
     }
   }
 
   async function handleRegistrationRequest(request: StaffRegistrationRequest, decision: "Aprovado" | "Recusado") {
-    if (!window.confirm(`${decision === "Aprovado" ? "Aprovar" : "Recusar"} o cadastro de ${request.name}?`)) return;
+    if (!(await hpsrConfirm(`${decision === "Aprovado" ? "Aprovar" : "Recusar"} o cadastro de ${request.name}?`, "Cadastro médico"))) return;
 
     setRegistrationDecisionId(request.id);
     setRegistrationRequestError("");
@@ -676,9 +710,9 @@ export default function TeamPage() {
     setSelectedApplication(application);
   }
 
-  function deleteRejectedApplication(application: PublicStaffApplication) {
+  async function deleteRejectedApplication(application: PublicStaffApplication) {
     if (application.status !== "Recusado") return;
-    if (!window.confirm(`Excluir definitivamente o formulário de ${application.name}?`)) return;
+    if (!(await hpsrConfirm(`Excluir definitivamente o formulário de ${application.name}?`, "Excluir formulário"))) return;
     setPublicApplications((currentApplications) => {
       const nextApplications = currentApplications.filter((item) => item.protocol !== application.protocol);
       saveStoredStaffApplications(nextApplications);
@@ -1119,6 +1153,14 @@ export default function TeamPage() {
         />
       )}
       {hasTeamAdminAccess && isAddOpen && <AddMemberModal onClose={() => setIsAddOpen(false)} onSave={handleAddMember} />}
+      {pendingAdministrativeAction && (
+        <AdministrativeActionModal
+          state={pendingAdministrativeAction}
+          onChange={(value) => setPendingAdministrativeAction((current) => current ? { ...current, value } : current)}
+          onCancel={() => setPendingAdministrativeAction(null)}
+          onConfirm={submitAdministrativeAction}
+        />
+      )}
     </div>
   );
 }
@@ -1180,6 +1222,91 @@ function RegistrationRequestsModal({
               );
             })}
             {!loading && items.length === 0 ? <div className="rounded-[16px] border border-dashed border-hpsr-border bg-white p-6 text-center text-sm text-hpsr-muted">Nenhuma solicitação de cadastro recebida.</div> : null}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function AdministrativeActionModal({
+  state,
+  onChange,
+  onCancel,
+  onConfirm,
+}: {
+  state: PendingAdministrativeAction;
+  onChange: (value: string) => void;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const { member, action, value } = state;
+  const needsLongText = action === "Registrar conduta" || action === "Aplicar advertência" || action === "Ajustar permissões" || action === "Desligar";
+  const fieldLabel = action === "Editar cargo" || action === "Promover"
+    ? "Novo cargo"
+    : action === "Ajustar permissões"
+      ? "Permissões (separadas por ponto e vírgula)"
+      : action === "Desligar"
+        ? "Motivo do desligamento"
+        : action === "Aplicar advertência"
+          ? "Motivo da advertência"
+          : "Conduta administrativa";
+  const description = action === "Promover"
+    ? "Confirme o cargo de promoção para o profissional selecionado."
+    : action === "Editar cargo"
+      ? "Atualize o cargo hospitalar mantendo o histórico administrativo."
+      : action === "Ajustar permissões"
+        ? "Informe as permissões que permanecerão ativas para este perfil."
+        : action === "Desligar"
+          ? "Esta ação remove o profissional da equipe cadastrada e registra o motivo informado."
+          : "Registre a justificativa desta ação para manter o histórico do colaborador atualizado.";
+
+  return (
+    <div className="fixed inset-0 z-[100001] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
+      <button type="button" aria-label="Fechar modal" onClick={onCancel} className="fixed inset-0 bg-[#1f0805]/68 backdrop-blur-md" />
+      <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-[22px] border border-white/55 bg-[#fcf6ee] shadow-[0_32px_100px_rgba(27,10,7,.42)]">
+        <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f7eadc_55%,#f2e3d0_100%)] px-5 py-4 md:px-6 md:py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[.18em] text-hpsr-wineLight">Ação administrativa</p>
+              <h2 className="mt-1 text-2xl font-black text-hpsr-text">{action}</h2>
+              <p className="mt-2 text-sm text-hpsr-muted">{description}</p>
+              <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-black">
+                <span className="rounded-full border border-[#ead7c8] bg-white px-3 py-1 text-hpsr-wine">{member.name}</span>
+                <span className="rounded-full border border-[#ead7c8] bg-white px-3 py-1 text-hpsr-text">Passaporte {member.passport}</span>
+                <span className="rounded-full border border-[#ead7c8] bg-white px-3 py-1 text-hpsr-text">{member.hospitalRole}</span>
+              </div>
+            </div>
+            <button type="button" onClick={onCancel} className="flex h-10 w-10 items-center justify-center rounded-[16px] border border-hpsr-border bg-white/95 text-hpsr-wine transition hover:bg-white"><X size={18} /></button>
+          </div>
+        </div>
+        <div className="p-5 md:p-6">
+          <label className="block">
+            <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">{fieldLabel}</span>
+            {needsLongText ? (
+              <textarea
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                rows={action === "Ajustar permissões" ? 5 : 4}
+                className="min-h-[112px] w-full rounded-[18px] border border-hpsr-border bg-white px-4 py-3 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20"
+                placeholder={action === "Ajustar permissões" ? "Ex.: prontuários; exames; documentos; financeiro" : "Descreva aqui..."}
+              />
+            ) : (
+              <input
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className="h-12 w-full rounded-[18px] border border-hpsr-border bg-white px-4 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20"
+                placeholder="Informe o novo cargo"
+              />
+            )}
+          </label>
+
+          <div className="mt-5 flex flex-wrap justify-end gap-3">
+            <button type="button" onClick={onCancel} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-2.5 text-sm font-black text-hpsr-text transition hover:bg-[#f7f2ea]">Cancelar</button>
+            <button type="button" onClick={onConfirm} className={`rounded-[16px] px-4 py-2.5 text-sm font-black text-white transition ${action === "Desligar" ? "bg-red-700 hover:bg-red-800" : "bg-hpsr-wine hover:bg-hpsr-wineDark"}`}>
+              {action === "Desligar" ? "Confirmar desligamento" : "Salvar ação"}
+            </button>
           </div>
         </div>
       </div>
@@ -1606,6 +1733,11 @@ function ContractStatusPanel({
   contract: NonNullable<ReturnType<typeof getContractInfo>>;
   onAction: (member: TeamMember, action: string) => void;
 }) {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
+  const isDevUser = currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema";
+  const isDirectorUser = isDevUser || currentUserProfile.role === "Diretora";
+  const isViceDirectorOrAboveUser = isDevUser || administrativeRoles.includes(currentUserProfile.role);
+  const hasTeamAdminAccess = isDevUser || administrativeRoles.includes(currentUserProfile.role);
   return (
     <section className={`rounded-[16px] border p-3.5 ${contractToneClasses(contract.tone)}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1662,6 +1794,11 @@ function ContractAlertCard({
   member: TeamMember;
   contract: NonNullable<ReturnType<typeof getContractInfo>>;
 }) {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
+  const isDevUser = currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema";
+  const isDirectorUser = isDevUser || currentUserProfile.role === "Diretora";
+  const isViceDirectorOrAboveUser = isDevUser || administrativeRoles.includes(currentUserProfile.role);
+  const hasTeamAdminAccess = isDevUser || administrativeRoles.includes(currentUserProfile.role);
   const danger = contract.tone === "danger";
 
   return (
@@ -1766,6 +1903,11 @@ function PracticalMetric({ label, value }: { label: string; value: string }) {
 }
 
 function TeamMemberExpandedContent({ member, onContractAction, onAdministrativeAction }: { member: TeamMember; onContractAction: (member: TeamMember, action: string) => void; onAdministrativeAction: (member: TeamMember, action: string) => void }) {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
+  const isDevUser = currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema";
+  const isDirectorUser = isDevUser || currentUserProfile.role === "Diretora";
+  const isViceDirectorOrAboveUser = isDevUser || administrativeRoles.includes(currentUserProfile.role);
+  const hasTeamAdminAccess = isDevUser || administrativeRoles.includes(currentUserProfile.role);
   return (
     <div className="grid gap-3 xl:grid-cols-[minmax(0,1.15fr)_minmax(300px,0.85fr)]">
       <div className="grid gap-3">
@@ -1863,6 +2005,11 @@ function ClinicalActivityPanel({ member }: { member: TeamMember }) {
 }
 
 function TeamMemberPanel({ member }: { member: TeamMember }) {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
+  const isDevUser = currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema";
+  const isDirectorUser = isDevUser || currentUserProfile.role === "Diretora";
+  const isViceDirectorOrAboveUser = isDevUser || administrativeRoles.includes(currentUserProfile.role);
+  const hasTeamAdminAccess = isDevUser || administrativeRoles.includes(currentUserProfile.role);
   return (
     <div className="min-w-0 overflow-hidden rounded-[16px] border border-hpsr-border bg-white">
       <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-3.5">
@@ -1992,7 +2139,7 @@ function AddMemberModal({
     event.preventDefault();
 
     if (!form.name.trim() || !form.passport.trim() || !form.hospitalRole.trim()) {
-      alert("Informe nome, passaporte e cargo.");
+      void hpsrAlert("Informe nome, passaporte e cargo.", "Dados incompletos");
       return;
     }
 

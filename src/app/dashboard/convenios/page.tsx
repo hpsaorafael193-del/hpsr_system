@@ -1,8 +1,9 @@
 "use client";
 
-import { currentUserProfile } from "@/data/current-user-profile";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { registerSystemActivity, saveFinancialPlanEntry } from "@/lib/administrative-storage";
 import { useMemo, useState, type ReactNode } from "react";
+import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 import {
   BadgePercent,
   CalendarCheck2,
@@ -228,6 +229,7 @@ function normalizeExpiredPlans(plansList: Patient[]) {
 }
 
 export default function InsurancePage() {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
   const [passport, setPassport] = useState("");
   const [searchedPassport, setSearchedPassport] = useState("");
   const [modal, setModal] = useState<ModalState>(null);
@@ -269,7 +271,7 @@ export default function InsurancePage() {
       .filter((item) => isPassportInActivePlan(insurancePlans, item));
 
     if (duplicatedPassports.length > 0) {
-      alert(`Não foi possível salvar. Passaporte já vinculado a plano ativo: ${duplicatedPassports.join(", ")}`);
+      void hpsrAlert(`Não foi possível salvar. Passaporte já vinculado a plano ativo: ${duplicatedPassports.join(", ")}`, "Passaporte já vinculado");
       return;
     }
 
@@ -738,7 +740,7 @@ function RegisterPlanForm({
 
   function handleSave() {
     if (!draft.name.trim() || !draft.passport.trim()) {
-      alert("Informe nome e passaporte do titular.");
+      void hpsrAlert("Informe nome e passaporte do titular.", "Dados do titular");
       return;
     }
 
@@ -748,12 +750,12 @@ function RegisterPlanForm({
       .filter((passport, index, list) => list.indexOf(passport) !== index);
 
     if (draft.dependents.some((dependent) => dependent.passport.trim() === draft.passport.trim())) {
-      alert("O titular não pode ser cadastrado como dependente do próprio plano.");
+      void hpsrAlert("O titular não pode ser cadastrado como dependente do próprio plano.", "Vínculo inválido");
       return;
     }
 
     if (duplicatedInForm.length > 0) {
-      alert("Há dependentes repetidos neste cadastro.");
+      void hpsrAlert("Há dependentes repetidos neste cadastro.", "Dependentes duplicados");
       return;
     }
 
@@ -763,7 +765,7 @@ function RegisterPlanForm({
       .filter((item) => isPassportInActivePlan(insurancePlans, item));
 
     if (duplicatedPassports.length > 0) {
-      alert(`Não foi possível salvar. Passaporte já vinculado a plano ativo: ${duplicatedPassports.join(", ")}`);
+      void hpsrAlert(`Não foi possível salvar. Passaporte já vinculado a plano ativo: ${duplicatedPassports.join(", ")}`, "Passaporte já vinculado");
       return;
     }
 
@@ -1025,7 +1027,7 @@ function ManagePlans({
         .filter((item) => isPassportInActivePlan(insurancePlans, item, updatedPatient.id));
 
       if (duplicatedPassports.length > 0) {
-        alert(`Não foi possível salvar. Passaporte já vinculado a plano ativo: ${duplicatedPassports.join(", ")}`);
+        void hpsrAlert(`Não foi possível salvar. Passaporte já vinculado a plano ativo: ${duplicatedPassports.join(", ")}`, "Passaporte já vinculado");
         return;
       }
     }
@@ -1040,12 +1042,12 @@ function ManagePlans({
 
   function handleRenewPatient(patientToRenew: Patient) {
     if (patientToRenew.status !== "Ativo") {
-      alert("Plano encerrado não pode ser renovado. Crie um novo plano usando estes dados.");
+      void hpsrAlert("Plano encerrado não pode ser renovado. Crie um novo plano usando estes dados.", "Plano encerrado");
       return;
     }
 
     if (!isWithinRenewalWindow(patientToRenew)) {
-      alert("Renovação liberada apenas quando faltarem 7 dias ou menos para o vencimento.");
+      void hpsrAlert("Renovação liberada apenas quando faltarem 7 dias ou menos para o vencimento.", "Renovação indisponível");
       return;
     }
 
@@ -1263,12 +1265,12 @@ function EditPlanForm({
 
   function handleSave() {
     if (!form.name.trim() || !form.passport.trim()) {
-      alert("Informe nome e passaporte do titular.");
+      void hpsrAlert("Informe nome e passaporte do titular.", "Dados do titular");
       return;
     }
 
     if (form.dependentsList.length > dependentLimit) {
-      alert(`Este plano permite até ${dependentLimit} dependente${dependentLimit === 1 ? "" : "s"}.`);
+      void hpsrAlert(`Este plano permite até ${dependentLimit} dependente${dependentLimit === 1 ? "" : "s"}.`, "Limite de dependentes");
       return;
     }
 
@@ -1276,13 +1278,13 @@ function EditPlanForm({
       (dependent) => !dependent.name.trim() || !dependent.passport.trim()
     );
     if (incompleteDependent) {
-      alert("Preencha nome e passaporte de todos os dependentes ou remova os campos vazios.");
+      void hpsrAlert("Preencha nome e passaporte de todos os dependentes ou remova os campos vazios.", "Dependentes incompletos");
       return;
     }
 
     const dependentPassports = form.dependentsList.map((dependent) => dependent.passport.trim());
     if (dependentPassports.includes(form.passport.trim())) {
-      alert("O titular não pode ser cadastrado como dependente do próprio plano.");
+      void hpsrAlert("O titular não pode ser cadastrado como dependente do próprio plano.", "Vínculo inválido");
       return;
     }
 
@@ -1290,7 +1292,7 @@ function EditPlanForm({
       (passport, index, list) => passport && list.indexOf(passport) !== index
     );
     if (duplicatedDependents.length > 0) {
-      alert("Há dependentes repetidos neste vínculo.");
+      void hpsrAlert("Há dependentes repetidos neste vínculo.", "Dependentes duplicados");
       return;
     }
 

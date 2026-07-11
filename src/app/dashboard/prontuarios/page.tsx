@@ -21,7 +21,8 @@ import {
   X,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import { currentUserProfile } from "@/data/current-user-profile";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 
 type RecordTab = "geral" | "timeline" | "consultas" | "exames" | "prescricoes" | "procedimentos" | "observacoes";
 
@@ -101,6 +102,7 @@ function eventIcon(type: TimelineEvent["type"]) {
 }
 
 export default function RecordsPage() {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
   const [patients, setPatients] = useState<PatientRecord[]>(initialPatients);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>(initialTimelineEvents);
   const [searchTerm, setSearchTerm] = useState("");
@@ -430,6 +432,7 @@ function CreateRecordModal({
     recordSummary: string;
   }) => void;
 }) {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
   const [form, setForm] = useState({
     name: "",
     passport: "",
@@ -450,12 +453,12 @@ function CreateRecordModal({
     event.preventDefault();
 
     if (!form.name.trim() || !form.passport.trim() || !form.age.trim() || !form.bloodType.trim()) {
-      alert("Informe nome, passaporte, idade e tipo sanguíneo do paciente.");
+      void hpsrAlert("Informe nome, passaporte, idade e tipo sanguíneo do paciente.", "Dados do paciente");
       return;
     }
 
     if (!form.recordTitle.trim() || !form.recordSummary.trim()) {
-      alert("Informe o título e o registro do prontuário médico.");
+      void hpsrAlert("Informe o título e o registro do prontuário médico.", "Prontuário incompleto");
       return;
     }
 

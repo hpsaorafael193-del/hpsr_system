@@ -5,15 +5,16 @@ import Link from "next/link";
 import { useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 import { adminNavigation, mainNavigation, toolsNavigation } from "@/data/navigation";
-import { currentUserProfile } from "@/data/current-user-profile";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 
 export function MobileSidebar() {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
   const [open, setOpen] = useState(false);
   const canSeeTeamAdmin =
     currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema" ||
     ["Diretora", "Vice Diretor", "Diretor Clínico"].includes(currentUserProfile.role);
   const visibleAdminNavigation = canSeeTeamAdmin ? adminNavigation : [];
-  const visibleToolsNavigation = toolsNavigation.filter(canSeeNavigationItem);
+  const visibleToolsNavigation = toolsNavigation.filter((item) => canSeeNavigationItem(item, currentUserProfile.role));
   const groups = [
     { title: "Principal", items: mainNavigation },
     { title: "Ferramentas", items: visibleToolsNavigation },
@@ -106,6 +107,6 @@ export function MobileSidebar() {
 }
 
 
-function canSeeNavigationItem(item: any) {
-  return !Array.isArray(item.hideForRoles) || !item.hideForRoles.includes(currentUserProfile.role);
+function canSeeNavigationItem(item: any, role: string) {
+  return !Array.isArray(item.hideForRoles) || !item.hideForRoles.includes(role);
 }
