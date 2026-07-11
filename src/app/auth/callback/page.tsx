@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PublicShell } from "@/components/public/PublicShell";
 import { createClient } from "@/lib/supabase";
 
-export default function AuthCallbackPage() {
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [message, setMessage] = useState("Validando acesso com Google...");
@@ -82,5 +82,14 @@ export default function AuthCallbackPage() {
         </div>
       </section>
     </PublicShell>
+  );
+}
+
+
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={<div className="grid min-h-screen place-items-center">Processando autenticação...</div>}>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }

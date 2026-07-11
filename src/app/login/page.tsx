@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PublicShell } from "@/components/public/PublicShell";
 import { FormField, inputClass } from "@/components/ui/FormField";
@@ -37,7 +37,7 @@ const initialForm = {
   requestedRole: "Médico Clínico",
 };
 
-export default function LoginPage() {
+function LoginContent() {
   const searchParams = useSearchParams();
   const [register, setRegister] = useState(searchParams.get("google") === "register" || searchParams.get("register") === "1");
   const [message, setMessage] = useState("");
@@ -227,5 +227,14 @@ export default function LoginPage() {
         )}
       </section>
     </PublicShell>
+  );
+}
+
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="grid min-h-screen place-items-center">Carregando...</div>}>
+      <LoginContent />
+    </Suspense>
   );
 }
