@@ -1,0 +1,50 @@
+{
+  "braco_antebraco": [
+    "braco_antebraco_fratura_radio_ulna.jpg",
+    "braco_antebraco_luxacao_cotovelo_lateral_leve.jpg",
+    "braco_antebraco_normal.jpg",
+    "braco_antebraco_trauma.jpg"
+  ],
+  "coluna": [
+    "coluna_fratura_vertebral_frontal.jpg",
+    "coluna_luxacao_desalinhamento_frontal.jpg",
+    "coluna_normal_frontal.jpg",
+    "coluna_trauma_frontal.jpg"
+  ],
+  "cranio": [
+    "cranio_fratura_craniana.jpg",
+    "cranio_luxacao_temporomandibular_mandibula.jpg",
+    "cranio_normal.jpg",
+    "cranio_trauma.jpg"
+  ],
+  "joelho": [
+    "joelho_fratura_plato_tibial.jpg",
+    "joelho_luxacao_patelar.jpg",
+    "joelho_normal.jpg",
+    "joelho_trauma.jpg"
+  ],
+  "ombro": [
+    "ombro_fratura_umero_proximal.jpg",
+    "ombro_luxacao_glenoumeral.jpg",
+    "ombro_normal.jpg",
+    "ombro_trauma.jpg"
+  ],
+  "pe": [
+    "pe_fratura_metatarsos.jpg",
+    "pe_luxacao_desalinhamento.jpg",
+    "pe_normal.jpg",
+    "pe_trauma.jpg"
+  ],
+  "perna_coxa_canela": [
+    "perna_fratura_femur.jpg",
+    "perna_fratura_tibia_fibula.jpg",
+    "perna_normal.jpg",
+    "perna_trauma.jpg"
+  ],
+  "torax": [
+    "torax_fratura_multiplas_costelas.jpg",
+    "torax_normal.jpg",
+    "torax_pneumotorax_traumatico.jpg",
+    "torax_trauma.jpg"
+  ]
+}
