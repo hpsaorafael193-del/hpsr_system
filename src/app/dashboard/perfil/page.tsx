@@ -17,10 +17,13 @@ import {
   Stethoscope,
   Upload,
   UserRound,
+  KeyRound,
 } from "lucide-react";
-import { profileDocuments, profileHistory } from "@/data/current-user-profile";
+import { profileDocuments } from "@/data/current-user-profile";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
+import { createClient } from "@/lib/supabase";
+import { readSystemActivities, registerSystemActivity, type SystemActivity } from "@/lib/administrative-storage";
 
 type EditableProfile = {
   characterName: string;
@@ -54,6 +57,10 @@ export default function PerfilPage() {
   const [profile, setProfile] = useState<EditableProfile>(initialEditableProfile);
   const [saveMessage, setSaveMessage] = useState("");
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
+  const [activities, setActivities] = useState<SystemActivity[]>([]);
+  const [passwordForm, setPasswordForm] = useState({ current: "", next: "", confirm: "" });
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [showPasswords, setShowPasswords] = useState(false);
 
   useEffect(() => {
     const storedStatus = localStorage.getItem(statusStorageKey);
@@ -75,6 +82,51 @@ export default function PerfilPage() {
     });
     setServiceStatus(currentUserProfile.serviceStatus);
   }, [currentUserProfile]);
+
+  useEffect(() => {
+    const local = readSystemActivities().filter((item) =>
+      item.actor === currentUserProfile.systemName ||
+      item.actor === currentUserProfile.characterName ||
+      item.reference === currentUserProfile.passport
+    );
+    setActivities(local);
+    const client = createClient();
+    if (!client) return;
+    void client.from("system_activities").select("id,module,action,description,actor,reference,created_at").or(`actor.eq.${currentUserProfile.systemName},reference.eq.${currentUserProfile.passport}`).order("created_at", { ascending: false }).limit(100).then(({ data }) => {
+      if (!data) return;
+      setActivities(data.map((row: any) => ({ id: row.id, module: row.module, action: row.action, description: row.description, actor: row.actor, reference: row.reference, createdAt: row.created_at })));
+    });
+  }, [currentUserProfile.systemName, currentUserProfile.characterName, currentUserProfile.passport]);
+
+  async function toggleServiceStatus() {
+    const next = serviceStatus === "Em serviço" ? "Fora de serviço" : "Em serviço";
+    const result = await persistProfile({ serviceStatus: next });
+    if (!result.ok) { setSaveMessage(result.error || "Não foi possível alterar o status."); return; }
+    setServiceStatus(next);
+    localStorage.setItem(statusStorageKey, next);
+    registerSystemActivity({ module: "Perfil", action: "Status alterado", description: `Status alterado para ${next}.`, actor: currentUserProfile.systemName, reference: currentUserProfile.passport });
+    setSaveMessage(`Status alterado para ${next}.`);
+  }
+
+  async function changePassword() {
+    setPasswordMessage("");
+    if (!passwordForm.current || passwordForm.next.length < 8 || passwordForm.next !== passwordForm.confirm) {
+      setPasswordMessage("Confira a senha atual. A nova senha deve ter 8 caracteres e coincidir com a confirmação.");
+      return;
+    }
+    const client = createClient();
+    if (!client) { setPasswordMessage("Supabase não configurado."); return; }
+    const { data: sessionData } = await client.auth.getSession();
+    const email = sessionData.session?.user.email;
+    if (!email) { setPasswordMessage("Sessão não encontrada."); return; }
+    const { error: verifyError } = await client.auth.signInWithPassword({ email, password: passwordForm.current });
+    if (verifyError) { setPasswordMessage("Senha atual incorreta."); return; }
+    const { error } = await client.auth.updateUser({ password: passwordForm.next });
+    if (error) { setPasswordMessage(error.message); return; }
+    setPasswordForm({ current: "", next: "", confirm: "" });
+    setPasswordMessage("Senha alterada com sucesso.");
+    registerSystemActivity({ module: "Perfil", action: "Senha alterada", description: "A senha de acesso foi atualizada pelo próprio usuário.", actor: currentUserProfile.systemName, reference: currentUserProfile.passport });
+  }
 
   const isInService = serviceStatus === "Em serviço";
 
@@ -168,6 +220,10 @@ export default function PerfilPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={toggleServiceStatus} className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-white/20 bg-white px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:bg-[#fff8f0]">
+                    <Circle size={10} className={isInService ? "fill-orange-500 text-orange-500" : "fill-emerald-600 text-emerald-600"} />
+                    {isInService ? "Ficar fora de serviço" : "Entrar em serviço"}
+                  </button>
                   <button
                     type="button"
                     onClick={() => setEditing((value) => !value)}
@@ -338,6 +394,16 @@ export default function PerfilPage() {
           </section>
 
           <section className="rounded-[24px] border border-hpsr-border bg-white/[0.86] p-3.5">
+            <div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[#f7f2ea] text-hpsr-wine"><KeyRound size={18} /></div><div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Segurança</p><h2 className="text-xl font-black text-hpsr-text">Alterar senha</h2></div></div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <ProfileInput label="Senha atual" value={passwordForm.current} type={showPasswords ? "text" : "password"} onChange={(value) => setPasswordForm((current) => ({ ...current, current: value }))} />
+              <ProfileInput label="Nova senha" value={passwordForm.next} type={showPasswords ? "text" : "password"} onChange={(value) => setPasswordForm((current) => ({ ...current, next: value }))} />
+              <ProfileInput label="Confirmar nova senha" value={passwordForm.confirm} type={showPasswords ? "text" : "password"} onChange={(value) => setPasswordForm((current) => ({ ...current, confirm: value }))} />
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-3"><button type="button" onClick={() => setShowPasswords((v) => !v)} className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">{showPasswords ? "Ocultar senhas" : "Mostrar senhas"}</button><button type="button" onClick={changePassword} className="rounded-[14px] bg-hpsr-wine px-4 py-2 text-xs font-black text-white">Salvar nova senha</button>{passwordMessage && <span className="text-xs font-bold text-hpsr-muted">{passwordMessage}</span>}</div>
+          </section>
+
+          <section className="rounded-[24px] border border-hpsr-border bg-white/[0.86] p-3.5">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[#f7f2ea] text-hpsr-wine">
                 <FileText size={18} />
@@ -348,14 +414,44 @@ export default function PerfilPage() {
               </div>
             </div>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {profileHistory.map((item) => (
-                <div key={item.title} className="rounded-[16px] border border-hpsr-border bg-[#fcf6ee] p-3">
-                  <p className="text-sm font-black text-hpsr-text">{item.title}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">{item.description}</p>
-                  <p className="mt-2 text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{item.date}</p>
-                </div>
-              ))}
+            <div className="mt-4 max-h-[420px] overflow-y-auto pr-2 [scrollbar-color:#7a2f1b_#f3e8dc] [scrollbar-width:thin]">
+              <div className="space-y-2">
+                {activities.map((item) => (
+                  <details key={item.id} className="group overflow-hidden rounded-[14px] border border-hpsr-border bg-[#fcf6ee] open:bg-white">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 marker:hidden">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-hpsr-text">{item.action}</p>
+                        <p className="mt-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">
+                          {item.module} · {new Date(item.createdAt).toLocaleString("pt-BR")}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-wine transition group-open:bg-hpsr-wine group-open:text-white">
+                        Detalhes
+                      </span>
+                    </summary>
+
+                    <div className="border-t border-hpsr-border bg-white px-3 py-3">
+                      <p className="text-xs font-semibold leading-relaxed text-hpsr-muted">{item.description}</p>
+                      <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                        <div className="rounded-[12px] bg-[#fcf6ee] px-3 py-2">
+                          <dt className="text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">Responsável</dt>
+                          <dd className="mt-1 font-bold text-hpsr-text">{item.actor || "Não informado"}</dd>
+                        </div>
+                        <div className="rounded-[12px] bg-[#fcf6ee] px-3 py-2">
+                          <dt className="text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">Referência</dt>
+                          <dd className="mt-1 break-words font-bold text-hpsr-text">{item.reference || "Sem referência"}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </details>
+                ))}
+
+                {activities.length === 0 && (
+                  <div className="rounded-[16px] border border-dashed border-hpsr-border bg-[#fcf6ee] p-5 text-sm font-semibold text-hpsr-muted">
+                    Nenhuma atividade registrada para este médico.
+                  </div>
+                )}
+              </div>
             </div>
           </section>
         </div>
@@ -368,15 +464,17 @@ function ProfileInput({
   label,
   value,
   onChange,
+  type = "text",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  type?: string;
 }) {
   return (
     <label className="block">
       <span className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{label}</span>
-      <input className={`${inputClass} mt-1.5`} value={value} onChange={(event) => onChange(event.target.value)} />
+      <input type={type} className={`${inputClass} mt-1.5`} value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }

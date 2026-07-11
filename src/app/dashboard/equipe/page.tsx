@@ -431,7 +431,7 @@ export default function TeamPage() {
         discord: String(payload.discord || ""),
         crm: String(payload.crm || ""),
         specialty: String(payload.specialty || "Clínico Geral"),
-        requestedRole: String(payload.requestedRole || row.requested_role || "Médico Clínico"),
+        requestedRole: String(payload.requestedRole || row.requested_role || "Estagiário de Enfermagem"),
         createdAt: String(payload.createdAt || row.created_at || new Date().toISOString()),
         status: (row.status === "Aprovado" || row.status === "Recusado" ? row.status : "Pendente") as StaffRegistrationRequest["status"],
       };
@@ -619,7 +619,7 @@ export default function TeamPage() {
     }
 
     if (decision === "Aprovado" && !members.some((member) => member.passport === request.passport)) {
-      const role = request.requestedRole || "Médico Clínico";
+      const role = request.requestedRole || "Estagiário de Enfermagem";
       const newMember: TeamMember = {
         id: request.authUserId || `member-${Date.now()}`,
         name: request.name,
@@ -1292,13 +1292,12 @@ function AdministrativeActionModal({
                 className="min-h-[112px] w-full rounded-[18px] border border-hpsr-border bg-white px-4 py-3 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20"
                 placeholder={action === "Ajustar permissões" ? "Ex.: prontuários; exames; documentos; financeiro" : "Descreva aqui..."}
               />
+            ) : action === "Editar cargo" || action === "Promover" ? (
+              <select value={value} onChange={(event) => onChange(event.target.value)} className="h-12 w-full rounded-[18px] border border-hpsr-border bg-white px-4 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20">
+                {roles.map((role) => <option key={role} value={role}>{role}</option>)}
+              </select>
             ) : (
-              <input
-                value={value}
-                onChange={(event) => onChange(event.target.value)}
-                className="h-12 w-full rounded-[18px] border border-hpsr-border bg-white px-4 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20"
-                placeholder="Informe o novo cargo"
-              />
+              <input value={value} onChange={(event) => onChange(event.target.value)} className="h-12 w-full rounded-[18px] border border-hpsr-border bg-white px-4 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20" placeholder="Informe o valor" />
             )}
           </label>
 
@@ -2244,8 +2243,12 @@ function AddMemberModal({
                       <option value="Dev / Desenvolvedor do Sistema">Dev / Desenvolvedor do Sistema</option>
                     </select>
                   </ModalField>
-                  <ModalField label="Especialidade">
-                    <input className={modalInputClass} value={form.specialty} onChange={(event) => updateField("specialty", event.target.value)} placeholder="Ex.: Obstetra" />
+                  <ModalField label="Especialidades">
+                    <input list="hpsr-specialties" className={modalInputClass} value={form.specialty} onChange={(event) => updateField("specialty", event.target.value)} placeholder="Selecione ou informe; separe múltiplas por vírgula" />
+                    <datalist id="hpsr-specialties">
+                      {["Clínico Geral", "Cardiologia", "Cirurgia Geral", "Obstetrícia", "Pediatria", "Ortopedia", "Neurologia", "Psiquiatria", "Enfermagem", "Radiologia", "Nutrição"].map((item) => <option key={item} value={item} />)}
+                    </datalist>
+                    <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">É possível atribuir mais de uma especialidade separando por vírgulas.</p>
                   </ModalField>
                 </div>
               </section>

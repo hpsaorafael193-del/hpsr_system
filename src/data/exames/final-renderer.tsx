@@ -63,8 +63,8 @@ type ClinicalBlock = {
   weight: number;
 };
 
-const FIRST_PAGE_CAPACITY = 650;
-const CONTINUATION_PAGE_CAPACITY = 830;
+const FIRST_PAGE_CAPACITY = 680;
+const CONTINUATION_PAGE_CAPACITY = 850;
 
 function textOnly(html: string) {
   return html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
@@ -182,11 +182,31 @@ function splitLongTable(tableHtml: string) {
   const thead = tableHtml.match(/<thead[\s\S]*?<\/thead>/i)?.[0] || "";
   const tbody = tableHtml.match(/<tbody[\s\S]*?<\/tbody>/i)?.[0] || "";
   const rows = tbody.match(/<tr[\s\S]*?<\/tr>/gi) || [];
-  if (rows.length <= 22) return [tableHtml];
+  if (!rows.length) return [tableHtml];
+
+  // Tabelas são divididas em blocos menores para aproveitar o espaço restante
+  // da página atual. Antes, uma tabela inteira era empurrada para a página
+  // seguinte, mesmo quando ainda havia quase meia página disponível.
+  const rowsPerChunk = 5;
+  if (rows.length <= rowsPerChunk) return [tableHtml];
 
   const chunks: string[] = [];
-  for (let index = 0; index < rows.length; index += 18) {
-    chunks.push(`<table>${thead}<tbody>${rows.slice(index, index + 18).join("")}</tbody></table>`);
+  for (let index = 0; index < rows.length; index += rowsPerChunk) {
+    chunks.push(`<table>${thead}<tbody>${rows.slice(index, index + rowsPerChunk).join("")}</tbody></table>`);
+  }
+  return chunks;
+}
+
+function splitLongList(listHtml: string) {
+  const opening = listHtml.match(/^<(ul|ol)[^>]*>/i)?.[0];
+  const tag = listHtml.match(/^<(ul|ol)[\s>]/i)?.[1]?.toLowerCase();
+  const items = listHtml.match(/<li[\s\S]*?<\/li>/gi) || [];
+  if (!opening || !tag || items.length <= 7) return [listHtml];
+
+  const chunks: string[] = [];
+  for (let index = 0; index < items.length; index += 7) {
+    const start = tag === "ol" && index > 0 ? ` start="${index + 1}"` : "";
+    chunks.push(`<${tag}${start}>${items.slice(index, index + 7).join("")}</${tag}>`);
   }
   return chunks;
 }
@@ -196,7 +216,11 @@ function parseClinicalBlocks(html: string) {
   if (!clean) return [] as ClinicalBlock[];
   const raw = clean.match(/<(h[1-3]|p|table|ul|ol|blockquote|div)[^>]*>[\s\S]*?<\/\1>|<hr[^>]*>/gi) || [clean];
   return raw
-    .flatMap((block) => /^<table[\s>]/i.test(block) ? splitLongTable(block) : [block])
+    .flatMap((block) => {
+      if (/^<table[\s>]/i.test(block)) return splitLongTable(block);
+      if (/^<(ul|ol)[\s>]/i.test(block)) return splitLongList(block);
+      return [block];
+    })
     .filter((block) => textOnly(block) || /<(table|br|hr)[\s>]/i.test(block))
     .map((block) => ({ html: block, kind: blockKind(block), weight: estimateBlockWeight(block) }));
 }

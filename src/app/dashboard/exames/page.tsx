@@ -54,6 +54,7 @@ import {
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { createClient } from "@/lib/supabase";
+import { registerSystemActivity } from "@/lib/administrative-storage";
 import {
   createInitialAdaptiveConfiguration,
   renderAdaptiveExamReport,
@@ -676,16 +677,14 @@ export default function ExamesPage() {
     name: currentUserProfile.signatureName || currentUserProfile.characterName || currentUserProfile.systemName || "",
     crm: currentUserProfile.crm || "",
   };
-  const availableDoctors: DoctorOption[] = [
-    {
-      id: "current-user",
-      name: initialDoctor.name,
-      crm: initialDoctor.crm,
-      role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico",
-      specialty: currentUserProfile.specialty || "Clínico Geral",
-      signatureStorageKey: "hpsr-profile-signature-png",
-    },
-  ];
+  const [availableDoctors, setAvailableDoctors] = useState<DoctorOption[]>([{
+    id: "current-user",
+    name: initialDoctor.name,
+    crm: initialDoctor.crm,
+    role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico",
+    specialty: currentUserProfile.specialty || "Clínico Geral",
+    signatureStorageKey: "hpsr-profile-signature-png",
+  }]);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const editorHtmlRef = useRef("");
@@ -705,7 +704,15 @@ export default function ExamesPage() {
 
   useEffect(() => {
     setDoctor(initialDoctor);
-  }, [currentUserProfile.characterName, currentUserProfile.crm, currentUserProfile.signatureName, currentUserProfile.systemName]);
+    const currentOption: DoctorOption = { id: "current-user", name: initialDoctor.name, crm: initialDoctor.crm, role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico", specialty: currentUserProfile.specialty || "Clínico Geral", signatureStorageKey: "hpsr-profile-signature-png" };
+    const client = createClient();
+    if (!client) { setAvailableDoctors([currentOption]); return; }
+    void client.from("profiles").select("id,name,crm,role,specialty,signature_path").eq("access_status", "Aprovado").order("name").then(({ data }) => {
+      const options = (data || []).map((row: any) => ({ id: row.id, name: row.name || "Médico", crm: row.crm || "—", role: row.role || "Médico", specialty: row.specialty || "Não informado", signatureImage: row.signature_path || null }));
+      const withoutDuplicate = options.filter((item: DoctorOption) => item.name !== currentOption.name || item.crm !== currentOption.crm);
+      setAvailableDoctors([currentOption, ...withoutDuplicate]);
+    });
+  }, [currentUserProfile.characterName, currentUserProfile.crm, currentUserProfile.signatureName, currentUserProfile.systemName, currentUserProfile.role, currentUserProfile.specialty, currentUserProfile.signatureRole]);
   const [selectedCategory, setSelectedCategory] =
     useState<string>("laboratorio");
   const [selectedExamId, setSelectedExamId] = useState<string>(
@@ -1455,6 +1462,8 @@ export default function ExamesPage() {
       setSaveStatus(`Salvo às ${time}`);
       setPreviewImage(null);
       setPreview({ open: true, document, pageIndex: 0 });
+      registerSystemActivity({ module: "Exames", action: "Exame salvo", description: `${metadata.examName} salvo para ${patient.name || "paciente não informado"}.`, actor: currentUserProfile.systemName, reference: currentUserProfile.passport });
+      registerSystemActivity({ module: "Exames", action: "Exame salvo", description: `${metadata.examName} salvo para ${patient.name || "paciente não informado"}.`, actor: currentUserProfile.systemName, reference: currentUserProfile.passport });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erro desconhecido ao salvar o exame.";
       setSaveStatus("Falha ao salvar");

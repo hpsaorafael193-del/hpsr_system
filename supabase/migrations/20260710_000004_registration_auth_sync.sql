@@ -8,7 +8,7 @@ set search_path = public
 as $$
 declare
   request_id text := coalesce(new.raw_user_meta_data->>'registrationRequestId', 'staff-' || replace(new.id::text, '-', ''));
-  requested_role text := coalesce(nullif(new.raw_user_meta_data->>'requestedRole', ''), 'Médico Clínico');
+  requested_role text := coalesce(nullif(new.raw_user_meta_data->>'requestedRole', ''), 'Estagiário de Enfermagem');
   payload jsonb;
 begin
   payload := jsonb_build_object(

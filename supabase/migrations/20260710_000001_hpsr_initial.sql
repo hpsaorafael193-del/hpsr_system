@@ -5,7 +5,7 @@ create table if not exists public.profiles (
   name text not null,
   passport text unique,
   crm text,
-  role text not null default 'Médico Clínico',
+  role text not null default 'Estagiário de Enfermagem',
   specialty text,
   city_phone text,
   discord text,

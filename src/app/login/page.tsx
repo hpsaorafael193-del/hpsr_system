@@ -4,7 +4,6 @@ import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PublicShell } from "@/components/public/PublicShell";
 import { FormField, inputClass } from "@/components/ui/FormField";
-import { GoogleAuthButton } from "@/components/ui/GoogleAuthButton";
 import { registerSystemActivity } from "@/lib/administrative-storage";
 import { mirrorRecord } from "@/lib/data-bridge";
 import { createClient } from "@/lib/supabase";
@@ -35,7 +34,7 @@ const initialForm = {
   discord: "",
   crm: "",
   specialty: "Clínico Geral",
-  requestedRole: "Médico Clínico",
+  requestedRole: "Estagiário de Enfermagem",
 };
 
 function LoginContent() {
@@ -49,29 +48,17 @@ function LoginContent() {
   const [loginPassword, setLoginPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [rememberConnected, setRememberConnected] = useState(true);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [rememberEmail, setRememberEmail] = useState(true);
 
   useEffect(() => {
     const authState = searchParams.get("auth");
     if (authState === "pending") setMessage("Seu cadastro ainda aguarda aprovação da administração.");
     if (authState === "rejected") setMessage("Seu cadastro foi recusado pela administração.");
     if (authState === "required") setMessage("Entre com uma conta liberada para acessar o dashboard.");
-
-    if (searchParams.get("google") !== "register") return;
-    const client = createClient();
-    if (!client) return;
-
-    void client.auth.getUser().then(({ data }) => {
-      const user = data.user;
-      if (!user) return;
-      setAuthUserId(user.id);
-      setRegister(true);
-      setForm((current) => ({
-        ...current,
-        name: current.name || user.user_metadata?.full_name || user.user_metadata?.name || "",
-        email: current.email || user.email || "",
-      }));
-      setMessage("Conta Google validada. Complete os dados profissionais para enviar o cadastro à administração.");
-    });
+    const savedEmail = localStorage.getItem("hpsr-saved-login-email") || "";
+    if (savedEmail) setLoginEmail(savedEmail);
   }, [searchParams]);
 
   const update = (field: keyof typeof form, value: string) => setForm((current) => ({ ...current, [field]: value }));
@@ -92,7 +79,9 @@ function LoginContent() {
       setBusy(false);
       return;
     }
-    setLoginPersistence(rememberConnected);
+    setLoginPersistence(true);
+    if (rememberEmail) localStorage.setItem("hpsr-saved-login-email", loginEmail.trim());
+    else localStorage.removeItem("hpsr-saved-login-email");
     window.location.href = "/dashboard";
   }
 
@@ -157,7 +146,7 @@ function LoginContent() {
     registerSystemActivity({
       module: "Cadastros médicos",
       action: "Nova solicitação",
-      description: `${item.name} solicitou acesso como ${item.requestedRole}${item.authUserId ? " usando uma conta Google" : ""}.`,
+      description: `${item.name} solicitou acesso como ${item.requestedRole}.`,
       actor: item.name,
       reference: item.passport,
     });
@@ -190,18 +179,17 @@ function LoginContent() {
 
         {!register ? (
           <form onSubmit={handleLogin} className="hpsr-public-card p-4 shadow-soft">
-            <GoogleAuthButton mode="login" rememberConnected={rememberConnected} onError={setMessage} />
-            <div className="my-4 flex items-center gap-3 text-[10px] font-black uppercase tracking-[.14em] text-hpsr-muted">
-              <span className="h-px flex-1 bg-hpsr-border" /> ou use as credenciais <span className="h-px flex-1 bg-hpsr-border" />
-            </div>
             <div className="space-y-4">
               <FormField label="E-mail institucional"><input className={inputClass} type="email" value={loginEmail} onChange={(e)=>setLoginEmail(e.target.value)} /></FormField>
-              <FormField label="Senha"><input className={inputClass} type="password" value={loginPassword} onChange={(e)=>setLoginPassword(e.target.value)} /></FormField>
+              <FormField label="Senha"><div className="relative"><input className={`${inputClass} pr-20`} type={showLoginPassword ? "text" : "password"} value={loginPassword} onChange={(e)=>setLoginPassword(e.target.value)} /><button type="button" onClick={() => setShowLoginPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-hpsr-wine">{showLoginPassword ? "Ocultar" : "Mostrar"}</button></div></FormField>
             </div>
-            <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3">
-              <input type="checkbox" checked={rememberConnected} onChange={(event) => setRememberConnected(event.target.checked)} className="mt-0.5 h-4 w-4 accent-hpsr-wine" />
-              <span><span className="block text-sm font-black text-hpsr-text">Manter conectado</span><span className="mt-0.5 block text-xs text-hpsr-muted">Mantém o acesso ativo mesmo depois de fechar e abrir o navegador.</span></span>
-            </label>
+            <div className="mt-4 space-y-2">
+              <label className="flex cursor-pointer items-start gap-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3">
+                <input type="checkbox" checked={rememberEmail} onChange={(event) => setRememberEmail(event.target.checked)} className="mt-0.5 h-4 w-4 accent-hpsr-wine" />
+                <span><span className="block text-sm font-black text-hpsr-text">Salvar e-mail</span><span className="mt-0.5 block text-xs text-hpsr-muted">Preenche automaticamente o e-mail no próximo acesso.</span></span>
+              </label>
+              <div className="rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs font-bold text-emerald-800">A sessão permanecerá ativa ao atualizar, fechar e abrir novamente o navegador.</div>
+            </div>
             {message && <p className="mt-4 rounded-[14px] border border-hpsr-border bg-[#fff8f0] px-3 py-2 text-sm font-semibold">{message}</p>}
             <button disabled={busy} className="mt-6 flex w-full justify-center rounded-[14px] bg-hpsr-wineLight px-4 py-3 font-black text-white disabled:opacity-60">{busy ? "Validando..." : "Entrar no painel"}</button>
           </form>
@@ -209,22 +197,18 @@ function LoginContent() {
           <form onSubmit={submit} className="hpsr-public-card max-h-[78vh] overflow-y-auto p-4 shadow-soft">
             <h2 className="text-xl font-black text-hpsr-text">Solicitar acesso à equipe</h2>
             <p className="mt-1 text-sm text-hpsr-muted">A solicitação será enviada para aprovação administrativa.</p>
-            <div className="mt-4">
-              <GoogleAuthButton mode="register" onError={setMessage} />
-              <p className="mt-2 text-center text-xs text-hpsr-muted">O Google valida sua identidade e preenche nome e e-mail. Os dados profissionais ainda precisam ser informados.</p>
-            </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <FormField label="Nome completo"><input className={inputClass} value={form.name} onChange={(e) => update("name", e.target.value)} /></FormField>
               <FormField label="Passaporte"><input className={inputClass} value={form.passport} onChange={(e) => update("passport", e.target.value)} /></FormField>
               <FormField label="E-mail"><input className={inputClass} type="email" value={form.email} onChange={(e) => update("email", e.target.value)} /></FormField>
-              {!authUserId && <FormField label="Senha"><input className={inputClass} type="password" value={password} onChange={(e)=>setPassword(e.target.value)} /></FormField>}
+              {!authUserId && <FormField label="Senha"><div className="relative"><input className={`${inputClass} pr-20`} type={showRegisterPassword ? "text" : "password"} value={password} onChange={(e)=>setPassword(e.target.value)} /><button type="button" onClick={() => setShowRegisterPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-hpsr-wine">{showRegisterPassword ? "Ocultar" : "Mostrar"}</button></div></FormField>}
               <FormField label="Telefone"><input className={inputClass} value={form.cityPhone} onChange={(e) => update("cityPhone", e.target.value)} /></FormField>
               <FormField label="Discord"><input className={inputClass} value={form.discord} onChange={(e) => update("discord", e.target.value)} /></FormField>
               <FormField label="CRM"><input className={inputClass} value={form.crm} onChange={(e) => update("crm", e.target.value)} /></FormField>
               <FormField label="Especialidade"><input className={inputClass} value={form.specialty} onChange={(e) => update("specialty", e.target.value)} /></FormField>
               <FormField label="Cargo solicitado">
                 <select className={inputClass} value={form.requestedRole} onChange={(e) => update("requestedRole", e.target.value)}>
-                  <option>Médico Clínico</option><option>Médico Especialista</option><option>Médico Cirurgião</option><option>Residente</option><option>Estagiário de Enfermagem</option>
+                  <option>Estagiário de Enfermagem</option>
                 </select>
               </FormField>
             </div>

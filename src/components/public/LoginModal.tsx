@@ -4,7 +4,6 @@ import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { BadgeInfo, Hash, IdCard, Lock, LogIn, Mail, Phone, ShieldCheck, Stethoscope, UserRound, X } from "lucide-react";
-import { GoogleAuthButton } from "@/components/ui/GoogleAuthButton";
 import { currentUserProfile } from "@/data/current-user-profile";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase";
 import { LOCAL_AUTH_SESSION_KEY, STAFF_REGISTRATION_REQUESTS_KEY } from "@/lib/local-auth";
@@ -19,6 +18,9 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
   const [authMessage, setAuthMessage] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [rememberConnected, setRememberConnected] = useState(true);
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
+  const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+  const [rememberEmail, setRememberEmail] = useState(true);
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [registerForm, setRegisterForm] = useState({
     name: "",
@@ -33,6 +35,8 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
 
   useEffect(() => {
     setMounted(true);
+    const savedEmail = localStorage.getItem("hpsr-saved-login-email") || "";
+    if (savedEmail) setLoginForm((current) => ({ ...current, email: savedEmail }));
   }, []);
 
   useEffect(() => {
@@ -113,7 +117,9 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       return;
     }
 
-    setLoginPersistence(rememberConnected);
+    setLoginPersistence(true);
+    if (rememberEmail) localStorage.setItem("hpsr-saved-login-email", loginForm.email.trim());
+    else localStorage.removeItem("hpsr-saved-login-email");
     setAuthLoading(false);
     onClose();
     router.push("/dashboard");
@@ -143,7 +149,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       discord: "",
       crm: form.crm.trim(),
       specialty: "Clínico Geral",
-      requestedRole: "Médico Clínico",
+      requestedRole: "Estagiário de Enfermagem",
       createdAt: new Date().toISOString(),
       status: "Pendente",
     };
@@ -296,12 +302,11 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
 
           {mode === "login" ? (
             <form onSubmit={handleLogin} className="space-y-3 rounded-[18px] border border-hpsr-border bg-white/[0.78] p-3.5">
-              {supabaseConfigured ? <GoogleAuthButton mode="login" rememberConnected={rememberConnected} onError={setAuthMessage} /> : (
+              {!supabaseConfigured && (
                 <div className="rounded-[14px] border border-blue-200 bg-blue-50 px-3 py-2.5 text-[11px] font-bold leading-relaxed text-blue-900">
                   Modo local ativo. O Supabase ainda não está configurado; o acesso é liberado somente para o perfil Dev cadastrado no sistema.
                 </div>
               )}
-              {supabaseConfigured && <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted"><span className="h-px flex-1 bg-hpsr-border"/>ou use as credenciais<span className="h-px flex-1 bg-hpsr-border"/></div>}
               <div className="mb-1 flex items-center gap-2 rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-800">
                 <ShieldCheck size={16} />
                 Acesso restrito a profissionais autorizados.
@@ -312,12 +317,12 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                   <input type="email" value={loginForm.email} onChange={(event) => setLoginForm((current) => ({ ...current, email: event.target.value }))} placeholder="medico@saorafael.com" className="w-full bg-transparent text-[13px] font-semibold text-hpsr-text outline-none placeholder:text-zinc-400" />
                 </AccessField>
                 <AccessField label="Senha" icon={<Lock size={16} className="text-hpsr-wine" />}>
-                  <input type="password" value={loginForm.password} onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))} placeholder="Digite sua senha" className="w-full bg-transparent text-[13px] font-semibold text-hpsr-text outline-none placeholder:text-zinc-400" />
+                  <input type={showLoginPassword ? "text" : "password"} value={loginForm.password} onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))} placeholder="Digite sua senha" className="w-full bg-transparent text-[13px] font-semibold text-hpsr-text outline-none placeholder:text-zinc-400" /><button type="button" onClick={() => setShowLoginPassword((v) => !v)} className="text-[11px] font-black text-hpsr-wine">{showLoginPassword ? "Ocultar" : "Mostrar"}</button>
                 </AccessField>
               </>}
               <label className="flex cursor-pointer items-start gap-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3">
-                <input type="checkbox" checked={rememberConnected} onChange={(event) => setRememberConnected(event.target.checked)} className="mt-0.5 h-4 w-4 accent-hpsr-wine" />
-                <span><span className="block text-[13px] font-black text-hpsr-text">Manter conectado</span><span className="mt-0.5 block text-[11px] text-hpsr-muted">Seu acesso continuará ativo ao fechar e abrir o navegador.</span></span>
+                <input type="checkbox" checked={rememberEmail} onChange={(event) => setRememberEmail(event.target.checked)} className="mt-0.5 h-4 w-4 accent-hpsr-wine" />
+                <span><span className="block text-[13px] font-black text-hpsr-text">Salvar e-mail</span><span className="mt-0.5 block text-[11px] text-hpsr-muted">A sessão continuará ativa e o e-mail poderá ser preenchido automaticamente.</span></span>
               </label>
 
               <button
@@ -330,9 +335,8 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
             </form>
           ) : (
             <form onSubmit={handleRegister} className="max-h-[52vh] space-y-3 overflow-y-auto rounded-[18px] border border-hpsr-border bg-white/[0.78] p-3.5 pr-3">
-              {supabaseConfigured && <GoogleAuthButton mode="register" registrationData={{ name: registerForm.name, passport: registerForm.passport, crm: registerForm.crm, email: registerForm.email, cityPhone: registerForm.cityPhone, specialty: "Clínico Geral", requestedRole: "Médico Clínico" }} onError={setAuthMessage} />}
               <div className="rounded-[14px] border border-blue-200 bg-blue-50 px-3 py-2 text-[11px] font-bold leading-relaxed text-blue-900">
-                O cadastro será bloqueado até a aprovação da administração. Mesmo com Google, nome, passaporte e CRM são obrigatórios.
+                O cadastro será bloqueado até a aprovação da administração. O cargo inicial será Estagiário de Enfermagem.
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
@@ -358,12 +362,13 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
 
                 <AccessField label="Senha" icon={<Lock size={16} className="text-hpsr-wine" />}>
                   <input
-                    type="password"
+                    type={showRegisterPassword ? "text" : "password"}
                     value={registerForm.password}
                     onChange={(event) => setRegisterForm((current) => ({ ...current, password: event.target.value }))}
                     placeholder="Crie uma senha"
                     className="w-full bg-transparent text-[13px] font-semibold text-hpsr-text outline-none placeholder:text-zinc-400"
                   />
+                  <button type="button" onClick={() => setShowRegisterPassword((v) => !v)} className="text-[11px] font-black text-hpsr-wine">{showRegisterPassword ? "Ocultar" : "Mostrar"}</button>
                 </AccessField>
 
                 <AccessField label="Celular (Opcional)" icon={<Phone size={16} className="text-hpsr-wine" />}>

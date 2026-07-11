@@ -11,7 +11,6 @@ import {
   HeartPulse,
   Minus,
   PackagePlus,
-  Pill,
   Plus,
   ReceiptText,
   Download,
@@ -25,7 +24,7 @@ import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvi
 import { registerSystemActivity, saveFinancialReceipt, type FinancialReceipt } from "@/lib/administrative-storage";
 import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 
-type CategoryId = "medicamentos" | "procedimentos" | "farmacia";
+type CategoryId = "medicamentos" | "procedimentos";
 type ConvenioId = "sem" | "plano" | "parceria";
 
 type Product = {
@@ -110,8 +109,8 @@ const procedimentos: Product[] = [
   },
   {
     id: "p1",
-    nome: "RESGATE NO SUL",
-    descricao: "Atendimento e resgate na região Sul.",
+    nome: "DESLOCAMENTO",
+    descricao: "Atendimento com deslocamento para a região Sul.",
     preco: 150000,
     imagem: "Icones/procedimentos/Tratamento.png",
   },
@@ -164,259 +163,19 @@ const procedimentos: Product[] = [
     preco: 4000000,
     imagem: "Icones/procedimentos/Procedimentos.png",
   },
+  {
+    id: "p9",
+    nome: "REMÉDIOS",
+    descricao: "Dispensação de remédios e medicamentos gerais.",
+    preco: 100000,
+    imagem: "Icones/produtos/Remedios.png",
+  },
 ];
 
-const farmacia: Product[] = [
-  {
-    id: "f0",
-    nome: "GlicoVida",
-    descricao: "Controle glicêmico.",
-    categoria: "Hormonal / Endócrino / Fertilidade",
-    preco: 100000,
-    imagem: "Icones/farmacia/GlicoVida.png",
-  },
-
-  {
-    id: "f1",
-    nome: "OrgaBloq",
-    descricao: "Bloqueio hormonal.",
-    categoria: "Hormonal / Endócrino / Fertilidade",
-    preco: 104000,
-    imagem: "Icones/farmacia/OrgaBloq.png",
-  },
-
-  {
-    id: "f2",
-    nome: "FertiPlus",
-    descricao: "Estimulação ovariana.",
-    categoria: "Hormonal / Endócrino / Fertilidade",
-    preco: 100000,
-    imagem: "Icones/farmacia/FertiPlus.png",
-  },
-
-  {
-    id: "f3",
-    nome: "GestaVida",
-    descricao: "Suporte gestacional.",
-    categoria: "Hormonal / Endócrino / Fertilidade",
-    preco: 100000,
-    imagem: "Icones/farmacia/GestaVida.png",
-  },
-
-  {
-    id: "f4",
-    nome: "CalciFort",
-    descricao: "Reposição de cálcio.",
-    categoria: "Vitaminas / Suplementos",
-    preco: 100000,
-    imagem: "Icones/farmacia/CalciFort.png",
-  },
-
-  {
-    id: "f5",
-    nome: "MaterPlus",
-    descricao: "Vitaminas gestacionais.",
-    categoria: "Vitaminas / Suplementos",
-    preco: 100000,
-    imagem: "Icones/farmacia/MaterPlus.png",
-  },
-
-  {
-    id: "f6",
-    nome: "DorMax",
-    descricao: "Alívio da dor.",
-    categoria: "Dor / Analgésicos",
-    preco: 100000,
-    imagem: "Icones/farmacia/DorMax.png",
-  },
-
-  {
-    id: "f7",
-    nome: "Cefaliv",
-    descricao: "Dor de cabeça.",
-    categoria: "Dor / Analgésicos",
-    preco: 100000,
-    imagem: "Icones/farmacia/Cefaliv.png",
-  },
-
-  {
-    id: "f8",
-    nome: "Musculiv",
-    descricao: "Relaxante muscular.",
-    categoria: "Dor / Analgésicos",
-    preco: 100000,
-    imagem: "Icones/farmacia/Musculiv.png",
-  },
-
-  {
-    id: "f9",
-    nome: "Analgex",
-    descricao: "Controle da dor.",
-    categoria: "Dor / Analgésicos",
-    preco: 100000,
-    imagem: "Icones/farmacia/Analgex.png",
-  },
-
-  {
-    id: "f10",
-    nome: "Parador",
-    descricao: "Febre e dor.",
-    categoria: "Dor / Analgésicos",
-    preco: 100000,
-    imagem: "Icones/farmacia/Parador.png",
-  },
-
-  {
-    id: "f11",
-    nome: "Calmivita",
-    descricao: "Ansiedade leve.",
-    categoria: "Calmantes / Controlados",
-    preco: 100000,
-    imagem: "Icones/farmacia/Calmivita.png",
-  },
-
-  {
-    id: "f12",
-    nome: "Alergicor",
-    descricao: "Crises alérgicas.",
-    categoria: "Alergia / Respiratório",
-    preco: 104000,
-    imagem: "Icones/farmacia/Alergicor.png",
-  },
-
-  {
-    id: "f13",
-    nome: "Alergix",
-    descricao: "Sintomas alérgicos.",
-    categoria: "Alergia / Respiratório",
-    preco: 100000,
-    imagem: "Icones/farmacia/Alergix.png",
-  },
-
-  {
-    id: "f14",
-    nome: "Respimax",
-    descricao: "Congestão nasal.",
-    categoria: "Alergia / Respiratório",
-    preco: 100000,
-    imagem: "Icones/farmacia/Respimax.png",
-  },
-
-  {
-    id: "f15",
-    nome: "Gripex",
-    descricao: "Gripe e resfriado.",
-    categoria: "Gripe / Sintomas gerais",
-    preco: 100000,
-    imagem: "Icones/farmacia/Gripex.png",
-  },
-
-  {
-    id: "f16",
-    nome: "Bactrimed",
-    descricao: "Infecções leves.",
-    categoria: "Antibióticos",
-    preco: 100000,
-    imagem: "Icones/farmacia/Bactrimed.png",
-  },
-
-  {
-    id: "f17",
-    nome: "Bacteron",
-    descricao: "Infecções bacterianas.",
-    categoria: "Antibióticos",
-    preco: 104000,
-    imagem: "Icones/farmacia/Bacteron.png",
-  },
-
-  {
-    id: "f18",
-    nome: "Inflamol",
-    descricao: "Inflamações.",
-    categoria: "Anti-inflamatórios",
-    preco: 100000,
-    imagem: "Icones/farmacia/Inflamol.png",
-  },
-
-  {
-    id: "f19",
-    nome: "Inflamax",
-    descricao: "Dores intensas.",
-    categoria: "Anti-inflamatórios",
-    preco: 104000,
-    imagem: "Icones/farmacia/Inflamax.png",
-  },
-
-  {
-    id: "f20",
-    nome: "Gastrix",
-    descricao: "Azia e gastrite.",
-    categoria: "Estômago / Digestivo",
-    preco: 100000,
-    imagem: "Icones/farmacia/Gastrix.png",
-  },
-
-  {
-    id: "f21",
-    nome: "Gasiliv",
-    descricao: "Gases.",
-    categoria: "Estômago / Digestivo",
-    preco: 100000,
-    imagem: "Icones/farmacia/Gasiliv.png",
-  },
-
-  {
-    id: "f22",
-    nome: "HepaVida",
-    descricao: "Suporte hepático.",
-    categoria: "Estômago / Digestivo",
-    preco: 100000,
-    imagem: "Icones/farmacia/HepaVida.png",
-  },
-
-  {
-    id: "f23",
-    nome: "NáuseaZero",
-    descricao: "Enjoos e náuseas.",
-    categoria: "Estômago / Digestivo",
-    preco: 100000,
-    imagem: "Icones/farmacia/NauseaZero.png",
-  },
-
-  {
-    id: "f24",
-    nome: "CólicaCalm",
-    descricao: "Cólicas.",
-    categoria: "Estômago / Digestivo",
-    preco: 40000,
-    imagem: "Icones/farmacia/ColicaCalm.png",
-  },
-
-  {
-    id: "f25",
-    nome: "Ressak",
-    descricao: "Ressaca.",
-    categoria: "Gripe / Sintomas gerais",
-    preco: 100000,
-    imagem: "Icones/farmacia/Ressak.png",
-  },
-];
-const farmaciaCategoryOrder = [
-  "Hormonal / Endócrino / Fertilidade",
-  "Vitaminas / Suplementos",
-  "Dor / Analgésicos",
-  "Calmantes / Controlados",
-  "Alergia / Respiratório",
-  "Gripe / Sintomas gerais",
-  "Antibióticos",
-  "Anti-inflamatórios",
-  "Estômago / Digestivo",
-];
 
 const tabs: Array<{ id: CategoryId; label: string; icon: ReactNode; products: Product[] }> = [
   { id: "medicamentos", label: "Itens médicos", icon: <PackagePlus size={16} />, products: medicamentos },
-  { id: "procedimentos", label: "Tratamentos e consultas", icon: <Stethoscope size={16} />, products: procedimentos },
-  { id: "farmacia", label: "Farmácia", icon: <Pill size={16} />, products: farmacia },
+  { id: "procedimentos", label: "Serviços Médicos", icon: <Stethoscope size={16} />, products: procedimentos },
 ];
 
 const convenioOptions: Array<{ id: ConvenioId; title: string; description: string; discount: number; icon: ReactNode }> = [
@@ -439,8 +198,8 @@ function normalizeQuantity(value: string | number) {
   return Math.floor(parsed);
 }
 
-const allProducts = [...medicamentos, ...procedimentos, ...farmacia];
-const tabletHpProductIds = new Set(["p0", "p1", "p2", "p3", "p4", "p5", "p8"]);
+const allProducts = [...medicamentos, ...procedimentos];
+const tabletHpProductIds = new Set(["p2", "p3", "p4", "p5", "p8"]);
 
 export default function CalculatorPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
@@ -450,7 +209,6 @@ export default function CalculatorPage() {
   );
   const [convenio, setConvenio] = useState<ConvenioId>("sem");
   const [searchTerm, setSearchTerm] = useState("");
-  const [farmaciaCategory, setFarmaciaCategory] = useState("Todas");
   const [isPmSale, setIsPmSale] = useState(false);
 
   const selectedConvenio = convenioOptions.find((option) => option.id === convenio) ?? convenioOptions[0];
@@ -494,7 +252,6 @@ export default function CalculatorPage() {
     setCart(Object.fromEntries(allProducts.map((product) => [product.id, 0])));
     setConvenio("sem");
     setSearchTerm("");
-    setFarmaciaCategory("Todas");
     setActiveTab("medicamentos");
     setIsPmSale(false);
   }
@@ -506,14 +263,9 @@ export default function CalculatorPage() {
     const matchesSearch =
       !normalizedSearch ||
       [product.nome, product.descricao, product.categoria ?? ""].join(" ").toLowerCase().includes(normalizedSearch);
-    const matchesFarmaciaCategory =
-      activeTab !== "farmacia" ||
-      farmaciaCategory === "Todas" ||
-      product.categoria === farmaciaCategory;
 
-    return matchesSearch && matchesFarmaciaCategory;
+    return matchesSearch;
   });
-  const farmaciaCategories = ["Todas", ...farmaciaCategoryOrder];
 
   function createReceipt(): FinancialReceipt | null {
     if (!selectedItems.length) {
@@ -834,15 +586,12 @@ export default function CalculatorPage() {
 
       <section className="flex min-h-[560px] flex-col overflow-hidden rounded-[20px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfa_0%,#ffffff_100%)] shadow-[0_14px_34px_rgba(79,42,21,0.07)] lg:min-h-[620px]">
         <div className="shrink-0 border-b border-hpsr-border/70 bg-[linear-gradient(180deg,#f8f1e8_0%,#f4ebe0_100%)] p-2.5">
-          <div className="grid gap-2 rounded-[16px] bg-[#f0e7dd] p-2 lg:grid-cols-3">
+          <div className="grid gap-2 rounded-[16px] bg-[#f0e7dd] p-2 lg:grid-cols-2">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => {
-                    setActiveTab(tab.id);
-                    if (tab.id !== "farmacia") setFarmaciaCategory("Todas");
-                  }}
+                onClick={() => setActiveTab(tab.id)}
                 className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[14px] px-3 text-[11px] font-black transition ${
                   activeTab === tab.id
                     ? "bg-white text-hpsr-wine"
@@ -865,7 +614,7 @@ export default function CalculatorPage() {
               <div>
                 <h2 className="text-lg font-black text-hpsr-text">{currentTab.label}</h2>
                 <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">
-                  {activeTab === "farmacia" ? "Filtre por categoria e selecione os itens." : "Defina livremente a quantidade de cada item, sem limite por produto."}
+                  Defina livremente a quantidade de cada item, sem limite por produto.
                 </p>
               </div>
             </div>
@@ -881,67 +630,19 @@ export default function CalculatorPage() {
             </label>
           </div>
 
-
-          {activeTab === "farmacia" && (
-            <div className="mt-3">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">
-                Categorias da farmácia
-              </p>
-              <div className="mt-2 flex gap-2 overflow-x-auto pb-1">
-                {farmaciaCategories.map((category) => {
-                  const count = category === "Todas"
-                    ? farmacia.length
-                    : farmacia.filter((product) => product.categoria === category).length;
-
-                  return (
-                    <button
-                      key={category}
-                      type="button"
-                      onClick={() => setFarmaciaCategory(category)}
-                      className={`inline-flex shrink-0 items-center gap-2 rounded-[14px] border px-2.5 py-1.5 text-[11px] font-black transition ${
-                        farmaciaCategory === category
-                          ? "border-hpsr-wine bg-hpsr-wine text-white"
-                          : "border-hpsr-border bg-[#fff8f0] text-hpsr-wine hover:bg-white"
-                      }`}
-                    >
-                      {category}
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] ${
-                        farmaciaCategory === category ? "bg-white/18 text-white" : "bg-[#f1dfcd] text-hpsr-wine"
-                      }`}>
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-3.5">
-          {activeTab === "farmacia" ? (
-            <PharmacyGroups
-              products={filteredProducts}
-              cart={cart}
-              onIncrease={increase}
-              onDecrease={decrease}
-              onChangeQuantity={updateQuantity}
-              onClear={clearProduct}
-                    getPrice={getEffectivePrice}
-                    isPmSale={isPmSale}
-            />
-          ) : (
-            <ProductGrid
-              products={filteredProducts}
-              cart={cart}
-              onIncrease={increase}
-              onDecrease={decrease}
-              onChangeQuantity={updateQuantity}
-              onClear={clearProduct}
-                    getPrice={getEffectivePrice}
-                    isPmSale={isPmSale}
-            />
-          )}
+          <ProductGrid
+            products={filteredProducts}
+            cart={cart}
+            onIncrease={increase}
+            onDecrease={decrease}
+            onChangeQuantity={updateQuantity}
+            onClear={clearProduct}
+            getPrice={getEffectivePrice}
+            isPmSale={isPmSale}
+          />
         </div>
       </section>
       </div>
@@ -991,41 +692,6 @@ function ProductGrid({
           effectivePrice={getPrice(product)}
           isPmSale={isPmSale}
         />
-      ))}
-    </div>
-  );
-}
-
-function PharmacyGroups(props: {
-  products: Product[];
-  cart: Record<string, number>;
-  onIncrease: (id: string) => void;
-  onDecrease: (id: string) => void;
-  onChangeQuantity: (id: string, quantity: number) => void;
-  onClear: (id: string) => void;
-  getPrice: (product: Product) => number;
-  isPmSale: boolean;
-}) {
-  const groupedCategories = farmaciaCategoryOrder
-    .map((category) => ({ category, items: props.products.filter((product) => product.categoria === category) }))
-    .filter((group) => group.items.length > 0);
-
-  if (!groupedCategories.length) return <ProductGrid {...props} />;
-
-  return (
-    <div className="grid gap-3">
-      {groupedCategories.map((group) => (
-        <section key={group.category} className="overflow-hidden rounded-[16px] border border-hpsr-border bg-[linear-gradient(180deg,#fffaf4_0%,#fff7ef_100%)]">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hpsr-border bg-white/[0.86] px-3.5 py-2.5">
-            <div>
-              <h3 className="text-sm font-black uppercase tracking-[0.14em] text-hpsr-wine">{group.category}</h3>
-              <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">
-                {group.items.length} item{group.items.length === 1 ? "" : "s"} disponível{group.items.length === 1 ? "" : "is"}
-              </p>
-            </div>
-          </div>
-          <div className="p-2.5"><ProductGrid {...props} products={group.items} /></div>
-        </section>
       ))}
     </div>
   );
