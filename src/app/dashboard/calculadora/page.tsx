@@ -104,7 +104,7 @@ const procedimentos: Product[] = [
     id: "p0",
     nome: "TRATAMENTO NORTE",
     descricao: "Tratamento realizado na região Norte.",
-    preco: 100000,
+    preco: 20000,
     imagem: "Icones/procedimentos/Tratamento.png",
   },
   {
@@ -167,7 +167,7 @@ const procedimentos: Product[] = [
     id: "p9",
     nome: "REMÉDIOS",
     descricao: "Dispensação de remédios e medicamentos gerais.",
-    preco: 100000,
+    preco: 20000,
     imagem: "Icones/produtos/Remedios.png",
   },
 ];

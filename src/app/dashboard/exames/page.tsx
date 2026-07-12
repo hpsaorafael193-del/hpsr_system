@@ -1498,6 +1498,27 @@ export default function ExamesPage() {
         image.src = src;
       });
 
+    const normalizeSignatureImage = (image: HTMLImageElement) => {
+      const signatureCanvas = document.createElement("canvas");
+      signatureCanvas.width = image.naturalWidth || image.width;
+      signatureCanvas.height = image.naturalHeight || image.height;
+      const signatureContext = signatureCanvas.getContext("2d");
+      if (!signatureContext) return image;
+      signatureContext.drawImage(image, 0, 0);
+      const pixels = signatureContext.getImageData(0, 0, signatureCanvas.width, signatureCanvas.height);
+      const data = pixels.data;
+      for (let index = 0; index < data.length; index += 4) {
+        const red = data[index];
+        const green = data[index + 1];
+        const blue = data[index + 2];
+        const alpha = data[index + 3];
+        if (alpha === 0) continue;
+        if (red > 245 && green > 245 && blue > 245) data[index + 3] = 0;
+      }
+      signatureContext.putImageData(pixels, 0, 0);
+      return signatureCanvas;
+    };
+
     const drawImageContain = (
       image: HTMLImageElement,
       x: number,
@@ -1633,7 +1654,7 @@ export default function ExamesPage() {
       const signature = finalDocument.metadata.signatureImage
         ? await loadImage(finalDocument.metadata.signatureImage)
         : null;
-      if (signature) context.drawImage(signature, 257, 1000, 280, 52);
+      if (signature) context.drawImage(normalizeSignatureImage(signature), 257, 1000, 280, 52);
 
       context.strokeStyle = "#5b1809";
       context.setLineDash([2, 2]);

@@ -432,7 +432,7 @@ function Footer({ metadata, pageIndex, totalPages }: { metadata: RenderMetadata;
     <div className="pointer-events-none absolute bottom-[12px] left-[42px] right-[42px] h-[126px] overflow-hidden border-t border-[#5b1809]/20 bg-[#fffaf4]/95 pt-2 text-[#7a5148]" style={{ fontFamily: "Georgia, 'Times New Roman', serif", zIndex: 4 }}>
       <div className="flex h-[82px] items-end justify-center overflow-hidden">
         <div className="w-[52%] text-center">
-          {metadata.signatureImage && <img src={metadata.signatureImage} alt="Assinatura cadastrada" className="mx-auto block object-contain" style={{ width: 280, height: 52, maxWidth: 280, maxHeight: 52 }} />}
+          {metadata.signatureImage && <img src={metadata.signatureImage} alt="Assinatura cadastrada" className="mx-auto block object-contain" style={{ width: 280, height: 52, maxWidth: 280, maxHeight: 52, mixBlendMode: "multiply", background: "transparent" }} />}
           <div className="mx-auto mt-1 h-px w-[82%] border-b border-dotted border-[#5b1809]" />
           <p className="mt-1 text-[11px]"><span className="font-bold text-[#5b1809]">Dr(a).</span> {metadata.doctor.name || "Nome do médico"}</p>
           <p className="text-[9px]"><span className="font-bold text-[#5b1809]">CRM:</span> {metadata.doctor.crm || "000000"}</p>

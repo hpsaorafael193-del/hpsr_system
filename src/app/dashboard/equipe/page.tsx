@@ -312,6 +312,39 @@ function saveRegistrationRequests(items: StaffRegistrationRequest[]) {
   window.localStorage.setItem(STAFF_REGISTRATION_REQUESTS_KEY, JSON.stringify(items));
 }
 
+function categoryFromRole(role: string): TeamCategory {
+  return getCategory(role, role.includes("Dev") ? role : "");
+}
+
+function memberFromProfile(row: any, supplemental?: Partial<TeamMember>): TeamMember {
+  const role = String(row.role || supplemental?.hospitalRole || "Estagiário de Enfermagem");
+  const specialties = Array.isArray(row.specialties) ? row.specialties.filter(Boolean) : [];
+  const specialty = String(row.specialty || specialties.join(", ") || supplemental?.specialty || "Não informado");
+  const systemRole = role.includes("Dev") ? role : supplemental?.systemRole;
+  return {
+    id: String(row.id),
+    name: String(row.name || supplemental?.name || row.email || "Não informado"),
+    passport: String(row.passport || supplemental?.passport || ""),
+    crm: String(row.crm || supplemental?.crm || "CRM-RP pendente"),
+    hospitalRole: role,
+    systemRole,
+    accessLevel: getAccessLevel(role, systemRole),
+    category: categoryFromRole(role),
+    department: String(row.department || supplemental?.department || "Hospital São Rafael"),
+    specialty,
+    cityPhone: String(row.city_phone || supplemental?.cityPhone || ""),
+    email: String(row.email || supplemental?.email || ""),
+    radio: String(row.discord || supplemental?.radio || ""),
+    joinedAt: String((row.created_at || supplemental?.joinedAt || new Date().toISOString()).slice(0, 10)),
+    serviceStatus: (row.service_status || supplemental?.serviceStatus || "Fora de serviço") as ServiceStatus,
+    permissions: Array.isArray(supplemental?.permissions) ? supplemental.permissions : getDefaultPermissions(role, systemRole),
+    warnings: Number(supplemental?.warnings || 0),
+    suspensions: Number(supplemental?.suspensions || 0),
+    history: Array.isArray(supplemental?.history) ? supplemental.history : [],
+    clinicalActivity: supplemental?.clinicalActivity,
+  };
+}
+
 export default function TeamPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const isDevUser = currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema";
@@ -344,25 +377,39 @@ export default function TeamPage() {
         return;
       }
 
-      const [membersResult, applicationsResult] = await Promise.all([
+      const [membersResult, profilesResult, applicationsResult] = await Promise.all([
         client.from("team_members").select("id, passport, name, hospital_role, status, payload, created_at").order("created_at", { ascending: false }),
+        client.from("profiles").select("id,name,email,passport,crm,role,specialty,city_phone,discord,service_status,access_status,created_at").eq("access_status", "Aprovado").order("name"),
         client.from("staff_applications").select("id, passport, token, name, desired_role, status, payload, created_at").order("created_at", { ascending: false }),
       ]);
 
-      if (!membersResult.error) {
-        const remoteMembers = (membersResult.data || []).map((row) => {
+      if (!profilesResult.error) {
+        const supplementalRows = new Map<string, Partial<TeamMember>>();
+        for (const row of membersResult.data || []) {
+          const payload = (row.payload || {}) as Partial<TeamMember>;
+          const normalized = { ...payload, id: String(row.id), passport: String(row.passport || payload.passport || "") };
+          supplementalRows.set(String(row.id), normalized);
+          if (normalized.passport) supplementalRows.set(`passport:${normalized.passport}`, normalized);
+        }
+        const remoteMembers = (profilesResult.data || []).map((row: any) => {
+          const supplemental = supplementalRows.get(String(row.id)) || supplementalRows.get(`passport:${String(row.passport || "")}`);
+          return memberFromProfile(row, supplemental);
+        });
+        setMembers(remoteMembers);
+      } else if (!membersResult.error) {
+        const fallbackMembers = (membersResult.data || []).map((row) => {
           const payload = (row.payload || {}) as Partial<TeamMember>;
           return {
             ...payload,
             id: String(row.id),
             passport: String(row.passport || payload.passport || ""),
             name: String(row.name || payload.name || "Não informado"),
-            hospitalRole: String(row.hospital_role || payload.hospitalRole || "Médico Clínico"),
+            hospitalRole: String(row.hospital_role || payload.hospitalRole || "Estagiário de Enfermagem"),
             crm: String(payload.crm || ""),
             accessLevel: payload.accessLevel || "Clínico",
-            category: payload.category || "Corpo Médico",
-            department: String(payload.department || "Clínica Médica"),
-            specialty: String(payload.specialty || "Clínico Geral"),
+            category: payload.category || "Formação",
+            department: String(payload.department || "Hospital São Rafael"),
+            specialty: String(payload.specialty || "Não informado"),
             cityPhone: String(payload.cityPhone || ""),
             email: String(payload.email || ""),
             radio: String(payload.radio || ""),
@@ -374,7 +421,7 @@ export default function TeamPage() {
             history: Array.isArray(payload.history) ? payload.history : [],
           } as TeamMember;
         });
-        setMembers(remoteMembers);
+        setMembers(fallbackMembers);
       }
 
       if (!applicationsResult.error) {
@@ -399,6 +446,27 @@ export default function TeamPage() {
     }
 
     void loadAdministrativeData();
+  }, []);
+
+  useEffect(() => {
+    const client = createClient();
+    if (!client) return;
+    let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleReload = () => {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(() => window.location.reload(), 350);
+    };
+    const channel = client
+      .channel("hpsr-team-live-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, scheduleReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "team_members" }, scheduleReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "staff_applications" }, scheduleReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "staff_registration_requests" }, scheduleReload)
+      .subscribe();
+    return () => {
+      if (reloadTimer) clearTimeout(reloadTimer);
+      void client.removeChannel(channel);
+    };
   }, []);
 
   async function loadRegistrationRequestsFromSupabase() {
@@ -444,17 +512,6 @@ export default function TeamPage() {
 
   useEffect(() => {
     window.localStorage.setItem(TEAM_MEMBERS_STORAGE_KEY, JSON.stringify(members));
-    members.forEach((member) => {
-      void mirrorRecord("team_members", {
-        id: member.id,
-        passport: member.passport,
-        name: member.name,
-        hospital_role: member.hospitalRole,
-        status: "Ativo",
-        payload: member,
-        updated_at: new Date().toISOString(),
-      });
-    });
   }, [members]);
 
   const selectedMember = members.find((member) => member.id === selectedId) ?? null;
@@ -485,6 +542,38 @@ export default function TeamPage() {
   const doctorCount = members.filter((member) => member.category === "Corpo Médico").length;
   const traineeCount = members.filter((member) => member.category === "Formação").length;
 
+
+  async function persistMember(member: TeamMember) {
+    const client = createClient();
+    if (!client) return { ok: false, error: "Supabase não configurado." };
+    const { error: profileError } = await client.rpc("admin_update_profile", {
+      target_profile_id: member.id,
+      profile_patch: {
+        role: member.hospitalRole,
+        specialty: member.specialty,
+        service_status: member.serviceStatus,
+        department: member.department,
+      },
+    });
+    if (profileError) return { ok: false, error: profileError.message };
+    const sync = await mirrorRecord("team_members", {
+      id: member.id,
+      passport: member.passport,
+      name: member.name,
+      hospital_role: member.hospitalRole,
+      status: "Ativo",
+      payload: member,
+      updated_at: new Date().toISOString(),
+    });
+    return { ok: sync.synced, error: sync.error };
+  }
+
+  async function removeApplicationFromSupabase(application: PublicStaffApplication) {
+    const client = createClient();
+    if (!client) return { ok: false, error: "Supabase não configurado." };
+    const { error } = await client.rpc("admin_delete_staff_application", { application_id: application.protocol });
+    return { ok: !error, error: error?.message };
+  }
 
   async function handleContractAction(member: TeamMember, action: string) {
     if (!(await hpsrConfirm(`Confirmar a ação "${action}" para ${member.name}?`, "Ação contratual"))) return;
@@ -522,7 +611,7 @@ export default function TeamPage() {
     setPendingAdministrativeAction({ member, action: action as PendingAdministrativeAction["action"], value: initialValue });
   }
 
-  function submitAdministrativeAction() {
+  async function submitAdministrativeAction() {
     if (!pendingAdministrativeAction) return;
     const { member, action, value } = pendingAdministrativeAction;
     const timestamp = new Date().toLocaleString("pt-BR");
@@ -561,7 +650,13 @@ export default function TeamPage() {
     }
 
     if (action === "Editar cargo" || action === "Promover") {
-      setMembers((current) => current.map((item) => item.id === member.id ? { ...item, hospitalRole: trimmedValue, accessLevel: getAccessLevel(trimmedValue, item.systemRole), category: getCategory(trimmedValue, item.systemRole), permissions: getDefaultPermissions(trimmedValue, item.systemRole), history: [`Cargo alterado de ${item.hospitalRole} para ${trimmedValue} em ${timestamp}`, ...item.history] } : item));
+      const updatedMember = { ...member, hospitalRole: trimmedValue, accessLevel: getAccessLevel(trimmedValue, member.systemRole), category: getCategory(trimmedValue, member.systemRole), permissions: getDefaultPermissions(trimmedValue, member.systemRole), history: [`Cargo alterado de ${member.hospitalRole} para ${trimmedValue} em ${timestamp}`, ...member.history] };
+      const result = await persistMember(updatedMember);
+      if (!result.ok) {
+        void hpsrAlert(result.error || "Não foi possível atualizar o cargo no Supabase.", "Erro ao salvar cargo");
+        return;
+      }
+      setMembers((current) => current.map((item) => item.id === member.id ? updatedMember : item));
       setPendingAdministrativeAction(null);
       return;
     }
@@ -684,10 +779,24 @@ export default function TeamPage() {
     setIsAddOpen(false);
   }
 
-  function updateApplicationStatus(application: PublicStaffApplication, status: string) {
+  async function updateApplicationStatus(application: PublicStaffApplication, status: string) {
+    const updatedApplication = { ...application, status };
+    const sync = await mirrorRecord("staff_applications", {
+      id: application.protocol,
+      passport: application.passport || null,
+      token: application.token || null,
+      name: application.name,
+      desired_role: application.desiredRole,
+      status,
+      payload: updatedApplication,
+      updated_at: new Date().toISOString(),
+    });
+    if (!sync.synced) {
+      void hpsrAlert(sync.error || "Não foi possível atualizar a candidatura.", "Erro no Supabase");
+      return;
+    }
     setPublicApplications((currentApplications) => {
       const exists = currentApplications.some((item) => item.protocol === application.protocol);
-      const updatedApplication = { ...application, status };
 
       const nextApplications = exists
         ? currentApplications.map((item) => (item.protocol === application.protocol ? updatedApplication : item))
@@ -698,7 +807,21 @@ export default function TeamPage() {
     });
   }
 
-  function updateApplication(application: PublicStaffApplication) {
+  async function updateApplication(application: PublicStaffApplication) {
+    const sync = await mirrorRecord("staff_applications", {
+      id: application.protocol,
+      passport: application.passport || null,
+      token: application.token || null,
+      name: application.name,
+      desired_role: application.desiredRole,
+      status: application.status,
+      payload: application,
+      updated_at: new Date().toISOString(),
+    });
+    if (!sync.synced) {
+      void hpsrAlert(sync.error || "Não foi possível salvar a candidatura.", "Erro no Supabase");
+      return;
+    }
     setPublicApplications((currentApplications) => {
       const exists = currentApplications.some((item) => item.protocol === application.protocol);
       const nextApplications = exists
@@ -713,6 +836,11 @@ export default function TeamPage() {
   async function deleteRejectedApplication(application: PublicStaffApplication) {
     if (application.status !== "Recusado") return;
     if (!(await hpsrConfirm(`Excluir definitivamente o formulário de ${application.name}?`, "Excluir formulário"))) return;
+    const result = await removeApplicationFromSupabase(application);
+    if (!result.ok) {
+      void hpsrAlert(result.error || "Não foi possível excluir o formulário no Supabase.", "Erro ao excluir");
+      return;
+    }
     setPublicApplications((currentApplications) => {
       const nextApplications = currentApplications.filter((item) => item.protocol !== application.protocol);
       saveStoredStaffApplications(nextApplications);
