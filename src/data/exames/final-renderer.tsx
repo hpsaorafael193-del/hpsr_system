@@ -145,8 +145,12 @@ function stripInstitutionalShell(html: string, signatureImage?: string | null) {
     .replace(/<p[^>]*>\s*(Dr\s*\(?a\)?\.?|CRM:)[\s\S]*?<\/p>/gi, "");
 
   if (signatureImage) {
-    const escapedSignature = signatureImage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    output = output.replace(new RegExp(`<img[^>]+src=["']${escapedSignature}["'][^>]*>`, "gi"), "");
+    // Não insere o conteúdo base64 em uma RegExp. Em produção, assinaturas PNG
+    // podem conter caracteres que tornam uma expressão dinâmica inválida.
+    output = output.replace(
+      /<img\b[^>]*\bsrc\s*=\s*(["'])([\s\S]*?)\1[^>]*>/gi,
+      (tag, _quote: string, src: string) => src === signatureImage ? "" : tag,
+    );
   }
 
   return output.trim();

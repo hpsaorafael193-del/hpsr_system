@@ -1463,8 +1463,8 @@ export default function ExamesPage() {
       setPreviewImage(null);
       setPreview({ open: true, document, pageIndex: 0 });
       registerSystemActivity({ module: "Exames", action: "Exame salvo", description: `${metadata.examName} salvo para ${patient.name || "paciente não informado"}.`, actor: currentUserProfile.systemName, reference: currentUserProfile.passport });
-      registerSystemActivity({ module: "Exames", action: "Exame salvo", description: `${metadata.examName} salvo para ${patient.name || "paciente não informado"}.`, actor: currentUserProfile.systemName, reference: currentUserProfile.passport });
     } catch (error) {
+      console.error("[HPSR][Exames] Falha ao salvar ou preparar o preview:", error);
       const message = error instanceof Error ? error.message : "Erro desconhecido ao salvar o exame.";
       setSaveStatus("Falha ao salvar");
       setAppDialog({
@@ -1752,8 +1752,9 @@ export default function ExamesPage() {
       link.download = `${safeFileName(finalDocument.metadata.examName)}_pagina_${pageIndex + 1}.png`;
       link.href = dataUrl;
       link.click();
-    } catch {
-      showPngError();
+    } catch (error) {
+      console.error("[HPSR][Exames] Falha ao renderizar o preview PNG:", error);
+      showPngError(error);
     }
   }
 
@@ -1773,10 +1774,11 @@ export default function ExamesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preview.open, preview.document, preview.pageIndex]);
 
-  function showPngError() {
+  function showPngError(error?: unknown) {
+    const technicalMessage = error instanceof Error ? ` Detalhe: ${error.message}` : "";
     setAppDialog({
       title: "Exportação PNG",
-      message: "Não foi possível gerar o PNG desta página. Tente novamente ou use Imprimir para salvar em PDF.",
+      message: `Não foi possível gerar o PNG desta página. Tente novamente ou use Imprimir para salvar em PDF.${technicalMessage}`,
       tone: "warning",
       actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
     });
