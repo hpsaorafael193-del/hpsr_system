@@ -708,7 +708,22 @@ export default function ExamesPage() {
     const client = createClient();
     if (!client) { setAvailableDoctors([currentOption]); return; }
     void client.from("profiles").select("id,name,crm,role,specialty,signature_path").eq("access_status", "Aprovado").order("name").then(({ data }) => {
-      const options = (data || []).map((row: any) => ({ id: row.id, name: row.name || "Médico", crm: row.crm || "—", role: row.role || "Médico", specialty: row.specialty || "Não informado", signatureImage: row.signature_path || null }));
+      const options = (data || []).map((row: any) => {
+        const signaturePath = String(row.signature_path || "").trim();
+        let signatureImage: string | null = signaturePath || null;
+        if (signaturePath && !signaturePath.startsWith("data:") && !/^https?:\/\//i.test(signaturePath)) {
+          const { data: publicData } = client.storage.from("signatures").getPublicUrl(signaturePath);
+          signatureImage = publicData.publicUrl || signaturePath;
+        }
+        return {
+          id: row.id,
+          name: row.name || "Médico",
+          crm: row.crm || "—",
+          role: row.role || "Médico",
+          specialty: row.specialty || "Não informado",
+          signatureImage,
+        };
+      });
       const withoutDuplicate = options.filter((item: DoctorOption) => item.name !== currentOption.name || item.crm !== currentOption.crm);
       setAvailableDoctors([currentOption, ...withoutDuplicate]);
     });

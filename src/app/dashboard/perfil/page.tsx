@@ -171,12 +171,40 @@ export default function PerfilPage() {
     }
 
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const image = String(reader.result);
       setSignatureImage(image);
       localStorage.setItem("hpsr-profile-signature-png", image);
+
+      const client = createClient();
+      if (!client) {
+        setSaveMessage("Assinatura salva apenas neste navegador.");
+        return;
+      }
+
+      const { data: sessionData } = await client.auth.getSession();
+      const userId = sessionData.session?.user.id;
+      if (!userId) {
+        setSaveMessage("Não foi possível vincular a assinatura ao perfil.");
+        return;
+      }
+
+      const { error } = await client.from("profiles").update({ signature_path: image }).eq("id", userId);
+      setSaveMessage(error ? `Assinatura salva localmente, mas não sincronizada: ${error.message}` : "Assinatura sincronizada com o Supabase.");
     };
     reader.readAsDataURL(file);
+  }
+
+  async function removeSignatureImage() {
+    setSignatureImage(null);
+    localStorage.removeItem("hpsr-profile-signature-png");
+    const client = createClient();
+    if (!client) return;
+    const { data: sessionData } = await client.auth.getSession();
+    const userId = sessionData.session?.user.id;
+    if (!userId) return;
+    const { error } = await client.from("profiles").update({ signature_path: null }).eq("id", userId);
+    setSaveMessage(error ? `Assinatura removida localmente, mas não sincronizada: ${error.message}` : "Assinatura removida do perfil.");
   }
 
   return (
@@ -344,10 +372,7 @@ export default function PerfilPage() {
                   {signatureImage && (
                     <button
                       type="button"
-                      onClick={() => {
-                        setSignatureImage(null);
-                        localStorage.removeItem("hpsr-profile-signature-png");
-                      }}
+                      onClick={() => { void removeSignatureImage(); }}
                       className="mt-3 w-full rounded-[14px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]"
                     >
                       Remover PNG
