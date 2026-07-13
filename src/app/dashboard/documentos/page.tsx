@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { createClient } from "@/lib/supabase";
 
 type PatientDraft = {
@@ -525,6 +526,7 @@ function PatientQuickRegisterModal({
 
 export default function DocumentsPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
+  const { patients: sharedPatients, selectedPatient: sharedSelectedPatient, selectPatient: selectSharedPatient, upsertPatient: upsertSharedPatient, loading: patientsLoading } = usePatientSelection();
   const initialDoctor: DoctorDraft = {
     name: currentUserProfile.signatureName || currentUserProfile.characterName || currentUserProfile.systemName || "",
     crm: currentUserProfile.crm || "",
@@ -544,9 +546,14 @@ export default function DocumentsPage() {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [patient, setPatient] = useState<PatientDraft>(emptyPatient);
-  const [patientOptions, setPatientOptions] = useState<PatientDraft[]>(patientSuggestions);
+  const patientOptions = sharedPatients as PatientDraft[];
   const [quickPatientOpen, setQuickPatientOpen] = useState(false);
   const [quickPatientDraft, setQuickPatientDraft] = useState<PatientDraft>(emptyPatient);
+
+  useEffect(() => {
+    if (!sharedSelectedPatient) return;
+    setPatient(sharedSelectedPatient as PatientDraft);
+  }, [sharedSelectedPatient]);
   const [doctor, setDoctor] = useState<DoctorDraft>(initialDoctor);
   const [selectedDoctorId, setSelectedDoctorId] = useState("current-user");
   const [selectedModelId, setSelectedModelId] = useState(
@@ -812,11 +819,8 @@ export default function DocumentsPage() {
     const fallbackPassport = normalizedPatient.passport || `TEMP-${Date.now().toString().slice(-5)}`;
     const nextPatient = { ...normalizedPatient, passport: fallbackPassport };
     setPatient(nextPatient);
-    setPatientOptions((current) => {
-      const exists = current.some((item) => item.passport === nextPatient.passport);
-      if (exists) return current.map((item) => (item.passport === nextPatient.passport ? nextPatient : item));
-      return [nextPatient, ...current];
-    });
+    upsertSharedPatient(nextPatient);
+    selectSharedPatient(nextPatient);
     setQuickPatientOpen(false);
   }
 
@@ -1175,10 +1179,16 @@ export default function DocumentsPage() {
                           value={patient.passport}
                           onChange={(passport) => {
                             const match = patientOptions.find((item) => item.passport === passport);
-                            if (match) setPatient(match);
+                            if (match) {
+                              setPatient(match);
+                              selectSharedPatient(match);
+                            } else {
+                              setPatient(emptyPatient);
+                              selectSharedPatient(null);
+                            }
                           }}
                         >
-                          <option value="">Paciente livre...</option>
+                          <option value="">{patientsLoading ? "Carregando pacientes..." : "Paciente livre..."}</option>
                           {patientOptions.map((item) => (
                             <option key={item.passport} value={item.passport}>
                               {item.name} · {item.passport}

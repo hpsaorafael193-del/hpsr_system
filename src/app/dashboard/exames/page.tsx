@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { createClient } from "@/lib/supabase";
 import { registerSystemActivity } from "@/lib/administrative-storage";
 import {
@@ -673,6 +674,7 @@ function AppDialog({
 
 export default function ExamesPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
+  const { patients: sharedPatients, selectedPatient: sharedSelectedPatient, selectPatient: selectSharedPatient, upsertPatient: upsertSharedPatient, loading: patientsLoading } = usePatientSelection();
   const initialDoctor: DoctorDraft = {
     name: currentUserProfile.signatureName || currentUserProfile.characterName || currentUserProfile.systemName || "",
     crm: currentUserProfile.crm || "",
@@ -692,9 +694,14 @@ export default function ExamesPage() {
   const lastRange = useRef<Range | null>(null);
 
   const [patient, setPatient] = useState<PatientDraft>(emptyPatient);
-  const [patientOptions, setPatientOptions] = useState<PatientDraft[]>(patientSuggestions);
+  const patientOptions = sharedPatients as PatientDraft[];
   const [quickPatientOpen, setQuickPatientOpen] = useState(false);
   const [quickPatientDraft, setQuickPatientDraft] = useState<PatientDraft>(emptyPatient);
+
+  useEffect(() => {
+    if (!sharedSelectedPatient) return;
+    setPatient(sharedSelectedPatient as PatientDraft);
+  }, [sharedSelectedPatient]);
   const [appDialog, setAppDialog] = useState<AppDialogState>(null);
   const [attachments, setAttachments] = useState<RenderAttachmentFile[]>([]);
   const [attachmentOverrideActive, setAttachmentOverrideActive] = useState(false);
@@ -1181,10 +1188,14 @@ export default function ExamesPage() {
   function selectPatient(passport: string) {
     if (!passport) {
       setPatient(emptyPatient);
+      selectSharedPatient(null);
       return;
     }
     const found = patientOptions.find((item) => item.passport === passport);
-    if (found) setPatient(found);
+    if (found) {
+      setPatient(found);
+      selectSharedPatient(found);
+    }
   }
 
   function openQuickPatient() {
@@ -1210,11 +1221,8 @@ export default function ExamesPage() {
     const fallbackPassport = normalizedPatient.passport || `TEMP-${Date.now().toString().slice(-5)}`;
     const nextPatient = { ...normalizedPatient, passport: fallbackPassport };
     setPatient(nextPatient);
-    setPatientOptions((current) => {
-      const exists = current.some((item) => item.passport === nextPatient.passport);
-      if (exists) return current.map((item) => (item.passport === nextPatient.passport ? nextPatient : item));
-      return [nextPatient, ...current];
-    });
+    upsertSharedPatient(nextPatient);
+    selectSharedPatient(nextPatient);
     setQuickPatientOpen(false);
   }
   function selectDoctor(id: string) {

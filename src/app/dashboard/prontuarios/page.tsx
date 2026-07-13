@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 import { createClient } from "@/lib/supabase";
 import { ClinicalRecordsPortalPanel } from "@/components/dashboard/ClinicalRecordsPortalPanel";
@@ -105,12 +106,41 @@ function eventIcon(type: TimelineEvent["type"]) {
 
 export default function RecordsPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
+  const { patients: sharedPatients, loading: sharedPatientsLoading, selectedPassport: sharedSelectedPassport, selectPatient: selectSharedPatient } = usePatientSelection();
   const [patients, setPatients] = useState<PatientRecord[]>(initialPatients);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>(initialTimelineEvents);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedPassport, setSelectedPassport] = useState("");
   const [activeTab, setActiveTab] = useState<RecordTab>("geral");
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [isLoadingPatients, setIsLoadingPatients] = useState(true);
+
+  useEffect(() => {
+    if (sharedSelectedPassport) setSelectedPassport(sharedSelectedPassport);
+  }, [sharedSelectedPassport]);
+
+  useEffect(() => {
+    if (!sharedPatients.length) return;
+    setPatients((current) => {
+      const map = new Map(current.map((patient) => [patient.passport, patient]));
+      for (const patient of sharedPatients) {
+        const existing = map.get(patient.passport);
+        map.set(patient.passport, {
+          id: existing?.id || `pac-${patient.passport}`,
+          name: patient.name || existing?.name || `Paciente ${patient.passport}`,
+          passport: patient.passport,
+          age: patient.age || existing?.age || "—",
+          bloodType: patient.bloodType || existing?.bloodType || "—",
+          cityPhone: patient.cityPhone || existing?.cityPhone || "Não informado",
+          status: existing?.status || "Ativo",
+          followUp: existing?.followUp || "Prontuário clínico",
+          lastVisit: existing?.lastVisit || "—",
+          alerts: existing?.alerts || [],
+        });
+      }
+      return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    });
+  }, [sharedPatients]);
 
   useEffect(() => {
     const client = createClient();
@@ -120,6 +150,7 @@ export default function RecordsPage() {
     let active = true;
 
     async function loadPatients() {
+      setIsLoadingPatients(true);
       const [recordsResult, appointmentsResult, portalResult] = await Promise.all([
         supabase.from("clinical_records").select("id,patient_passport,record_type,payload,created_at").order("created_at", { ascending: false }),
         supabase.from("appointments").select("id,passport,patient,status,payload,created_at,updated_at").order("created_at", { ascending: false }),
@@ -360,6 +391,7 @@ export default function RecordsPage() {
                   onChange={(event) => {
                     setSearchTerm(event.target.value);
                     setSelectedPassport("");
+                    selectSharedPatient(null);
                     setActiveTab("geral");
                   }}
                   placeholder="Buscar por passaporte ou nome"
@@ -408,6 +440,7 @@ export default function RecordsPage() {
                     type="button"
                     onClick={() => {
                       setSelectedPassport(patient.passport);
+                      selectSharedPatient({ name: patient.name, passport: patient.passport, age: patient.age, bloodType: patient.bloodType, cityPhone: patient.cityPhone });
                       setActiveTab("geral");
                     }}
                     className={`rounded-[16px] border p-3 text-left transition ${
@@ -445,8 +478,17 @@ export default function RecordsPage() {
 
               {visiblePatients.length === 0 && (
                 <div className="rounded-[16px] border border-dashed border-hpsr-border bg-white p-3.5 text-center">
-                  <p className="font-black text-hpsr-text">Nenhum paciente encontrado.</p>
-                  <p className="mt-1 text-sm text-hpsr-muted">Tente buscar por outro nome ou passaporte.</p>
+                  {isLoadingPatients || sharedPatientsLoading ? (
+                    <>
+                      <p className="font-black text-hpsr-text">Carregando pacientes...</p>
+                      <p className="mt-1 text-sm text-hpsr-muted">Sincronizando os dados do Supabase.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-black text-hpsr-text">Nenhum paciente encontrado.</p>
+                      <p className="mt-1 text-sm text-hpsr-muted">Tente buscar por outro nome ou passaporte.</p>
+                    </>
+                  )}
                 </div>
               )}
             </div>
