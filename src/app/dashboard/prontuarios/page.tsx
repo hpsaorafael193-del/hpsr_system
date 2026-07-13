@@ -115,33 +115,123 @@ export default function RecordsPage() {
   useEffect(() => {
     const client = createClient();
     if (!client) return;
-    void client.from("clinical_records").select("id,patient_passport,record_type,payload,created_at").order("created_at", { ascending: false }).then(({ data }) => {
-      if (!data) return;
+    const supabase = client;
+
+    let active = true;
+
+    async function loadPatients() {
+      const [recordsResult, appointmentsResult, portalResult] = await Promise.all([
+        supabase.from("clinical_records").select("id,patient_passport,record_type,payload,created_at").order("created_at", { ascending: false }),
+        supabase.from("appointments").select("id,passport,patient,status,payload,created_at,updated_at").order("created_at", { ascending: false }),
+        supabase.from("patient_portal_access").select("id,patient_passport,email,access_enabled,created_at").order("created_at", { ascending: false }),
+      ]);
+
+      if (!active) return;
+
       const patientMap = new Map<string, PatientRecord>();
       const events: TimelineEvent[] = [];
-      for (const row of data as any[]) {
+
+      const upsertPatient = (passportValue: unknown, source: Partial<PatientRecord>) => {
+        const passport = String(passportValue || "").trim();
+        if (!passport) return;
+        const current = patientMap.get(passport);
+        patientMap.set(passport, {
+          id: current?.id || `pac-${passport}`,
+          name: source.name && !source.name.startsWith("Paciente ") ? source.name : current?.name || source.name || `Paciente ${passport}`,
+          passport,
+          age: source.age && source.age !== "—" ? source.age : current?.age || "—",
+          bloodType: source.bloodType && source.bloodType !== "—" ? source.bloodType : current?.bloodType || "—",
+          cityPhone: source.cityPhone && source.cityPhone !== "Não informado" ? source.cityPhone : current?.cityPhone || "Não informado",
+          status: source.status || current?.status || "Ativo",
+          followUp: source.followUp || current?.followUp || "Prontuário clínico",
+          lastVisit: [current?.lastVisit, source.lastVisit].filter(Boolean).sort().at(-1) || "",
+          alerts: Array.from(new Set([...(current?.alerts || []), ...(source.alerts || [])])),
+        });
+      };
+
+      for (const row of (portalResult.data || []) as any[]) {
+        upsertPatient(row.patient_passport, {
+          name: `Paciente ${row.patient_passport}`,
+          status: row.access_enabled ? "Ativo" : "Arquivado",
+          followUp: "Acesso ao Portal do Paciente",
+          lastVisit: String(row.created_at || "").slice(0, 10),
+          alerts: row.access_enabled ? [] : ["Acesso ao portal desativado"],
+        });
+      }
+
+      for (const row of (appointmentsResult.data || []) as any[]) {
+        const payload = row.payload || {};
+        const passport = String(row.passport || payload.passport || "").trim();
+        if (!passport) continue;
+        upsertPatient(passport, {
+          name: row.patient || payload.patient || `Paciente ${passport}`,
+          status: "Em acompanhamento",
+          followUp: "Consultas e agendamentos",
+          lastVisit: String(row.updated_at || row.created_at || "").slice(0, 10),
+        });
+        events.push({
+          id: `appointment-${row.id}`,
+          patientPassport: passport,
+          type: "Consulta",
+          title: payload.specialty ? `Consulta · ${payload.specialty}` : "Consulta agendada",
+          date: String(payload.preferredDate || row.created_at || "").slice(0, 10),
+          doctor: payload.doctor || "Equipe médica",
+          status: row.status || "Agendada",
+          summary: payload.reason || payload.notes || "Consulta registrada no sistema.",
+        });
+      }
+
+      for (const row of (recordsResult.data || []) as any[]) {
         const passport = String(row.patient_passport || "").trim();
         if (!passport) continue;
         const payload = row.payload || {};
         const patient = payload.patient || {};
-        if (!patientMap.has(passport)) patientMap.set(passport, {
-          id: `pac-${passport}`,
-          name: patient.name || `Paciente ${passport}`,
-          passport,
+        upsertPatient(passport, {
+          name: patient.name || payload.patientName || `Paciente ${passport}`,
           age: patient.age || "—",
           bloodType: patient.bloodType || "—",
           cityPhone: patient.cityPhone || "Não informado",
           status: "Em acompanhamento",
           followUp: "Prontuário clínico",
           lastVisit: String(row.created_at || "").slice(0, 10),
-          alerts: [],
         });
-        const kind: TimelineEvent["type"] = String(row.record_type).toLowerCase().includes("exame") ? "Exame" : String(row.record_type).toLowerCase().includes("document") ? "Observação" : "Observação";
-        events.push({ id: row.id, patientPassport: passport, type: kind, title: payload.examName || payload.documentTitle || row.record_type, date: String(row.created_at || "").slice(0, 10), doctor: payload.doctor?.name || "Equipe médica", status: "Concluído", summary: payload.summary || "Registro armazenado no prontuário." });
+        const recordType = String(row.record_type || "").toLowerCase();
+        const kind: TimelineEvent["type"] = recordType.includes("exame")
+          ? "Exame"
+          : recordType.includes("prescri")
+            ? "Prescrição"
+            : recordType.includes("proced")
+              ? "Procedimento"
+              : "Observação";
+        events.push({
+          id: row.id,
+          patientPassport: passport,
+          type: kind,
+          title: payload.examName || payload.documentTitle || payload.title || row.record_type,
+          date: String(row.created_at || "").slice(0, 10),
+          doctor: payload.doctor?.name || payload.doctorName || "Equipe médica",
+          status: "Concluído",
+          summary: payload.summary || "Registro armazenado no prontuário.",
+        });
       }
-      setPatients(Array.from(patientMap.values()));
+
+      setPatients(Array.from(patientMap.values()).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
       setTimelineEvents(events);
-    });
+    }
+
+    void loadPatients();
+
+    const channel = client
+      .channel("prontuarios-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "clinical_records" }, loadPatients)
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, loadPatients)
+      .on("postgres_changes", { event: "*", schema: "public", table: "patient_portal_access" }, loadPatients)
+      .subscribe();
+
+    return () => {
+      active = false;
+      void client.removeChannel(channel);
+    };
   }, []);
 
   const visiblePatients = useMemo(() => {

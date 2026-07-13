@@ -845,24 +845,72 @@ export default function DocumentsPage() {
   }
 
   function normalizeSignatureImage(image: HTMLImageElement) {
-    const signatureCanvas = document.createElement("canvas");
-    signatureCanvas.width = image.naturalWidth || image.width;
-    signatureCanvas.height = image.naturalHeight || image.height;
-    const signatureContext = signatureCanvas.getContext("2d");
-    if (!signatureContext) return image;
-    signatureContext.drawImage(image, 0, 0);
-    const pixels = signatureContext.getImageData(0, 0, signatureCanvas.width, signatureCanvas.height);
-    const data = pixels.data;
-    for (let index = 0; index < data.length; index += 4) {
-      const red = data[index];
-      const green = data[index + 1];
-      const blue = data[index + 2];
-      const alpha = data[index + 3];
-      if (alpha === 0) continue;
-      if (red > 245 && green > 245 && blue > 245) data[index + 3] = 0;
-    }
-    signatureContext.putImageData(pixels, 0, 0);
-    return signatureCanvas;
+      const sourceCanvas = document.createElement("canvas");
+      sourceCanvas.width = image.naturalWidth || image.width;
+      sourceCanvas.height = image.naturalHeight || image.height;
+      const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
+      if (!sourceContext) return image;
+      sourceContext.drawImage(image, 0, 0);
+      const pixels = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+      const data = pixels.data;
+      let minX = sourceCanvas.width;
+      let minY = sourceCanvas.height;
+      let maxX = -1;
+      let maxY = -1;
+
+      for (let y = 0; y < sourceCanvas.height; y += 1) {
+        for (let x = 0; x < sourceCanvas.width; x += 1) {
+          const index = (y * sourceCanvas.width + x) * 4;
+          const red = data[index];
+          const green = data[index + 1];
+          const blue = data[index + 2];
+          const alpha = data[index + 3];
+          if (alpha === 0) continue;
+          const isNearWhite = red > 242 && green > 242 && blue > 242;
+          if (isNearWhite) {
+            data[index + 3] = 0;
+            continue;
+          }
+          if (alpha > 20) {
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+          }
+        }
+      }
+      sourceContext.putImageData(pixels, 0, 0);
+      if (maxX < minX || maxY < minY) return sourceCanvas;
+
+      const padding = Math.max(6, Math.round(Math.min(sourceCanvas.width, sourceCanvas.height) * 0.025));
+      const cropX = Math.max(0, minX - padding);
+      const cropY = Math.max(0, minY - padding);
+      const cropWidth = Math.min(sourceCanvas.width - cropX, maxX - minX + 1 + padding * 2);
+      const cropHeight = Math.min(sourceCanvas.height - cropY, maxY - minY + 1 + padding * 2);
+      const croppedCanvas = document.createElement("canvas");
+      croppedCanvas.width = cropWidth;
+      croppedCanvas.height = cropHeight;
+      const croppedContext = croppedCanvas.getContext("2d");
+      if (!croppedContext) return sourceCanvas;
+      croppedContext.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+      return croppedCanvas;
+  }
+
+
+  function drawSignatureContain(
+    context: CanvasRenderingContext2D,
+    image: HTMLImageElement | HTMLCanvasElement,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ) {
+    const ratio = Math.min(width / image.width, height / image.height);
+    const drawWidth = image.width * ratio;
+    const drawHeight = image.height * ratio;
+    const drawX = x + (width - drawWidth) / 2;
+    const drawY = y + (height - drawHeight) / 2;
+    context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
   }
 
   function drawWrappedText(
@@ -999,7 +1047,10 @@ export default function DocumentsPage() {
       window.localStorage.getItem("hpsr-profile-signature-png");
     if (signatureSource) {
       const signature = await loadImage(signatureSource);
-      if (signature) context.drawImage(normalizeSignatureImage(signature), 257, 995, 280, 52);
+      if (signature) {
+        const normalizedSignature = normalizeSignatureImage(signature);
+        drawSignatureContain(context, normalizedSignature, 237, 990, 320, 64);
+      }
     }
 
     context.strokeStyle = "#5b1809";
@@ -1314,6 +1365,24 @@ export default function DocumentsPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2 border-b border-[#e3cdbd] bg-white px-5 py-2.5 no-print">
+              <label className="inline-flex h-10 items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-text">
+                <Type size={15} />
+                <select
+                  defaultValue="3"
+                  onChange={(event) => exec("fontSize", event.target.value)}
+                  className="min-w-[96px] bg-transparent text-xs font-black text-hpsr-text outline-none"
+                  aria-label="Tamanho da fonte"
+                  title="Tamanho da fonte"
+                >
+                  <option value="1">10 px</option>
+                  <option value="2">12 px</option>
+                  <option value="3">14 px</option>
+                  <option value="4">16 px</option>
+                  <option value="5">18 px</option>
+                  <option value="6">24 px</option>
+                  <option value="7">32 px</option>
+                </select>
+              </label>
               <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("bold")}><Bold size={15} /></button>
               <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("italic")}><Italic size={15} /></button>
               <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("underline")}><Underline size={15} /></button>

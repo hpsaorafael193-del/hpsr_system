@@ -416,7 +416,7 @@ function resolveXrayAttachmentAsset(region: string, profileId: string) {
     joelho: { normal: "joelho_normal.jpg", trauma: "joelho_trauma.jpg", fratura: "joelho_fratura_plato_tibial.jpg", luxacao: "joelho_luxacao_patelar.jpg" },
     ombro: { normal: "ombro_normal.jpg", trauma: "ombro_trauma.jpg", fratura: "ombro_fratura_umero_proximal.jpg", luxacao: "ombro_luxacao_glenoumeral.jpg" },
     pe: { normal: "pe_normal.jpg", trauma: "pe_trauma.jpg", fratura: "pe_fratura_metatarsos.jpg", luxacao: "pe_luxacao_desalinhamento.jpg" },
-    perna_coxa_canela: { normal: "perna_normal.jpg", trauma: "perna_trauma.jpg", fratura: "perna_fratura_femur.jpg" },
+    perna_coxa_canela: { normal: "perna_normal.jpg", trauma: "perna_trauma.jpg", fratura: "perna_fratura_tibia_fibula.png" },
     torax: { normal: "torax_normal.jpg", trauma: "torax_trauma.jpg", fratura: "torax_fratura_multiplas_costelas.jpg" },
   };
 
@@ -697,6 +697,8 @@ export default function ExamesPage() {
   const [quickPatientDraft, setQuickPatientDraft] = useState<PatientDraft>(emptyPatient);
   const [appDialog, setAppDialog] = useState<AppDialogState>(null);
   const [attachments, setAttachments] = useState<RenderAttachmentFile[]>([]);
+  const [attachmentOverrideActive, setAttachmentOverrideActive] = useState(false);
+  const [automaticAttachmentRemoved, setAutomaticAttachmentRemoved] = useState(false);
   const [attachmentEditorOpen, setAttachmentEditorOpen] = useState(false);
   const [automaticAttachmentNotes, setAutomaticAttachmentNotes] = useState("");
   const [doctor, setDoctor] = useState<DoctorDraft>(initialDoctor);
@@ -878,7 +880,13 @@ export default function ExamesPage() {
     };
   }, [resolvedExam, automaticAttachmentNotes]);
 
-  const attachmentCount = attachments.length + (automaticRxAttachment ? 1 : 0);
+  const effectiveAutomaticAttachment = automaticAttachmentRemoved || (attachmentOverrideActive && attachments.length > 0) ? null : automaticRxAttachment;
+  const attachmentCount = attachments.length + (effectiveAutomaticAttachment ? 1 : 0);
+
+  useEffect(() => {
+    setAutomaticAttachmentRemoved(false);
+    setAttachmentOverrideActive(false);
+  }, [selectedExamId, adaptiveConfig?.adapterValue, adaptiveConfig?.profileId]);
 
   useEffect(() => {
     const storedSignature = window.localStorage.getItem(
@@ -1345,6 +1353,9 @@ export default function ExamesPage() {
             setProtocol(createProtocol());
             setEditorContent("", { moveCaretToEnd: true });
             removeDraft();
+            setAttachments([]);
+            setAttachmentOverrideActive(false);
+            setAutomaticAttachmentRemoved(false);
             setSaveStatus("Limpo");
             setLastSavedAt("");
           },
@@ -1359,11 +1370,8 @@ export default function ExamesPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
   }
 
-  function addAttachmentFiles(files: FileList | null) {
-    if (!files?.length) return;
-
-    const selectedFiles = Array.from(files);
-    const readers = selectedFiles.map(
+  function processAttachmentFiles(files: File[], mode: "replace" | "append") {
+    const readers = files.map(
       (file) =>
         new Promise<RenderAttachmentFile>((resolve, reject) => {
           const reader = new FileReader();
@@ -1381,7 +1389,12 @@ export default function ExamesPage() {
 
     Promise.all(readers)
       .then((items) => {
-        setAttachments((current) => [...current, ...items]);
+        if (mode === "replace") {
+          setAttachments(items);
+          setAttachmentOverrideActive(true);
+        } else {
+          setAttachments((current) => [...current, ...items]);
+        }
         setSaveStatus("Salvando...");
       })
       .catch(() => {
@@ -1394,8 +1407,46 @@ export default function ExamesPage() {
       });
   }
 
+  function addAttachmentFiles(files: FileList | null) {
+    if (!files?.length) return;
+
+    const selectedFiles = Array.from(files);
+    const shouldAsk = !!automaticRxAttachment || attachments.length > 0;
+    if (!shouldAsk) {
+      processAttachmentFiles(selectedFiles, "append");
+      return;
+    }
+
+    setAppDialog({
+      title: "Como deseja inserir o anexo?",
+      message: "Você pode substituir o anexo exibido atualmente ou adicionar o novo arquivo em uma nova página do exame.",
+      actions: [
+        { label: "Cancelar", onClick: () => setAppDialog(null) },
+        {
+          label: "Substituir atual",
+          variant: "primary",
+          onClick: () => {
+            setAppDialog(null);
+            processAttachmentFiles(selectedFiles, "replace");
+          },
+        },
+        {
+          label: "Adicionar em nova página",
+          onClick: () => {
+            setAppDialog(null);
+            processAttachmentFiles(selectedFiles, "append");
+          },
+        },
+      ],
+    });
+  }
+
   function removeAttachment(id: string) {
-    setAttachments((current) => current.filter((item) => item.id !== id));
+    setAttachments((current) => {
+      const next = current.filter((item) => item.id !== id);
+      if (!next.length) setAttachmentOverrideActive(false);
+      return next;
+    });
     setSaveStatus("Salvando...");
   }
 
@@ -1408,7 +1459,7 @@ export default function ExamesPage() {
       reportHtml: html,
       manualAttachments: attachments,
       resolvedExam,
-      automaticAttachments: automaticRxAttachment ? [automaticRxAttachment] : undefined,
+      automaticAttachments: effectiveAutomaticAttachment ? [effectiveAutomaticAttachment] : undefined,
     });
     return document;
   }
@@ -1517,28 +1568,59 @@ export default function ExamesPage() {
       });
 
     const normalizeSignatureImage = (image: HTMLImageElement) => {
-      const signatureCanvas = document.createElement("canvas");
-      signatureCanvas.width = image.naturalWidth || image.width;
-      signatureCanvas.height = image.naturalHeight || image.height;
-      const signatureContext = signatureCanvas.getContext("2d");
-      if (!signatureContext) return image;
-      signatureContext.drawImage(image, 0, 0);
-      const pixels = signatureContext.getImageData(0, 0, signatureCanvas.width, signatureCanvas.height);
+      const sourceCanvas = document.createElement("canvas");
+      sourceCanvas.width = image.naturalWidth || image.width;
+      sourceCanvas.height = image.naturalHeight || image.height;
+      const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
+      if (!sourceContext) return image;
+      sourceContext.drawImage(image, 0, 0);
+      const pixels = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
       const data = pixels.data;
-      for (let index = 0; index < data.length; index += 4) {
-        const red = data[index];
-        const green = data[index + 1];
-        const blue = data[index + 2];
-        const alpha = data[index + 3];
-        if (alpha === 0) continue;
-        if (red > 245 && green > 245 && blue > 245) data[index + 3] = 0;
+      let minX = sourceCanvas.width;
+      let minY = sourceCanvas.height;
+      let maxX = -1;
+      let maxY = -1;
+
+      for (let y = 0; y < sourceCanvas.height; y += 1) {
+        for (let x = 0; x < sourceCanvas.width; x += 1) {
+          const index = (y * sourceCanvas.width + x) * 4;
+          const red = data[index];
+          const green = data[index + 1];
+          const blue = data[index + 2];
+          const alpha = data[index + 3];
+          if (alpha === 0) continue;
+          const isNearWhite = red > 242 && green > 242 && blue > 242;
+          if (isNearWhite) {
+            data[index + 3] = 0;
+            continue;
+          }
+          if (alpha > 20) {
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+          }
+        }
       }
-      signatureContext.putImageData(pixels, 0, 0);
-      return signatureCanvas;
+      sourceContext.putImageData(pixels, 0, 0);
+      if (maxX < minX || maxY < minY) return sourceCanvas;
+
+      const padding = Math.max(6, Math.round(Math.min(sourceCanvas.width, sourceCanvas.height) * 0.025));
+      const cropX = Math.max(0, minX - padding);
+      const cropY = Math.max(0, minY - padding);
+      const cropWidth = Math.min(sourceCanvas.width - cropX, maxX - minX + 1 + padding * 2);
+      const cropHeight = Math.min(sourceCanvas.height - cropY, maxY - minY + 1 + padding * 2);
+      const croppedCanvas = document.createElement("canvas");
+      croppedCanvas.width = cropWidth;
+      croppedCanvas.height = cropHeight;
+      const croppedContext = croppedCanvas.getContext("2d");
+      if (!croppedContext) return sourceCanvas;
+      croppedContext.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+      return croppedCanvas;
     };
 
     const drawImageContain = (
-      image: HTMLImageElement,
+      image: HTMLImageElement | HTMLCanvasElement,
       x: number,
       y: number,
       width: number,
@@ -1672,7 +1754,10 @@ export default function ExamesPage() {
       const signature = finalDocument.metadata.signatureImage
         ? await loadImage(finalDocument.metadata.signatureImage)
         : null;
-      if (signature) context.drawImage(normalizeSignatureImage(signature), 257, 1000, 280, 52);
+      if (signature) {
+        const normalizedSignature = normalizeSignatureImage(signature);
+        drawImageContain(normalizedSignature as HTMLCanvasElement, 237, 993, 320, 64);
+      }
 
       context.strokeStyle = "#5b1809";
       context.setLineDash([2, 2]);
@@ -2127,19 +2212,47 @@ export default function ExamesPage() {
 
             <Panel title="Anexos">
               <div className="space-y-3">
-                {automaticRxAttachment && (
+                {effectiveAutomaticAttachment && (
                   <div className="rounded-[16px] border border-blue-200 bg-blue-50/90 p-3 text-blue-950 shadow-[0_8px_18px_rgba(59,130,246,0.08)]">
                     <div className="flex items-start gap-3">
                       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-white text-blue-700 ring-1 ring-blue-200">
                         <Scan size={18} />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-black uppercase tracking-[0.06em] text-hpsr-muted">Anexo automático</p>
-                        <p className="mt-1 text-sm font-black text-hpsr-text">{automaticRxAttachment.title}</p>
-                        <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">{automaticRxAttachment.subtitle}</p>
-                        <p className="mt-2 text-[11px] font-semibold leading-relaxed text-blue-800">{automaticRxAttachment.legend}</p>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-black uppercase tracking-[0.06em] text-hpsr-muted">Anexo automático</p>
+                            <p className="mt-1 text-sm font-black text-hpsr-text">{effectiveAutomaticAttachment?.title}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAutomaticAttachmentRemoved(true);
+                              setSaveStatus("Salvando...");
+                            }}
+                            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[10px] border border-red-200 bg-white px-2.5 text-[10px] font-black text-red-700 transition hover:bg-red-50"
+                            aria-label="Remover anexo automático"
+                          >
+                            <X size={13} /> Remover
+                          </button>
+                        </div>
+                        <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">{effectiveAutomaticAttachment?.subtitle}</p>
+                        <p className="mt-2 text-[11px] font-semibold leading-relaxed text-blue-800">{effectiveAutomaticAttachment?.legend}</p>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {automaticAttachmentRemoved && automaticRxAttachment && (
+                  <div className="flex items-center justify-between gap-3 rounded-[16px] border border-amber-200 bg-amber-50/90 px-3 py-2 text-[11px] font-semibold text-amber-800">
+                    <span>O anexo automático foi removido deste exame.</span>
+                    <button
+                      type="button"
+                      onClick={() => setAutomaticAttachmentRemoved(false)}
+                      className="shrink-0 rounded-[10px] border border-amber-300 bg-white px-2.5 py-1.5 text-[10px] font-black text-amber-800 hover:bg-amber-100"
+                    >
+                      Restaurar
+                    </button>
                   </div>
                 )}
 
@@ -2165,6 +2278,12 @@ export default function ExamesPage() {
                 <div className="rounded-[16px] border border-blue-200/80 bg-blue-50/80 px-3 py-2 text-[11px] font-semibold leading-relaxed text-hpsr-muted">
                   A página de anexo usa uma única imagem centralizada. Ao adicionar uma nova imagem manual, ela será exibida como anexo visual do exame.
                 </div>
+
+                {attachmentOverrideActive && attachments.length > 0 && (
+                  <div className="rounded-[16px] border border-amber-200 bg-amber-50/90 px-3 py-2 text-[11px] font-semibold leading-relaxed text-amber-800">
+                    O anexo manual está substituindo o anexo automático deste exame.
+                  </div>
+                )}
 
                 {attachments.length > 0 ? (
                   <div className="space-y-2">
@@ -2223,7 +2342,7 @@ export default function ExamesPage() {
                 onClick={() => setAttachmentEditorOpen((current) => !current)}
                 className="rounded-full border border-[#dec8b6] bg-white px-3 py-2 text-xs font-black text-hpsr-text shadow-[0_4px_10px_rgba(42,7,0,0.04)] transition hover:border-hpsr-wine/40 hover:bg-[#fff8ef]"
               >
-                {attachmentCount} anexo(s)
+                Ver anexo
               </button>
               <span className="rounded-full border border-[#dec8b6] bg-white px-3 py-2 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
                 {formatDateBR(todayISO())}
@@ -2291,22 +2410,22 @@ export default function ExamesPage() {
                       </button>
                     </div>
 
-                    {automaticRxAttachment ? (
+                    {effectiveAutomaticAttachment ? (
                       <div className="rounded-[18px] border border-[#d7c3b8] bg-white p-4">
                         <div className="flex items-start gap-3">
                           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white">
                             <Scan size={20} />
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-black text-hpsr-text">{automaticRxAttachment.title}</p>
-                            <p className="mt-1 text-xs font-semibold text-hpsr-muted">{automaticRxAttachment.subtitle}</p>
+                            <p className="text-sm font-black text-hpsr-text">{effectiveAutomaticAttachment?.title}</p>
+                            <p className="mt-1 text-xs font-semibold text-hpsr-muted">{effectiveAutomaticAttachment?.subtitle}</p>
                           </div>
                         </div>
                         <div className="mt-4 rounded-[18px] border border-[#1f2937]/20 bg-[#050505] p-2">
-                          {automaticRxAttachment.imageUrl ? (
+                          {effectiveAutomaticAttachment?.imageUrl ? (
                             <img
-                              src={automaticRxAttachment.imageUrl}
-                              alt={automaticRxAttachment.title}
+                              src={effectiveAutomaticAttachment?.imageUrl}
+                              alt={effectiveAutomaticAttachment?.title || "Anexo"}
                               className="block aspect-[4/3] w-full rounded-[14px] object-contain"
                             />
                           ) : (
@@ -2321,7 +2440,7 @@ export default function ExamesPage() {
                       </div>
                     ) : (
                       <div className="rounded-[16px] border border-blue-200 bg-white/80 px-4 py-4 text-sm font-semibold text-hpsr-muted">
-                        Nenhum anexo automático disponível para o exame atual. Use a área Anexos à esquerda para adicionar arquivos manualmente.
+                        {attachmentOverrideActive && attachments.length > 0 ? "O anexo automático foi substituído por anexo manual. Use a lista à esquerda para revisar os arquivos enviados." : "Nenhum anexo automático disponível para o exame atual. Use a área Anexos à esquerda para adicionar arquivos manualmente."}
                       </div>
                     )}
                   </div>
@@ -2665,6 +2784,26 @@ function Toolbar({
         </Button>
         <Button onClick={() => applyFormatBlock("h2")}>Seção</Button>
         <Button onClick={() => applyFormatBlock("p")}>Texto</Button>
+      </div>
+      <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+        <label className="inline-flex h-9 items-center gap-2 rounded-[12px] border border-hpsr-border bg-white/85 px-2 text-xs font-black text-hpsr-text">
+          <Type size={15} />
+          <select
+            defaultValue="3"
+            onChange={(event) => exec("fontSize", event.target.value)}
+            className="h-7 min-w-[96px] bg-transparent text-xs font-black text-hpsr-text outline-none"
+            aria-label="Tamanho da fonte"
+            title="Tamanho da fonte"
+          >
+            <option value="1">10 px</option>
+            <option value="2">12 px</option>
+            <option value="3">14 px</option>
+            <option value="4">16 px</option>
+            <option value="5">18 px</option>
+            <option value="6">24 px</option>
+            <option value="7">32 px</option>
+          </select>
+        </label>
       </div>
       <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
         <Button onClick={() => exec("bold")}>

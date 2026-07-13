@@ -102,7 +102,7 @@ function resolveXrayAttachmentAsset(region: string, profileId: string) {
     joelho: { normal: "joelho_normal.jpg", trauma: "joelho_trauma.jpg", fratura: "joelho_fratura_plato_tibial.jpg", luxacao: "joelho_luxacao_patelar.jpg" },
     ombro: { normal: "ombro_normal.jpg", trauma: "ombro_trauma.jpg", fratura: "ombro_fratura_umero_proximal.jpg", luxacao: "ombro_luxacao_glenoumeral.jpg" },
     pe: { normal: "pe_normal.jpg", trauma: "pe_trauma.jpg", fratura: "pe_fratura_metatarsos.jpg", luxacao: "pe_luxacao_desalinhamento.jpg" },
-    perna_coxa_canela: { normal: "perna_normal.jpg", trauma: "perna_trauma.jpg", fratura: "perna_fratura_femur.jpg" },
+    perna_coxa_canela: { normal: "perna_normal.jpg", trauma: "perna_trauma.jpg", fratura: "perna_fratura_tibia_fibula.png" },
     torax: { normal: "torax_normal.jpg", trauma: "torax_trauma.jpg", fratura: "torax_fratura_multiplas_costelas.jpg" },
   };
 
@@ -432,7 +432,7 @@ function Footer({ metadata, pageIndex, totalPages }: { metadata: RenderMetadata;
     <div className="pointer-events-none absolute bottom-[12px] left-[42px] right-[42px] h-[126px] overflow-hidden border-t border-[#5b1809]/20 bg-[#fffaf4]/95 pt-2 text-[#7a5148]" style={{ fontFamily: "Georgia, 'Times New Roman', serif", zIndex: 4 }}>
       <div className="flex h-[82px] items-end justify-center overflow-hidden">
         <div className="w-[52%] text-center">
-          {metadata.signatureImage && <img src={metadata.signatureImage} alt="Assinatura cadastrada" className="mx-auto block object-contain" style={{ width: 280, height: 52, maxWidth: 280, maxHeight: 52, mixBlendMode: "multiply", background: "transparent" }} />}
+          {metadata.signatureImage && <img src={metadata.signatureImage} alt="Assinatura cadastrada" className="mx-auto block object-contain" style={{ width: 320, height: 64, maxWidth: 320, maxHeight: 64, objectFit: "contain", mixBlendMode: "multiply", background: "transparent" }} />}
           <div className="mx-auto mt-1 h-px w-[82%] border-b border-dotted border-[#5b1809]" />
           <p className="mt-1 text-[11px]"><span className="font-bold text-[#5b1809]">Dr(a).</span> {metadata.doctor.name || "Nome do médico"}</p>
           <p className="text-[9px]"><span className="font-bold text-[#5b1809]">CRM:</span> {metadata.doctor.crm || "000000"}</p>

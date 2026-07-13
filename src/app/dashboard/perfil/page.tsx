@@ -172,7 +172,60 @@ export default function PerfilPage() {
 
     const reader = new FileReader();
     reader.onload = async () => {
-      const image = String(reader.result);
+      const originalImage = String(reader.result);
+      const image = await new Promise<string>((resolve) => {
+        const source = new Image();
+        source.onload = () => {
+          const sourceCanvas = document.createElement("canvas");
+          sourceCanvas.width = source.naturalWidth || source.width;
+          sourceCanvas.height = source.naturalHeight || source.height;
+          const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
+          if (!sourceContext) { resolve(originalImage); return; }
+          sourceContext.drawImage(source, 0, 0);
+          const pixels = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+          const data = pixels.data;
+          let minX = sourceCanvas.width;
+          let minY = sourceCanvas.height;
+          let maxX = -1;
+          let maxY = -1;
+          for (let y = 0; y < sourceCanvas.height; y += 1) {
+            for (let x = 0; x < sourceCanvas.width; x += 1) {
+              const index = (y * sourceCanvas.width + x) * 4;
+              const red = data[index];
+              const green = data[index + 1];
+              const blue = data[index + 2];
+              const alpha = data[index + 3];
+              if (alpha === 0) continue;
+              if (red > 242 && green > 242 && blue > 242) {
+                data[index + 3] = 0;
+                continue;
+              }
+              if (alpha > 20) {
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x);
+                maxY = Math.max(maxY, y);
+              }
+            }
+          }
+          sourceContext.putImageData(pixels, 0, 0);
+          if (maxX < minX || maxY < minY) { resolve(sourceCanvas.toDataURL("image/png")); return; }
+          const padding = Math.max(8, Math.round(Math.min(sourceCanvas.width, sourceCanvas.height) * 0.025));
+          const cropX = Math.max(0, minX - padding);
+          const cropY = Math.max(0, minY - padding);
+          const cropWidth = Math.min(sourceCanvas.width - cropX, maxX - minX + 1 + padding * 2);
+          const cropHeight = Math.min(sourceCanvas.height - cropY, maxY - minY + 1 + padding * 2);
+          const output = document.createElement("canvas");
+          output.width = cropWidth;
+          output.height = cropHeight;
+          const outputContext = output.getContext("2d");
+          if (!outputContext) { resolve(originalImage); return; }
+          outputContext.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+          resolve(output.toDataURL("image/png"));
+        };
+        source.onerror = () => resolve(originalImage);
+        source.src = originalImage;
+      });
       setSignatureImage(image);
       localStorage.setItem("hpsr-profile-signature-png", image);
 

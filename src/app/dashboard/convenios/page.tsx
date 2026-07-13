@@ -236,8 +236,9 @@ export default function InsurancePage() {
   const [insurancePlans, setInsurancePlans] = useState<Patient[]>(() => purgeOldClosedPlans(normalizeExpiredPlans(patients)));
   const [registerDraft, setRegisterDraft] = useState<RegisterDraft>(() => initialRegisterDraft());
 
-  const canRegisterPlan = registerRoles.includes(currentUserProfile.role);
-  const canManagePlans = directorRoles.includes(currentUserProfile.role);
+  const isSystemDeveloper = currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema";
+  const canRegisterPlan = isSystemDeveloper || registerRoles.includes(currentUserProfile.role);
+  const canManagePlans = isSystemDeveloper || directorRoles.includes(currentUserProfile.role);
 
   const searchedMatch = useMemo(
     () => findActivePlanByPassport(insurancePlans, searchedPassport),
@@ -483,7 +484,7 @@ export default function InsurancePage() {
         </div>
         {!canManagePlans && (
           <p className="mt-2 text-xs font-medium text-hpsr-muted">
-            Gerenciamento de planos é restrito à Diretora e Vice Diretor. Seu cargo atual: {currentUserProfile.role}.
+            Gerenciamento de planos é restrito à Diretora, Vice Diretor e Desenvolvedor do Sistema. Seu cargo atual: {currentUserProfile.role}.
           </p>
         )}
       </section>
