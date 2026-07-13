@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { createClient } from "@/lib/supabase";
 
 type PatientDraft = {
   name: string;
@@ -562,6 +563,7 @@ export default function DocumentsPage() {
   const [appDialog, setAppDialog] = useState<AppDialog>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [isConfidential, setIsConfidential] = useState(true);
 
   const today = useMemo(() => new Date().toLocaleDateString("pt-BR"), []);
   const selectedModel = useMemo(
@@ -1063,6 +1065,29 @@ export default function DocumentsPage() {
     setEditorHtml(html);
     saveDraft(true);
 
+    const client = createClient();
+    if (client && patient.passport?.trim()) {
+      const recordId = `document-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const { error } = await client.from("clinical_records").insert({
+        id: recordId,
+        patient_passport: patient.passport.trim(),
+        record_type: "Documento",
+        is_confidential: isConfidential,
+        released_at: isConfidential ? null : new Date().toISOString(),
+        payload: {
+          documentTitle: selectedModel?.title || "Documento médico",
+          documentHtml: html,
+          patient,
+          doctor,
+          savedAt: new Date().toISOString(),
+        },
+      });
+      if (error) {
+        setAppDialog({ title: "Não foi possível salvar o documento", message: error.message, actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
+        return;
+      }
+    }
+
     const canvas = await renderDocumentCanvas();
     if (!canvas) return;
     setPreviewImage(canvas.toDataURL("image/png"));
@@ -1313,7 +1338,10 @@ export default function DocumentsPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#ddc6b4] bg-[#fcfaf8] px-5 py-3.5 no-print">
-              <div aria-hidden="true" />
+              <label className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">
+                <input type="checkbox" checked={isConfidential} onChange={(event) => setIsConfidential(event.target.checked)} />
+                Sigilo no Portal do Paciente
+              </label>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"

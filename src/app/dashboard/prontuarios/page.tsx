@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   Archive,
@@ -23,6 +23,8 @@ import {
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
+import { createClient } from "@/lib/supabase";
+import { ClinicalRecordsPortalPanel } from "@/components/dashboard/ClinicalRecordsPortalPanel";
 
 type RecordTab = "geral" | "timeline" | "consultas" | "exames" | "prescricoes" | "procedimentos" | "observacoes";
 
@@ -109,6 +111,38 @@ export default function RecordsPage() {
   const [selectedPassport, setSelectedPassport] = useState("");
   const [activeTab, setActiveTab] = useState<RecordTab>("geral");
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+
+  useEffect(() => {
+    const client = createClient();
+    if (!client) return;
+    void client.from("clinical_records").select("id,patient_passport,record_type,payload,created_at").order("created_at", { ascending: false }).then(({ data }) => {
+      if (!data) return;
+      const patientMap = new Map<string, PatientRecord>();
+      const events: TimelineEvent[] = [];
+      for (const row of data as any[]) {
+        const passport = String(row.patient_passport || "").trim();
+        if (!passport) continue;
+        const payload = row.payload || {};
+        const patient = payload.patient || {};
+        if (!patientMap.has(passport)) patientMap.set(passport, {
+          id: `pac-${passport}`,
+          name: patient.name || `Paciente ${passport}`,
+          passport,
+          age: patient.age || "—",
+          bloodType: patient.bloodType || "—",
+          cityPhone: patient.cityPhone || "Não informado",
+          status: "Em acompanhamento",
+          followUp: "Prontuário clínico",
+          lastVisit: String(row.created_at || "").slice(0, 10),
+          alerts: [],
+        });
+        const kind: TimelineEvent["type"] = String(row.record_type).toLowerCase().includes("exame") ? "Exame" : String(row.record_type).toLowerCase().includes("document") ? "Observação" : "Observação";
+        events.push({ id: row.id, patientPassport: passport, type: kind, title: payload.examName || payload.documentTitle || row.record_type, date: String(row.created_at || "").slice(0, 10), doctor: payload.doctor?.name || "Equipe médica", status: "Concluído", summary: payload.summary || "Registro armazenado no prontuário." });
+      }
+      setPatients(Array.from(patientMap.values()));
+      setTimelineEvents(events);
+    });
+  }, []);
 
   const visiblePatients = useMemo(() => {
     const normalized = searchTerm.trim().toLowerCase();
@@ -388,6 +422,7 @@ export default function RecordsPage() {
                 {activeTab === "prescricoes" && <FilteredEventsTab events={patientEvents} type="Prescrição" empty="Nenhuma prescrição registrada." />}
                 {activeTab === "procedimentos" && <FilteredEventsTab events={patientEvents} type="Procedimento" empty="Nenhum procedimento registrado." />}
                 {activeTab === "observacoes" && <FilteredEventsTab events={patientEvents} type="Observação" empty="Nenhuma observação interna." />}
+                <ClinicalRecordsPortalPanel passport={selectedPatient.passport} />
               </div>
             </div>
           ) : (

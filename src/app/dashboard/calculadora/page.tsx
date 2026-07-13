@@ -199,7 +199,7 @@ function normalizeQuantity(value: string | number) {
 }
 
 const allProducts = [...medicamentos, ...procedimentos];
-const tabletHpProductIds = new Set(["p2", "p3", "p4", "p5", "p8"]);
+const tabletHpProductIds = new Set(["p2", "p3", "p4", "p8"]);
 
 export default function CalculatorPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();

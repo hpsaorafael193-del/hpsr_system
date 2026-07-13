@@ -110,24 +110,24 @@ body {
 
 @layer components {
   .hpsr-page {
-    @apply mx-auto flex h-[calc(100dvh-2.4rem)] w-full max-w-[1620px] min-w-0 flex-col overflow-hidden;
+    @apply mx-auto flex min-h-[calc(100dvh-2.4rem)] w-full max-w-[1620px] min-w-0 flex-col overflow-visible;
   }
 
   .hpsr-page > section:last-of-type:not(.fixed) {
-    @apply min-h-0 flex-1 overflow-y-auto pr-2;
+    @apply min-h-0 flex-1 overflow-visible pr-0;
   }
 
   .hpsr-page > article:last-of-type:not(.fixed),
   .hpsr-page > div:last-child:not(.fixed) {
-    @apply min-h-0 flex-1 overflow-y-auto pr-2;
+    @apply min-h-0 flex-1 overflow-visible pr-0;
   }
 
   .hpsr-page-scroll {
-    @apply min-h-0 flex-1 overflow-y-auto pr-2;
+    @apply min-h-0 flex-1 overflow-visible pr-0;
   }
 
   .hpsr-fixed-page {
-    @apply mx-auto flex h-[calc(100dvh-2.4rem)] w-full max-w-[1620px] min-w-0 flex-col overflow-hidden;
+    @apply mx-auto flex min-h-[calc(100dvh-2.4rem)] w-full max-w-[1620px] min-w-0 flex-col overflow-visible;
   }
 
   .hpsr-topbar {
@@ -253,6 +253,47 @@ button:active {
   }
 }
 
+
+@media (max-width: 1023px) {
+  .hpsr-page,
+  .hpsr-fixed-page {
+    min-height: auto;
+    height: auto;
+    overflow: visible;
+  }
+
+  .hpsr-page-scroll {
+    overflow: visible;
+  }
+
+  .hpsr-page-header {
+    margin-bottom: 0.75rem;
+  }
+
+  .hpsr-page table {
+    font-size: 0.75rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .hpsr-page,
+  .hpsr-fixed-page {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .hpsr-page section,
+  .hpsr-page article,
+  .hpsr-page div {
+    min-width: 0;
+  }
+
+  .hpsr-page input,
+  .hpsr-page select,
+  .hpsr-page textarea {
+    font-size: 16px;
+  }
+}
 @media print {
   body * {
     visibility: hidden !important;

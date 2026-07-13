@@ -6,10 +6,12 @@ import { useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 import { adminNavigation, mainNavigation, toolsNavigation } from "@/data/navigation";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { DeveloperCreditsModal } from "./DeveloperCreditsModal";
 
 export function MobileSidebar() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const [open, setOpen] = useState(false);
+  const [creditsOpen, setCreditsOpen] = useState(false);
   const canSeeTeamAdmin =
     currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema" ||
     ["Diretora", "Vice Diretor", "Diretor Clínico"].includes(currentUserProfile.role);
@@ -43,8 +45,8 @@ export function MobileSidebar() {
 
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <button className="absolute inset-0 bg-black/40-[2px]" onClick={() => setOpen(false)} aria-label="Fechar menu" />
-          <aside className="absolute left-0 top-0 h-full w-[min(86vw,360px)] overflow-y-auto bg-[linear-gradient(180deg,#672614_0%,#5d2012_46%,#2a0700_100%)] p-4 text-white-2xl">
+          <button className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} aria-label="Fechar menu" />
+          <aside className="absolute left-0 top-0 h-full w-[min(86vw,360px)] overflow-y-auto bg-[linear-gradient(180deg,#672614_0%,#5d2012_46%,#2a0700_100%)] p-4 text-white shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="relative h-12 w-12 overflow-hidden rounded-2xl bg-[#fcf6ee] p-1">
@@ -55,7 +57,7 @@ export function MobileSidebar() {
                   <p className="text-xs text-orange-100/70">Sistema Clínico</p>
                 </div>
               </div>
-              <button onClick={() => setOpen(false)} className="rounded-xl bg-white/10 p-3"><X size={20} /></button>
+              <button onClick={() => setOpen(false)} className="rounded-xl bg-white/10 p-3 text-white"><X size={20} /></button>
             </div>
 
             <nav className="space-y-6">
@@ -71,7 +73,7 @@ export function MobileSidebar() {
                           <Link
                             onClick={() => !hasChildren && setOpen(false)}
                             href={item.href}
-                            className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium hover:bg-white/10"
+                            className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-orange-50/95 hover:bg-white/10 hover:text-white"
                           >
                             <Icon size={19} />
                             <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -99,9 +101,23 @@ export function MobileSidebar() {
                 </div>
               ))}
             </nav>
+
+            <div className="mt-6 border-t border-white/10 pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setCreditsOpen(true);
+                }}
+                className="w-full rounded-[16px] border border-white/10 bg-white/10 px-4 py-3 text-left text-xs font-semibold text-orange-50/90 transition hover:bg-white/15 hover:text-white"
+              >
+                Hospital São Rafael · Eldorado
+              </button>
+            </div>
           </aside>
         </div>
       )}
+      <DeveloperCreditsModal open={creditsOpen} onClose={() => setCreditsOpen(false)} />
     </>
   );
 }

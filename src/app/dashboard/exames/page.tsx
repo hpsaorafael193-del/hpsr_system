@@ -728,6 +728,7 @@ export default function ExamesPage() {
   const [protocol, setProtocol] = useState("");
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState("Sem alterações");
+  const [isConfidential, setIsConfidential] = useState(true);
   const [lastSavedAt, setLastSavedAt] = useState("");
   const [preview, setPreview] = useState<PreviewState>({
     open: false,
@@ -1449,6 +1450,8 @@ export default function ExamesPage() {
           id: recordId,
           patient_passport: patient.passport || null,
           record_type: "Exame",
+          is_confidential: isConfidential,
+          released_at: isConfidential ? null : new Date().toISOString(),
           payload,
         });
         if (error) throw error;
@@ -2341,6 +2344,10 @@ export default function ExamesPage() {
               >
                 <RefreshCw size={15} /> Atualizar
               </button>
+              <label className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">
+                <input type="checkbox" checked={isConfidential} onChange={(event) => setIsConfidential(event.target.checked)} />
+                Sigilo
+              </label>
               <button
                 type="button"
                 onClick={saveExam}

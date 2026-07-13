@@ -42,7 +42,7 @@ export default function HomePage() {
                     className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 text-sm font-semibold text-hpsr-wine shadow-sm transition hover:-translate-y-0.5 hover:bg-white"
                   >
                     <ClipboardList size={17} />
-                    Agendar Consulta
+                    Sou paciente
                   </Link>
 
                   <Link

@@ -38,13 +38,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }, [collapsed, hydrated]);
 
   return (
-    <div className="h-screen overflow-hidden bg-hpsr-bg text-hpsr-text">
+    <div className="min-h-dvh overflow-x-hidden bg-hpsr-bg text-hpsr-text">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((v) => !v)} />
       <MobileSidebar />
 
       <main
         className={cn(
-          "relative h-screen min-w-0 overflow-hidden transition-all duration-300",
+          "relative min-h-dvh min-w-0 overflow-x-hidden overflow-y-auto transition-all duration-300",
           collapsed ? "lg:pl-[92px]" : "lg:pl-[292px]"
         )}
       >
@@ -53,7 +53,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_18%_16%,rgba(103,38,20,0.052),transparent_24rem),radial-gradient(circle_at_88%_12%,rgba(255,255,255,0.55),transparent_24rem),radial-gradient(circle_at_52%_100%,rgba(42,7,0,0.036),transparent_30rem)]" />
-        <div className="relative z-10 h-screen min-w-0 overflow-hidden px-[clamp(0.75rem,1.8vw,1.35rem)] py-[clamp(0.85rem,1.45vw,1.2rem)]">
+        <div className="relative z-10 min-h-dvh min-w-0 overflow-visible px-[clamp(0.65rem,1.8vw,1.35rem)] pb-[clamp(0.85rem,1.45vw,1.2rem)] pt-[clamp(0.75rem,1.45vw,1.2rem)] max-lg:pt-3">
           {children}
         </div>
       </main>
