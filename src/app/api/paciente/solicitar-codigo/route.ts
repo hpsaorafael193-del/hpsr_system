@@ -11,21 +11,63 @@ import {
 export const runtime = "nodejs";
 
 const GENERIC_MESSAGE = "Se o passaporte estiver habilitado, um código será enviado ao e-mail cadastrado.";
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function patientExists(supabase: ReturnType<typeof getServiceClient>, passport: string) {
+  const [{ data: record }, { data: appointment }] = await Promise.all([
+    supabase.from("clinical_records").select("id").eq("patient_passport", passport).limit(1).maybeSingle(),
+    supabase.from("appointments").select("id").eq("passport", passport).limit(1).maybeSingle(),
+  ]);
+  return Boolean(record || appointment);
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const passport = normalizePassport(body.passport);
+    const suppliedEmail = String(body.email || "").trim().toLowerCase();
+
     if (passport.length < 2 || passport.length > 80) {
       return NextResponse.json({ ok: true, message: GENERIC_MESSAGE });
     }
 
     const supabase = getServiceClient();
-    const { data: access } = await supabase
+    let { data: access } = await supabase
       .from("patient_portal_access")
       .select("id,email,access_enabled")
       .eq("patient_passport", passport)
       .maybeSingle();
+
+    if (!access) {
+      const exists = await patientExists(supabase, passport);
+      if (!exists) {
+        return NextResponse.json({ ok: true, message: GENERIC_MESSAGE });
+      }
+
+      if (!suppliedEmail) {
+        return NextResponse.json({
+          ok: true,
+          needsEmail: true,
+          message: "Este paciente ainda não possui e-mail cadastrado. Informe um e-mail para receber o código de acesso.",
+        });
+      }
+
+      if (!EMAIL_PATTERN.test(suppliedEmail) || suppliedEmail.length > 254) {
+        return NextResponse.json({ ok: false, error: "Informe um e-mail válido." }, { status: 400 });
+      }
+
+      const { data: createdAccess, error: accessError } = await supabase
+        .from("patient_portal_access")
+        .upsert({
+          patient_passport: passport,
+          email: suppliedEmail,
+          access_enabled: true,
+        }, { onConflict: "patient_passport" })
+        .select("id,email,access_enabled")
+        .single();
+      if (accessError) throw accessError;
+      access = createdAccess;
+    }
 
     if (!access?.access_enabled || !access.email) {
       return NextResponse.json({ ok: true, message: GENERIC_MESSAGE });

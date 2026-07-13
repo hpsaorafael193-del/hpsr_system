@@ -11,7 +11,6 @@ import {
   Search,
   Send,
   ShieldAlert,
-  Stethoscope,
   UserRound,
   X,
 } from "lucide-react";
@@ -79,57 +78,6 @@ const rules = [
   "Respeite a hierarquia e o fluxo de atendimentos.",
   "É obrigatório manter conduta compatível com o ambiente hospitalar e o RP.",
   "O uso correto de animações, comandos e interpretação será considerado no processo.",
-];
-
-const quizQuestions = [
-  {
-    question: "Você está de serviço e recebe um chamado externo. Qual deve ser a conduta correta no RP?",
-    options: [
-      "Avisar na rádio que está indo ao chamado, manter comunicação e retornar informando a situação.",
-      "Sair em silêncio para ganhar tempo e avisar apenas quando voltar.",
-      "Pedir para outro membro assumir sem comunicar a equipe responsável.",
-    ],
-  },
-  {
-    question: "Um paciente chega ao hospital e senta no chão para ser atendido. O que você deve fazer?",
-    options: [
-      "Orientar o paciente e realizar o atendimento em local adequado, como maca, leito ou ambulância quando necessário.",
-      "Atender normalmente no chão para acelerar o procedimento.",
-      "Ignorar o paciente até ele levantar sozinho.",
-    ],
-  },
-  {
-    question: "Durante o plantão, qual postura é esperada sobre rádio e ponto?",
-    options: [
-      "Bater ponto, permanecer disponível na rádio do hospital e manter comunicação enquanto estiver em serviço.",
-      "Entrar em serviço sem bater ponto se houver pouco movimento.",
-      "Ficar fora da rádio e responder apenas por mensagem privada.",
-    ],
-  },
-  {
-    question: "Um membro da equipe discorda de uma orientação de um superior durante atendimento. Qual é a melhor conduta?",
-    options: [
-      "Respeitar a hierarquia no momento, manter o atendimento organizado e tratar divergências depois pelo canal adequado.",
-      "Discutir na frente do paciente para provar que está certo.",
-      "Abandonar o atendimento até alguém concordar com sua opinião.",
-    ],
-  },
-  {
-    question: "Um paciente solicita cadeira de rodas para sair pela cidade. Como agir conforme a norma?",
-    options: [
-      "Explicar que cadeiras de rodas são de uso interno do hospital e não devem ser retiradas para uso externo.",
-      "Liberar a cadeira se o paciente prometer devolver depois.",
-      "Vender ou emprestar a cadeira para evitar conflito.",
-    ],
-  },
-  {
-    question: "Em uma situação de atendimento com várias vítimas, qual deve ser a prioridade clínica?",
-    options: [
-      "Organizar a triagem, priorizar casos mais graves e seguir o fluxo de atendimento do hospital.",
-      "Atender primeiro conhecidos ou quem pedir com mais insistência.",
-      "Atender por ordem de chegada sem avaliar gravidade.",
-    ],
-  }
 ];
 
 const STAFF_APPLICATIONS_KEY = "hpsr-staff-applications";
@@ -362,16 +310,6 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
     const stored = readStoredApplications();
     const token = generateApplicationToken(stored);
 
-    const quizAnswers = quizQuestions.map((item, index) => {
-      const optionIndex = Number(form.get(`quiz-${index}`) ?? -1);
-      return {
-        question: item.question,
-        answer: optionIndex >= 0 ? item.options[optionIndex] : "Não respondida",
-        optionIndex,
-        correct: optionIndex === 0,
-      };
-    });
-
     const application: StoredStaffApplication = {
       protocol: `HPSR-EQP-${passport || Date.now()}`,
       token,
@@ -391,7 +329,6 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
       externalAvailability: String(form.get("externalAvailability") ?? "").trim(),
       priorExperience: String(form.get("priorExperience") ?? "").trim(),
       declarationAccepted: form.get("declarationAccepted") === "accepted",
-      quizAnswers,
       status: "pendente",
       createdAt: now,
     };
@@ -428,7 +365,7 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
           description={
             submitted
               ? "Guarde o token gerado para consultar o andamento da candidatura."
-              : "Preencha todos os campos obrigatórios e finalize o quiz de normas antes do envio."
+              : "Preencha todos os campos obrigatórios antes do envio."
           }
           onClose={onClose}
         />
@@ -483,13 +420,13 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
                   <input className={inputClass} name="passport" placeholder="Ex: 1234" required />
                 </FormField>
 
-                <FormField label="Dia de nascimento *">
-                  <input className={inputClass} name="birthDay" placeholder="Ex: 15" required />
+                <FormField label="Dia de nascimento">
+                  <input className={inputClass} name="birthDay" placeholder="Ex: 15 (opcional)" />
                 </FormField>
 
-                <FormField label="Mês de nascimento *">
-                  <select name="birthMonth" className={inputClass} required defaultValue="">
-                    <option value="" disabled>Selecione o mês</option>
+                <FormField label="Mês de nascimento">
+                  <select name="birthMonth" className={inputClass} defaultValue="">
+                    <option value="">Não informar</option>
                     <option>Janeiro</option>
                     <option>Fevereiro</option>
                     <option>Março</option>
@@ -505,8 +442,8 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
                   </select>
                 </FormField>
 
-                <FormField label="Telefone na cidade *">
-                  <input className={inputClass} name="cityPhone" placeholder="(055) 123-456" required />
+                <FormField label="Telefone na cidade">
+                  <input className={inputClass} name="cityPhone" placeholder="(055) 123-456 (opcional)" />
                 </FormField>
 
                 <div>
@@ -528,9 +465,9 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
                   </div>
                 </div>
 
-                <FormField label="Objetivo no hospital *">
-                  <select name="objective" className={inputClass} required defaultValue="">
-                    <option value="" disabled>Selecione uma opção</option>
+                <FormField label="Objetivo no hospital">
+                  <select name="objective" className={inputClass} defaultValue="">
+                    <option value="">Não informar</option>
                     {objectiveOptions.map((option) => (
                       <option key={option}>{option}</option>
                     ))}
@@ -633,54 +570,12 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
               </div>
             </div>
 
-            <div className="mt-6 rounded-[18px] border border-hpsr-border bg-white/70 p-3.5 ">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-[14px] bg-[#f7f2ea] text-hpsr-wine">
-                  <Stethoscope size={20} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-black text-hpsr-text">Quiz de Normas e Situações RP</h3>
-                  <p className="text-sm text-hpsr-muted">
-                    Responda às situações abaixo com base nas normas internas e na conduta esperada dentro do RP médico.
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-6 space-y-3">
-                {quizQuestions.map((item, index) => (
-                  <div key={item.question} className="rounded-[22px] border border-hpsr-border bg-[#fcf6ee] p-3.5">
-                    <p className="text-sm font-black text-hpsr-text">
-                      {index + 1}. {item.question}
-                    </p>
-
-                    <div className="mt-4 space-y-3">
-                      {item.options.map((option, optionIndex) => (
-                        <label
-                          key={option}
-                          className="flex items-start gap-3 rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm leading-relaxed text-hpsr-muted"
-                        >
-                          <input
-                            type="radio"
-                            name={`quiz-${index}`}
-                            value={String(optionIndex)}
-                            required
-                            className="mt-1 accent-hpsr-wine"
-                          />
-                          <span>{option}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <label className="mt-6 flex items-start gap-3 rounded-[14px] border border-hpsr-border bg-white p-3.5 text-sm font-semibold leading-relaxed text-hpsr-muted">
-                <input type="checkbox" name="declarationAccepted" value="accepted" required className="mt-1 accent-hpsr-wine" />
-                <span>
-                  Declaro que as informações preenchidas são verdadeiras dentro do contexto RP e estou ciente de que o envio não garante aprovação.
-                </span>
-              </label>
-            </div>
+            <label className="mt-6 flex items-start gap-3 rounded-[14px] border border-hpsr-border bg-white p-3.5 text-sm font-semibold leading-relaxed text-hpsr-muted">
+              <input type="checkbox" name="declarationAccepted" value="accepted" required className="mt-1 accent-hpsr-wine" />
+              <span>
+                Declaro que as informações preenchidas são verdadeiras dentro do contexto RP e estou ciente de que o envio não garante aprovação.
+              </span>
+            </label>
 
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button

@@ -52,6 +52,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { ClinicalHistoryButton } from "@/components/dashboard/ClinicalHistoryButton";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { createClient } from "@/lib/supabase";
@@ -1472,8 +1473,18 @@ export default function ExamesPage() {
     return document;
   }
 
+
+  function openExamPreview() {
+    syncEditorFromDom();
+    const document = buildPreviewDocument();
+    setPreviewImage(null);
+    setPreview({ open: true, document, pageIndex: 0 });
+  }
+
   async function saveExam() {
     try {
+      if (!patient.passport?.trim() || !patient.name?.trim()) throw new Error("Selecione ou cadastre o paciente antes de salvar.");
+      if (patient.name.trim().toLowerCase() === doctor.name.trim().toLowerCase()) throw new Error("Paciente e médico responsável não podem ser o mesmo registro.");
       syncEditorFromDom();
       const document = buildPreviewDocument();
       const savedAt = new Date().toISOString();
@@ -1510,6 +1521,9 @@ export default function ExamesPage() {
       const client = createClient();
       if (client) {
         const recordId = `exam-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const previewImages = (await Promise.all(
+          document.pages.map((_, pageIndex) => renderPreviewPage(document, pageIndex, false)),
+        )).filter((item): item is string => typeof item === "string" && item.startsWith("data:image/"));
         const payload = {
           protocol,
           patient,
@@ -1517,6 +1531,8 @@ export default function ExamesPage() {
           examId: selectedExam?.id || selectedExamId,
           examName: metadata.examName,
           reportHtml: html,
+          previewImage: previewImages[0] || null,
+          previewImages,
           attachments: attachments.map(({ id, name, size }) => ({ id, name, size })),
           savedAt,
         };
@@ -1878,12 +1894,13 @@ export default function ExamesPage() {
       const dataUrl = canvas.toDataURL("image/png");
       if (!download) {
         setPreviewImage(dataUrl);
-        return;
+        return dataUrl;
       }
       const link = window.document.createElement("a");
       link.download = `${safeFileName(finalDocument.metadata.examName)}_pagina_${pageIndex + 1}.png`;
       link.href = dataUrl;
       link.click();
+      return dataUrl;
     } catch (error) {
       console.error("[HPSR][Exames] Falha ao renderizar o preview PNG:", error);
       showPngError(error);
@@ -2342,9 +2359,7 @@ export default function ExamesPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs font-black text-hpsr-text">
-              <span className="rounded-full border border-[#dec8b6] bg-white px-3 py-2 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
-                Paciente: {patient.name || "não selecionado"}
-              </span>
+              <ClinicalHistoryButton recordType="Exame" />
               <button
                 type="button"
                 onClick={() => setAttachmentEditorOpen((current) => !current)}
@@ -2470,7 +2485,10 @@ export default function ExamesPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#ddc6b4] bg-[#fcfaf8] px-5 py-3.5">
-            <div aria-hidden="true" />
+            <label className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">
+              <input type="checkbox" checked={isConfidential} onChange={(event) => setIsConfidential(event.target.checked)} />
+              Sigilo no Portal do Paciente
+            </label>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -2486,16 +2504,13 @@ export default function ExamesPage() {
               >
                 <RefreshCw size={15} /> Atualizar
               </button>
-              <label className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">
-                <input type="checkbox" checked={isConfidential} onChange={(event) => setIsConfidential(event.target.checked)} />
-                Sigilo
-              </label>
+
               <button
                 type="button"
-                onClick={saveExam}
+                onClick={openExamPreview}
                 className="inline-flex h-10 items-center gap-2 rounded-[13px] bg-hpsr-wine px-5 text-xs font-black text-white shadow-soft hover:bg-hpsr-wineDark"
               >
-                <Save size={16} /> Salvar exame
+                <Save size={16} /> Pré-visualizar
               </button>
             </div>
           </div>
@@ -2598,10 +2613,10 @@ export default function ExamesPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={printPreview}
-                  className="inline-flex h-10 items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-4 text-xs font-black text-hpsr-text"
+                  onClick={saveExam}
+                  className="inline-flex h-10 items-center gap-2 rounded-[12px] bg-hpsr-wine px-4 text-xs font-black text-white"
                 >
-                  <Printer size={15} /> Imprimir
+                  <Save size={15} /> Salvar no sistema
                 </button>
               </div>
             </div>

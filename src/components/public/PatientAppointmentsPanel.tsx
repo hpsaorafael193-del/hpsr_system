@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, RefreshCcw, Stethoscope } from "lucide-react";
+import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, RefreshCcw, Stethoscope, XCircle, CalendarClock } from "lucide-react";
 import { specialties } from "@/data/mock";
 
 type Appointment = {
@@ -16,6 +16,10 @@ type Appointment = {
   notes: string;
   createdAt: string;
   updatedAt: string;
+  proposedDate?: string;
+  proposedTime?: string;
+  rescheduleReason?: string;
+  patientAvailability?: string;
 };
 
 const fieldClass = "min-h-[44px] w-full rounded-[14px] border border-hpsr-border bg-white px-3 text-sm font-bold text-hpsr-text outline-none focus:border-hpsr-wine";
@@ -33,6 +37,7 @@ export function PatientAppointmentsPanel({ onSessionExpired }: { onSessionExpire
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [availability, setAvailability] = useState<Record<string, string>>({});
 
   const loadAppointments = useCallback(async () => {
     setLoading(true); setError("");
@@ -58,10 +63,24 @@ export function PatientAppointmentsPanel({ onSessionExpired }: { onSessionExpire
     };
   }, [loadAppointments]);
 
+
+  async function appointmentAction(id: string, action: string) {
+    setSaving(true); setError(""); setMessage("");
+    try {
+      const response = await fetch("/api/paciente/consultas", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action, availability: availability[id] || "" }) });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível atualizar a consulta.");
+      setMessage("Resposta registrada com sucesso.");
+      await loadAppointments();
+    } catch (actionError) { setError(actionError instanceof Error ? actionError.message : "Não foi possível atualizar a consulta."); }
+    finally { setSaving(false); }
+  }
+
   async function submitAppointment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true); setError(""); setMessage("");
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     try {
       const response = await fetch("/api/paciente/agendar", {
         method: "POST",
@@ -72,7 +91,7 @@ export function PatientAppointmentsPanel({ onSessionExpired }: { onSessionExpire
       if (response.status === 401) { onSessionExpired?.(); return; }
       if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível solicitar a consulta.");
       setMessage(`Solicitação registrada. Protocolo: ${data.id}`);
-      event.currentTarget.reset();
+      formElement.reset();
       await loadAppointments();
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Não foi possível solicitar a consulta.");
@@ -105,7 +124,7 @@ export function PatientAppointmentsPanel({ onSessionExpired }: { onSessionExpire
                     </div>
                     <div className="flex shrink-0 items-center gap-2"><span className="rounded-full bg-[#f1dfcd] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{appointment.status}</span>{isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</div>
                   </button>
-                  {isExpanded && <div className="mt-3 grid gap-2 border-t border-hpsr-border pt-3 text-xs font-semibold text-hpsr-muted sm:grid-cols-2"><p><strong className="text-hpsr-text">Protocolo:</strong> {appointment.id}</p><p><strong className="text-hpsr-text">Médico:</strong> {appointment.physician}</p><p className="sm:col-span-2"><strong className="text-hpsr-text">Motivo:</strong> {appointment.reason || "Não informado"}</p>{appointment.notes && <p className="sm:col-span-2"><strong className="text-hpsr-text">Observações:</strong> {appointment.notes}</p>}</div>}
+                  {isExpanded && <div className="mt-3 grid gap-2 border-t border-hpsr-border pt-3 text-xs font-semibold text-hpsr-muted sm:grid-cols-2"><p><strong className="text-hpsr-text">Protocolo:</strong> {appointment.id}</p><p><strong className="text-hpsr-text">Médico:</strong> {appointment.physician}</p><p className="sm:col-span-2"><strong className="text-hpsr-text">Motivo:</strong> {appointment.reason || "Não informado"}</p>{appointment.notes && <p className="sm:col-span-2"><strong className="text-hpsr-text">Observações:</strong> {appointment.notes}</p>}{appointment.status === "Reagendamento solicitado" && <div className="sm:col-span-2 mt-2 rounded-[14px] border border-amber-200 bg-amber-50 p-3"><p className="font-black text-amber-950"><CalendarClock className="mr-2 inline" size={16}/>O médico deseja reagendar</p><p className="mt-1 text-amber-900">Nova data: {formatDate(appointment.proposedDate || "")} · {appointment.proposedTime || "Horário a definir"}</p>{appointment.rescheduleReason && <p className="mt-1 text-amber-900">Motivo: {appointment.rescheduleReason}</p>}<div className="mt-3 flex flex-wrap gap-2"><button disabled={saving} onClick={() => void appointmentAction(appointment.id, "accept_reschedule")} className="rounded-[12px] bg-emerald-700 px-3 py-2 text-[11px] font-black text-white">Aceitar</button><button disabled={saving} onClick={() => void appointmentAction(appointment.id, "decline_reschedule")} className="rounded-[12px] border border-rose-300 bg-white px-3 py-2 text-[11px] font-black text-rose-700">Recusar</button><button disabled={saving} onClick={() => void appointmentAction(appointment.id, "withdraw")} className="rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-[11px] font-black text-hpsr-wine"><XCircle className="mr-1 inline" size={13}/>Desistir</button></div><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input value={availability[appointment.id] || ""} onChange={(event) => setAvailability((current) => ({ ...current, [appointment.id]: event.target.value }))} placeholder="Informe dias e horários disponíveis" className={`${fieldClass} flex-1`}/><button disabled={saving || !(availability[appointment.id] || "").trim()} onClick={() => void appointmentAction(appointment.id, "send_availability")} className="rounded-[12px] bg-hpsr-wine px-3 py-2 text-[11px] font-black text-white">Informar disponibilidade</button></div></div>}</div>}
                 </article>
               );
             })}

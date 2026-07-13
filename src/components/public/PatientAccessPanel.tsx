@@ -5,7 +5,7 @@ import { Clock3, KeyRound, Loader2, Mail, RefreshCcw, ShieldCheck, TriangleAlert
 import { PatientRecordsPanel } from "@/components/public/PatientRecordsPanel";
 import { PatientAppointmentsPanel } from "@/components/public/PatientAppointmentsPanel";
 
-type PortalStage = "checking" | "passport" | "code" | "portal";
+type PortalStage = "checking" | "passport" | "email" | "code" | "portal";
 
 type SessionResponse = {
   authenticated?: boolean;
@@ -25,6 +25,7 @@ function formatRemaining(milliseconds: number) {
 export function PatientAccessPanel() {
   const [passport, setPassport] = useState("");
   const [code, setCode] = useState("");
+  const [email, setEmail] = useState("");
   const [stage, setStage] = useState<PortalStage>("checking");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -42,6 +43,7 @@ export function PatientAccessPanel() {
   const resetToLogin = useCallback((reason?: string) => {
     setStage("passport");
     setCode("");
+    setEmail("");
     setExpiresAt(null);
     setPassportHint("");
     setMessage("");
@@ -101,10 +103,15 @@ export function PatientAccessPanel() {
       const response = await fetch("/api/paciente/solicitar-codigo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passport }),
+        body: JSON.stringify({ passport, email: stage === "email" ? email : undefined }),
       });
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível enviar o código.");
+      if (data.needsEmail) {
+        setStage("email");
+        setMessage(data.message || "Informe um e-mail para receber o código.");
+        return;
+      }
       setStage("code");
       setCode("");
       setMessage(data.message);
@@ -184,7 +191,15 @@ export function PatientAccessPanel() {
       </div>
 
       <label className="mt-5 block text-xs font-black uppercase tracking-[0.12em] text-hpsr-muted">Passaporte</label>
-      <input value={passport} onChange={(event) => setPassport(event.target.value)} disabled={stage === "code"} placeholder="Informe seu passaporte" autoComplete="off" className="mt-2 min-h-[46px] w-full rounded-[14px] border border-hpsr-border bg-white px-4 text-base font-bold text-hpsr-text outline-none focus:border-hpsr-wine" />
+      <input value={passport} onChange={(event) => setPassport(event.target.value)} disabled={stage === "code" || stage === "email"} placeholder="Informe seu passaporte" autoComplete="off" className="mt-2 min-h-[46px] w-full rounded-[14px] border border-hpsr-border bg-white px-4 text-base font-bold text-hpsr-text outline-none focus:border-hpsr-wine" />
+
+      {stage === "email" && (
+        <>
+          <label className="mt-4 block text-xs font-black uppercase tracking-[0.12em] text-hpsr-muted">E-mail para receber o código</label>
+          <input value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && email.trim() && !busy) void requestCode(); }} type="email" autoComplete="email" placeholder="paciente@exemplo.com" className="mt-2 min-h-[46px] w-full rounded-[14px] border border-hpsr-border bg-white px-4 text-base font-bold text-hpsr-text outline-none focus:border-hpsr-wine" />
+          <p className="mt-2 text-xs font-semibold leading-relaxed text-hpsr-muted">O e-mail será armazenado no cadastro do Portal do Paciente e usado para os próximos códigos de acesso.</p>
+        </>
+      )}
 
       {stage === "code" && (
         <>
@@ -200,6 +215,15 @@ export function PatientAccessPanel() {
         <button type="button" onClick={requestCode} disabled={busy || !passport.trim()} className="mt-5 inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">
           {busy ? <Loader2 className="animate-spin" size={17} /> : <Mail size={17} />} Enviar código por e-mail
         </button>
+      ) : stage === "email" ? (
+        <div className="mt-5 grid gap-2 sm:grid-cols-2">
+          <button type="button" onClick={requestCode} disabled={busy || !email.trim()} className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">
+            {busy ? <Loader2 className="animate-spin" size={17} /> : <Mail size={17} />} Salvar e enviar código
+          </button>
+          <button type="button" onClick={() => { setStage("passport"); setEmail(""); setMessage(""); setError(""); }} className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 text-sm font-black text-hpsr-wine">
+            <Clock3 size={15} /> Usar outro passaporte
+          </button>
+        </div>
       ) : (
         <div className="mt-5 grid gap-2 sm:grid-cols-2">
           <button type="button" onClick={verifyCode} disabled={busy || code.length !== 6} className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">

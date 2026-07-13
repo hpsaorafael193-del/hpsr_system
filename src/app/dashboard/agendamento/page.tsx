@@ -49,6 +49,7 @@ type PublicAppointmentRequest = {
   updatedAt?: string;
   doctor?: string;
   answer?: string;
+  source?: string;
 };
 
 function readPublicAppointments(): PublicAppointmentRequest[] {
@@ -170,7 +171,7 @@ export default function AppointmentsPage() {
         .select("id, passport, patient, status, payload, created_at, updated_at")
         .order("created_at", { ascending: false });
       if (error) return;
-      setPublicRequests((data || []).map((row) => ({
+      setPublicRequests((data || []).map((row: any) => ({
         ...((row.payload || {}) as PublicAppointmentRequest),
         id: String(row.id),
         passport: String(row.passport || ""),
@@ -184,7 +185,7 @@ export default function AppointmentsPage() {
     void loadAppointments();
   }, []);
 
-  function updatePublicRequestStatus(request: PublicAppointmentRequest, status: string) {
+  async function updatePublicRequestStatus(request: PublicAppointmentRequest, status: string) {
     const updatedRequest: PublicAppointmentRequest = {
       ...request,
       status,
@@ -193,12 +194,29 @@ export default function AppointmentsPage() {
       updatedAt: new Date().toISOString(),
     };
 
-    setPublicRequests((currentRequests) => {
-      const exists = currentRequests.some((item) => item.id === request.id || item.passport === request.passport);
-      const nextRequests = exists
-        ? currentRequests.map((item) => (item.id === request.id || item.passport === request.passport ? updatedRequest : item))
-        : [updatedRequest, ...currentRequests];
+    const client = createClient();
+    if (client) {
+      const payload = {
+        ...request,
+        ...updatedRequest,
+        physician: status === "Aceita" ? currentUserProfile.systemName : request.doctor || "A definir",
+        source: request.source || "patient_portal",
+      };
+      const { error } = await client
+        .from("appointments")
+        .update({ status, payload, updated_at: updatedRequest.updatedAt })
+        .eq("id", request.id);
+      if (error) {
+        console.error("[HPSR][Agendamento] Falha ao atualizar solicitação:", error);
+        return;
+      }
+    }
 
+    setPublicRequests((currentRequests) => {
+      const exists = currentRequests.some((item) => item.id === request.id);
+      const nextRequests = exists
+        ? currentRequests.map((item) => (item.id === request.id ? updatedRequest : item))
+        : [updatedRequest, ...currentRequests];
       savePublicAppointments(nextRequests);
       return nextRequests;
     });

@@ -29,7 +29,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
-import { roles } from "@/data/mock";
+import { roles, specialties as systemSpecialties } from "@/data/mock";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { mirrorRecord, removeRecord } from "@/lib/data-bridge";
 import { createClient } from "@/lib/supabase";
@@ -59,6 +59,8 @@ type TeamMember = {
   warnings: number;
   suspensions: number;
   history: string[];
+  contractStatus?: "Ativo" | "Em avaliação" | "Suspenso" | "Encerrado";
+  contractDurationDays?: number;
   clinicalActivity?: {
     exams: number;
     certificates: number;
@@ -757,25 +759,36 @@ export default function TeamPage() {
   }
 
 
-  function handleAddMember(data: Omit<TeamMember, "id" | "permissions" | "warnings" | "suspensions" | "history" | "accessLevel" | "category">) {
-    const accessLevel = getAccessLevel(data.hospitalRole, data.systemRole);
-    const category = getCategory(data.hospitalRole, data.systemRole);
-    const newMember: TeamMember = {
-      ...data,
-      id: `member-${Date.now()}`,
-      crm: data.crm || "CRM-RP pendente",
-      accessLevel,
-      category,
-      permissions: getDefaultPermissions(data.hospitalRole, data.systemRole),
-      warnings: 0,
-      suspensions: 0,
-      history: ["Membro cadastrado pela gestão da equipe"],
-    };
+  async function handleManageMember(updatedMember: TeamMember) {
+    const existing = members.find((item) => item.id === updatedMember.id);
+    if (!existing) {
+      void hpsrAlert("Selecione um médico cadastrado.", "Médico não selecionado");
+      return;
+    }
 
-    setMembers((currentMembers) => [newMember, ...currentMembers]);
-    registerSystemActivity({ module: "Equipe", action: "Membro cadastrado", description: `${newMember.name} foi incluído na equipe como ${newMember.hospitalRole}.`, actor: currentUserProfile.systemName, reference: newMember.passport });
-    setSelectedId(newMember.id);
-    setSearchTerm("");
+    const timestamp = new Date().toLocaleString("pt-BR");
+    const history = [...existing.history];
+    if (existing.specialty !== updatedMember.specialty) history.unshift(`Especialidades alteradas em ${timestamp}: ${updatedMember.specialty}`);
+    if (existing.joinedAt !== updatedMember.joinedAt || existing.contractDurationDays !== updatedMember.contractDurationDays || existing.contractStatus !== updatedMember.contractStatus) {
+      history.unshift(`Contrato atualizado em ${timestamp}: ${updatedMember.contractStatus || "Ativo"}, ${updatedMember.contractDurationDays || 15} dias.`);
+    }
+    if (existing.warnings !== updatedMember.warnings) history.unshift(`Quantidade de advertências ajustada de ${existing.warnings} para ${updatedMember.warnings} em ${timestamp}.`);
+
+    const normalized: TeamMember = {
+      ...updatedMember,
+      accessLevel: getAccessLevel(updatedMember.hospitalRole, updatedMember.systemRole),
+      category: getCategory(updatedMember.hospitalRole, updatedMember.systemRole),
+      permissions: getDefaultPermissions(updatedMember.hospitalRole, updatedMember.systemRole),
+      history,
+    };
+    const result = await persistMember(normalized);
+    if (!result.ok) {
+      void hpsrAlert(result.error || "Não foi possível atualizar o médico no Supabase.", "Erro ao salvar");
+      return;
+    }
+    setMembers((current) => current.map((item) => item.id === normalized.id ? normalized : item));
+    registerSystemActivity({ module: "Equipe", action: "Médico gerenciado", description: `${normalized.name} teve especialidades, contrato ou advertências atualizados.`, actor: currentUserProfile.systemName, reference: normalized.passport });
+    setSelectedId(normalized.id);
     setIsAddOpen(false);
   }
 
@@ -1134,7 +1147,7 @@ export default function TeamPage() {
                 className="inline-flex min-h-[38px] w-full items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 text-xs font-black text-white transition md:min-h-[46px] md:w-auto md:rounded-[16px] md:px-5 md:text-sm"
               >
                 <Plus size={16} />
-                Registrar médico
+                Gerenciar médico
               </button>
               </>)}
             </div>
@@ -1254,7 +1267,7 @@ export default function TeamPage() {
             {visibleMembers.length === 0 && (
               <div className="rounded-[16px] border border-dashed border-hpsr-border bg-[#fff8f0] p-3.5 text-center">
                 <p className="font-black text-hpsr-text">Nenhum médico encontrado.</p>
-                <p className="mt-1 text-sm text-hpsr-muted">Ajuste a busca ou registre um novo médico.</p>
+                <p className="mt-1 text-sm text-hpsr-muted">Ajuste a busca ou selecione outro médico.</p>
               </div>
             )}
           </div>
@@ -1280,7 +1293,7 @@ export default function TeamPage() {
           onDelete={deleteRejectedApplication}
         />
       )}
-      {hasTeamAdminAccess && isAddOpen && <AddMemberModal onClose={() => setIsAddOpen(false)} onSave={handleAddMember} />}
+      {hasTeamAdminAccess && isAddOpen && <ManageMemberModal members={members} onClose={() => setIsAddOpen(false)} onSave={handleManageMember} />}
       {pendingAdministrativeAction && (
         <AdministrativeActionModal
           state={pendingAdministrativeAction}
@@ -2227,50 +2240,82 @@ function TeamMemberPanel({ member }: { member: TeamMember }) {
   );
 }
 
-function AddMemberModal({
+function ManageMemberModal({
+  members,
   onClose,
   onSave,
 }: {
+  members: TeamMember[];
   onClose: () => void;
-  onSave: (data: Omit<TeamMember, "id" | "permissions" | "warnings" | "suspensions" | "history" | "accessLevel" | "category">) => void;
+  onSave: (data: TeamMember) => Promise<void>;
 }) {
-  const [form, setForm] = useState({
-    name: "",
-    passport: "",
-    crm: "",
-    hospitalRole: "Médico Clínico",
-    systemRole: "",
-    department: "Hospital São Rafael",
-    specialty: "Clínico Geral",
-    cityPhone: "",
-    email: "",
-    radio: "193",
-    joinedAt: new Date().toISOString().slice(0, 10),
-    serviceStatus: "Fora de serviço" as ServiceStatus,
-  });
+  const selectableDoctors = useMemo(() => members.filter((member) =>
+    member.hospitalRole.includes("Médico") || ["Residente", "Diretor Clínico", "Diretora", "Vice Diretor"].includes(member.hospitalRole)
+  ), [members]);
+  const [selectedMemberId, setSelectedMemberId] = useState("");
+  const emptyMember: TeamMember = { id: "", name: "", passport: "", crm: "", hospitalRole: "Médico Clínico", systemRole: "", accessLevel: "Clínico", category: "Corpo Médico", department: "Hospital São Rafael", specialty: "Clínico Geral", cityPhone: "", email: "", radio: "193", joinedAt: new Date().toISOString().slice(0, 10), serviceStatus: "Fora de serviço", permissions: [], warnings: 0, suspensions: 0, history: [], contractStatus: "Ativo", contractDurationDays: 15 };
+  const [form, setForm] = useState<TeamMember>(emptyMember);
+
+  function selectDoctor(memberId: string) {
+    setSelectedMemberId(memberId);
+    const member = members.find((item) => item.id === memberId) || null;
+    setForm(member ? { ...member, contractStatus: member.contractStatus || "Ativo", contractDurationDays: member.contractDurationDays || (member.hospitalRole === "Estagiário de Enfermagem" ? 7 : 15) } : emptyMember);
+  }
 
   const previewAccess = getAccessLevel(form.hospitalRole, form.systemRole);
   const previewCategory = getCategory(form.hospitalRole, form.systemRole);
   const contractHint =
-    form.hospitalRole === "Estagiário de Enfermagem"
+    form?.hospitalRole === "Estagiário de Enfermagem"
       ? "Estágio inicial de 7 dias com decisão de promoção ou desligamento."
-      : form.hospitalRole === "Residente"
+      : form?.hospitalRole === "Residente"
         ? "Ciclo de 15 dias com avaliação obrigatória no último dia."
         : "Ciclo padrão de 15 dias com revisão de função e desempenho.";
 
-  function updateField(field: keyof typeof form, value: string) {
+  function updateField(field: keyof TeamMember, value: string | number) {
     setForm((currentForm) => ({ ...currentForm, [field]: value }));
+  }
+
+  const selectedSpecialties = form.specialty.split(",").map((item) => item.trim()).filter(Boolean);
+  const baseAndLowerRoles = ["Médico Clínico", "Residente", "Estagiário de Enfermagem", "Enfermeiro", "Técnico de Enfermagem"];
+  const canHaveAdditionalSpecialties = !baseAndLowerRoles.includes(form.hospitalRole);
+
+  function toggleSpecialty(specialty: string) {
+    if (specialty === "Clínico Geral") return;
+    if (!canHaveAdditionalSpecialties) {
+      void hpsrAlert("Médico Clínico e cargos inferiores podem manter apenas Clínico Geral.", "Especialidades indisponíveis");
+      return;
+    }
+    const current = selectedSpecialties.filter((item) => item !== "Clínico Geral");
+    const exists = current.includes(specialty);
+    if (!exists && current.length >= 3) {
+      void hpsrAlert("É permitido selecionar até 3 especialidades adicionais.", "Limite de especialidades");
+      return;
+    }
+    const next = exists ? current.filter((item) => item !== specialty) : [...current, specialty];
+    updateField("specialty", ["Clínico Geral", ...next].join(", "));
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!form.name.trim() || !form.passport.trim() || !form.hospitalRole.trim()) {
-      void hpsrAlert("Informe nome, passaporte e cargo.", "Dados incompletos");
+    if (!selectedMemberId) {
+      void hpsrAlert("Selecione um médico cadastrado.", "Dados incompletos");
       return;
     }
 
-    onSave(form);
+    const selectedSpecialties = form.specialty.split(",").map((item) => item.trim()).filter(Boolean);
+    const baseAndLowerRoles = ["Médico Clínico", "Residente", "Estagiário de Enfermagem", "Enfermeiro", "Técnico de Enfermagem"];
+    if (baseAndLowerRoles.includes(form.hospitalRole) && selectedSpecialties.some((item) => item !== "Clínico Geral")) {
+      void hpsrAlert("Médico Clínico e cargos inferiores podem manter apenas Clínico Geral.", "Especialidades inválidas");
+      return;
+    }
+    const additional = selectedSpecialties.filter((item) => item !== "Clínico Geral");
+    if (additional.length > 3) {
+      void hpsrAlert("É permitido manter Clínico Geral e até 3 especialidades adicionais.", "Limite de especialidades");
+      return;
+    }
+    const normalizedSpecialties = ["Clínico Geral", ...additional].filter((item, index, list) => list.indexOf(item) === index);
+    void onSave({ ...form, specialty: normalizedSpecialties.join(", ") });
   }
 
   return (
@@ -2282,11 +2327,11 @@ function AddMemberModal({
             <div>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]">
                 <UserCog size={14} />
-                Cadastro interno
+                Gestão da equipe
               </span>
-              <h2 className="mt-3 text-lg font-black tracking-tight">Registrar médico</h2>
+              <h2 className="mt-3 text-lg font-black tracking-tight">Gerenciar médico</h2>
               <p className="mt-1 max-w-3xl text-sm leading-relaxed text-white/84">
-                Cadastre profissionais, defina vínculo institucional, especialidade, status de serviço e dados internos de operação.
+                Selecione um médico cadastrado para editar especialidades, tempo e situação do contrato e advertências.
               </p>
             </div>
             <button type="button" onClick={onClose} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-white/25 bg-white/10 text-white transition hover:bg-white/20">
@@ -2352,13 +2397,16 @@ function AddMemberModal({
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   <ModalField label="Nome do personagem">
-                    <input className={modalInputClass} value={form.name} onChange={(event) => updateField("name", event.target.value)} placeholder="Ex.: Dr. Luidhy" />
+                    <select className={modalInputClass} value={selectedMemberId} onChange={(event) => selectDoctor(event.target.value)}>
+                      <option value="">Selecione o médico</option>
+                      {selectableDoctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name} — {doctor.crm || doctor.passport}</option>)}
+                    </select>
                   </ModalField>
                   <ModalField label="Passaporte">
-                    <input className={modalInputClass} value={form.passport} onChange={(event) => updateField("passport", event.target.value)} placeholder="Ex.: 0001" />
+                    <input className={modalInputClass} value={form.passport} readOnly placeholder="Ex.: 0001" />
                   </ModalField>
                   <ModalField label="CRM">
-                    <input className={modalInputClass} value={form.crm} onChange={(event) => updateField("crm", event.target.value)} placeholder="Ex.: CRM-RP 193-001" />
+                    <input className={modalInputClass} value={form.crm} readOnly placeholder="Ex.: CRM-RP 193-001" />
                   </ModalField>
                   <ModalField label="Cargo hospitalar">
                     <select className={modalInputClass} value={form.hospitalRole} onChange={(event) => updateField("hospitalRole", event.target.value)}>
@@ -2372,11 +2420,24 @@ function AddMemberModal({
                     </select>
                   </ModalField>
                   <ModalField label="Especialidades">
-                    <input list="hpsr-specialties" className={modalInputClass} value={form.specialty} onChange={(event) => updateField("specialty", event.target.value)} placeholder="Selecione ou informe; separe múltiplas por vírgula" />
-                    <datalist id="hpsr-specialties">
-                      {["Clínico Geral", "Cardiologia", "Cirurgia Geral", "Obstetrícia", "Pediatria", "Ortopedia", "Neurologia", "Psiquiatria", "Enfermagem", "Radiologia", "Nutrição"].map((item) => <option key={item} value={item} />)}
-                    </datalist>
-                    <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">É possível atribuir mais de uma especialidade separando por vírgulas.</p>
+                    <div className="rounded-[12px] border border-hpsr-border bg-[#fffaf4] p-3">
+                      <label className="flex items-center gap-2 rounded-[10px] border border-hpsr-border bg-white px-3 py-2 text-sm font-black text-hpsr-text">
+                        <input type="checkbox" checked readOnly className="accent-hpsr-wine" />
+                        Clínico Geral
+                      </label>
+                      <div className="mt-2 flex max-h-52 flex-col gap-2 overflow-y-auto overflow-x-hidden pr-1">
+                        {systemSpecialties.filter((item) => item !== "Clínico Geral").map((item) => {
+                          const checked = selectedSpecialties.includes(item);
+                          return (
+                            <label key={item} className={`flex items-center gap-2 rounded-[10px] border px-3 py-2 text-sm font-bold ${checked ? "border-hpsr-wine bg-[#fff1e8] text-hpsr-wine" : "border-hpsr-border bg-white text-hpsr-text"} ${!canHaveAdditionalSpecialties ? "cursor-not-allowed opacity-55" : "cursor-pointer"}`}>
+                              <input type="checkbox" checked={checked} disabled={!canHaveAdditionalSpecialties} onChange={() => toggleSpecialty(item)} className="accent-hpsr-wine" />
+                              {item}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Selecione até 3 especialidades já cadastradas no sistema. Clínico Geral permanece como base.</p>
                   </ModalField>
                 </div>
               </section>
@@ -2396,16 +2457,27 @@ function AddMemberModal({
                     <input className={modalInputClass} value={form.department} onChange={(event) => updateField("department", event.target.value)} />
                   </ModalField>
                   <ModalField label="Telefone na cidade">
-                    <input className={modalInputClass} value={form.cityPhone} onChange={(event) => updateField("cityPhone", event.target.value)} placeholder="Ex.: (in game)" />
+                    <input className={modalInputClass} value={form.cityPhone} readOnly placeholder="Ex.: (in game)" />
                   </ModalField>
                   <ModalField label="E-mail institucional">
-                    <input className={modalInputClass} value={form.email} onChange={(event) => updateField("email", event.target.value)} placeholder="Ex.: nome@hpsr.local" />
+                    <input className={modalInputClass} value={form.email} readOnly placeholder="Ex.: nome@hpsr.local" />
                   </ModalField>
                   <ModalField label="Rádio">
-                    <input className={modalInputClass} value={form.radio} onChange={(event) => updateField("radio", event.target.value)} />
+                    <input className={modalInputClass} value={form.radio} readOnly />
                   </ModalField>
                   <ModalField label="Data de entrada">
                     <input type="date" className={modalInputClass} value={form.joinedAt} onChange={(event) => updateField("joinedAt", event.target.value)} />
+                  </ModalField>
+                  <ModalField label="Tempo de contrato (dias)">
+                    <input type="number" min="1" className={modalInputClass} value={form.contractDurationDays || 15} onChange={(event) => updateField("contractDurationDays", Math.max(1, Number(event.target.value) || 1))} />
+                  </ModalField>
+                  <ModalField label="Situação do contrato">
+                    <select className={modalInputClass} value={form.contractStatus || "Ativo"} onChange={(event) => updateField("contractStatus", event.target.value)}>
+                      {["Ativo", "Em avaliação", "Suspenso", "Encerrado"].map((status) => <option key={status} value={status}>{status}</option>)}
+                    </select>
+                  </ModalField>
+                  <ModalField label="Advertências">
+                    <input type="number" min="0" className={modalInputClass} value={form.warnings} onChange={(event) => updateField("warnings", Math.max(0, Number(event.target.value) || 0))} />
                   </ModalField>
                   <ModalField label="Status inicial">
                     <select className={modalInputClass} value={form.serviceStatus} onChange={(event) => updateField("serviceStatus", event.target.value)}>
@@ -2429,9 +2501,9 @@ function AddMemberModal({
                     <p className="mt-1 text-xs font-semibold text-hpsr-muted">Categoria {previewCategory}</p>
                   </div>
                   <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Contrato inicial</p>
-                    <p className="mt-1 text-sm font-black text-hpsr-text">{form.hospitalRole === "Estagiário de Enfermagem" ? "7 dias" : "15 dias"}</p>
-                    <p className="mt-1 text-xs font-semibold text-hpsr-muted">{contractHint}</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Contrato atual</p>
+                    <p className="mt-1 text-sm font-black text-hpsr-text">{form.contractDurationDays || 15} dias · {form.contractStatus || "Ativo"}</p>
+                    <p className="mt-1 text-xs font-semibold text-hpsr-muted">Entrada em {formatDate(form.joinedAt)}</p>
                   </div>
                 </div>
               </section>
@@ -2440,10 +2512,10 @@ function AddMemberModal({
         </div>
 
         <div className="shrink-0 flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white/[0.92] p-3.5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs font-semibold text-hpsr-muted">Após salvar, o médico será incluído na equipe cadastrada com permissões automáticas conforme o cargo.</p>
+          <p className="text-xs font-semibold text-hpsr-muted">As alterações serão salvas no perfil do médico e sincronizadas com a equipe cadastrada.</p>
           <div className="flex flex-col-reverse gap-3 sm:flex-row">
             <button type="button" onClick={onClose} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-text transition hover:bg-[#fff8f0]">Cancelar</button>
-            <button type="submit" className="rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 py-3 text-sm font-black text-white transition">Salvar registro</button>
+            <button type="submit" className="rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 py-3 text-sm font-black text-white transition">Salvar alterações</button>
           </div>
         </div>
       </form>

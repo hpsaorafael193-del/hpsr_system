@@ -22,7 +22,15 @@ function safeRecord(record: any) {
     createdAt: record.created_at,
     updatedAt: record.updated_at,
     protocol: payload.protocol || null,
-    html: sanitizeClinicalHtml(payload.reportHtml || payload.documentHtml || payload.html || ""),
+    html: sanitizeClinicalHtml(
+      payload.finalHtml || payload.reportHtml || payload.documentHtml || payload.html || payload.editorHtml ||
+      (payload.examName ? `<section><h2>${String(payload.examName)}</h2>${payload.patient?.name ? `<p><strong>Paciente:</strong> ${String(payload.patient.name)}</p>` : ""}${payload.doctor?.name ? `<p><strong>Médico responsável:</strong> ${String(payload.doctor.name)}</p>` : ""}<p>${String(payload.summary || payload.conclusion || "O exame foi salvo, mas o conteúdo formatado não foi incluído neste registro antigo.")}</p></section>` : "") ||
+      (payload.documentTitle ? `<section><h2>${String(payload.documentTitle)}</h2>${payload.patient?.name ? `<p><strong>Paciente:</strong> ${String(payload.patient.name)}</p>` : ""}${payload.doctor?.name ? `<p><strong>Médico responsável:</strong> ${String(payload.doctor.name)}</p>` : ""}<p>${String(payload.summary || "O documento foi salvo, mas o conteúdo formatado não foi incluído neste registro antigo.")}</p></section>` : "")
+    ),
+    previewImage: typeof payload.previewImage === "string" ? payload.previewImage : null,
+    previewImages: Array.isArray(payload.previewImages)
+      ? payload.previewImages.filter((item: unknown) => typeof item === "string" && item.startsWith("data:image/"))
+      : (typeof payload.previewImage === "string" ? [payload.previewImage] : []),
     isConfidential: Boolean(record.is_confidential),
   };
 }

@@ -16,7 +16,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const canSeeTeamAdmin =
     currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema" ||
-    ["Diretora", "Vice Diretor", "Diretor Clínico"].includes(currentUserProfile.role);
+    ["Diretora", "Vice Diretor"].includes(currentUserProfile.role);
   const visibleAdminNavigation = canSeeTeamAdmin ? adminNavigation : [];
   const visibleToolsNavigation = toolsNavigation.filter((item) => canSeeNavigationItem(item, currentUserProfile.role));
 

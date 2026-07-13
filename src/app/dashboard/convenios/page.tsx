@@ -125,7 +125,7 @@ const inputClass =
 
 const labelClass = "text-[11px] font-semibold uppercase tracking-[0.15em] text-hpsr-wineLight";
 
-const directorRoles = ["Diretora", "Vice Diretor"];
+const directorRoles = ["Diretora", "Vice Diretor", "Diretor Clínico"];
 const registerRoles = ["Diretora", "Vice Diretor", "Médico Cirurgião", "Médico Especialista", "Médico Clínico"];
 
 function parseIsoDate(value: string) {

@@ -23,11 +23,11 @@ import {
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
-import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
+import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 import { createClient } from "@/lib/supabase";
 import { ClinicalRecordsPortalPanel } from "@/components/dashboard/ClinicalRecordsPortalPanel";
 
-type RecordTab = "geral" | "timeline" | "consultas" | "exames" | "prescricoes" | "procedimentos" | "observacoes";
+type RecordTab = "geral" | "timeline" | "consultas" | "exames" | "documentos" | "prescricoes" | "procedimentos" | "observacoes";
 
 type PatientRecord = {
   id: string;
@@ -45,7 +45,7 @@ type PatientRecord = {
 type TimelineEvent = {
   id: string;
   patientPassport: string;
-  type: "Consulta" | "Exame" | "Prescrição" | "Procedimento" | "Observação";
+  type: "Consulta" | "Exame" | "Documento" | "Prescrição" | "Procedimento" | "Observação";
   title: string;
   date: string;
   doctor: string;
@@ -58,6 +58,7 @@ const tabs: Array<{ id: RecordTab; label: string; icon: ReactNode }> = [
   { id: "timeline", label: "Linha do Tempo", icon: <FileClock size={15} /> },
   { id: "consultas", label: "Consultas", icon: <Stethoscope size={15} /> },
   { id: "exames", label: "Exames", icon: <FileText size={15} /> },
+  { id: "documentos", label: "Documentos", icon: <Archive size={15} /> },
   { id: "prescricoes", label: "Prescrições", icon: <Pill size={15} /> },
   { id: "procedimentos", label: "Procedimentos", icon: <Syringe size={15} /> },
   { id: "observacoes", label: "Observações", icon: <NotebookPen size={15} /> },
@@ -95,6 +96,8 @@ function eventIcon(type: TimelineEvent["type"]) {
       return <Stethoscope size={17} className={classes} />;
     case "Exame":
       return <FileText size={17} className={classes} />;
+    case "Documento":
+      return <Archive size={17} className={classes} />;
     case "Prescrição":
       return <Pill size={17} className={classes} />;
     case "Procedimento":
@@ -229,6 +232,8 @@ export default function RecordsPage() {
         const recordType = String(row.record_type || "").toLowerCase();
         const kind: TimelineEvent["type"] = recordType.includes("exame")
           ? "Exame"
+          : recordType.includes("document")
+            ? "Documento"
           : recordType.includes("prescri")
             ? "Prescrição"
             : recordType.includes("proced")
@@ -246,8 +251,15 @@ export default function RecordsPage() {
         });
       }
 
-      setPatients(Array.from(patientMap.values()).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+      setPatients((current) => {
+        const mergedMap = new Map(patientMap);
+        for (const patient of current) {
+          if (!mergedMap.has(patient.passport)) mergedMap.set(patient.passport, patient);
+        }
+        return Array.from(mergedMap.values()).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+      });
       setTimelineEvents(events);
+      setIsLoadingPatients(false);
     }
 
     void loadPatients();
@@ -274,7 +286,7 @@ export default function RecordsPage() {
         patient.passport.includes(normalized) ||
         patient.name.toLowerCase().includes(normalized)
     );
-  }, [searchTerm]);
+  }, [patients, searchTerm]);
 
   const searchedPatient =
     searchTerm.trim() && visiblePatients.length === 1 ? visiblePatients[0] : null;
@@ -292,6 +304,18 @@ export default function RecordsPage() {
   const examCount = patientEvents.filter((event) => event.type === "Exame").length;
   const prescriptionCount = patientEvents.filter((event) => event.type === "Prescrição").length;
   const procedureCount = patientEvents.filter((event) => event.type === "Procedimento").length;
+
+
+  async function deleteClinicalRecord(event: TimelineEvent) {
+    if (event.type !== "Exame" && event.type !== "Documento") return;
+    const confirmed = await hpsrConfirm(`Deseja excluir definitivamente “${event.title}”?`, "Excluir registro clínico");
+    if (!confirmed) return;
+    const client = createClient();
+    if (!client) return;
+    const { error } = await client.from("clinical_records").delete().eq("id", event.id);
+    if (error) { await hpsrAlert(error.message, "Não foi possível excluir"); return; }
+    setTimelineEvents((current) => current.filter((item) => item.id !== event.id));
+  }
 
   function handleCreateRecord(data: {
     name: string;
@@ -550,7 +574,8 @@ export default function RecordsPage() {
                 )}
                 {activeTab === "timeline" && <TimelineTab events={patientEvents} />}
                 {activeTab === "consultas" && <FilteredEventsTab events={patientEvents} type="Consulta" empty="Nenhuma consulta registrada." />}
-                {activeTab === "exames" && <FilteredEventsTab events={patientEvents} type="Exame" empty="Nenhum exame vinculado." />}
+                {activeTab === "exames" && <FilteredEventsTab events={patientEvents} type="Exame" empty="Nenhum exame vinculado." onDelete={deleteClinicalRecord} />}
+                {activeTab === "documentos" && <FilteredEventsTab events={patientEvents} type="Documento" empty="Nenhum documento vinculado." onDelete={deleteClinicalRecord} />}
                 {activeTab === "prescricoes" && <FilteredEventsTab events={patientEvents} type="Prescrição" empty="Nenhuma prescrição registrada." />}
                 {activeTab === "procedimentos" && <FilteredEventsTab events={patientEvents} type="Procedimento" empty="Nenhum procedimento registrado." />}
                 {activeTab === "observacoes" && <FilteredEventsTab events={patientEvents} type="Observação" empty="Nenhuma observação interna." />}
@@ -871,14 +896,6 @@ function OverviewTab({
         </div>
       </section>
 
-      <section>
-        <SectionTitle title="Últimos registros" description="Eventos mais recentes deste paciente." />
-        <div className="mt-3 grid gap-3">
-          {events.slice(0, 3).map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
-      </section>
     </div>
   );
 }
@@ -909,10 +926,12 @@ function FilteredEventsTab({
   events,
   type,
   empty,
+  onDelete,
 }: {
   events: TimelineEvent[];
   type: TimelineEvent["type"];
   empty: string;
+  onDelete?: (event: TimelineEvent) => void;
 }) {
   const filtered = events.filter((event) => event.type === type);
 
@@ -921,13 +940,13 @@ function FilteredEventsTab({
   return (
     <div className="grid gap-3">
       {filtered.map((event) => (
-        <EventCard key={event.id} event={event} />
+        <EventCard key={event.id} event={event} onDelete={onDelete} />
       ))}
     </div>
   );
 }
 
-function EventCard({ event }: { event: TimelineEvent }) {
+function EventCard({ event, onDelete }: { event: TimelineEvent; onDelete?: (event: TimelineEvent) => void }) {
   return (
     <article className="rounded-[16px] border border-hpsr-border bg-white p-3.5 transition hover:bg-[#fffdf9]">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
@@ -945,10 +964,13 @@ function EventCard({ event }: { event: TimelineEvent }) {
           <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">{event.summary}</p>
         </div>
 
-        <div className="rounded-[16px] border border-hpsr-border bg-[#fff8f0] px-3 py-2 text-sm lg:min-w-[210px]">
+        <div className="flex flex-col gap-2 lg:min-w-[210px]">
+        <div className="rounded-[16px] border border-hpsr-border bg-[#fff8f0] px-3 py-2 text-sm">
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Registro</p>
           <p className="mt-1 font-black text-hpsr-text">{formatDate(event.date)}</p>
           <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{event.doctor}</p>
+        </div>
+        {onDelete && (event.type === "Exame" || event.type === "Documento") && <button type="button" onClick={() => onDelete(event)} className="rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">Excluir {event.type.toLowerCase()}</button>}
         </div>
       </div>
     </article>

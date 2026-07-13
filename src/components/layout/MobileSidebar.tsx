@@ -14,7 +14,7 @@ export function MobileSidebar() {
   const [creditsOpen, setCreditsOpen] = useState(false);
   const canSeeTeamAdmin =
     currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema" ||
-    ["Diretora", "Vice Diretor", "Diretor Clínico"].includes(currentUserProfile.role);
+    ["Diretora", "Vice Diretor"].includes(currentUserProfile.role);
   const visibleAdminNavigation = canSeeTeamAdmin ? adminNavigation : [];
   const visibleToolsNavigation = toolsNavigation.filter((item) => canSeeNavigationItem(item, currentUserProfile.role));
   const groups = [

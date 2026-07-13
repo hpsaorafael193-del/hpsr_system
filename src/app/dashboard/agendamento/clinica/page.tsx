@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   CalendarDays,
   CalendarClock,
@@ -13,10 +13,15 @@ import {
   Plus,
   Stethoscope,
   UserRound,
+  UserPlus,
   X,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
+import { specialties } from "@/data/mock";
 import {
   doctorCanAccessSpecialty,
   doctorVisibleSpecialties,
@@ -28,7 +33,7 @@ const BRAZIL_TIMEZONE = "America/Sao_Paulo";
 const weekdayLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 type Appointment = { id: string; patient: string; passport: string; specialty: string; physician: string; date: string; time: string; status: string };
-const scheduledAppointments: Appointment[] = [];
+
 
 
 type ModalMode =
@@ -128,6 +133,8 @@ const inputClass =
 const labelClass = "text-xs font-semibold uppercase tracking-[0.16em] text-hpsr-muted";
 
 export default function ClinicalSchedulePage() {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
+  const [scheduledAppointments, setScheduledAppointments] = useState<Appointment[]>([]);
   const brasiliaToday = useMemo(() => getBrasiliaToday(), []);
   const [currentMonth, setCurrentMonth] = useState(
     new Date(brasiliaToday.getFullYear(), brasiliaToday.getMonth(), 1)
@@ -137,8 +144,31 @@ export default function ClinicalSchedulePage() {
 
   const dateKey = toDateKey(selectedDate);
 
+  useEffect(() => {
+    const supabase = createClient();
+    if (!supabase) return;
+    const client = supabase;
+    let active = true;
+    async function loadAppointments() {
+      const { data, error } = await client.from("appointments").select("id,passport,patient,status,payload,created_at").order("created_at", { ascending: false });
+      if (error || !active) return;
+      setScheduledAppointments((data || []).filter((row: any) => row.status === "Aceita" || row.status === "Agendada" || row.status === "Confirmada" || row.status === "Reagendamento aceito").map((row: any) => {
+        const payload = (row.payload || {}) as Record<string, unknown>;
+        return {
+          id: String(row.id), patient: String(row.patient || payload.patient || "Paciente"), passport: String(row.passport || payload.passport || ""),
+          specialty: String(payload.specialty || "Clínico Geral"), physician: String(payload.physician || payload.doctor || "A definir"),
+          date: String(row.status === "Reagendamento aceito" ? payload.proposedDate || payload.preferredDate || payload.date || "" : payload.preferredDate || payload.date || ""), time: String(row.status === "Reagendamento aceito" ? payload.proposedTime || payload.time || "09:00" : payload.time || (payload.preferredPeriod === "Tarde" ? "14:00" : payload.preferredPeriod === "Noite" ? "19:00" : "09:00")),
+          status: String(row.status === "Aceita" ? "Agendada" : row.status),
+        };
+      }));
+    }
+    void loadAppointments();
+    const channel = client.channel("agenda-clinica-sync").on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, loadAppointments).subscribe();
+    return () => { active = false; void client.removeChannel(channel); };
+  }, []);
+
   const doctorAppointments = scheduledAppointments.filter((appointment) =>
-    doctorCanAccessSpecialty(appointment.specialty)
+    appointment.physician === currentUserProfile.systemName || doctorCanAccessSpecialty(appointment.specialty)
   );
 
   const appointmentsOnSelectedDay = doctorAppointments
@@ -499,81 +529,129 @@ function NewAppointmentForm({
 }) {
   const [date, setDate] = useState(selectedDate);
   const [time, setTime] = useState("09:00");
-  const [specialty, setSpecialty] = useState(doctorVisibleSpecialties[0] ?? "Clínico Geral");
+  const { profile: currentUserProfile } = useCurrentUserProfile();
+  const { patients, selectPatient, upsertPatient } = usePatientSelection();
+  const [patientPassport, setPatientPassport] = useState("");
+  const [patientName, setPatientName] = useState("");
+  const [physician, setPhysician] = useState("");
+  const [doctors, setDoctors] = useState<Array<{ id: string; name: string; specialty: string }>>([]);
+  const [specialty, setSpecialty] = useState("Clínico Geral");
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickPatient, setQuickPatient] = useState({ name: "", passport: "", age: "", bloodType: "" });
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
-  function handleSave() {
-    if (!doctorCanAccessSpecialty(specialty)) {
-      setMessage({
-        type: "error",
-        text: "Este médico não possui acesso para agendar essa especialidade.",
-      });
+  useEffect(() => {
+    const client = createClient();
+    if (!client) return;
+    void client.from("profiles").select("id,name,role,specialty").eq("access_status", "Aprovado").order("name").then(({ data }) => {
+      const available = (data || [])
+        .filter((row: any) => String(row.role || "").includes("Médico") || ["Diretor Clínico", "Diretora", "Vice Diretor"].includes(String(row.role || "")))
+        .map((row: any) => ({ id: String(row.id), name: String(row.name || "Médico"), specialty: String(row.specialty || "Clínico Geral") }));
+      setDoctors(available);
+      const current = available.find((item) => item.name === currentUserProfile.systemName);
+      setPhysician(current?.name || available[0]?.name || currentUserProfile.systemName);
+    });
+  }, [currentUserProfile.systemName]);
+
+  async function saveQuickPatient() {
+    const name = quickPatient.name.trim();
+    const passport = quickPatient.passport.trim();
+    if (!name || !passport) {
+      setMessage({ type: "error", text: "Informe nome completo e documento/passaporte." });
       return;
     }
+    const patient = { name, passport, age: quickPatient.age.trim(), bloodType: quickPatient.bloodType.trim() };
+    const client = createClient();
+    if (client) {
+      const now = new Date().toISOString();
+      const { error } = await client.from("clinical_records").insert({
+        id: `patient-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        patient_passport: passport,
+        record_type: "Cadastro de paciente",
+        is_confidential: true,
+        released_at: null,
+        payload: { patient, patientName: name, age: patient.age, bloodType: patient.bloodType, source: "quick_registration", savedAt: now },
+      });
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+        return;
+      }
+    }
+    upsertPatient(patient);
+    selectPatient(patient);
+    setPatientName(name);
+    setPatientPassport(passport);
+    setQuickOpen(false);
+    setQuickPatient({ name: "", passport: "", age: "", bloodType: "" });
+    setMessage({ type: "success", text: "Paciente cadastrado rapidamente e selecionado." });
+  }
 
-    const conflict = findSpecialtyScheduleConflict({
-      appointments,
-      date,
-      time,
-      specialty,
-    });
-
+  async function handleSave() {
+    const conflict = findSpecialtyScheduleConflict({ appointments, date, time, specialty });
     if (conflict) {
-      setMessage({
-        type: "error",
-        text: `Conflito: já existe ${conflict.specialty} às ${conflict.time} nesta data. Mantenha pelo menos 1 hora de intervalo para a mesma especialidade.`,
-      });
+      setMessage({ type: "error", text: `Conflito: já existe ${conflict.specialty} às ${conflict.time} nesta data. Mantenha pelo menos 1 hora de intervalo para a mesma especialidade.` });
       return;
     }
-
-    setMessage({
-      type: "success",
-      text: "Consulta validada. Na etapa com banco de dados, este registro será salvo no Supabase.",
-    });
+    if (!patientPassport || !patientName) {
+      setMessage({ type: "error", text: "Selecione ou cadastre um paciente antes de salvar." });
+      return;
+    }
+    if (!physician) {
+      setMessage({ type: "error", text: "Selecione o médico responsável." });
+      return;
+    }
+    const client = createClient();
+    if (!client) return;
+    const now = new Date().toISOString();
+    const id = `appointment-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const payload = { patient: patientName, passport: patientPassport, specialty, physician, doctor: physician, date, preferredDate: date, time, source: "clinical_schedule", createdAt: now, updatedAt: now };
+    const { error } = await client.from("appointments").insert({ id, passport: patientPassport, patient: patientName, status: "Agendada", payload, created_at: now, updated_at: now });
+    if (error) { setMessage({ type: "error", text: error.message }); return; }
+    setMessage({ type: "success", text: "Consulta salva e sincronizada com a visão geral e o prontuário." });
   }
 
   return (
     <div className="grid gap-3">
       <div className="rounded-2xl border border-hpsr-border bg-[#fcf6ee] p-3.5 text-sm leading-relaxed text-hpsr-muted">
-        O sistema valida a especialidade do médico e bloqueia horários com menos de 1 hora de intervalo para consultas da mesma especialidade.
+        Selecione paciente e médico. O cadastro rápido usa o mesmo registro compartilhado do Prontuário.
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Passaporte">
-          <input className={inputClass} placeholder="Ex: 12345" />
-        </Field>
         <Field label="Paciente">
-          <input className={inputClass} placeholder="Nome do personagem" />
-        </Field>
-        <Field label="Especialidade">
-          <select
-            className={inputClass}
-            value={specialty}
-            onChange={(event) => setSpecialty(event.target.value)}
-          >
-            {doctorVisibleSpecialties.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
+          <div className="flex gap-2">
+            <select className={inputClass} value={patientPassport} onChange={(event) => { const passport = event.target.value; const found = patients.find((item) => item.passport === passport); setPatientPassport(passport); setPatientName(found?.name || ""); if (found) selectPatient(found); }}>
+              <option value="">Selecione o paciente</option>
+              {patients.map((item) => <option key={item.passport} value={item.passport}>{item.name} · {item.passport}</option>)}
+            </select>
+            <button type="button" onClick={() => setQuickOpen(true)} title="Registro rápido de paciente" aria-label="Registro rápido de paciente" className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-wine hover:bg-[#fff8f0]"><UserPlus size={18}/></button>
+          </div>
         </Field>
         <Field label="Médico responsável">
-          <input className={inputClass} placeholder="Dr. Luidhy" />
+          <select className={inputClass} value={physician} onChange={(event) => setPhysician(event.target.value)}>
+            <option value="">Selecione o médico</option>
+            {doctors.map((doctor) => <option key={doctor.id} value={doctor.name}>{doctor.name}</option>)}
+          </select>
         </Field>
-        <Field label="Data">
-          <input className={inputClass} type="date" value={date} onChange={(event) => setDate(event.target.value)} />
+        <Field label="Especialidade">
+          <select className={inputClass} value={specialty} onChange={(event) => setSpecialty(event.target.value)}>
+            {specialties.map((item) => <option key={item}>{item}</option>)}
+          </select>
         </Field>
-        <Field label="Horário de Brasília">
-          <input className={inputClass} type="time" value={time} onChange={(event) => setTime(event.target.value)} />
-        </Field>
+        <Field label="Data"><input className={inputClass} type="date" value={date} onChange={(event) => setDate(event.target.value)} /></Field>
+        <Field label="Horário de Brasília"><input className={inputClass} type="time" value={time} onChange={(event) => setTime(event.target.value)} /></Field>
       </div>
 
-      <Field label="Observações">
-        <textarea className={inputClass} rows={4} placeholder="Motivo da consulta, orientação interna ou observações." />
-      </Field>
-
+      <Field label="Observações"><textarea className={inputClass} rows={4} placeholder="Motivo da consulta, orientação interna ou observações." /></Field>
       {message && <ValidationMessage type={message.type} text={message.text} />}
-
       <ModalActions onClose={onClose} actionLabel="Validar e salvar" onConfirm={handleSave} />
+
+      {quickOpen && <div className="fixed inset-0 z-[1000] grid place-items-center bg-[#1f0805]/60 p-4 backdrop-blur-sm">
+        <div className="w-full max-w-[520px] overflow-hidden rounded-[22px] border border-hpsr-border bg-[#fffaf4] shadow-2xl">
+          <div className="flex items-start justify-between border-b border-hpsr-border bg-white px-5 py-4"><div className="flex gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-hpsr-border text-hpsr-wine"><UserPlus size={19}/></div><div><h3 className="font-black text-hpsr-text">Registro rápido de paciente</h3><p className="text-xs font-semibold text-hpsr-muted">Preencha apenas os dados necessários para esta consulta.</p></div></div><button type="button" onClick={() => setQuickOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><X size={18}/></button></div>
+          <div className="grid gap-3 p-5 sm:grid-cols-2"><label className="sm:col-span-2 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Nome completo<input className={`${inputClass} mt-1.5`} value={quickPatient.name} onChange={(e)=>setQuickPatient((c)=>({...c,name:e.target.value}))}/></label><label className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Documento / Passaporte<input className={`${inputClass} mt-1.5`} value={quickPatient.passport} onChange={(e)=>setQuickPatient((c)=>({...c,passport:e.target.value}))}/></label><label className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Idade<input className={`${inputClass} mt-1.5`} value={quickPatient.age} onChange={(e)=>setQuickPatient((c)=>({...c,age:e.target.value}))}/></label><label className="sm:col-span-2 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Tipo sanguíneo<input className={`${inputClass} mt-1.5`} placeholder="Ex.: B-" value={quickPatient.bloodType} onChange={(e)=>setQuickPatient((c)=>({...c,bloodType:e.target.value}))}/></label></div>
+          <div className="flex justify-end gap-2 border-t border-hpsr-border bg-white px-5 py-4"><button type="button" onClick={() => setQuickOpen(false)} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-xs font-black text-hpsr-text">Cancelar</button><button type="button" onClick={() => void saveQuickPatient()} className="rounded-[14px] bg-hpsr-wine px-4 py-3 text-xs font-black text-white">Salvar paciente</button></div>
+        </div>
+      </div>}
     </div>
   );
 }
@@ -679,8 +757,10 @@ function RescheduleForm({
   const [date, setDate] = useState(appointment.date);
   const [time, setTime] = useState(appointment.time);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
 
-  function handleSave() {
+  async function handleSave() {
     const conflict = findSpecialtyScheduleConflict({
       appointments,
       date,
@@ -697,10 +777,14 @@ function RescheduleForm({
       return;
     }
 
-    setMessage({
-      type: "success",
-      text: "Reagendamento validado. Na etapa com banco de dados, a alteração será salva no Supabase.",
-    });
+    const client = createClient();
+    if (!client) return;
+    const { data: row, error: readError } = await client.from("appointments").select("payload").eq("id", appointment.id).maybeSingle();
+    if (readError) { setMessage({ type: "error", text: readError.message }); return; }
+    const payload = { ...((row?.payload || {}) as Record<string, unknown>), proposedDate: date, proposedTime: time, rescheduleReason: reason || notes || "Reagendamento solicitado pelo médico", rescheduleNotes: notes, physician: appointment.physician, doctor: appointment.physician, updatedAt: new Date().toISOString() };
+    const { error } = await client.from("appointments").update({ status: "Reagendamento solicitado", payload, updated_at: new Date().toISOString() }).eq("id", appointment.id);
+    if (error) { setMessage({ type: "error", text: error.message }); return; }
+    setMessage({ type: "success", text: "Proposta enviada ao Portal do Paciente para aceitar, recusar, informar disponibilidade ou desistir." });
   }
 
   return (
@@ -719,7 +803,7 @@ function RescheduleForm({
           <input className={inputClass} type="time" value={time} onChange={(event) => setTime(event.target.value)} />
         </Field>
         <Field label="Motivo do reagendamento">
-          <select className={inputClass} defaultValue="">
+          <select className={inputClass} value={reason} onChange={(event) => setReason(event.target.value)}>
             <option value="" disabled>Selecione</option>
             <option>Pedido do paciente</option>
             <option>Indisponibilidade médica</option>
@@ -736,7 +820,7 @@ function RescheduleForm({
       </div>
 
       <Field label="Observações">
-        <textarea className={inputClass} rows={4} placeholder="Informe detalhes do reagendamento." />
+        <textarea className={inputClass} rows={4} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Informe detalhes do reagendamento." />
       </Field>
 
       {message && <ValidationMessage type={message.type} text={message.text} />}

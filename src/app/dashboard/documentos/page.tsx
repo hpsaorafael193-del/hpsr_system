@@ -32,6 +32,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { ClinicalHistoryButton } from "@/components/dashboard/ClinicalHistoryButton";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { createClient } from "@/lib/supabase";
@@ -1112,7 +1113,26 @@ export default function DocumentsPage() {
     }, "image/png");
   }
 
+
+  async function openDocumentPreview() {
+    const html = normalizeEditorHtml(editorRef.current?.innerHTML || editorHtml || generatedHtml);
+    if (editorRef.current) editorRef.current.innerHTML = html;
+    setEditorHtml(html);
+    const canvas = await renderDocumentCanvas();
+    if (!canvas) return;
+    setPreviewImage(canvas.toDataURL("image/png"));
+    setPreviewOpen(true);
+  }
+
   async function saveDocument() {
+    if (!patient.passport?.trim() || !patient.name?.trim()) {
+      setAppDialog({ title: "Paciente obrigatório", message: "Selecione ou cadastre o paciente antes de salvar.", actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
+      return;
+    }
+    if (patient.name.trim().toLowerCase() === doctor.name.trim().toLowerCase()) {
+      setAppDialog({ title: "Dados inválidos", message: "Paciente e médico responsável não podem ser o mesmo registro.", actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
+      return;
+    }
     const html = normalizeEditorHtml(
       editorRef.current?.innerHTML || editorHtml || generatedHtml,
     );
@@ -1160,7 +1180,7 @@ export default function DocumentsPage() {
       <div className="hpsr-page gap-3 text-hpsr-text">
         <div className="hpsr-topbar" />
 
-        <section className="min-h-0 grid flex-1 gap-4 overflow-hidden xl:grid-cols-[420px_minmax(0,1fr)] 2xl:grid-cols-[440px_minmax(0,1fr)]">
+        <section className="min-h-0 grid flex-1 gap-4 overflow-hidden xl:grid-cols-[360px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]">
           <aside className="min-h-0 overflow-y-auto pr-1 xl:pr-2 no-print">
             <div className="rounded-[22px] border border-[#dfd1c5] bg-white p-3.5 shadow-[0_14px_34px_rgba(42,7,0,0.055)]">
               <PageHeader
@@ -1358,9 +1378,7 @@ export default function DocumentsPage() {
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2 text-xs font-black text-hpsr-text">
-                <span className="rounded-full border border-[#dec8b6] bg-white px-3 py-2 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
-                  Paciente: {patient.name || "não selecionado"}
-                </span>
+                <ClinicalHistoryButton recordType="Documento" />
                 <span className="rounded-full border border-[#dec8b6] bg-white px-3 py-2 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
                   {today}
                 </span>
@@ -1441,10 +1459,10 @@ export default function DocumentsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={saveDocument}
+                  onClick={openDocumentPreview}
                   className="inline-flex h-10 items-center gap-2 rounded-[13px] bg-hpsr-wine px-5 text-xs font-black text-white shadow-soft hover:bg-hpsr-wineDark"
                 >
-                  <Save size={16} /> Salvar documento
+                  <Save size={16} /> Pré-visualizar
                 </button>
               </div>
             </div>
