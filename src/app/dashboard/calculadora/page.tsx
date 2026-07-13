@@ -181,7 +181,7 @@ const tabs: Array<{ id: CategoryId; label: string; icon: ReactNode; products: Pr
 const convenioOptions: Array<{ id: ConvenioId; title: string; description: string; discount: number; icon: ReactNode }> = [
   { id: "sem", title: "Sem Convênio", description: "Sem desconto", discount: 0, icon: <BadgePercent size={17} /> },
   { id: "plano", title: "Plano Médico", description: "20% de desconto", discount: 0.2, icon: <Handshake size={17} /> },
-  { id: "parceria", title: "Parceria", description: "15% de desconto", discount: 0.15, icon: <CheckCircle2 size={17} /> },
+  { id: "parceria", title: "Parceria", description: "10% de desconto", discount: 0.10, icon: <CheckCircle2 size={17} /> },
 ];
 
 function formatCurrency(valueInCents: number) {

@@ -478,18 +478,25 @@ export default function TeamPage() {
     setRegistrationRequestsLoading(true);
     setRegistrationRequestError("");
 
-    const { data, error } = await client
-      .from("staff_registration_requests")
-      .select("id, auth_user_id, passport, name, requested_role, status, payload, created_at")
-      .order("created_at", { ascending: false });
+    const [requestsResult, pendingProfilesResult] = await Promise.all([
+      client
+        .from("staff_registration_requests")
+        .select("id, auth_user_id, passport, name, requested_role, status, payload, created_at")
+        .order("created_at", { ascending: false }),
+      client
+        .from("profiles")
+        .select("id,name,email,passport,crm,role,specialty,city_phone,discord,access_status,created_at")
+        .neq("access_status", "Aprovado")
+        .order("created_at", { ascending: false }),
+    ]);
 
-    if (error) {
-      setRegistrationRequestError(`Não foi possível carregar os cadastros: ${error.message}`);
+    if (requestsResult.error) {
+      setRegistrationRequestError(`Não foi possível carregar os cadastros: ${requestsResult.error.message}`);
       setRegistrationRequestsLoading(false);
       return;
     }
 
-    const remoteItems: StaffRegistrationRequest[] = (data || []).map((row) => {
+    const remoteItems: StaffRegistrationRequest[] = (requestsResult.data || []).map((row) => {
       const payload = (row.payload || {}) as Record<string, unknown>;
       return {
         id: String(row.id),
@@ -507,8 +514,31 @@ export default function TeamPage() {
       };
     });
 
-    setRegistrationRequests(remoteItems);
-    saveRegistrationRequests(remoteItems);
+    const requestUserIds = new Set(remoteItems.map((item) => item.authUserId).filter(Boolean));
+    const requestPassports = new Set(remoteItems.map((item) => item.passport).filter(Boolean));
+    const missingProfileRequests: StaffRegistrationRequest[] = pendingProfilesResult.error
+      ? []
+      : (pendingProfilesResult.data || [])
+          .filter((profile) => !requestUserIds.has(String(profile.id)) && !requestPassports.has(String(profile.passport || "")))
+          .map((profile) => ({
+            id: `profile-${profile.id}`,
+            authUserId: String(profile.id),
+            name: String(profile.name || "Não informado"),
+            passport: String(profile.passport || ""),
+            email: String(profile.email || ""),
+            cityPhone: String(profile.city_phone || ""),
+            discord: String(profile.discord || ""),
+            crm: String(profile.crm || ""),
+            specialty: String(profile.specialty || "Clínico Geral"),
+            requestedRole: String(profile.role || "Médico Clínico"),
+            createdAt: String(profile.created_at || new Date().toISOString()),
+            status: profile.access_status === "Recusado" ? "Recusado" : "Pendente",
+          }));
+
+    const completeItems = [...remoteItems, ...missingProfileRequests]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    setRegistrationRequests(completeItems);
+    saveRegistrationRequests(completeItems);
     setRegistrationRequestsLoading(false);
   }
 
@@ -686,10 +716,23 @@ export default function TeamPage() {
 
     const client = createClient();
     if (client && request.authUserId) {
-      const { error } = await client.rpc("decide_staff_registration", {
-        request_id: request.id,
-        decision,
-      });
+      const isProfileFallback = request.id.startsWith("profile-");
+      const { error } = isProfileFallback
+        ? await client
+            .from("profiles")
+            .update({
+              access_status: decision,
+              role: request.requestedRole,
+              specialty: request.specialty || "Clínico Geral",
+              passport: request.passport || null,
+              crm: request.crm || null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", request.authUserId)
+        : await client.rpc("decide_staff_registration", {
+            request_id: request.id,
+            decision,
+          });
 
       if (error) {
         setRegistrationRequestError(`Não foi possível ${decision === "Aprovado" ? "aprovar" : "recusar"} o cadastro: ${error.message}`);
@@ -2249,9 +2292,14 @@ function ManageMemberModal({
   onClose: () => void;
   onSave: (data: TeamMember) => Promise<void>;
 }) {
-  const selectableDoctors = useMemo(() => members.filter((member) =>
-    member.hospitalRole.includes("Médico") || ["Residente", "Diretor Clínico", "Diretora", "Vice Diretor"].includes(member.hospitalRole)
-  ), [members]);
+  const selectableDoctors = useMemo(() => members.filter((member) => {
+    const normalizedRole = member.hospitalRole.toLowerCase();
+    const hasMedicalRole = normalizedRole.includes("médico")
+      || ["residente", "diretor clínico", "diretora", "vice diretor"].includes(normalizedRole);
+    const hasMedicalIdentity = Boolean(member.crm?.trim())
+      || Boolean(member.specialty?.trim() && member.specialty !== "Não informado");
+    return hasMedicalRole || hasMedicalIdentity || member.systemRole === "Dev / Desenvolvedor do Sistema";
+  }), [members]);
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const emptyMember: TeamMember = { id: "", name: "", passport: "", crm: "", hospitalRole: "Médico Clínico", systemRole: "", accessLevel: "Clínico", category: "Corpo Médico", department: "Hospital São Rafael", specialty: "Clínico Geral", cityPhone: "", email: "", radio: "193", joinedAt: new Date().toISOString().slice(0, 10), serviceStatus: "Fora de serviço", permissions: [], warnings: 0, suspensions: 0, history: [], contractStatus: "Ativo", contractDurationDays: 15 };
   const [form, setForm] = useState<TeamMember>(emptyMember);
