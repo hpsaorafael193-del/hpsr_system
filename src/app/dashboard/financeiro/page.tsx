@@ -23,23 +23,30 @@ const insurancePlans = [
   {
     id: "individual",
     name: "Plano Individual",
-    price: 150000,
-    description: "1 titular, sem dependentes",
+    price: 100000,
+    description: "1 pessoa, sem dependentes",
     icon: UserRound,
   },
   {
     id: "combo",
     name: "Plano Combo",
-    price: 220000,
-    description: "1 titular e até 2 dependentes",
+    price: 150000,
+    description: "Até 3 pessoas: titular e 2 dependentes",
     icon: UsersRound,
   },
   {
     id: "familia",
     name: "Plano Família",
-    price: 300000,
-    description: "1 titular e até 4 dependentes",
+    price: 200000,
+    description: "Até 4 pessoas: titular e 3 dependentes",
     icon: Handshake,
+  },
+  {
+    id: "crianca_terceira_idade",
+    name: "Plano Criança e Terceira Idade",
+    price: 120000,
+    description: "1 pessoa: 0–17 anos ou 50+",
+    icon: UserRound,
   },
 ] as const;
 

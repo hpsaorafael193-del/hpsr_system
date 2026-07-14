@@ -30,41 +30,52 @@ const plans = [
     id: "individual",
     name: "Plano Individual",
     icon: UserRound,
-    price: "150 mil",
-    value: 150000,
+    price: "100 mil",
+    value: 100000,
     badge: "",
-    features: ["1 titular", "Sem dependentes", "20% de desconto", "Validade: 30 dias"],
+    features: ["1 pessoa", "Sem dependentes", "20% de desconto", "Validade: 30 dias"],
   },
   {
     id: "combo",
     name: "Plano Combo",
     icon: UsersRound,
-    price: "220 mil",
-    value: 220000,
+    price: "150 mil",
+    value: 150000,
     badge: "Mais usado",
-    features: ["1 titular", "Até 2 dependentes", "20% de desconto", "Validade: 30 dias"],
+    features: ["Até 3 pessoas", "1 titular + até 2 dependentes", "20% de desconto", "Validade: 30 dias"],
   },
   {
     id: "familia",
     name: "Plano Família",
     icon: HeartHandshake,
-    price: "300 mil",
-    value: 300000,
+    price: "200 mil",
+    value: 200000,
     badge: "",
-    features: ["1 titular", "Até 4 dependentes", "20% de desconto", "Validade: 30 dias"],
+    features: ["Até 4 pessoas", "1 titular + até 3 dependentes", "20% de desconto", "Validade: 30 dias"],
+  },
+  {
+    id: "crianca_terceira_idade",
+    name: "Plano Criança e Terceira Idade",
+    icon: HeartHandshake,
+    price: "120 mil",
+    value: 120000,
+    badge: "Faixa etária",
+    features: ["1 pessoa", "0 a 17 anos ou 50+", "Sem dependentes", "Validade: 30 dias"],
   },
 ];
 
 const dependentLimits: Record<Plan["id"], number> = {
   individual: 0,
   combo: 2,
-  familia: 4,
+  familia: 3,
+  crianca_terceira_idade: 0,
 };
 
 const planLabels: Record<Plan["id"], string> = {
   individual: "Individual",
   combo: "Combo",
   familia: "Família",
+  crianca_terceira_idade: "Criança e Terceira Idade",
 };
 
 type InsuranceStatus = "Ativo" | "Encerrado";
@@ -88,11 +99,13 @@ type InsurancePlan = {
   closedAt?: string;
   closeReason?: string;
   blockedDeletion?: boolean;
+  holderAge?: number;
 };
 
 type RegisterDraft = {
   name: string;
   passport: string;
+  age: string;
   activatedAt: string;
   selectedPlan: Plan["id"];
   dependents: DependentDraft[];
@@ -103,6 +116,7 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 const initialRegisterDraft = (): RegisterDraft => ({
   name: "",
   passport: "",
+  age: "",
   activatedAt: todayIso(),
   selectedPlan: "combo",
   dependents: [],
@@ -198,6 +212,10 @@ function isPassportInActivePlan(plansList: Patient[], passport: string, ignoredP
   });
 }
 
+function isSpecialAgeEligible(age: number) {
+  return Number.isFinite(age) && (age <= 17 || age >= 50);
+}
+
 function getDependentsLabel(dependents: DependentDraft[]) {
   if (dependents.length === 0) return "Sem dependentes";
   return `${dependents.length} dependente${dependents.length === 1 ? "" : "s"}`;
@@ -257,6 +275,7 @@ export default function InsurancePage() {
     setRegisterDraft({
       name: plan.name,
       passport: plan.passport,
+      age: plan.holderAge ? String(plan.holderAge) : "",
       activatedAt: todayIso(),
       selectedPlan,
       dependents: plan.dependentsList,
@@ -266,6 +285,11 @@ export default function InsurancePage() {
 
   function handleSavePlan(draft: RegisterDraft) {
     const selectedPlan = plans.find((plan) => plan.id === draft.selectedPlan) ?? plans[1];
+    const holderAge = Number(draft.age);
+    if (draft.selectedPlan === "crianca_terceira_idade" && !isSpecialAgeEligible(holderAge)) {
+      void hpsrAlert("O Plano Criança e Terceira Idade é exclusivo para pacientes de 0 a 17 anos ou com 50 anos ou mais.", "Faixa etária incompatível");
+      return;
+    }
     const duplicatedPassports = [draft.passport, ...draft.dependents.map((dependent) => dependent.passport)]
       .filter(Boolean)
       .filter((item, index, list) => list.indexOf(item) === index)
@@ -285,6 +309,7 @@ export default function InsurancePage() {
       activatedAt: draft.activatedAt,
       expiresAt: addDays(draft.activatedAt, 30),
       dependents: getDependentsLabel(draft.dependents),
+      holderAge: draft.age.trim() ? holderAge : undefined,
       dependentsList: draft.dependents
         .filter((dependent) => dependent.name.trim() && dependent.passport.trim())
         .map((dependent) => ({
@@ -489,13 +514,13 @@ export default function InsurancePage() {
         )}
       </section>
 
-      <section className="mt-5 flex min-h-[310px] flex-1 flex-col">
+      <section className="mt-5 flex min-h-[250px] flex-1 flex-col">
         <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">Tipos disponíveis</p>
         <h2 className="mt-1 text-[clamp(1.25rem,1.8vw,1.5rem)] font-bold text-hpsr-text">
           Escolha o plano ideal
         </h2>
 
-        <div className="mt-3 grid min-h-0 flex-1 gap-3 xl:grid-cols-3">
+        <div className="mt-3 grid min-h-0 flex-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => (
             <PlanCard key={plan.id} plan={plan} onSelect={() => canRegisterPlan && setModal({ mode: "register" })} />
           ))}
@@ -549,25 +574,25 @@ function PlanCard({ plan, onSelect }: { plan: Plan; onSelect: () => void }) {
   const Icon = plan.icon;
 
   return (
-    <article className="group relative flex h-full min-h-[300px] flex-col overflow-hidden rounded-[16px] border border-white/70 bg-[linear-gradient(135deg,#ffffff_0%,#fffaf4_45%,#f1dfcd_100%)] p-3.5 transition hover:bg-[#fffdf9]">
+    <article className="group relative flex h-full min-h-[228px] flex-col overflow-hidden rounded-[16px] border border-white/70 bg-[linear-gradient(135deg,#ffffff_0%,#fffaf4_45%,#f1dfcd_100%)] p-3 transition hover:bg-[#fffdf9]">
       <div className="pointer-events-none absolute -bottom-24 -right-14 h-56 w-56 rounded-full bg-[#d9c7b8]/45" />
       <div className="pointer-events-none absolute -right-10 top-10 h-24 w-48 rotate-[-18deg] rounded-full bg-white/30 blur-xl" />
       <div className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-[linear-gradient(#8a4b32,#e2c18c,#b18a6e)]" />
 
       {plan.badge && (
-        <span className="absolute right-5 top-5 rounded-full bg-hpsr-wine px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-white">
+        <span className="absolute right-3 top-3 rounded-full bg-hpsr-wine px-2.5 py-1 text-[9px] font-semibold uppercase tracking-[0.08em] text-white">
           {plan.badge}
         </span>
       )}
 
       <div className="relative z-10 flex h-full flex-col">
-        <div className="flex h-[52px] w-[52px] items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#672614,#8a4b32,#b18a6e)] text-white">
-          <Icon size={21} />
+        <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#8a4b32,#b18a6e)] text-white">
+          <Icon size={18} />
         </div>
 
-        <h3 className="mt-5 text-lg font-black text-hpsr-text">{plan.name}</h3>
+        <h3 className="mt-3 text-base font-black leading-tight text-hpsr-text">{plan.name}</h3>
 
-        <div className="mt-5 grid gap-2">
+        <div className="mt-3 grid gap-1.5">
           {plan.features.map((feature) => (
             <Feature key={feature} text={feature} />
           ))}
@@ -576,10 +601,10 @@ function PlanCard({ plan, onSelect }: { plan: Plan; onSelect: () => void }) {
         <button
           type="button"
           onClick={onSelect}
-          className="mt-auto flex items-center justify-between rounded-[16px] bg-[linear-gradient(135deg,#74321e,#9b5f43_52%,#b18a6e)] px-4 py-3 text-white"
+          className="mt-auto flex items-center justify-between rounded-[14px] bg-[linear-gradient(135deg,#74321e,#9b5f43_52%,#b18a6e)] px-3 py-2.5 text-white"
         >
           <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">Valor</span>
-          <span className="text-2xl font-bold">{plan.price}</span>
+          <span className="text-lg font-bold">{plan.price}</span>
         </button>
       </div>
     </article>
@@ -588,9 +613,9 @@ function PlanCard({ plan, onSelect }: { plan: Plan; onSelect: () => void }) {
 
 function Feature({ text }: { text: string }) {
   return (
-    <div className="flex items-center gap-2 text-sm font-medium text-hpsr-muted">
-      <span className="flex h-5 w-5 items-center justify-center rounded-full border border-hpsr-border bg-[#fcf6ee] text-hpsr-wine">
-        <Check size={12} />
+    <div className="flex items-center gap-2 text-xs font-medium leading-snug text-hpsr-muted">
+      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-hpsr-border bg-[#fcf6ee] text-hpsr-wine">
+        <Check size={10} />
       </span>
       {text}
     </div>
@@ -745,6 +770,11 @@ function RegisterPlanForm({
       return;
     }
 
+    if (draft.selectedPlan === "crianca_terceira_idade" && !isSpecialAgeEligible(Number(draft.age))) {
+      void hpsrAlert("Informe uma idade entre 0 e 17 anos ou igual/superior a 50 anos para esta modalidade.", "Faixa etária incompatível");
+      return;
+    }
+
     const duplicatedInForm = draft.dependents
       .map((dependent) => dependent.passport.trim())
       .filter(Boolean)
@@ -774,9 +804,11 @@ function RegisterPlanForm({
   }
 
   const helperText =
-    draft.selectedPlan === "individual"
-      ? "Plano individual não permite dependentes."
-      : `Este plano permite até ${dependentLimit} dependente${dependentLimit === 1 ? "" : "s"}.`;
+    draft.selectedPlan === "crianca_terceira_idade"
+      ? "Plano individual exclusivo para pacientes de 0 a 17 anos ou a partir de 50 anos."
+      : draft.selectedPlan === "individual"
+        ? "Plano individual não permite dependentes."
+        : `Este plano permite até ${dependentLimit} dependente${dependentLimit === 1 ? "" : "s"}.`;
 
   return (
     <div className="flex max-h-[calc(100dvh-1.5rem)] min-h-0 flex-col overflow-hidden bg-[#fff8f1]">
@@ -832,6 +864,18 @@ function RegisterPlanForm({
             </div>
           </Field>
 
+          <Field label="Idade do titular">
+            <input
+              className={inputClass}
+              type="number"
+              min="0"
+              max="120"
+              value={draft.age}
+              onChange={(event) => updateDraft("age", event.target.value)}
+              placeholder="Necessária no plano por faixa etária"
+            />
+          </Field>
+
           <Field label="Data de ativação">
             <div className="relative">
               <CalendarDays size={15} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-hpsr-muted/45" />
@@ -863,30 +907,30 @@ function RegisterPlanForm({
           </Field>
         </div>
 
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => (
             <button
               key={plan.id}
               type="button"
               onClick={() => handleSelectPlan(plan.id)}
-              className={`rounded-[16px] border px-4 py-3 text-left transition ${draft.selectedPlan === plan.id ? 'border-hpsr-wine bg-white' : 'border-hpsr-border bg-white/72 hover:bg-white'}`}
+              className={`flex min-h-[132px] flex-col rounded-[16px] border px-4 py-3 text-left transition ${draft.selectedPlan === plan.id ? 'border-hpsr-wine bg-white' : 'border-hpsr-border bg-white/72 hover:bg-white'}`}
             >
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">{planLabels[plan.id]}</p>
-                  <p className="mt-1 text-lg font-bold text-hpsr-text">{plan.price}</p>
-                </div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">{planLabels[plan.id]}</p>
                 {draft.selectedPlan === plan.id && (
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-hpsr-wine text-white">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-hpsr-wine text-white">
                     <Check size={13} />
                   </span>
                 )}
               </div>
-              <p className="mt-1 text-xs text-hpsr-muted">
+              <p className="mt-2 text-xs text-hpsr-muted">
                 {dependentLimits[plan.id] === 0
                   ? "Sem dependentes"
                   : `Até ${dependentLimits[plan.id]} dependente${dependentLimits[plan.id] === 1 ? "" : "s"}`}
               </p>
+              <div className="mt-auto border-t border-hpsr-border/70 pt-3">
+                <p className="text-lg font-bold text-hpsr-text">{plan.price}</p>
+              </div>
             </button>
           ))}
         </div>
@@ -1270,6 +1314,11 @@ function EditPlanForm({
       return;
     }
 
+    if (selectedPlan.id === "crianca_terceira_idade" && !isSpecialAgeEligible(Number(form.holderAge))) {
+      void hpsrAlert("O Plano Criança e Terceira Idade é exclusivo para pacientes de 0 a 17 anos ou com 50 anos ou mais.", "Faixa etária incompatível");
+      return;
+    }
+
     if (form.dependentsList.length > dependentLimit) {
       void hpsrAlert(`Este plano permite até ${dependentLimit} dependente${dependentLimit === 1 ? "" : "s"}.`, "Limite de dependentes");
       return;
@@ -1311,9 +1360,11 @@ function EditPlanForm({
   }
 
   const helperText =
-    dependentLimit === 0
-      ? "O Plano Individual não permite dependentes."
-      : `Este plano permite até ${dependentLimit} dependente${dependentLimit === 1 ? "" : "s"}.`;
+    selectedPlan.id === "crianca_terceira_idade"
+      ? "Modalidade individual para pacientes de 0 a 17 anos ou a partir de 50 anos."
+      : dependentLimit === 0
+        ? "O Plano Individual não permite dependentes."
+        : `Este plano permite até ${dependentLimit} dependente${dependentLimit === 1 ? "" : "s"}.`;
 
   return (
     <section className="mx-4 mt-4 max-h-[72vh] overflow-y-auto overscroll-contain rounded-[16px] border border-hpsr-border bg-white/[0.86] p-3.5 sm:mx-5">
@@ -1354,6 +1405,9 @@ function EditPlanForm({
           />
         </Field>
 
+        <Field label="Idade do titular">
+          <input className={inputClass} type="number" min="0" max="120" value={form.holderAge ?? ""} onChange={(event) => updateField("holderAge", event.target.value ? Number(event.target.value) : undefined)} />
+        </Field>
         <Field label="Plano">
           <select
             className={inputClass}

@@ -14,12 +14,14 @@ import {
   Stethoscope,
   UserRound,
   UserPlus,
+  Trash2,
   X,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { hpsrConfirm, hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { specialties } from "@/data/mock";
 import {
@@ -174,6 +176,49 @@ export default function ClinicalSchedulePage() {
   const appointmentsOnSelectedDay = doctorAppointments
     .filter((appointment) => appointment.date === dateKey)
     .sort((a, b) => a.time.localeCompare(b.time));
+
+  async function handleDeleteAppointment(appointment: Appointment) {
+    const confirmed = await hpsrConfirm(
+      `A consulta de ${appointment.patient}, em ${appointment.date.split("-").reverse().join("/")} às ${appointment.time}, será cancelada e removida da agenda. O registro de auditoria permanecerá no sistema.`,
+      "Excluir consulta agendada"
+    );
+    if (!confirmed) return;
+
+    const client = createClient();
+    if (!client) {
+      await hpsrAlert("Não foi possível acessar o banco de dados.", "Falha ao excluir consulta");
+      return;
+    }
+
+    const { data: currentRow, error: readError } = await client
+      .from("appointments")
+      .select("payload")
+      .eq("id", appointment.id)
+      .maybeSingle();
+    if (readError) {
+      await hpsrAlert(readError.message, "Falha ao excluir consulta");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const payload = {
+      ...((currentRow?.payload || {}) as Record<string, unknown>),
+      cancellationReason: "Consulta excluída da Agenda Clínica",
+      deletedAt: now,
+      deletedBy: currentUserProfile.systemName,
+      previousStatus: appointment.status,
+    };
+    const { error } = await client
+      .from("appointments")
+      .update({ status: "Cancelada", payload, updated_at: now })
+      .eq("id", appointment.id);
+    if (error) {
+      await hpsrAlert(error.message, "Falha ao excluir consulta");
+      return;
+    }
+
+    setScheduledAppointments((current) => current.filter((item) => item.id !== appointment.id));
+  }
 
   const monthlyAppointments = doctorAppointments.filter((appointment) => {
     const [year, month] = appointment.date.split("-").map(Number);
@@ -433,6 +478,13 @@ export default function ClinicalSchedulePage() {
                     >
                       <Stethoscope size={15} />
                       Reagendar
+                    </button>
+                    <button
+                      onClick={() => void handleDeleteAppointment(appointment)}
+                      className="inline-flex items-center gap-2 rounded-[16px] border border-rose-200 bg-white px-4 py-2.5 text-xs font-black text-rose-700 transition hover:bg-rose-50"
+                    >
+                      <Trash2 size={15} />
+                      Excluir consulta
                     </button>
                   </div>
                 </div>

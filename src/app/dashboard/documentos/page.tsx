@@ -1177,7 +1177,7 @@ export default function DocumentsPage() {
 
   return (
     <>
-      <div className="hpsr-page gap-3 text-hpsr-text">
+      <div className="hpsr-page gap-3 text-hpsr-text xl:h-[calc(100dvh-2.4rem)] xl:min-h-0 xl:overflow-hidden">
         <div className="hpsr-topbar" />
 
         <section className="min-h-0 grid flex-1 gap-4 overflow-hidden xl:grid-cols-[360px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]">
