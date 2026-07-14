@@ -19,7 +19,7 @@ type CurrentUserProfileContextValue = {
 
 const CurrentUserProfileContext = createContext<CurrentUserProfileContextValue | null>(null);
 
-function mapDatabaseProfile(row: Record<string, unknown>): CurrentUserProfile {
+function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage: string | null): CurrentUserProfile {
   const name = String(row.name || "Médico");
   const role = String(row.role || "Médico Clínico");
   const specialty = String(row.specialty || "Clínico Geral");
@@ -31,6 +31,7 @@ function mapDatabaseProfile(row: Record<string, unknown>): CurrentUserProfile {
 
   return {
     ...localDevProfile,
+    id: String(row.id || ""),
     systemName: name,
     characterName: name,
     passport,
@@ -47,6 +48,8 @@ function mapDatabaseProfile(row: Record<string, unknown>): CurrentUserProfile {
     serviceStatus,
     signatureName: name,
     signatureRole: role,
+    signaturePath: String(row.signature_path || "").trim() || null,
+    signatureImage: resolvedSignatureImage,
     joinedAt: String(row.created_at || localDevProfile.joinedAt),
   };
 }
@@ -82,7 +85,16 @@ export function CurrentUserProfileProvider({ children }: { children: React.React
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!error && data) setProfile(mapDatabaseProfile(data as Record<string, unknown>));
+    if (!error && data) {
+      const row = data as Record<string, unknown>;
+      const signaturePath = String(row.signature_path || "").trim();
+      let resolvedSignatureImage: string | null = signaturePath || null;
+      if (signaturePath && !signaturePath.startsWith("data:") && !/^https?:\/\//i.test(signaturePath)) {
+        const { data: publicData } = client.storage.from("signatures").getPublicUrl(signaturePath);
+        resolvedSignatureImage = publicData.publicUrl || signaturePath;
+      }
+      setProfile(mapDatabaseProfile(row, resolvedSignatureImage));
+    }
     else if (!data) setProfile({ ...localDevProfile, systemName: "Perfil não localizado", characterName: "Perfil não localizado", passport: "—", role: "Médico", systemRole: "Médico", specialty: "Não informado", specialties: ["Não informado"], crm: "—", cityPhone: "—", email: "", signatureName: "Perfil não localizado", signatureRole: "Médico" });
     setLoading(false);
   }, []);

@@ -1,4 +1,5 @@
 export const currentUserProfile = {
+  id: "local-dev",
   systemName: "Dr. Luidhy",
   characterName: "Luidhy",
   passport: "0001",
@@ -16,6 +17,8 @@ export const currentUserProfile = {
   radioFrequency: "193",
   signatureName: "Dr. Luidhy",
   signatureRole: "Vice Diretor",
+  signaturePath: null as string | null,
+  signatureImage: null as string | null,
   stampText: "Hospital São Rafael · Sandy Shores",
   joinedAt: "2026-06-01",
 };

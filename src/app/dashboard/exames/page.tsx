@@ -681,12 +681,12 @@ export default function ExamesPage() {
     crm: currentUserProfile.crm || "",
   };
   const [availableDoctors, setAvailableDoctors] = useState<DoctorOption[]>([{
-    id: "current-user",
+    id: currentUserProfile.id || "current-user",
     name: initialDoctor.name,
     crm: initialDoctor.crm,
     role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico",
     specialty: currentUserProfile.specialty || "Clínico Geral",
-    signatureStorageKey: "hpsr-profile-signature-png",
+    signatureImage: currentUserProfile.signatureImage || null,
   }]);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
@@ -710,11 +710,11 @@ export default function ExamesPage() {
   const [attachmentEditorOpen, setAttachmentEditorOpen] = useState(false);
   const [automaticAttachmentNotes, setAutomaticAttachmentNotes] = useState("");
   const [doctor, setDoctor] = useState<DoctorDraft>(initialDoctor);
-  const [selectedDoctorId, setSelectedDoctorId] = useState("current-user");
+  const [selectedDoctorId, setSelectedDoctorId] = useState(currentUserProfile.id || "current-user");
 
   useEffect(() => {
     setDoctor(initialDoctor);
-    const currentOption: DoctorOption = { id: "current-user", name: initialDoctor.name, crm: initialDoctor.crm, role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico", specialty: currentUserProfile.specialty || "Clínico Geral", signatureStorageKey: "hpsr-profile-signature-png" };
+    const currentOption: DoctorOption = { id: currentUserProfile.id || "current-user", name: initialDoctor.name, crm: initialDoctor.crm, role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico", specialty: currentUserProfile.specialty || "Clínico Geral", signatureImage: currentUserProfile.signatureImage || null };
     const client = createClient();
     if (!client) { setAvailableDoctors([currentOption]); return; }
     void client.from("profiles").select("id,name,crm,role,specialty,signature_path").eq("access_status", "Aprovado").order("name").then(({ data }) => {
@@ -734,10 +734,10 @@ export default function ExamesPage() {
           signatureImage,
         };
       });
-      const withoutDuplicate = options.filter((item: DoctorOption) => item.name !== currentOption.name || item.crm !== currentOption.crm);
+      const withoutDuplicate = options.filter((item: DoctorOption) => item.id !== currentOption.id);
       setAvailableDoctors([currentOption, ...withoutDuplicate]);
     });
-  }, [currentUserProfile.characterName, currentUserProfile.crm, currentUserProfile.signatureName, currentUserProfile.systemName, currentUserProfile.role, currentUserProfile.specialty, currentUserProfile.signatureRole]);
+  }, [currentUserProfile.id, currentUserProfile.characterName, currentUserProfile.crm, currentUserProfile.signatureName, currentUserProfile.systemName, currentUserProfile.role, currentUserProfile.specialty, currentUserProfile.signatureRole, currentUserProfile.signatureImage]);
   const [selectedCategory, setSelectedCategory] =
     useState<string>("laboratorio");
   const [selectedExamId, setSelectedExamId] = useState<string>(
@@ -897,10 +897,7 @@ export default function ExamesPage() {
   }, [selectedExamId, adaptiveConfig?.adapterValue, adaptiveConfig?.profileId]);
 
   useEffect(() => {
-    const storedSignature = window.localStorage.getItem(
-      "hpsr-profile-signature-png",
-    );
-    if (storedSignature) setSignatureImage(storedSignature);
+    setSignatureImage(currentUserProfile.signatureImage || null);
 
     const draft = readDraft();
     if (!draft) {
@@ -920,7 +917,7 @@ export default function ExamesPage() {
     setSmartConfigOpen(Boolean(draft.ui?.smartConfigOpen));
     setCatalogCategory(draft.ui?.catalogCategory || "all");
     setExamSearch(draft.ui?.examSearch || "");
-    setSelectedDoctorId(draft.selectedDoctorId || "current-user");
+    setSelectedDoctorId(draft.selectedDoctorId === "current-user" ? (currentUserProfile.id || "current-user") : (draft.selectedDoctorId || currentUserProfile.id || "current-user"));
     setSelectedExamId(draft.selectedExamId || "lab_hemograma_completo");
     const model = getIntelligentExamModel(
       draft.selectedExamId || "lab_hemograma_completo",
@@ -949,6 +946,13 @@ export default function ExamesPage() {
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+
+  useEffect(() => {
+    if (selectedDoctorId !== (currentUserProfile.id || "current-user")) return;
+    setDoctor(initialDoctor);
+    setSignatureImage(currentUserProfile.signatureImage || null);
+  }, [selectedDoctorId, currentUserProfile.id, currentUserProfile.signatureImage, currentUserProfile.signatureName, currentUserProfile.characterName, currentUserProfile.systemName, currentUserProfile.crm]);
 
   useEffect(() => {
     if (!selectedExam) return;
@@ -1230,11 +1234,8 @@ export default function ExamesPage() {
     const selected = availableDoctors.find((item) => item.id === id) || availableDoctors[0];
     setSelectedDoctorId(selected.id);
     setDoctor({ name: selected.name, crm: selected.crm });
-    if (selected.signatureStorageKey) {
-      setSignatureImage(window.localStorage.getItem(selected.signatureStorageKey));
-      return;
-    }
-    setSignatureImage(selected.signatureImage || null);
+    setSignatureImage(null);
+    window.requestAnimationFrame(() => setSignatureImage(selected.signatureImage || null));
   }
 
   function changeExamName(value: string) {

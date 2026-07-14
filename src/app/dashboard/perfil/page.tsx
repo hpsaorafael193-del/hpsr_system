@@ -41,7 +41,7 @@ const inputClass =
   "min-h-[38px] w-full rounded-[14px] border border-hpsr-border bg-white/[0.92] px-3 text-sm font-bold text-hpsr-text outline-none transition placeholder:text-zinc-400 focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20";
 
 export default function PerfilPage() {
-  const { profile: currentUserProfile, updateProfile: persistProfile } = useCurrentUserProfile();
+  const { profile: currentUserProfile, updateProfile: persistProfile, refreshProfile } = useCurrentUserProfile();
   const initialEditableProfile: EditableProfile = {
     characterName: currentUserProfile.characterName,
     passport: currentUserProfile.passport,
@@ -66,9 +66,14 @@ export default function PerfilPage() {
     const storedStatus = localStorage.getItem(statusStorageKey);
     if (storedStatus) setServiceStatus(storedStatus);
 
-    const storedSignature = localStorage.getItem("hpsr-profile-signature-png");
-    if (storedSignature) setSignatureImage(storedSignature);
-  }, [statusStorageKey]);
+    const profileSignature = currentUserProfile.signatureImage || null;
+    if (profileSignature) {
+      setSignatureImage(profileSignature);
+      return;
+    }
+    const cacheKey = `hpsr-profile-signature-png:${currentUserProfile.id}`;
+    setSignatureImage(localStorage.getItem(cacheKey));
+  }, [statusStorageKey, currentUserProfile.id, currentUserProfile.signatureImage]);
 
   useEffect(() => {
     setProfile({
@@ -227,10 +232,10 @@ export default function PerfilPage() {
         source.src = originalImage;
       });
       setSignatureImage(image);
-      localStorage.setItem("hpsr-profile-signature-png", image);
 
       const client = createClient();
       if (!client) {
+        localStorage.setItem(`hpsr-profile-signature-png:${currentUserProfile.id}`, image);
         setSaveMessage("Assinatura salva apenas neste navegador.");
         return;
       }
@@ -242,8 +247,31 @@ export default function PerfilPage() {
         return;
       }
 
-      const { error } = await client.from("profiles").update({ signature_path: image }).eq("id", userId);
-      setSaveMessage(error ? `Assinatura salva localmente, mas não sincronizada: ${error.message}` : "Assinatura sincronizada com o Supabase.");
+      const storagePath = `${userId}/signature.png`;
+      const signatureBlob = await fetch(image).then((response) => response.blob());
+      const { error: uploadError } = await client.storage
+        .from("signatures")
+        .upload(storagePath, signatureBlob, { contentType: "image/png", upsert: true });
+      if (uploadError) {
+        localStorage.setItem(`hpsr-profile-signature-png:${userId}`, image);
+        setSaveMessage(`Não foi possível enviar a assinatura ao Supabase: ${uploadError.message}`);
+        return;
+      }
+
+      const { error } = await client.from("profiles").update({
+        signature_path: storagePath,
+        updated_at: new Date().toISOString(),
+      }).eq("id", userId);
+      if (error) {
+        localStorage.setItem(`hpsr-profile-signature-png:${userId}`, image);
+        setSaveMessage(`Assinatura enviada, mas não vinculada ao perfil: ${error.message}`);
+        return;
+      }
+
+      localStorage.removeItem("hpsr-profile-signature-png");
+      localStorage.removeItem(`hpsr-profile-signature-png:${userId}`);
+      await refreshProfile();
+      setSaveMessage("Assinatura sincronizada com o perfil no Supabase.");
     };
     reader.readAsDataURL(file);
   }
@@ -251,12 +279,21 @@ export default function PerfilPage() {
   async function removeSignatureImage() {
     setSignatureImage(null);
     localStorage.removeItem("hpsr-profile-signature-png");
+    localStorage.removeItem(`hpsr-profile-signature-png:${currentUserProfile.id}`);
     const client = createClient();
     if (!client) return;
     const { data: sessionData } = await client.auth.getSession();
     const userId = sessionData.session?.user.id;
     if (!userId) return;
-    const { error } = await client.from("profiles").update({ signature_path: null }).eq("id", userId);
+    const signaturePath = currentUserProfile.signaturePath;
+    const { error } = await client.from("profiles").update({
+      signature_path: null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", userId);
+    if (!error && signaturePath && !signaturePath.startsWith("data:") && !/^https?:\/\//i.test(signaturePath)) {
+      await client.storage.from("signatures").remove([signaturePath]);
+    }
+    if (!error) await refreshProfile();
     setSaveMessage(error ? `Assinatura removida localmente, mas não sincronizada: ${error.message}` : "Assinatura removida do perfil.");
   }
 

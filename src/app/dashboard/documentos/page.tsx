@@ -534,16 +534,14 @@ export default function DocumentsPage() {
     role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico",
     specialty: currentUserProfile.specialty || "Clínico Geral",
   };
-  const availableDoctors: DoctorOption[] = [
-    {
-      id: "current-user",
-      name: initialDoctor.name,
-      crm: initialDoctor.crm,
-      role: initialDoctor.role,
-      specialty: initialDoctor.specialty,
-      signatureStorageKey: "hpsr-profile-signature-png",
-    },
-  ];
+  const [availableDoctors, setAvailableDoctors] = useState<DoctorOption[]>([{
+    id: currentUserProfile.id || "current-user",
+    name: initialDoctor.name,
+    crm: initialDoctor.crm,
+    role: initialDoctor.role,
+    specialty: initialDoctor.specialty,
+    signatureImage: currentUserProfile.signatureImage || null,
+  }]);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [patient, setPatient] = useState<PatientDraft>(emptyPatient);
@@ -556,7 +554,7 @@ export default function DocumentsPage() {
     setPatient(sharedSelectedPatient as PatientDraft);
   }, [sharedSelectedPatient]);
   const [doctor, setDoctor] = useState<DoctorDraft>(initialDoctor);
-  const [selectedDoctorId, setSelectedDoctorId] = useState("current-user");
+  const [selectedDoctorId, setSelectedDoctorId] = useState(currentUserProfile.id || "current-user");
   const [selectedModelId, setSelectedModelId] = useState(
     documentModels[0]?.id || "",
   );
@@ -624,7 +622,7 @@ export default function DocumentsPage() {
       const saved = JSON.parse(raw) as Partial<SavedDocumentDraft>;
       setPatient(saved.patient || emptyPatient);
       setDoctor(saved.doctor || initialDoctor);
-      setSelectedDoctorId(saved.selectedDoctorId || "current-user");
+      setSelectedDoctorId(saved.selectedDoctorId === "current-user" ? (currentUserProfile.id || "current-user") : (saved.selectedDoctorId || currentUserProfile.id || "current-user"));
       setSelectedModelId(saved.selectedModelId || documentModels[0].id);
       setGuidedValues(saved.guidedValues || {});
       setCatalogSearch(saved.catalogSearch || "");
@@ -648,30 +646,51 @@ export default function DocumentsPage() {
   }, [today]);
 
   useEffect(() => {
-    const syncProfileSignature = () => {
-      if (selectedDoctorId !== "current-user") return;
-      const signatureImage = window.localStorage.getItem("hpsr-profile-signature-png");
-      setDoctor((current) => ({
-        ...current,
-        name:
-          currentUserProfile.signatureName ||
-          currentUserProfile.characterName ||
-          currentUserProfile.systemName ||
-          current.name,
-        crm: currentUserProfile.crm || current.crm,
-        role:
-          currentUserProfile.signatureRole ||
-          currentUserProfile.role ||
-          current.role,
-        specialty: currentUserProfile.specialty || current.specialty,
-        signatureImage,
-      }));
+    const currentOption: DoctorOption = {
+      id: currentUserProfile.id || "current-user",
+      name: initialDoctor.name,
+      crm: initialDoctor.crm,
+      role: initialDoctor.role,
+      specialty: initialDoctor.specialty,
+      signatureImage: currentUserProfile.signatureImage || null,
     };
+    const client = createClient();
+    if (!client) {
+      setAvailableDoctors([currentOption]);
+      return;
+    }
+    void client.from("profiles")
+      .select("id,name,crm,role,specialty,signature_path")
+      .eq("access_status", "Aprovado")
+      .order("name")
+      .then(({ data }) => {
+        const options = (data || []).map((row: any) => {
+          const signaturePath = String(row.signature_path || "").trim();
+          let signatureImage: string | null = signaturePath || null;
+          if (signaturePath && !signaturePath.startsWith("data:") && !/^https?:\/\//i.test(signaturePath)) {
+            const { data: publicData } = client.storage.from("signatures").getPublicUrl(signaturePath);
+            signatureImage = publicData.publicUrl || signaturePath;
+          }
+          return {
+            id: row.id,
+            name: row.name || "Médico",
+            crm: row.crm || "—",
+            role: row.role || "Médico",
+            specialty: row.specialty || "Não informado",
+            signatureImage,
+          } as DoctorOption;
+        });
+        setAvailableDoctors([currentOption, ...options.filter((item) => item.id !== currentOption.id)]);
+      });
+  }, [currentUserProfile.id, currentUserProfile.characterName, currentUserProfile.systemName, currentUserProfile.signatureName, currentUserProfile.crm, currentUserProfile.role, currentUserProfile.signatureRole, currentUserProfile.specialty, currentUserProfile.signatureImage]);
 
-    syncProfileSignature();
-    window.addEventListener("focus", syncProfileSignature);
-    return () => window.removeEventListener("focus", syncProfileSignature);
-  }, [selectedDoctorId]);
+  useEffect(() => {
+    if (selectedDoctorId !== (currentUserProfile.id || "current-user")) return;
+    setDoctor({
+      ...initialDoctor,
+      signatureImage: currentUserProfile.signatureImage || null,
+    });
+  }, [selectedDoctorId, currentUserProfile.id, currentUserProfile.signatureImage, currentUserProfile.signatureName, currentUserProfile.characterName, currentUserProfile.systemName, currentUserProfile.crm, currentUserProfile.role, currentUserProfile.signatureRole, currentUserProfile.specialty]);
 
   useEffect(() => {
     const save = window.setTimeout(() => saveDraft(false), 500);
@@ -827,9 +846,7 @@ export default function DocumentsPage() {
 
   function selectDoctor(id: string) {
     const selected = availableDoctors.find((item) => item.id === id) || availableDoctors[0];
-    const signatureImage = selected.signatureStorageKey
-      ? window.localStorage.getItem(selected.signatureStorageKey)
-      : selected.signatureImage || null;
+    const signatureImage = selected.signatureImage || null;
     setSelectedDoctorId(selected.id);
     setDoctor({
       name: selected.name,
@@ -1047,9 +1064,7 @@ export default function DocumentsPage() {
     context.lineTo(752, 985);
     context.stroke();
 
-    const signatureSource =
-      doctor.signatureImage ||
-      window.localStorage.getItem("hpsr-profile-signature-png");
+    const signatureSource = doctor.signatureImage || null;
     if (signatureSource) {
       const signature = await loadImage(signatureSource);
       if (signature) {
