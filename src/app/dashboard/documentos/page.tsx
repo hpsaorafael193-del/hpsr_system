@@ -685,12 +685,17 @@ export default function DocumentsPage() {
   }, [currentUserProfile.id, currentUserProfile.characterName, currentUserProfile.systemName, currentUserProfile.signatureName, currentUserProfile.crm, currentUserProfile.role, currentUserProfile.signatureRole, currentUserProfile.specialty, currentUserProfile.signatureImage]);
 
   useEffect(() => {
-    if (selectedDoctorId !== (currentUserProfile.id || "current-user")) return;
+    const selected = availableDoctors.find((item) => item.id === selectedDoctorId);
+    if (!selected) return;
+
     setDoctor({
-      ...initialDoctor,
-      signatureImage: currentUserProfile.signatureImage || null,
+      name: selected.name,
+      crm: selected.crm,
+      role: selected.role,
+      specialty: selected.specialty,
+      signatureImage: selected.signatureImage || null,
     });
-  }, [selectedDoctorId, currentUserProfile.id, currentUserProfile.signatureImage, currentUserProfile.signatureName, currentUserProfile.characterName, currentUserProfile.systemName, currentUserProfile.crm, currentUserProfile.role, currentUserProfile.signatureRole, currentUserProfile.specialty]);
+  }, [selectedDoctorId, availableDoctors]);
 
   useEffect(() => {
     const save = window.setTimeout(() => saveDraft(false), 500);
@@ -845,16 +850,12 @@ export default function DocumentsPage() {
   }
 
   function selectDoctor(id: string) {
-    const selected = availableDoctors.find((item) => item.id === id) || availableDoctors[0];
-    const signatureImage = selected.signatureImage || null;
+    const selected = availableDoctors.find((item) => item.id === id);
+    if (!selected) return;
+
+    // Evita exibir a assinatura anterior durante a troca do profissional.
+    setDoctor((current) => ({ ...current, signatureImage: null }));
     setSelectedDoctorId(selected.id);
-    setDoctor({
-      name: selected.name,
-      crm: selected.crm,
-      role: selected.role,
-      specialty: selected.specialty,
-      signatureImage,
-    });
   }
 
   function loadImage(src: string) {

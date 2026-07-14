@@ -713,7 +713,6 @@ export default function ExamesPage() {
   const [selectedDoctorId, setSelectedDoctorId] = useState(currentUserProfile.id || "current-user");
 
   useEffect(() => {
-    setDoctor(initialDoctor);
     const currentOption: DoctorOption = { id: currentUserProfile.id || "current-user", name: initialDoctor.name, crm: initialDoctor.crm, role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico", specialty: currentUserProfile.specialty || "Clínico Geral", signatureImage: currentUserProfile.signatureImage || null };
     const client = createClient();
     if (!client) { setAvailableDoctors([currentOption]); return; }
@@ -949,10 +948,12 @@ export default function ExamesPage() {
 
 
   useEffect(() => {
-    if (selectedDoctorId !== (currentUserProfile.id || "current-user")) return;
-    setDoctor(initialDoctor);
-    setSignatureImage(currentUserProfile.signatureImage || null);
-  }, [selectedDoctorId, currentUserProfile.id, currentUserProfile.signatureImage, currentUserProfile.signatureName, currentUserProfile.characterName, currentUserProfile.systemName, currentUserProfile.crm]);
+    const selected = availableDoctors.find((item) => item.id === selectedDoctorId);
+    if (!selected) return;
+
+    setDoctor({ name: selected.name, crm: selected.crm });
+    setSignatureImage(selected.signatureImage || null);
+  }, [selectedDoctorId, availableDoctors]);
 
   useEffect(() => {
     if (!selectedExam) return;
@@ -1231,11 +1232,13 @@ export default function ExamesPage() {
     setQuickPatientOpen(false);
   }
   function selectDoctor(id: string) {
-    const selected = availableDoctors.find((item) => item.id === id) || availableDoctors[0];
-    setSelectedDoctorId(selected.id);
-    setDoctor({ name: selected.name, crm: selected.crm });
+    const selected = availableDoctors.find((item) => item.id === id);
+    if (!selected) return;
+
+    // Remove imediatamente a assinatura anterior. O efeito vinculado ao ID
+    // aplica somente os dados e a assinatura do médico selecionado.
     setSignatureImage(null);
-    window.requestAnimationFrame(() => setSignatureImage(selected.signatureImage || null));
+    setSelectedDoctorId(selected.id);
   }
 
   function changeExamName(value: string) {
