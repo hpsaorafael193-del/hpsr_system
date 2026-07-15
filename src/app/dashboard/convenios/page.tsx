@@ -1,7 +1,13 @@
 "use client";
 
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
-import { readFinancialPlanEntries, registerSystemActivity, saveFinancialPlanEntry, type FinancialPlanEntry } from "@/lib/administrative-storage";
+import {
+  readFinancialPlanEntries,
+  registerSystemActivity,
+  replaceFinancialPlanEntriesCache,
+  saveFinancialPlanEntry,
+  type FinancialPlanEntry,
+} from "@/lib/administrative-storage";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
@@ -356,17 +362,39 @@ export default function InsurancePage() {
 
       if (isSupabaseConfigured()) {
         const client = createClient();
-        if (client) {
-          const { data, error } = await client
-            .from("financial_plan_entries")
-            .select("id,plan_id,plan_name,holder_passport,value,payload,created_at")
-            .order("created_at", { ascending: false });
-          if (!error) rows = (data || []) as FinancialPlanRow[];
-          else setPlansLoadError("Não foi possível sincronizar os convênios com o Supabase.");
+        if (!client) {
+          if (!cancelled) {
+            setInsurancePlans([]);
+            setPlansLoadError("Não foi possível conectar ao Supabase. Nenhum dado local foi exibido.");
+            setPlansLoading(false);
+          }
+          return;
         }
-      }
 
-      if (rows.length === 0) rows = readFinancialPlanEntries().map(localEntryToRow);
+        const { data, error } = await client
+          .from("financial_plan_entries")
+          .select("id,plan_id,plan_name,holder_passport,value,payload,created_at")
+          .order("created_at", { ascending: false });
+
+        if (error) {
+          if (!cancelled) {
+            setInsurancePlans([]);
+            setPlansLoadError("Não foi possível sincronizar os convênios com o Supabase. Dados locais antigos não foram exibidos.");
+            setPlansLoading(false);
+          }
+          return;
+        }
+
+        rows = (data || []) as FinancialPlanRow[];
+        const authoritativeCache = rows.flatMap((row) => {
+          const payload = objectValue(row.payload);
+          return payload.id ? [payload as unknown as FinancialPlanEntry] : [];
+        });
+        replaceFinancialPlanEntriesCache(authoritativeCache);
+      } else {
+        // Fallback local permitido somente em ambiente sem Supabase configurado.
+        rows = readFinancialPlanEntries().map(localEntryToRow);
+      }
       const loaded = rows.flatMap((row) => {
         const plan = financialRowToInsurancePlan(row);
         return plan ? [plan] : [];
@@ -383,11 +411,11 @@ export default function InsurancePage() {
     return () => { cancelled = true; };
   }, []);
 
-  function persistInsurancePlan(plan: Patient, registeredBy = currentUserProfile.systemName) {
+  async function persistInsurancePlan(plan: Patient, registeredBy = currentUserProfile.systemName): Promise<boolean> {
     const selectedPlan = plans.find((item) => item.name === plan.plan);
     const entryId = plan.financialEntryId || plan.id;
     const createdAt = plan.financialCreatedAt || new Date().toISOString();
-    saveFinancialPlanEntry({
+    const entry: FinancialPlanEntry = {
       id: entryId,
       createdAt,
       planId: plan.id,
@@ -400,7 +428,38 @@ export default function InsurancePage() {
       value: selectedPlan?.value || 0,
       registeredBy,
       insurancePlan: { ...plan, financialEntryId: entryId, financialCreatedAt: createdAt },
-    });
+    };
+
+    if (!isSupabaseConfigured()) {
+      saveFinancialPlanEntry(entry);
+      return true;
+    }
+
+    const client = createClient();
+    if (!client) {
+      await hpsrAlert("Não foi possível conectar ao Supabase. A alteração não foi salva.", "Falha ao salvar");
+      return false;
+    }
+
+    const { error } = await client.from("financial_plan_entries").upsert({
+      id: entry.id,
+      plan_id: entry.planId,
+      plan_name: entry.planName,
+      holder_passport: entry.holderPassport,
+      value: entry.value,
+      payload: entry,
+      created_at: entry.createdAt,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "id" });
+
+    if (error) {
+      await hpsrAlert(`O Supabase recusou a alteração: ${error.message}`, "Plano não salvo");
+      return false;
+    }
+
+    const cache = readFinancialPlanEntries();
+    replaceFinancialPlanEntriesCache([entry, ...cache.filter((item) => item.id !== entry.id)]);
+    return true;
   }
 
   const searchedMatch = useMemo(
@@ -429,7 +488,7 @@ export default function InsurancePage() {
     setModal({ mode: "register" });
   }
 
-  function handleSavePlan(draft: RegisterDraft) {
+  async function handleSavePlan(draft: RegisterDraft) {
     const selectedPlan = plans.find((plan) => plan.id === draft.selectedPlan) ?? plans[1];
     const holderAge = Number(draft.age);
     if (draft.selectedPlan === "crianca_terceira_idade" && !isSpecialAgeEligible(holderAge)) {
@@ -469,9 +528,10 @@ export default function InsurancePage() {
         })),
     };
 
-    setInsurancePlans((currentPlans) => [newPlan, ...currentPlans]);
+    const saved = await persistInsurancePlan(newPlan);
+    if (!saved) return;
 
-    persistInsurancePlan(newPlan);
+    setInsurancePlans((currentPlans) => [newPlan, ...currentPlans]);
 
     registerSystemActivity({
       module: "Financeiro",
@@ -802,11 +862,11 @@ function InsuranceModal({
   onClose: () => void;
   registerDraft: RegisterDraft;
   setRegisterDraft: (draft: RegisterDraft | ((currentDraft: RegisterDraft) => RegisterDraft)) => void;
-  onSavePlan: (draft: RegisterDraft) => void;
+  onSavePlan: (draft: RegisterDraft) => Promise<void>;
   insurancePlans: Patient[];
   setInsurancePlans: (plans: Patient[] | ((currentPlans: Patient[]) => Patient[])) => void;
   onCreateFromClosedPlan: (plan: Patient) => void;
-  onPersistPlan: (plan: Patient) => void;
+  onPersistPlan: (plan: Patient) => Promise<boolean>;
 }) {
   if (!modal) return null;
 
@@ -882,7 +942,7 @@ function RegisterPlanForm({
   draft: RegisterDraft;
   setDraft: (draft: RegisterDraft | ((currentDraft: RegisterDraft) => RegisterDraft)) => void;
   onClose: () => void;
-  onSavePlan: (draft: RegisterDraft) => void;
+  onSavePlan: (draft: RegisterDraft) => Promise<void>;
   insurancePlans: Patient[];
 }) {
   const dependentLimit = dependentLimits[draft.selectedPlan];
@@ -932,7 +992,7 @@ function RegisterPlanForm({
     }));
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!draft.name.trim() || !draft.passport.trim()) {
       void hpsrAlert("Informe nome e passaporte do titular.", "Dados do titular");
       return;
@@ -968,7 +1028,7 @@ function RegisterPlanForm({
       return;
     }
 
-    onSavePlan(draft);
+    await onSavePlan(draft);
   }
 
   const helperText =
@@ -1206,7 +1266,7 @@ function ManagePlans({
   insurancePlans: Patient[];
   setInsurancePlans: (plans: Patient[] | ((currentPlans: Patient[]) => Patient[])) => void;
   onCreateFromClosedPlan: (plan: Patient) => void;
-  onPersistPlan: (plan: Patient) => void;
+  onPersistPlan: (plan: Patient) => Promise<boolean>;
 }) {
   const [filter, setFilter] = useState<"todos" | "ativos" | "encerrados">("todos");
   const [searchTerm, setSearchTerm] = useState("");
@@ -1231,7 +1291,7 @@ function ManagePlans({
   const activeCount = insurancePlans.filter((patient) => patient.status === "Ativo").length;
   const closedCount = insurancePlans.filter((patient) => patient.status === "Encerrado").length;
 
-  function handleSavePatient(updatedPatient: Patient) {
+  async function handleSavePatient(updatedPatient: Patient) {
     if (updatedPatient.status === "Ativo") {
       const duplicatedPassports = [
         updatedPatient.passport,
@@ -1247,16 +1307,17 @@ function ManagePlans({
       }
     }
 
+    const saved = await onPersistPlan(updatedPatient);
+    if (!saved) return;
     setInsurancePlans((currentPlans) =>
       currentPlans.map((patient) =>
         patient.id === editingPatient?.id ? updatedPatient : patient
       )
     );
-    onPersistPlan(updatedPatient);
     setEditingPatient(null);
   }
 
-  function handleRenewPatient(patientToRenew: Patient) {
+  async function handleRenewPatient(patientToRenew: Patient) {
     if (patientToRenew.status !== "Ativo") {
       void hpsrAlert("Plano encerrado não pode ser renovado. Crie um novo plano usando estes dados.", "Plano encerrado");
       return;
@@ -1273,6 +1334,8 @@ function ManagePlans({
       expiresAt: addDays(todayIso(), 30 + remainingDays),
     } as Patient;
 
+    const saved = await onPersistPlan(renewedPatient);
+    if (!saved) return;
     setInsurancePlans((currentPlans) =>
       currentPlans.map((patient) =>
         patient.id === patientToRenew.id ? renewedPatient : patient
@@ -1281,10 +1344,9 @@ function ManagePlans({
     setEditingPatient((currentPatient) =>
       currentPatient?.id === patientToRenew.id ? renewedPatient : currentPatient
     );
-    onPersistPlan(renewedPatient);
   }
 
-  function handleClosePlan(patientToClose: Patient) {
+  async function handleClosePlan(patientToClose: Patient) {
     const closedPatient = {
       ...patientToClose,
       status: "Encerrado" as const,
@@ -1293,6 +1355,8 @@ function ManagePlans({
       blockedDeletion: false,
     };
 
+    const saved = await onPersistPlan(closedPatient);
+    if (!saved) return;
     setInsurancePlans((currentPlans) =>
       currentPlans.map((patient) =>
         patient.id === patientToClose.id ? closedPatient : patient
@@ -1301,7 +1365,6 @@ function ManagePlans({
     setEditingPatient((currentPatient) =>
       currentPatient?.id === patientToClose.id ? closedPatient : currentPatient
     );
-    onPersistPlan(closedPatient);
   }
 
   return (

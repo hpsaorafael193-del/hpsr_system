@@ -90,6 +90,12 @@ export function readFinancialPlanEntries(): FinancialPlanEntry[] {
   return safeParse<FinancialPlanEntry[]>(window.localStorage.getItem(PLAN_FINANCIAL_STORAGE_KEY), []);
 }
 
+
+export function replaceFinancialPlanEntriesCache(entries: FinancialPlanEntry[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(PLAN_FINANCIAL_STORAGE_KEY, JSON.stringify(entries));
+}
+
 export function saveFinancialPlanEntry(entry: FinancialPlanEntry) {
   if (typeof window === "undefined") return;
   const current = readFinancialPlanEntries();
