@@ -852,8 +852,6 @@ export default function DocumentsPage() {
   function selectDoctor(id: string) {
     const selected = availableDoctors.find((item) => item.id === id);
     if (!selected) return;
-
-    // Evita exibir a assinatura anterior durante a troca do profissional.
     setDoctor((current) => ({ ...current, signatureImage: null }));
     setSelectedDoctorId(selected.id);
   }

@@ -66,6 +66,57 @@ type ClinicalBlock = {
 const FIRST_PAGE_CAPACITY = 680;
 const CONTINUATION_PAGE_CAPACITY = 850;
 
+const REPORT_MEASURE_CLASS = "hpsr-document-body [&_blockquote]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-[#5b1809]/35 [&_blockquote]:bg-[#fffaf4] [&_blockquote]:px-2 [&_blockquote]:py-1.5 [&_h1]:mb-2 [&_h1]:text-center [&_h1]:text-base [&_h1]:font-black [&_h1]:uppercase [&_h1]:tracking-[0.06em] [&_h1]:text-[#5b1809] [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:break-after-avoid [&_h2]:border-b [&_h2]:border-[#5b1809]/20 [&_h2]:pb-1 [&_h2]:text-sm [&_h2]:font-black [&_h2]:uppercase [&_h2]:tracking-[0.04em] [&_h2]:text-[#5b1809] [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:break-after-avoid [&_h3]:text-xs [&_h3]:font-black [&_h3]:text-[#5b1809] [&_li]:ml-5 [&_ol]:my-1.5 [&_p]:my-1.5 [&_table]:my-2 [&_table]:w-full [&_table]:break-inside-avoid [&_table]:border-collapse [&_td]:border [&_td]:border-[#5b1809]/20 [&_td]:px-2 [&_td]:py-1.5 [&_td]:align-top [&_th]:border [&_th]:border-[#5b1809]/25 [&_th]:bg-[#5b1809]/10 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-black [&_th]:text-[#5b1809] [&_ul]:my-1.5";
+
+function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[]) {
+  if (typeof window === "undefined" || typeof document === "undefined") return null;
+
+  const measure = document.createElement("div");
+  measure.className = REPORT_MEASURE_CLASS;
+  Object.assign(measure.style, {
+    position: "fixed",
+    left: "-10000px",
+    top: "0",
+    width: "711px",
+    boxSizing: "border-box",
+    visibility: "hidden",
+    pointerEvents: "none",
+    fontSize: "12px",
+    lineHeight: "1.42",
+    color: "#4b2118",
+    fontFamily: "Georgia, 'Times New Roman', serif",
+    display: "flow-root",
+  });
+  document.body.appendChild(measure);
+
+  const capacities = [694, 867];
+  const pages: string[][] = [];
+  let current: string[] = [];
+  let pageIndex = 0;
+
+  const fits = (candidate: string[]) => {
+    measure.innerHTML = candidate.join("");
+    return measure.scrollHeight <= capacities[Math.min(pageIndex, 1)] + 1;
+  };
+
+  try {
+    for (const block of blocks) {
+      const candidate = [...current, block.html];
+      if (current.length > 0 && !fits(candidate)) {
+        pages.push(current);
+        current = [block.html];
+        pageIndex += 1;
+      } else {
+        current = candidate;
+      }
+    }
+    if (current.length || !pages.length) pages.push(current);
+    return pages;
+  } finally {
+    measure.remove();
+  }
+}
+
 function textOnly(html: string) {
   return html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -250,6 +301,11 @@ export function splitClinicalReportHtmlIntoPages(html: string, signatureImage?: 
   const blocks = mergeConclusionWithText(parseClinicalBlocks(body));
   if (!blocks.length) return [""];
 
+  const renderedPages = splitClinicalBlocksByRenderedHeight(blocks);
+  if (renderedPages) return renderedPages.map((page) => page.join(""));
+
+  // Fallback para renderização sem DOM (SSR). No navegador, a divisão acima
+  // mede a altura real com a mesma largura, fonte e estilos do preview A4.
   const pages: string[][] = [];
   let current: string[] = [];
   let used = 0;
@@ -268,20 +324,7 @@ export function splitClinicalReportHtmlIntoPages(html: string, signatureImage?: 
     current.push(block.html);
     used += block.weight;
   }
-
   if (current.length || !pages.length) commit();
-
-  // Economia de páginas: se a última página ficou muito pequena e couber na anterior, junta novamente.
-  for (let index = pages.length - 1; index > 0; index -= 1) {
-    const lastWeight = parseClinicalBlocks(pages[index].join("")).reduce((sum, block) => sum + block.weight, 0);
-    const prevWeight = parseClinicalBlocks(pages[index - 1].join("")).reduce((sum, block) => sum + block.weight, 0);
-    const prevCapacity = index - 1 === 0 ? FIRST_PAGE_CAPACITY : CONTINUATION_PAGE_CAPACITY;
-    if (lastWeight < 120 && prevWeight + lastWeight <= prevCapacity * 1.05) {
-      pages[index - 1].push(...pages[index]);
-      pages.splice(index, 1);
-    }
-  }
-
   return pages.map((page) => page.join(""));
 }
 
@@ -405,7 +448,7 @@ function formatDate(value: string) {
 function ReportHtml({ html }: { html: string }) {
   return (
     <div
-      className="hpsr-document-body [&_blockquote]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-[#5b1809]/35 [&_blockquote]:bg-[#fffaf4] [&_blockquote]:px-2 [&_blockquote]:py-1.5 [&_h1]:mb-2 [&_h1]:text-center [&_h1]:text-base [&_h1]:font-black [&_h1]:uppercase [&_h1]:tracking-[0.06em] [&_h1]:text-[#5b1809] [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:break-after-avoid [&_h2]:border-b [&_h2]:border-[#5b1809]/20 [&_h2]:pb-1 [&_h2]:text-sm [&_h2]:font-black [&_h2]:uppercase [&_h2]:tracking-[0.04em] [&_h2]:text-[#5b1809] [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:break-after-avoid [&_h3]:text-xs [&_h3]:font-black [&_h3]:text-[#5b1809] [&_li]:ml-5 [&_ol]:my-1.5 [&_p]:my-1.5 [&_table]:my-2 [&_table]:w-full [&_table]:break-inside-avoid [&_table]:border-collapse [&_td]:border [&_td]:border-[#5b1809]/20 [&_td]:px-2 [&_td]:py-1.5 [&_td]:align-top [&_th]:border [&_th]:border-[#5b1809]/25 [&_th]:bg-[#5b1809]/10 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-black [&_th]:text-[#5b1809] [&_ul]:my-1.5"
+      className={REPORT_MEASURE_CLASS}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

@@ -440,6 +440,23 @@ function createXrayAttachmentImage(region: string, _profileName: string, profile
   return resolveXrayAttachmentAsset(region, profileId);
 }
 
+function resolvePsychotechnicalAttachmentAsset(profileId: string, profileName: string) {
+  const profile = normalizeXrayKey(`${profileId} ${profileName}`).replace(/[^a-z0-9]+/g, "_");
+
+  // A ordem é importante: "não apto" e "apto com ressalvas" também contêm
+  // a palavra "apto". Os perfis específicos devem ser resolvidos primeiro.
+  if (profile.includes("ressalv") || profile.includes("restric")) {
+    return "/anexos/psicotecnico/apto-com-ressalvas.png";
+  }
+  if (profile.includes("inconclus") || profile.includes("indefin") || profile.includes("limitrof")) {
+    return "/anexos/psicotecnico/inconclusivo.png";
+  }
+  if (profile.includes("nao_apto") || profile.includes("inapto") || profile.includes("alterado")) {
+    return "/anexos/psicotecnico/nao-apto.png";
+  }
+  return "/anexos/psicotecnico/apto.png";
+}
+
 function Button({
   children,
   onClick,
@@ -713,6 +730,7 @@ export default function ExamesPage() {
   const [selectedDoctorId, setSelectedDoctorId] = useState(currentUserProfile.id || "current-user");
 
   useEffect(() => {
+    setDoctor(initialDoctor);
     const currentOption: DoctorOption = { id: currentUserProfile.id || "current-user", name: initialDoctor.name, crm: initialDoctor.crm, role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico", specialty: currentUserProfile.specialty || "Clínico Geral", signatureImage: currentUserProfile.signatureImage || null };
     const client = createClient();
     if (!client) { setAvailableDoctors([currentOption]); return; }
@@ -887,7 +905,28 @@ export default function ExamesPage() {
     };
   }, [resolvedExam, automaticAttachmentNotes]);
 
-  const effectiveAutomaticAttachment = automaticAttachmentRemoved || (attachmentOverrideActive && attachments.length > 0) ? null : automaticRxAttachment;
+  const automaticPsychotechnicalAttachment = useMemo<AutomaticAttachment | null>(() => {
+    if (!resolvedExam) return null;
+    const examName = normalizeXrayKey(resolvedExam.model.nome);
+    if (!examName.includes("psicotecn")) return null;
+
+    const profileId = resolvedExam.profile?.id || "apto";
+    const profileName = resolvedExam.profile?.name || "Apto";
+    return {
+      id: `anexo-psicotecnico-${normalizeXrayKey(profileId).replace(/[^a-z0-9]+/g, "-")}`,
+      title: "Anexo cardiológico",
+      subtitle: `Avaliação psicotécnica · Perfil: ${profileName}`,
+      legend: "Traçado eletrocardiográfico correspondente ao perfil de resultado selecionado.",
+      orientation: "landscape",
+      scale: "expanded",
+      sections: [],
+      imageUrl: resolvePsychotechnicalAttachmentAsset(profileId, profileName),
+      notes: automaticAttachmentNotes.trim() || undefined,
+    };
+  }, [resolvedExam, automaticAttachmentNotes]);
+
+  const automaticAttachment = automaticRxAttachment || automaticPsychotechnicalAttachment;
+  const effectiveAutomaticAttachment = automaticAttachmentRemoved || (attachmentOverrideActive && attachments.length > 0) ? null : automaticAttachment;
   const attachmentCount = attachments.length + (effectiveAutomaticAttachment ? 1 : 0);
 
   useEffect(() => {
@@ -1234,9 +1273,6 @@ export default function ExamesPage() {
   function selectDoctor(id: string) {
     const selected = availableDoctors.find((item) => item.id === id);
     if (!selected) return;
-
-    // Remove imediatamente a assinatura anterior. O efeito vinculado ao ID
-    // aplica somente os dados e a assinatura do médico selecionado.
     setSignatureImage(null);
     setSelectedDoctorId(selected.id);
   }
@@ -1424,7 +1460,7 @@ export default function ExamesPage() {
     if (!files?.length) return;
 
     const selectedFiles = Array.from(files);
-    const shouldAsk = !!automaticRxAttachment || attachments.length > 0;
+    const shouldAsk = !!automaticAttachment || attachments.length > 0;
     if (!shouldAsk) {
       processAttachmentFiles(selectedFiles, "append");
       return;
@@ -2272,7 +2308,7 @@ export default function ExamesPage() {
                   </div>
                 )}
 
-                {automaticAttachmentRemoved && automaticRxAttachment && (
+                {automaticAttachmentRemoved && automaticAttachment && (
                   <div className="flex items-center justify-between gap-3 rounded-[16px] border border-amber-200 bg-amber-50/90 px-3 py-2 text-[11px] font-semibold text-amber-800">
                     <span>O anexo automático foi removido deste exame.</span>
                     <button
