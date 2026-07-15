@@ -1,8 +1,9 @@
 "use client";
 
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
-import { registerSystemActivity, saveFinancialPlanEntry } from "@/lib/administrative-storage";
-import { useMemo, useState, type ReactNode } from "react";
+import { readFinancialPlanEntries, registerSystemActivity, saveFinancialPlanEntry, type FinancialPlanEntry } from "@/lib/administrative-storage";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 import {
   BadgePercent,
@@ -100,6 +101,8 @@ type InsurancePlan = {
   closeReason?: string;
   blockedDeletion?: boolean;
   holderAge?: number;
+  financialEntryId?: string;
+  financialCreatedAt?: string;
 };
 
 type RegisterDraft = {
@@ -141,6 +144,89 @@ const labelClass = "text-[11px] font-semibold uppercase tracking-[0.15em] text-h
 
 const directorRoles = ["Diretora", "Vice Diretor", "Diretor Clínico"];
 const registerRoles = ["Diretora", "Vice Diretor", "Médico Cirurgião", "Médico Especialista", "Médico Clínico"];
+
+
+function normalizePassport(value: string) {
+  return value.trim().toLocaleLowerCase("pt-BR");
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function stringValue(value: unknown, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
+
+function numberValue(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function parseDependents(value: unknown): DependentDraft[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item, index) => {
+    const dependent = objectValue(item);
+    const name = stringValue(dependent.name).trim();
+    const passport = stringValue(dependent.passport).trim();
+    if (!name && !passport) return [];
+    return [{ id: Number(dependent.id) || Date.now() + index, name, passport }];
+  });
+}
+
+type FinancialPlanRow = {
+  id: string;
+  plan_id?: string | null;
+  plan_name?: string | null;
+  holder_passport?: string | null;
+  value?: number | null;
+  payload?: unknown;
+  created_at?: string | null;
+};
+
+function financialRowToInsurancePlan(row: FinancialPlanRow): Patient | null {
+  const payload = objectValue(row.payload);
+  const storedPlan = objectValue(payload.insurancePlan);
+  const dependentsList = parseDependents(storedPlan.dependentsList);
+  const activatedAt = stringValue(storedPlan.activatedAt, stringValue(payload.activatedAt, todayIso()));
+  const expiresAt = stringValue(storedPlan.expiresAt, stringValue(payload.expiresAt, addDays(activatedAt, 30)));
+  const passport = stringValue(storedPlan.passport, stringValue(payload.holderPassport, row.holder_passport || "")).trim();
+  if (!passport) return null;
+
+  const plan: Patient = {
+    id: stringValue(storedPlan.id, stringValue(payload.planId, row.plan_id || row.id)),
+    passport,
+    name: stringValue(storedPlan.name, stringValue(payload.holderName, `Paciente ${passport}`)),
+    plan: stringValue(storedPlan.plan, stringValue(payload.planName, row.plan_name || "Plano Individual")),
+    status: stringValue(storedPlan.status) === "Encerrado" ? "Encerrado" : "Ativo",
+    activatedAt,
+    expiresAt,
+    dependents: stringValue(storedPlan.dependents, getDependentsLabel(dependentsList)),
+    dependentsList,
+    holderAge: numberValue(storedPlan.holderAge),
+    financialEntryId: row.id,
+    financialCreatedAt: row.created_at || stringValue(payload.createdAt, new Date().toISOString()),
+  };
+
+  const closedAt = stringValue(storedPlan.closedAt);
+  const closeReason = stringValue(storedPlan.closeReason);
+  if (closedAt) plan.closedAt = closedAt;
+  if (closeReason) plan.closeReason = closeReason;
+  if (typeof storedPlan.blockedDeletion === "boolean") plan.blockedDeletion = storedPlan.blockedDeletion;
+  return plan;
+}
+
+function localEntryToRow(entry: FinancialPlanEntry): FinancialPlanRow {
+  return {
+    id: entry.id,
+    plan_id: entry.planId,
+    plan_name: entry.planName,
+    holder_passport: entry.holderPassport,
+    value: entry.value,
+    payload: entry,
+    created_at: entry.createdAt,
+  };
+}
 
 function parseIsoDate(value: string) {
   const [year, month, day] = value.split("-").map(Number);
@@ -184,16 +270,16 @@ function getRenewalMessage(plan: Patient) {
 }
 
 function findActivePlanByPassport(plansList: Patient[], passport: string) {
-  const normalizedPassport = passport.trim();
+  const normalizedPassport = normalizePassport(passport);
   if (!normalizedPassport) return null;
 
   for (const plan of plansList) {
     if (plan.status !== "Ativo") continue;
-    if (plan.passport === normalizedPassport) {
+    if (normalizePassport(plan.passport) === normalizedPassport) {
       return { plan, relation: "Titular" as const, personName: plan.name, passport: plan.passport };
     }
 
-    const dependent = plan.dependentsList.find((item) => item.passport === normalizedPassport);
+    const dependent = plan.dependentsList.find((item) => normalizePassport(item.passport) === normalizedPassport);
     if (dependent) {
       return { plan, relation: "Dependente" as const, personName: dependent.name, passport: dependent.passport };
     }
@@ -203,12 +289,12 @@ function findActivePlanByPassport(plansList: Patient[], passport: string) {
 }
 
 function isPassportInActivePlan(plansList: Patient[], passport: string, ignoredPlanId?: string) {
-  const normalizedPassport = passport.trim();
+  const normalizedPassport = normalizePassport(passport);
   if (!normalizedPassport) return false;
 
   return plansList.some((plan) => {
     if (plan.status !== "Ativo" || plan.id === ignoredPlanId) return false;
-    return plan.passport === normalizedPassport || plan.dependentsList.some((dependent) => dependent.passport === normalizedPassport);
+    return normalizePassport(plan.passport) === normalizedPassport || plan.dependentsList.some((dependent) => normalizePassport(dependent.passport) === normalizedPassport);
   });
 }
 
@@ -252,11 +338,70 @@ export default function InsurancePage() {
   const [searchedPassport, setSearchedPassport] = useState("");
   const [modal, setModal] = useState<ModalState>(null);
   const [insurancePlans, setInsurancePlans] = useState<Patient[]>(() => purgeOldClosedPlans(normalizeExpiredPlans(patients)));
+  const [plansLoading, setPlansLoading] = useState(true);
+  const [plansLoadError, setPlansLoadError] = useState("");
   const [registerDraft, setRegisterDraft] = useState<RegisterDraft>(() => initialRegisterDraft());
 
   const isSystemDeveloper = currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema";
   const canRegisterPlan = isSystemDeveloper || registerRoles.includes(currentUserProfile.role);
   const canManagePlans = isSystemDeveloper || directorRoles.includes(currentUserProfile.role);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPlans() {
+      setPlansLoading(true);
+      setPlansLoadError("");
+      let rows: FinancialPlanRow[] = [];
+
+      if (isSupabaseConfigured()) {
+        const client = createClient();
+        if (client) {
+          const { data, error } = await client
+            .from("financial_plan_entries")
+            .select("id,plan_id,plan_name,holder_passport,value,payload,created_at")
+            .order("created_at", { ascending: false });
+          if (!error) rows = (data || []) as FinancialPlanRow[];
+          else setPlansLoadError("Não foi possível sincronizar os convênios com o Supabase.");
+        }
+      }
+
+      if (rows.length === 0) rows = readFinancialPlanEntries().map(localEntryToRow);
+      const loaded = rows.flatMap((row) => {
+        const plan = financialRowToInsurancePlan(row);
+        return plan ? [plan] : [];
+      });
+      const normalized = purgeOldClosedPlans(normalizeExpiredPlans(loaded));
+
+      if (!cancelled) {
+        setInsurancePlans(normalized);
+        setPlansLoading(false);
+      }
+    }
+
+    void loadPlans();
+    return () => { cancelled = true; };
+  }, []);
+
+  function persistInsurancePlan(plan: Patient, registeredBy = currentUserProfile.systemName) {
+    const selectedPlan = plans.find((item) => item.name === plan.plan);
+    const entryId = plan.financialEntryId || plan.id;
+    const createdAt = plan.financialCreatedAt || new Date().toISOString();
+    saveFinancialPlanEntry({
+      id: entryId,
+      createdAt,
+      planId: plan.id,
+      planName: plan.plan,
+      holderName: plan.name,
+      holderPassport: plan.passport,
+      activatedAt: plan.activatedAt,
+      expiresAt: plan.expiresAt,
+      dependentsCount: plan.dependentsList.length,
+      value: selectedPlan?.value || 0,
+      registeredBy,
+      insurancePlan: { ...plan, financialEntryId: entryId, financialCreatedAt: createdAt },
+    });
+  }
 
   const searchedMatch = useMemo(
     () => findActivePlanByPassport(insurancePlans, searchedPassport),
@@ -266,7 +411,8 @@ export default function InsurancePage() {
   const foundPatient = searchedMatch?.plan ?? null;
 
   function handleSearch() {
-    setSearchedPassport(passport);
+    if (plansLoading) return;
+    setSearchedPassport(passport.trim());
   }
 
   function handleOpenRegisterFromClosedPlan(plan: Patient) {
@@ -300,8 +446,10 @@ export default function InsurancePage() {
       return;
     }
 
+    const planId = `plan-${Date.now()}`;
+    const createdAt = new Date().toISOString();
     const newPlan: Patient = {
-      id: `plan-${Date.now()}`,
+      id: planId,
       passport: draft.passport.trim(),
       name: draft.name.trim(),
       plan: selectedPlan.name,
@@ -310,6 +458,8 @@ export default function InsurancePage() {
       expiresAt: addDays(draft.activatedAt, 30),
       dependents: getDependentsLabel(draft.dependents),
       holderAge: draft.age.trim() ? holderAge : undefined,
+      financialEntryId: planId,
+      financialCreatedAt: createdAt,
       dependentsList: draft.dependents
         .filter((dependent) => dependent.name.trim() && dependent.passport.trim())
         .map((dependent) => ({
@@ -321,19 +471,7 @@ export default function InsurancePage() {
 
     setInsurancePlans((currentPlans) => [newPlan, ...currentPlans]);
 
-    saveFinancialPlanEntry({
-      id: `plan-finance-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      planId: newPlan.id,
-      planName: newPlan.plan,
-      holderName: newPlan.name,
-      holderPassport: newPlan.passport,
-      activatedAt: newPlan.activatedAt,
-      expiresAt: newPlan.expiresAt,
-      dependentsCount: newPlan.dependentsList.length,
-      value: selectedPlan.value,
-      registeredBy: currentUserProfile.systemName,
-    });
+    persistInsurancePlan(newPlan);
 
     registerSystemActivity({
       module: "Financeiro",
@@ -387,15 +525,20 @@ export default function InsurancePage() {
               <button
                 type="button"
                 onClick={handleSearch}
-                className="inline-flex items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 py-3 text-sm font-black text-white transition"
+                disabled={plansLoading}
+                className="inline-flex disabled:cursor-wait disabled:opacity-60 items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 py-3 text-sm font-black text-white transition"
               >
-                <Search size={16} />
-                Buscar
+                {plansLoading ? <RefreshCw size={16} className="animate-spin" /> : <Search size={16} />}
+                {plansLoading ? "Carregando" : "Buscar"}
               </button>
             </div>
           </div>
         </div>
       </section>
+
+      {plansLoadError && (
+        <p className="mt-3 rounded-[14px] border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">{plansLoadError} Os dados locais foram usados como contingência.</p>
+      )}
 
       <section className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1.25fr)_minmax(250px,0.95fr)_minmax(250px,0.95fr)]">
         <InfoCard
@@ -422,36 +565,57 @@ export default function InsurancePage() {
       </section>
 
       {searchedPassport && (
-        <section className="mt-4 rounded-[16px] border border-hpsr-border bg-white px-4 py-3">
+        <section className="mt-4 overflow-hidden rounded-[18px] border border-emerald-200 bg-white shadow-[0_12px_30px_rgba(22,101,52,0.08)]">
           {foundPatient && searchedMatch ? (
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-hpsr-wineLight">Perfil pesquisado</p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <h2 className="text-lg font-bold text-hpsr-text">{searchedMatch.personName}</h2>
-                  <span className="rounded-full bg-hpsr-wine px-3 py-1 text-[11px] font-semibold text-white">
-                    {searchedMatch.relation}
+            <div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 bg-[linear-gradient(135deg,#ecfdf5_0%,#f0fdf4_55%,#ffffff_100%)] px-4 py-3.5 sm:px-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-emerald-700 text-white shadow-sm">
+                    <ShieldCheck size={21} />
                   </span>
-                  <span className="rounded-full border border-hpsr-border bg-[#fcf6ee] px-3 py-1 text-[11px] font-semibold text-hpsr-wine">
-                    Pesquisado
-                  </span>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">Status do convênio</p>
+                    <p className="mt-0.5 text-xl font-black text-emerald-950">PLANO ATIVO</p>
+                  </div>
                 </div>
-                <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">
-                  {foundPatient.plan} · validade até {formatDate(foundPatient.expiresAt)} · {foundPatient.dependents}
-                </p>
-                {isWithinRenewalWindow(foundPatient) && (
-                  <p className="mt-2 rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-                    {getRenewalMessage(foundPatient)}
-                  </p>
-                )}
+                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-white px-3 py-1.5 text-xs font-black text-emerald-800">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_4px_rgba(34,197,94,0.14)]" />
+                  Regular
+                </span>
               </div>
-              <button
-                type="button"
-                onClick={() => setModal({ mode: "patient", patient: foundPatient })}
-                className="rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 py-2.5 text-sm font-black text-white transition"
-              >
-                Ver detalhes
-              </button>
+
+              <div className="grid gap-4 px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-hpsr-wineLight">Perfil pesquisado</p>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                    <h2 className="text-lg font-black text-hpsr-text">{searchedMatch.personName}</h2>
+                    <span className="rounded-full bg-hpsr-wine px-3 py-1 text-[11px] font-semibold text-white">
+                      {searchedMatch.relation}
+                    </span>
+                    <span className="rounded-full border border-hpsr-border bg-[#fcf6ee] px-3 py-1 text-[11px] font-semibold text-hpsr-wine">
+                      Passaporte {searchedMatch.passport}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    <SearchResultInfo label="Plano" value={foundPatient.plan} />
+                    <SearchResultInfo label="Validade" value={formatDate(foundPatient.expiresAt)} />
+                    <SearchResultInfo label="Vínculos" value={foundPatient.dependents} />
+                  </div>
+                  {isWithinRenewalWindow(foundPatient) && (
+                    <p className="mt-3 rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+                      {getRenewalMessage(foundPatient)}
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setModal({ mode: "patient", patient: foundPatient })}
+                  className="inline-flex items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                >
+                  <IdCard size={16} />
+                  Mais detalhes
+                </button>
+              </div>
             </div>
           ) : (
             <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
@@ -536,6 +700,7 @@ export default function InsurancePage() {
         insurancePlans={insurancePlans}
         setInsurancePlans={setInsurancePlans}
         onCreateFromClosedPlan={handleOpenRegisterFromClosedPlan}
+        onPersistPlan={persistInsurancePlan}
       />
     </div>
   );
@@ -631,6 +796,7 @@ function InsuranceModal({
   insurancePlans,
   setInsurancePlans,
   onCreateFromClosedPlan,
+  onPersistPlan,
 }: {
   modal: ModalState;
   onClose: () => void;
@@ -640,6 +806,7 @@ function InsuranceModal({
   insurancePlans: Patient[];
   setInsurancePlans: (plans: Patient[] | ((currentPlans: Patient[]) => Patient[])) => void;
   onCreateFromClosedPlan: (plan: Patient) => void;
+  onPersistPlan: (plan: Patient) => void;
 }) {
   if (!modal) return null;
 
@@ -694,6 +861,7 @@ function InsuranceModal({
               insurancePlans={insurancePlans}
               setInsurancePlans={setInsurancePlans}
               onCreateFromClosedPlan={onCreateFromClosedPlan}
+              onPersistPlan={onPersistPlan}
             />
           )}
           {modal.mode === "patient" && <PatientPlanDetails patient={modal.patient} />}
@@ -1032,11 +1200,13 @@ function ManagePlans({
   insurancePlans,
   setInsurancePlans,
   onCreateFromClosedPlan,
+  onPersistPlan,
 }: {
   onClose: () => void;
   insurancePlans: Patient[];
   setInsurancePlans: (plans: Patient[] | ((currentPlans: Patient[]) => Patient[])) => void;
   onCreateFromClosedPlan: (plan: Patient) => void;
+  onPersistPlan: (plan: Patient) => void;
 }) {
   const [filter, setFilter] = useState<"todos" | "ativos" | "encerrados">("todos");
   const [searchTerm, setSearchTerm] = useState("");
@@ -1082,6 +1252,7 @@ function ManagePlans({
         patient.id === editingPatient?.id ? updatedPatient : patient
       )
     );
+    onPersistPlan(updatedPatient);
     setEditingPatient(null);
   }
 
@@ -1110,6 +1281,7 @@ function ManagePlans({
     setEditingPatient((currentPatient) =>
       currentPatient?.id === patientToRenew.id ? renewedPatient : currentPatient
     );
+    onPersistPlan(renewedPatient);
   }
 
   function handleClosePlan(patientToClose: Patient) {
@@ -1129,6 +1301,7 @@ function ManagePlans({
     setEditingPatient((currentPatient) =>
       currentPatient?.id === patientToClose.id ? closedPatient : currentPatient
     );
+    onPersistPlan(closedPatient);
   }
 
   return (
@@ -1724,18 +1897,78 @@ function ManageInfo({ label, value }: { label: string; value: string }) {
 }
 
 function PatientPlanDetails({ patient }: { patient: Patient }) {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2">
-      <InfoBox label="Paciente" value={patient.name} />
-      <InfoBox label="Passaporte" value={patient.passport} />
-      <InfoBox label="Plano" value={patient.plan} />
-      <InfoBox label="Status" value={patient.status} />
-      <InfoBox label="Dependentes" value={patient.dependents} />
-      <InfoBox label="Validade" value={formatDate(patient.expiresAt)} />
+  const remainingDays = differenceInDays(todayIso(), patient.expiresAt);
 
-      <div className="rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3.5 text-sm leading-relaxed text-hpsr-muted sm:col-span-2">
-        O desconto padrão do convênio é de 20% sobre atendimentos elegíveis.
+  return (
+    <div className="grid gap-4">
+      <div className="relative overflow-hidden rounded-[18px] border border-emerald-200 bg-[linear-gradient(135deg,#ecfdf5_0%,#f0fdf4_50%,#ffffff_100%)] p-4 sm:p-5">
+        <div className="pointer-events-none absolute -right-12 -top-12 h-36 w-36 rounded-full bg-emerald-200/35" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-emerald-700 text-white shadow-sm">
+              <ShieldCheck size={25} />
+            </span>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">Situação atual</p>
+              <h3 className="mt-0.5 text-2xl font-black text-emerald-950">{patient.status === "Ativo" ? "PLANO ATIVO" : "PLANO ENCERRADO"}</h3>
+              <p className="mt-1 text-sm font-semibold text-emerald-800">{patient.plan}</p>
+            </div>
+          </div>
+          <div className="rounded-[16px] border border-emerald-200 bg-white/90 px-4 py-3 text-left shadow-sm sm:text-right">
+            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-emerald-700">Validade</p>
+            <p className="mt-0.5 text-lg font-black text-hpsr-text">{formatDate(patient.expiresAt)}</p>
+            <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{patient.status === "Ativo" ? `${remainingDays} dia${remainingDays === 1 ? "" : "s"} restante${remainingDays === 1 ? "" : "s"}` : "Vínculo encerrado"}</p>
+          </div>
+        </div>
       </div>
+
+      <section className="rounded-[18px] border border-hpsr-border bg-white p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <IdCard size={17} className="text-hpsr-wine" />
+          <h3 className="text-sm font-black text-hpsr-text">Dados do titular</h3>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <InfoBox label="Paciente" value={patient.name} />
+          <InfoBox label="Passaporte" value={patient.passport} />
+          <InfoBox label="Ativação" value={formatDate(patient.activatedAt)} />
+          <InfoBox label="Dependentes" value={patient.dependents} />
+        </div>
+      </section>
+
+      {patient.dependentsList.length > 0 && (
+        <section className="rounded-[18px] border border-hpsr-border bg-white p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <UsersRound size={17} className="text-hpsr-wine" />
+            <h3 className="text-sm font-black text-hpsr-text">Pessoas vinculadas</h3>
+          </div>
+          <div className="grid gap-2">
+            {patient.dependentsList.map((dependent, index) => (
+              <div key={`${dependent.passport}-${index}`} className="flex flex-col gap-1 rounded-[14px] border border-hpsr-border bg-[#fffaf5] px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-bold text-hpsr-text">{dependent.name}</p>
+                <p className="text-xs font-semibold text-hpsr-muted">Passaporte {dependent.passport}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="flex items-start gap-3 rounded-[18px] border border-[#ead7c5] bg-[#fff8f0] p-4">
+        <BadgePercent size={19} className="mt-0.5 shrink-0 text-hpsr-wine" />
+        <div>
+          <p className="text-sm font-black text-hpsr-text">Benefício do convênio</p>
+          <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">O desconto padrão é de <strong className="text-hpsr-wine">20%</strong> sobre atendimentos elegíveis durante a vigência do plano.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function SearchResultInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[14px] border border-hpsr-border bg-[#fffaf5] px-3 py-2.5">
+      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{label}</p>
+      <p className="mt-0.5 break-words text-xs font-bold text-hpsr-text">{value}</p>
     </div>
   );
 }

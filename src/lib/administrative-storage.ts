@@ -41,6 +41,7 @@ export type FinancialPlanEntry = {
   dependentsCount: number;
   value: number;
   registeredBy: string;
+  insurancePlan?: Record<string, unknown>;
 };
 
 export type SystemActivity = {
@@ -92,7 +93,8 @@ export function readFinancialPlanEntries(): FinancialPlanEntry[] {
 export function saveFinancialPlanEntry(entry: FinancialPlanEntry) {
   if (typeof window === "undefined") return;
   const current = readFinancialPlanEntries();
-  window.localStorage.setItem(PLAN_FINANCIAL_STORAGE_KEY, JSON.stringify([entry, ...current]));
+  const next = [entry, ...current.filter((item) => item.id !== entry.id)];
+  window.localStorage.setItem(PLAN_FINANCIAL_STORAGE_KEY, JSON.stringify(next));
   void mirrorRecord("financial_plan_entries", { id: entry.id, plan_id: entry.planId, plan_name: entry.planName, holder_passport: entry.holderPassport, value: entry.value, payload: entry, created_at: entry.createdAt, updated_at: new Date().toISOString() });
 }
 
