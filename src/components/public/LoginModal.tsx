@@ -135,7 +135,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       return;
     }
     if (supabaseConfigured && form.password.length < 6) {
-      setAuthMessage("A senha deve possuir pelo menos 6 caracteres.");
+      setAuthMessage("A senha deve ter no mínimo 6 caracteres.");
       return;
     }
 
@@ -364,12 +364,16 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                   <input
                     type={showRegisterPassword ? "text" : "password"}
                     value={registerForm.password}
+                    minLength={6}
                     onChange={(event) => setRegisterForm((current) => ({ ...current, password: event.target.value }))}
                     placeholder="Crie uma senha"
                     className="w-full bg-transparent text-[13px] font-semibold text-hpsr-text outline-none placeholder:text-zinc-400"
                   />
                   <button type="button" onClick={() => setShowRegisterPassword((v) => !v)} className="text-[11px] font-black text-hpsr-wine">{showRegisterPassword ? "Ocultar" : "Mostrar"}</button>
                 </AccessField>
+                <div className="rounded-[14px] border-2 border-amber-400 bg-amber-50 px-4 py-3 text-sm font-black text-amber-900 shadow-sm">
+                  A senha deve ter no mínimo 6 caracteres.
+                </div>
 
                 <AccessField label="Celular (Opcional)" icon={<Phone size={16} className="text-hpsr-wine" />}>
                   <input

@@ -115,8 +115,8 @@ export default function PerfilPage() {
 
   async function changePassword() {
     setPasswordMessage("");
-    if (!passwordForm.current || passwordForm.next.length < 8 || passwordForm.next !== passwordForm.confirm) {
-      setPasswordMessage("Confira a senha atual. A nova senha deve ter 8 caracteres e coincidir com a confirmação.");
+    if (!passwordForm.current || passwordForm.next.length < 6 || passwordForm.next !== passwordForm.confirm) {
+      setPasswordMessage("Confira a senha atual. A nova senha deve ter no mínimo 6 caracteres e coincidir com a confirmação.");
       return;
     }
     const client = createClient();
@@ -510,12 +510,15 @@ export default function PerfilPage() {
 
           <section className="rounded-[24px] border border-hpsr-border bg-white/[0.86] p-3.5">
             <div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[#f7f2ea] text-hpsr-wine"><KeyRound size={18} /></div><div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Segurança</p><h2 className="text-xl font-black text-hpsr-text">Alterar senha</h2></div></div>
+            <div className="mt-4 rounded-[14px] border-2 border-amber-400 bg-amber-50 px-4 py-3 text-sm font-black text-amber-900 shadow-sm">
+              A nova senha deve ter no mínimo 6 caracteres.
+            </div>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <ProfileInput label="Senha atual" value={passwordForm.current} type={showPasswords ? "text" : "password"} onChange={(value) => setPasswordForm((current) => ({ ...current, current: value }))} />
-              <ProfileInput label="Nova senha" value={passwordForm.next} type={showPasswords ? "text" : "password"} onChange={(value) => setPasswordForm((current) => ({ ...current, next: value }))} />
-              <ProfileInput label="Confirmar nova senha" value={passwordForm.confirm} type={showPasswords ? "text" : "password"} onChange={(value) => setPasswordForm((current) => ({ ...current, confirm: value }))} />
+              <ProfileInput label="Nova senha" value={passwordForm.next} type={showPasswords ? "text" : "password"} minLength={6} onChange={(value) => setPasswordForm((current) => ({ ...current, next: value }))} />
+              <ProfileInput label="Confirmar nova senha" value={passwordForm.confirm} type={showPasswords ? "text" : "password"} minLength={6} onChange={(value) => setPasswordForm((current) => ({ ...current, confirm: value }))} />
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-3"><button type="button" onClick={() => setShowPasswords((v) => !v)} className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">{showPasswords ? "Ocultar senhas" : "Mostrar senhas"}</button><button type="button" onClick={changePassword} className="rounded-[14px] bg-hpsr-wine px-4 py-2 text-xs font-black text-white">Salvar nova senha</button>{passwordMessage && <span className="text-xs font-bold text-hpsr-muted">{passwordMessage}</span>}</div>
+            <div className="mt-3 flex flex-wrap items-center gap-3"><button type="button" onClick={() => setShowPasswords((v) => !v)} className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">{showPasswords ? "Ocultar senhas" : "Mostrar senhas"}</button><button type="button" onClick={changePassword} className="rounded-[14px] bg-hpsr-wine px-4 py-2 text-xs font-black text-white">Salvar nova senha</button>{passwordMessage && <span className={`rounded-[12px] border px-3 py-2 text-xs font-black ${passwordMessage === "Senha alterada com sucesso." ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-red-300 bg-red-50 text-red-800"}`}>{passwordMessage}</span>}</div>
           </section>
 
           <section className="rounded-[24px] border border-hpsr-border bg-white/[0.86] p-3.5">
@@ -580,16 +583,18 @@ function ProfileInput({
   value,
   onChange,
   type = "text",
+  minLength,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
+  minLength?: number;
 }) {
   return (
     <label className="block">
       <span className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{label}</span>
-      <input type={type} className={`${inputClass} mt-1.5`} value={value} onChange={(event) => onChange(event.target.value)} />
+      <input type={type} minLength={minLength} className={`${inputClass} mt-1.5`} value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }

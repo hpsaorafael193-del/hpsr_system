@@ -107,7 +107,7 @@ function LoginContent() {
     const client = createClient();
     if (!resolvedAuthUserId) {
       if (!client) { setMessage("Configure o Supabase para criar o cadastro."); setBusy(false); return; }
-      if (password.length < 8) { setMessage("A senha deve ter pelo menos 8 caracteres."); setBusy(false); return; }
+      if (password.length < 6) { setMessage("A senha deve ter no mínimo 6 caracteres."); setBusy(false); return; }
       const { data, error } = await client.auth.signUp({ email: form.email.trim(), password, options: { data: { full_name: form.name.trim() } } });
       if (error || !data.user) { setMessage(error?.message || "Não foi possível criar a conta."); setBusy(false); return; }
       resolvedAuthUserId = data.user.id;
@@ -201,7 +201,8 @@ function LoginContent() {
               <FormField label="Nome completo"><input className={inputClass} value={form.name} onChange={(e) => update("name", e.target.value)} /></FormField>
               <FormField label="Passaporte"><input className={inputClass} value={form.passport} onChange={(e) => update("passport", e.target.value)} /></FormField>
               <FormField label="E-mail"><input className={inputClass} type="email" value={form.email} onChange={(e) => update("email", e.target.value)} /></FormField>
-              {!authUserId && <FormField label="Senha"><div className="relative"><input className={`${inputClass} pr-20`} type={showRegisterPassword ? "text" : "password"} value={password} onChange={(e)=>setPassword(e.target.value)} /><button type="button" onClick={() => setShowRegisterPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-hpsr-wine">{showRegisterPassword ? "Ocultar" : "Mostrar"}</button></div></FormField>}
+              {!authUserId && <FormField label="Senha"><div className="relative"><input className={`${inputClass} pr-20`} type={showRegisterPassword ? "text" : "password"} value={password} minLength={6} onChange={(e)=>setPassword(e.target.value)} /><button type="button" onClick={() => setShowRegisterPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-hpsr-wine">{showRegisterPassword ? "Ocultar" : "Mostrar"}</button></div></FormField>}
+              {!authUserId && <div className="sm:col-span-2 rounded-[14px] border-2 border-amber-400 bg-amber-50 px-4 py-3 text-sm font-black text-amber-900 shadow-sm">A senha deve ter no mínimo 6 caracteres.</div>}
               <FormField label="Telefone"><input className={inputClass} value={form.cityPhone} onChange={(e) => update("cityPhone", e.target.value)} /></FormField>
               <FormField label="Discord"><input className={inputClass} value={form.discord} onChange={(e) => update("discord", e.target.value)} /></FormField>
               <FormField label="CRM"><input className={inputClass} value={form.crm} onChange={(e) => update("crm", e.target.value)} /></FormField>
