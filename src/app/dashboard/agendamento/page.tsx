@@ -29,8 +29,6 @@ import { createClient } from "@/lib/supabase";
 
 type TabId = "solicitacoes" | "consultas" | "acompanhamentos" | "reagendamentos" | "cobrancas";
 
-const PUBLIC_APPOINTMENTS_KEY = "hpsr-public-appointments";
-
 type PublicAppointmentRequest = {
   id: string;
   passport: string;
@@ -51,22 +49,6 @@ type PublicAppointmentRequest = {
   answer?: string;
   source?: string;
 };
-
-function readPublicAppointments(): PublicAppointmentRequest[] {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const raw = window.localStorage.getItem(PUBLIC_APPOINTMENTS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function savePublicAppointments(requests: PublicAppointmentRequest[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(PUBLIC_APPOINTMENTS_KEY, JSON.stringify(requests));
-}
 
 function publicRequestPreferred(item: PublicAppointmentRequest) {
   const date = item.preferredDate ? formatDate(item.preferredDate) : "Data a definir";
@@ -214,11 +196,9 @@ export default function AppointmentsPage() {
 
     setPublicRequests((currentRequests) => {
       const exists = currentRequests.some((item) => item.id === request.id);
-      const nextRequests = exists
+      return exists
         ? currentRequests.map((item) => (item.id === request.id ? updatedRequest : item))
         : [updatedRequest, ...currentRequests];
-      savePublicAppointments(nextRequests);
-      return nextRequests;
     });
   }
 

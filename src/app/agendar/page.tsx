@@ -6,11 +6,9 @@ import { ArrowLeft, CalendarDays, CheckCircle2, Info } from "lucide-react";
 import { PublicShell } from "@/components/public/PublicShell";
 import { FormField, inputClass } from "@/components/ui/FormField";
 import { specialties } from "@/data/mock";
-import { mirrorRecord } from "@/lib/data-bridge";
+import { createClient } from "@/lib/supabase";
 
 const bloodTypes = ["A+", "A-", "B+", "B-"];
-const STORAGE_KEY = "hpsr-public-appointments";
-
 type PublicAppointment = {
   id: string;
   passport: string;
@@ -28,31 +26,17 @@ type PublicAppointment = {
   updatedAt: string;
 };
 
-function readStoredAppointments(): PublicAppointment[] {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveStoredAppointments(appointments: PublicAppointment[]) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(appointments));
-}
-
-
 export default function SchedulePage() {
   const [submitted, setSubmitted] = useState<PublicAppointment | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const protocolHint = useMemo(() => {
     const now = new Date();
     return `HPSR-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   }, []);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const form = new FormData(event.currentTarget);
@@ -60,7 +44,7 @@ export default function SchedulePage() {
     const passport = String(form.get("passport") ?? "").trim();
 
     const newAppointment: PublicAppointment = {
-      id: `${protocolHint}-${passport || Date.now()}`,
+      id: `${protocolHint}-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
       passport,
       patient: String(form.get("patient") ?? "").trim(),
       cityPhone: String(form.get("cityPhone") ?? "").trim(),
@@ -76,10 +60,13 @@ export default function SchedulePage() {
       updatedAt: now,
     };
 
-    const stored = readStoredAppointments();
-    const withoutSamePassport = stored.filter((item) => item.passport !== newAppointment.passport);
-    saveStoredAppointments([newAppointment, ...withoutSamePassport]);
-    void mirrorRecord("appointments", { id: newAppointment.id, passport: newAppointment.passport, patient: newAppointment.patient, status: newAppointment.status, payload: newAppointment, created_at: newAppointment.createdAt, updated_at: newAppointment.updatedAt });
+    const client = createClient();
+    if (!client) { setSubmitError("Não foi possível conectar ao Supabase. A solicitação não foi enviada."); return; }
+    setSubmitting(true);
+    setSubmitError("");
+    const { error } = await client.from("appointments").insert({ id: newAppointment.id, passport: newAppointment.passport, patient: newAppointment.patient, status: newAppointment.status, payload: newAppointment, created_at: newAppointment.createdAt, updated_at: newAppointment.updatedAt });
+    setSubmitting(false);
+    if (error) { setSubmitError(`Não foi possível registrar a solicitação: ${error.message}`); return; }
     setSubmitted(newAppointment);
     event.currentTarget.reset();
   }
@@ -103,7 +90,9 @@ export default function SchedulePage() {
               Preencha os dados abaixo. A solicitação será enviada para análise do médico responsável pela especialidade e só será confirmada após aceite.
             </p>
 
-            {submitted && (
+            {submitError && <p className="mt-4 rounded-[14px] border border-red-300 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">{submitError}</p>}
+
+          {submitted && (
               <div className="mt-6 rounded-[18px] border border-emerald-200 bg-emerald-50 p-3.5 text-emerald-800">
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="mt-0.5 shrink-0" size={22} />
@@ -210,7 +199,7 @@ export default function SchedulePage() {
               </div>
 
               <button type="submit" className="mt-6 rounded-[14px] hpsr-button-primary">
-                Enviar solicitação
+                {submitting ? "Enviando..." : "Enviar solicitação"}
               </button>
 
               <p className="mt-4 rounded-[14px] border border-hpsr-border bg-[#fcf6ee] p-3.5 text-sm leading-relaxed text-hpsr-muted">

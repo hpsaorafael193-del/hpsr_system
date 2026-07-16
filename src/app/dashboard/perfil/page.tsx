@@ -89,12 +89,7 @@ export default function PerfilPage() {
   }, [currentUserProfile]);
 
   useEffect(() => {
-    const local = readSystemActivities().filter((item) =>
-      item.actor === currentUserProfile.systemName ||
-      item.actor === currentUserProfile.characterName ||
-      item.reference === currentUserProfile.passport
-    );
-    setActivities(local);
+    setActivities([]);
     const client = createClient();
     if (!client) return;
     void client.from("system_activities").select("id,module,action,description,actor,reference,created_at").or(`actor.eq.${currentUserProfile.systemName},reference.eq.${currentUserProfile.passport}`).order("created_at", { ascending: false }).limit(100).then(({ data }) => {

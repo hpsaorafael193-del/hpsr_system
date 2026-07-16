@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { createClient } from "@/lib/supabase";
+import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 
 type Answer = "sim" | "nao" | "na";
 type ResultKey = "apto" | "inapto-temporario" | "inapto" | "avaliacao" | "nao-autorizada";
@@ -79,8 +81,6 @@ type DonationRecord = {
   form: DonorForm;
   analysis: Analysis;
 };
-
-const STORAGE_KEY = "hpsr-blood-donation-documents";
 
 const answerOptions: Array<{ value: Answer; label: string }> = [
   { value: "sim", label: "Sim" },
@@ -317,17 +317,22 @@ function statusClass(result: ResultKey) {
 export default function BloodBankPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const [form, setForm] = useState<DonorForm>(() => createInitialForm(currentUserProfile.systemName));
-  const [records, setRecords] = useState<DonationRecord[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]") as DonationRecord[];
-    } catch {
-      return [];
-    }
-  });
+  const [records, setRecords] = useState<DonationRecord[]>([]);
+  const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<DonationRecord | null>(null);
 
+
+  useEffect(() => {
+    async function loadRecords() {
+      const client = createClient();
+      if (!client) return;
+      const { data, error } = await client.from("blood_donations").select("id, donor_passport, payload, created_at").order("created_at", { ascending: false });
+      if (error) { void hpsrAlert(`Não foi possível carregar as triagens: ${error.message}`, "Banco de Sangue"); return; }
+      setRecords((data || []).map((row) => ({ ...((row.payload || {}) as DonationRecord), id: String(row.id), createdAt: String(((row.payload || {}) as Partial<DonationRecord>).createdAt || row.created_at) })));
+    }
+    void loadRecords();
+  }, []);
   const analysis = useMemo(() => analyzeForm(form), [form]);
   const ResultIcon = analysis.icon;
 
@@ -354,24 +359,29 @@ export default function BloodBankPage() {
     });
   }
 
-  function persist(nextRecords: DonationRecord[]) {
-    setRecords(nextRecords);
-    if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, JSON.stringify(nextRecords));
-  }
-
-  function saveRecord() {
+  async function saveRecord() {
+    const client = createClient();
+    if (!client) { await hpsrAlert("Não foi possível conectar ao Supabase.", "Banco de Sangue"); return; }
     const record: DonationRecord = {
       id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now()),
       createdAt: new Date().toISOString(),
       form,
       analysis,
     };
-    persist([record, ...records]);
+    setSaving(true);
+    const { error } = await client.from("blood_donations").insert({ id: record.id, donor_passport: record.form.passaporte, payload: record, created_at: record.createdAt });
+    setSaving(false);
+    if (error) { await hpsrAlert(`A triagem não foi salva: ${error.message}`, "Banco de Sangue"); return; }
+    setRecords((current) => [record, ...current]);
     setSelectedRecord(record);
   }
 
-  function cancelRecord(id: string) {
-    persist(records.filter((record) => record.id !== id));
+  async function cancelRecord(id: string) {
+    const client = createClient();
+    if (!client) return;
+    const { error } = await client.from("blood_donations").delete().eq("id", id);
+    if (error) { await hpsrAlert(`Não foi possível excluir a triagem: ${error.message}`, "Banco de Sangue"); return; }
+    setRecords((current) => current.filter((record) => record.id !== id));
     if (selectedRecord?.id === id) setSelectedRecord(null);
   }
 
@@ -507,7 +517,7 @@ export default function BloodBankPage() {
               </div>
 
               <div className="mt-4 grid gap-2">
-                <button type="button" onClick={saveRecord} className="inline-flex items-center justify-center gap-2 rounded-[16px] bg-hpsr-wine px-4 py-3 text-sm font-black text-white transition hover:bg-hpsr-wineLight">
+                <button type="button" onClick={() => void saveRecord()} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-[16px] bg-hpsr-wine px-4 py-3 text-sm font-black text-white transition hover:bg-hpsr-wineLight">
                   <Save size={16} /> Salvar ficha
                 </button>
                 <button type="button" onClick={resetForm} className="inline-flex items-center justify-center gap-2 rounded-[16px] border border-hpsr-border bg-white/75 px-4 py-3 text-sm font-black text-hpsr-wine transition hover:bg-white">
@@ -565,7 +575,7 @@ export default function BloodBankPage() {
                       <button type="button" onClick={() => setSelectedRecord(record)} className="rounded-[13px] border border-hpsr-border bg-white px-3 py-1.5 text-xs font-black text-hpsr-wine transition hover:bg-[#f1dfcd]">
                         Ver ficha
                       </button>
-                      <button type="button" onClick={() => cancelRecord(record.id)} className="rounded-[13px] border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-black text-rose-700 transition hover:bg-rose-100">
+                      <button type="button" onClick={() => void cancelRecord(record.id)} className="rounded-[13px] border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-black text-rose-700 transition hover:bg-rose-100">
                         Cancelar
                       </button>
                     </div>

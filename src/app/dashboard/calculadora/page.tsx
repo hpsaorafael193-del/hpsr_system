@@ -267,7 +267,7 @@ export default function CalculatorPage() {
     return matchesSearch;
   });
 
-  function createReceipt(): FinancialReceipt | null {
+  async function createReceipt(): Promise<FinancialReceipt | null> {
     if (!selectedItems.length) {
       void hpsrAlert("Selecione pelo menos um item antes de gerar o recibo.", "Nenhum item selecionado");
       return null;
@@ -297,8 +297,12 @@ export default function CalculatorPage() {
       })),
     };
 
-    saveFinancialReceipt(receipt);
-    registerSystemActivity({
+    const saveResult = await saveFinancialReceipt(receipt);
+    if (!saveResult.synced) {
+      await hpsrAlert(`O recibo não foi salvo no Supabase${saveResult.error ? `: ${saveResult.error}` : "."}`, "Falha ao salvar recibo");
+      return null;
+    }
+    void registerSystemActivity({
       module: "Calculadora",
       action: "Recibo gerado",
       description: `Recibo ${receipt.number} salvo no Financeiro: ${formatCurrency(receipt.tabletHpTotal || 0)} para o tablet HP e ${formatCurrency(receipt.doctorTotal || 0)} para o médico.`,
@@ -415,8 +419,8 @@ export default function CalculatorPage() {
     anchor.click();
   }
 
-  function generateAndDownloadReceipt() {
-    const receipt = createReceipt();
+  async function generateAndDownloadReceipt() {
+    const receipt = await createReceipt();
     if (!receipt) return;
     downloadReceipt(receipt);
   }
@@ -560,7 +564,7 @@ export default function CalculatorPage() {
               <div className="mt-auto grid gap-2 pt-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                 <button
                   type="button"
-                  onClick={generateAndDownloadReceipt}
+                  onClick={() => void generateAndDownloadReceipt()}
                   disabled={!selectedItems.length}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 py-3 text-sm font-black text-white transition hover:bg-hpsr-wineLight disabled:cursor-not-allowed disabled:opacity-45"
                 >

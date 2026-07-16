@@ -5,11 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { PublicShell } from "@/components/public/PublicShell";
 import { FormField, inputClass } from "@/components/ui/FormField";
 import { registerSystemActivity } from "@/lib/administrative-storage";
-import { mirrorRecord } from "@/lib/data-bridge";
 import { createClient } from "@/lib/supabase";
 import { setLoginPersistence } from "@/lib/auth-persistence";
-
-const KEY = "hpsr-staff-registration-requests";
 
 type Request = {
   id: string;
@@ -92,16 +89,6 @@ function LoginContent() {
       return;
     }
 
-    let current: Request[] = [];
-    try {
-      current = JSON.parse(localStorage.getItem(KEY) || "[]");
-    } catch {}
-
-    if (current.some((item) => item.passport === form.passport.trim() && item.status === "Pendente")) {
-      setMessage("Já existe uma solicitação pendente para este passaporte.");
-      return;
-    }
-
     setBusy(true);
     let resolvedAuthUserId = authUserId;
     const client = createClient();
@@ -122,28 +109,17 @@ function LoginContent() {
       status: "Pendente",
     };
 
-    localStorage.setItem(KEY, JSON.stringify([item, ...current]));
-    void mirrorRecord("staff_registration_requests", {
-      id: item.id,
-      auth_user_id: item.authUserId || null,
-      passport: item.passport,
-      name: item.name,
-      requested_role: item.requestedRole,
-      status: item.status,
-      payload: item,
-      created_at: item.createdAt,
-      updated_at: item.createdAt,
-    });
-
-    if (resolvedAuthUserId) {
-      await client?.rpc("submit_staff_registration", {
-        request_id: item.id,
-        request_payload: item,
-      });
-      await client?.auth.signOut();
+    if (!client) { setMessage("Não foi possível conectar ao Supabase."); setBusy(false); return; }
+    const { error: requestError } = await client.rpc("submit_staff_registration", { request_id: item.id, request_payload: item });
+    if (requestError) {
+      setMessage(`A conta foi criada, mas a solicitação não foi registrada: ${requestError.message}`);
+      await client.auth.signOut();
+      setBusy(false);
+      return;
     }
+    await client.auth.signOut();
 
-    registerSystemActivity({
+    void registerSystemActivity({
       module: "Cadastros médicos",
       action: "Nova solicitação",
       description: `${item.name} solicitou acesso como ${item.requestedRole}.`,

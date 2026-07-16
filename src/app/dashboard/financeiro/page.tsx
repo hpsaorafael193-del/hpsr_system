@@ -12,7 +12,7 @@ import {
   type FinancialReceipt,
 } from "@/lib/administrative-storage";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
-import { hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
+import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 import { createClient } from "@/lib/supabase";
 
 function money(value: number) {
@@ -178,9 +178,10 @@ export default function FinancePage() {
 
   async function removeReceipt(receipt: FinancialReceipt) {
     if (!(await hpsrConfirm(`Excluir o recibo ${receipt.number} do histórico financeiro?`, "Excluir recibo"))) return;
-    removeFinancialReceipt(receipt.id);
+    const removal = await removeFinancialReceipt(receipt.id);
+    if (!removal.synced) { await hpsrAlert(`Não foi possível excluir o recibo${removal.error ? `: ${removal.error}` : "."}`, "Financeiro"); return; }
     setReceipts((current) => current.filter((item) => item.id !== receipt.id));
-    registerSystemActivity({ module: "Financeiro", action: "Recibo excluído", description: `Recibo ${receipt.number} removido do histórico financeiro.`, actor: currentUserProfile.systemName, reference: receipt.number });
+    void registerSystemActivity({ module: "Financeiro", action: "Recibo excluído", description: `Recibo ${receipt.number} removido do histórico financeiro.`, actor: currentUserProfile.systemName, reference: receipt.number });
   }
 
   return <div className="hpsr-page gap-3">

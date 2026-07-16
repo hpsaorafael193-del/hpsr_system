@@ -68,20 +68,23 @@ export function readFinancialReceipts(): FinancialReceipt[] {
   return safeParse<FinancialReceipt[]>(window.localStorage.getItem(RECEIPTS_STORAGE_KEY), []);
 }
 
-export function saveFinancialReceipt(receipt: FinancialReceipt) {
-  if (typeof window === "undefined") return;
-  const current = readFinancialReceipts();
-  window.localStorage.setItem(RECEIPTS_STORAGE_KEY, JSON.stringify([receipt, ...current]));
-  void mirrorRecord("financial_receipts", { id: receipt.id, number: receipt.number, total: receipt.total, payload: receipt, created_at: receipt.createdAt, updated_at: new Date().toISOString() });
+export async function saveFinancialReceipt(receipt: FinancialReceipt) {
+  const result = await mirrorRecord("financial_receipts", { id: receipt.id, number: receipt.number, total: receipt.total, payload: receipt, created_at: receipt.createdAt, updated_at: new Date().toISOString() });
+  if (!result.synced) return result;
+  if (typeof window !== "undefined") {
+    const current = readFinancialReceipts();
+    window.localStorage.setItem(RECEIPTS_STORAGE_KEY, JSON.stringify([receipt, ...current.filter((item) => item.id !== receipt.id)]));
+  }
+  return result;
 }
 
-export function removeFinancialReceipt(id: string) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(
-    RECEIPTS_STORAGE_KEY,
-    JSON.stringify(readFinancialReceipts().filter((receipt) => receipt.id !== id))
-  );
-  void removeRecord("financial_receipts", id);
+export async function removeFinancialReceipt(id: string) {
+  const result = await removeRecord("financial_receipts", id);
+  if (!result.synced) return result;
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(RECEIPTS_STORAGE_KEY, JSON.stringify(readFinancialReceipts().filter((receipt) => receipt.id !== id)));
+  }
+  return result;
 }
 
 
@@ -118,8 +121,7 @@ export function readSystemActivities(): SystemActivity[] {
   return safeParse<SystemActivity[]>(window.localStorage.getItem(SYSTEM_ACTIVITY_STORAGE_KEY), []);
 }
 
-export function registerSystemActivity(activity: Omit<SystemActivity, "id" | "createdAt"> & { id?: string; createdAt?: string }) {
-  if (typeof window === "undefined") return;
+export async function registerSystemActivity(activity: Omit<SystemActivity, "id" | "createdAt"> & { id?: string; createdAt?: string }) {
   const item: SystemActivity = {
     id: activity.id || `activity-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     createdAt: activity.createdAt || new Date().toISOString(),
@@ -129,6 +131,9 @@ export function registerSystemActivity(activity: Omit<SystemActivity, "id" | "cr
     actor: activity.actor,
     reference: activity.reference,
   };
-  window.localStorage.setItem(SYSTEM_ACTIVITY_STORAGE_KEY, JSON.stringify([item, ...readSystemActivities()].slice(0, 1000)));
-  void mirrorRecord("system_activities", { id: item.id, module: item.module, action: item.action, description: item.description, actor: item.actor, reference: item.reference, created_at: item.createdAt });
+  const result = await mirrorRecord("system_activities", { id: item.id, module: item.module, action: item.action, description: item.description, actor: item.actor, reference: item.reference, created_at: item.createdAt });
+  if (result.synced && typeof window !== "undefined") {
+    window.localStorage.setItem(SYSTEM_ACTIVITY_STORAGE_KEY, JSON.stringify([item, ...readSystemActivities()].slice(0, 1000)));
+  }
+  return result;
 }

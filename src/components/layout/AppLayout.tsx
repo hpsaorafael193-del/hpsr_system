@@ -5,24 +5,18 @@ import { Sidebar } from "./Sidebar";
 import { MobileSidebar } from "./MobileSidebar";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "./UserMenu";
-import { ThemeToggle } from "./ThemeToggle";
 import { isSupabaseConfigured } from "@/lib/supabase";
 
 const SIDEBAR_COLLAPSED_KEY = "hpsr-sidebar-collapsed";
-const THEME_KEY = "hpsr-theme";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     setCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true");
-    const storedTheme = window.localStorage.getItem(THEME_KEY);
-    const shouldUseDark = storedTheme === "dark";
-    setDarkMode(shouldUseDark);
-    document.documentElement.dataset.hpsrTheme = shouldUseDark ? "dark" : "light";
-
+    window.localStorage.removeItem("hpsr-theme");
+    delete document.documentElement.dataset.hpsrTheme;
     if (isSupabaseConfigured() && window.localStorage.getItem("hpsr-supabase-cleanup-v335") !== "done") {
       [
         "hpsr-team-members",
@@ -44,13 +38,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
   }, [collapsed, hydrated]);
 
-  useEffect(() => {
-    if (!hydrated) return;
-    const theme = darkMode ? "dark" : "light";
-    window.localStorage.setItem(THEME_KEY, theme);
-    document.documentElement.dataset.hpsrTheme = theme;
-  }, [darkMode, hydrated]);
-
   return (
     <div className="hpsr-dashboard-shell min-h-dvh overflow-x-hidden bg-hpsr-bg text-hpsr-text">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((v) => !v)} />
@@ -63,7 +50,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         )}
       >
         <div className="fixed right-3 top-3 z-[90] flex max-w-[calc(100vw-1.5rem)] items-center gap-2 lg:right-5 lg:top-4">
-          <ThemeToggle dark={darkMode} onToggle={() => setDarkMode((value) => !value)} />
           <UserMenu />
         </div>
 
