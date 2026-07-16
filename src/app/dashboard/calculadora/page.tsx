@@ -567,13 +567,7 @@ export default function CalculatorPage() {
               </div>
 
               <div className="mt-4 rounded-[20px] border border-[#d9cbbb] bg-[linear-gradient(180deg,#fffefd_0%,#fff8f1_100%)] p-4 shadow-[0_10px_28px_rgba(90,46,24,0.07)]">
-                <div className="flex items-center justify-end gap-3">
-                  <span className="rounded-full border border-[#ddc4ae] bg-white px-3 py-1.5 text-[11px] font-black text-hpsr-wine">
-                    {selectedItems.length} item{selectedItems.length === 1 ? "" : "s"}
-                  </span>
-                </div>
-
-                <div className="mt-3 flex items-center justify-between gap-3 border-b border-dashed border-[#cfbda9] pb-3">
+                <div className="flex items-center justify-between gap-3 border-b border-dashed border-[#cfbda9] pb-3">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[.08em] text-hpsr-muted">Condições da compra</p>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
