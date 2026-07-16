@@ -2323,9 +2323,25 @@ function ManageMemberModal({
     setForm((currentForm) => ({ ...currentForm, [field]: value }));
   }
 
-  const normalizeSpecialtyName = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-  const isGeneralClinician = (value: string) => normalizeSpecialtyName(value) === "clinico geral";
-  const selectedSpecialties = form.specialty.split(",").map((item) => item.trim()).filter(Boolean);
+  const normalizeSpecialtyName = (value: string) => value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+  const isGeneralClinician = (value: string) => {
+    const normalized = normalizeSpecialtyName(value);
+    return normalized === "clinico geral" || normalized === "clinica geral";
+  };
+  const parseSpecialties = (value: string) => value
+    .split(/[,;|\n]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const uniqueSpecialties = (items: string[]) => items.filter((item, index, list) => {
+    const normalized = normalizeSpecialtyName(item);
+    return list.findIndex((candidate) => normalizeSpecialtyName(candidate) === normalized) === index;
+  });
+  const selectedSpecialties = uniqueSpecialties(parseSpecialties(form.specialty));
   const selectedAdditionalSpecialties = selectedSpecialties.filter((item) => !isGeneralClinician(item));
   const baseAndLowerRoles = ["Médico Clínico", "Residente", "Estagiário de Enfermagem", "Enfermeiro", "Técnico de Enfermagem"];
   const canHaveAdditionalSpecialties = !baseAndLowerRoles.includes(form.hospitalRole);
@@ -2336,14 +2352,17 @@ function ManageMemberModal({
       void hpsrAlert("Médico Clínico e cargos inferiores podem manter apenas Clínico Geral.", "Especialidades indisponíveis");
       return;
     }
-    const current = selectedAdditionalSpecialties;
-    const exists = current.includes(specialty);
+    const current = uniqueSpecialties(selectedAdditionalSpecialties);
+    const normalizedSpecialty = normalizeSpecialtyName(specialty);
+    const exists = current.some((item) => normalizeSpecialtyName(item) === normalizedSpecialty);
     if (!exists && current.length >= 3) {
-      void hpsrAlert("É permitido selecionar até 3 especialidades adicionais.", "Limite de especialidades");
+      void hpsrAlert("É permitido selecionar até 3 especialidades adicionais além de Clínico Geral.", "Limite de especialidades");
       return;
     }
-    const next = exists ? current.filter((item) => item !== specialty) : [...current, specialty];
-    updateField("specialty", ["Clínico Geral", ...next].join(", "));
+    const next = exists
+      ? current.filter((item) => normalizeSpecialtyName(item) !== normalizedSpecialty)
+      : [...current, specialty];
+    updateField("specialty", ["Clínico Geral", ...uniqueSpecialties(next)].join(", "));
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -2354,8 +2373,8 @@ function ManageMemberModal({
       return;
     }
 
-    const selectedSpecialties = form.specialty.split(",").map((item) => item.trim()).filter(Boolean);
-    const additionalSpecialties = selectedSpecialties.filter((item) => !isGeneralClinician(item));
+    const submittedSpecialties = uniqueSpecialties(parseSpecialties(form.specialty));
+    const additionalSpecialties = submittedSpecialties.filter((item) => !isGeneralClinician(item));
     const baseAndLowerRoles = ["Médico Clínico", "Residente", "Estagiário de Enfermagem", "Enfermeiro", "Técnico de Enfermagem"];
     if (baseAndLowerRoles.includes(form.hospitalRole) && additionalSpecialties.length > 0) {
       void hpsrAlert("Médico Clínico e cargos inferiores podem manter apenas Clínico Geral.", "Especialidades inválidas");
@@ -2366,7 +2385,7 @@ function ManageMemberModal({
       void hpsrAlert("É permitido manter Clínico Geral e até 3 especialidades adicionais.", "Limite de especialidades");
       return;
     }
-    const normalizedSpecialties = ["Clínico Geral", ...additional].filter((item, index, list) => list.indexOf(item) === index);
+    const normalizedSpecialties = ["Clínico Geral", ...uniqueSpecialties(additional)];
     void onSave({ ...form, specialty: normalizedSpecialties.join(", ") });
   }
 
@@ -2479,7 +2498,7 @@ function ManageMemberModal({
                       </label>
                       <div className="mt-2 flex max-h-52 flex-col gap-2 overflow-y-auto overflow-x-hidden pr-1">
                         {systemSpecialties.filter((item) => !isGeneralClinician(item)).map((item) => {
-                          const checked = selectedSpecialties.includes(item);
+                          const checked = selectedAdditionalSpecialties.some((selected) => normalizeSpecialtyName(selected) === normalizeSpecialtyName(item));
                           return (
                             <label key={item} className={`flex items-center gap-2 rounded-[10px] border px-3 py-2 text-sm font-bold ${checked ? "border-hpsr-wine bg-[#fff1e8] text-hpsr-wine" : "border-hpsr-border bg-white text-hpsr-text"} ${!canHaveAdditionalSpecialties ? "cursor-not-allowed opacity-55" : "cursor-pointer"}`}>
                               <input type="checkbox" checked={checked} disabled={!canHaveAdditionalSpecialties} onChange={() => toggleSpecialty(item)} className="accent-hpsr-wine" />
