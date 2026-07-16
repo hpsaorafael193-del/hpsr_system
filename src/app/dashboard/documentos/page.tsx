@@ -1381,7 +1381,7 @@ export default function DocumentsPage() {
             </div>
           </aside>
 
-          <main className="flex min-h-0 flex-col overflow-hidden rounded-[22px] border border-[#ded0c4] bg-white shadow-[0_18px_46px_rgba(42,7,0,0.08)]">
+          <main className="hpsr-light-editor-shell flex min-h-0 flex-col overflow-hidden rounded-[22px] border border-[#ded0c4] bg-white shadow-[0_18px_46px_rgba(42,7,0,0.08)]">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#ddc6b4] bg-white px-5 py-4 no-print">
               <div>
                 <h2 className="text-xl font-black tracking-[-0.01em] text-hpsr-text">

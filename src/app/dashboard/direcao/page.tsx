@@ -73,7 +73,7 @@ export default function DirectionPage() {
   const pendingAppointments = appointments.filter((item)=>!["aceito","confirmado","recusado"].includes(String(item.status).toLowerCase())).length;
 
   return <div className="hpsr-page gap-3">
-    <PageHeader eyebrow="Administração" title="Direção" description="Visão consolidada das atividades, solicitações e registros administrativos do sistema." />
+    <PageHeader eyebrow="Administração" title="Relatório" description="Visão consolidada das atividades, solicitações e registros administrativos do sistema." />
     <div className="hpsr-page-scroll space-y-3">
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat icon={<UserPlus size={19}/>} label="Cadastros pendentes" value={String(pendingRegistrations)}/>

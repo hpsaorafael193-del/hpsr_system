@@ -10,12 +10,13 @@ import {
   Gavel,
   Search,
   Send,
+  Loader2,
   ShieldAlert,
   UserRound,
   X,
 } from "lucide-react";
 import { FormField, inputClass } from "@/components/ui/FormField";
-import { mirrorRecord } from "@/lib/data-bridge";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase";
 
 const desiredRoles = [
   "Médico Clínico",
@@ -128,23 +129,24 @@ function readStoredApplications(): StoredStaffApplication[] {
   }
 }
 
-function saveStoredApplications(applications: StoredStaffApplication[]) {
+function cacheConfirmedApplication(application: StoredStaffApplication) {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(STAFF_APPLICATIONS_KEY, JSON.stringify(applications));
-  const application = applications[0];
-  if (application) {
-    void mirrorRecord("staff_applications", {
-      id: application.protocol,
-      passport: application.passport,
-      token: application.token,
-      name: application.name,
-      desired_role: application.desiredRole,
-      status: application.status,
-      payload: application,
-      created_at: application.createdAt,
-      updated_at: new Date().toISOString(),
-    });
-  }
+
+  const current = readStoredApplications();
+  const withoutSameProtocol = current.filter((item) => item.protocol !== application.protocol);
+  window.localStorage.setItem(
+    STAFF_APPLICATIONS_KEY,
+    JSON.stringify([application, ...withoutSameProtocol].slice(0, 10))
+  );
+}
+
+function generateApplicationProtocol() {
+  const randomPart =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()
+      : Math.random().toString(36).slice(2, 12).toUpperCase();
+
+  return `HPSR-EQP-${Date.now().toString(36).toUpperCase()}-${randomPart}`;
 }
 
 function generateApplicationToken(existing: StoredStaffApplication[]) {
@@ -298,20 +300,30 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
   const [submittedApplication, setSubmittedApplication] = useState<StoredStaffApplication | null>(null);
   const submitted = Boolean(submittedApplication);
   const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   useModalBehavior(open, onClose);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting) return;
 
-    const form = new FormData(event.currentTarget);
+    setSubmitError("");
+
+    if (!isSupabaseConfigured()) {
+      setSubmitError("O serviço de candidaturas está indisponível. Tente novamente mais tarde.");
+      return;
+    }
+
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const passport = String(form.get("passport") ?? "").trim();
     const now = new Date().toISOString();
-    const stored = readStoredApplications();
-    const token = generateApplicationToken(stored);
+    const token = generateApplicationToken([]);
 
     const application: StoredStaffApplication = {
-      protocol: `HPSR-EQP-${passport || Date.now()}`,
+      protocol: generateApplicationProtocol(),
       token,
       name: String(form.get("name") ?? "").trim(),
       passport,
@@ -333,10 +345,40 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
       createdAt: now,
     };
 
-    const withoutSamePassport = stored.filter((item) => item.passport !== application.passport);
-    saveStoredApplications([application, ...withoutSamePassport]);
+    const client = createClient();
+    if (!client) {
+      setSubmitError("O serviço de candidaturas está indisponível. Tente novamente mais tarde.");
+      return;
+    }
 
-    setSubmittedApplication(application);
+    setSubmitting(true);
+    try {
+      const { error } = await client.from("staff_applications").insert({
+        id: application.protocol,
+        passport: application.passport,
+        token: application.token,
+        name: application.name,
+        desired_role: application.desiredRole,
+        status: "Pendente",
+        payload: { ...application, status: "Pendente" },
+        created_at: application.createdAt,
+        updated_at: now,
+      });
+
+      if (error) throw error;
+
+      const confirmedApplication = { ...application, status: "Pendente" };
+      cacheConfirmedApplication(confirmedApplication);
+      setSubmittedApplication(confirmedApplication);
+      formElement.reset();
+    } catch (error) {
+      console.error("[HPSR] Falha ao enviar candidatura:", error);
+      setSubmitError(
+        "Não foi possível registrar a candidatura no sistema. Nenhum protocolo foi gerado. Verifique sua conexão e tente novamente."
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   function toggleSchedule(period: string) {
@@ -577,10 +619,17 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
               </span>
             </label>
 
+            {submitError && (
+              <div role="alert" className="mt-5 rounded-[16px] border border-red-300 bg-red-50 px-4 py-3 text-sm font-bold leading-relaxed text-red-800">
+                <div className="flex items-start gap-2"><AlertTriangle size={18} className="mt-0.5 shrink-0" /><span>{submitError}</span></div>
+              </div>
+            )}
+
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
                 type="button"
                 onClick={onClose}
+                disabled={submitting}
                 className="inline-flex flex-1 items-center justify-center rounded-xl border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-wine"
               >
                 Cancelar
@@ -588,10 +637,11 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
 
               <button
                 type="submit"
-                className="inline-flex flex-1 items-center justify-center gap-3 rounded-xl bg-[linear-gradient(135deg,#672614,#2a0700)] px-4 py-3 text-sm font-black text-white "
+                disabled={submitting}
+                className="inline-flex flex-1 items-center justify-center gap-3 rounded-xl bg-[linear-gradient(135deg,#672614,#2a0700)] px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <Send size={18} />
-                Enviar candidatura
+                {submitting ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                {submitting ? "Enviando e confirmando..." : "Enviar candidatura"}
               </button>
             </div>
           </form>
@@ -606,17 +656,41 @@ function ConsultApplicationModal({ open, onClose }: { open: boolean; onClose: ()
   const [token, setToken] = useState("");
   const [searched, setSearched] = useState(false);
   const [result, setResult] = useState<StoredStaffApplication | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
 
   useModalBehavior(open, onClose);
 
-  function handleSearch(event: FormEvent<HTMLFormElement>) {
+  async function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (searching) return;
 
-    const normalizedPassport = passport.trim();
-    const normalizedToken = token.trim().toUpperCase();
-    const found = readStoredApplications().find((item) => item.passport === normalizedPassport && item.token === normalizedToken) ?? null;
-    setResult(found);
-    setSearched(true);
+    setSearchError("");
+    setResult(null);
+    setSearched(false);
+
+    const client = createClient();
+    if (!client) {
+      setSearchError("O serviço de consulta está indisponível no momento.");
+      return;
+    }
+
+    setSearching(true);
+    try {
+      const { data, error } = await client.rpc("consult_staff_application", {
+        p_passport: passport.trim(),
+        p_token: token.trim().toUpperCase(),
+      });
+
+      if (error) throw error;
+      setResult(data ? (data as StoredStaffApplication) : null);
+      setSearched(true);
+    } catch (error) {
+      console.error("[HPSR] Falha ao consultar candidatura:", error);
+      setSearchError("Não foi possível consultar a candidatura. Tente novamente mais tarde.");
+    } finally {
+      setSearching(false);
+    }
   }
 
   if (!open) return null;
@@ -647,6 +721,7 @@ function ConsultApplicationModal({ open, onClose }: { open: boolean; onClose: ()
                 value={passport}
                 onChange={(event) => {
                   setPassport(event.target.value);
+                  setSearchError("");
                   if (searched) {
                     setSearched(false);
                     setResult(null);
@@ -662,6 +737,7 @@ function ConsultApplicationModal({ open, onClose }: { open: boolean; onClose: ()
                 value={token}
                 onChange={(event) => {
                   setToken(event.target.value.toUpperCase());
+                  setSearchError("");
                   if (searched) {
                     setSearched(false);
                     setResult(null);
@@ -673,11 +749,14 @@ function ConsultApplicationModal({ open, onClose }: { open: boolean; onClose: ()
 
           <button
             type="submit"
-            className="mt-5 inline-flex w-full items-center justify-center gap-3 rounded-xl bg-[linear-gradient(135deg,#672614,#2a0700)] px-4 py-3 text-sm font-black text-white "
+            disabled={searching}
+            className="mt-5 inline-flex w-full items-center justify-center gap-3 rounded-xl bg-[linear-gradient(135deg,#672614,#2a0700)] px-4 py-3 text-sm font-black text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <Search size={18} />
-            Consultar
+            {searching ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
+            {searching ? "Consultando..." : "Consultar"}
           </button>
+
+          {searchError && <div role="alert" className="mt-5 rounded-[16px] border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-800">{searchError}</div>}
 
           {searched && result && (
             <div className="mt-6 rounded-[22px] border border-[#e9e2d7] bg-white p-3.5">

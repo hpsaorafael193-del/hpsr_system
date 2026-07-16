@@ -1107,7 +1107,7 @@ export default function TeamPage() {
       <div className="hpsr-page gap-3">
         <PageHeader
           eyebrow="Administração"
-          title="Equipe"
+          title="Direção"
           description="Acesso administrativo restrito."
         />
 
@@ -1117,7 +1117,7 @@ export default function TeamPage() {
             <div>
               <p className="text-lg font-black text-amber-900">Aba restrita à administração.</p>
               <p className="mt-2 max-w-3xl text-sm font-semibold leading-relaxed text-amber-800">
-                A página Equipe só fica disponível para Dev, Diretora, Vice Diretor e Diretor Clínico. Cargo atual: {currentUserProfile.role}.
+                A página Direção só fica disponível para Dev, Diretora, Vice Diretor e Diretor Clínico. Cargo atual: {currentUserProfile.role}.
               </p>
             </div>
           </div>
@@ -1130,7 +1130,7 @@ export default function TeamPage() {
     <div className="hpsr-page gap-3">
       <PageHeader
         eyebrow="Administração"
-        title="Equipe"
+        title="Direção"
         description="Gestão da equipe, cargos, permissões e candidaturas do Hospital São Rafael."
       />
 

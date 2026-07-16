@@ -45,8 +45,8 @@ export const toolsNavigation = [
 ];
 
 export const adminNavigation = [
-  { label: "Equipe", href: "/dashboard/equipe", icon: Users },
-  { label: "Direção", href: "/dashboard/direcao", icon: Landmark },
+  { label: "Direção", href: "/dashboard/equipe", icon: Users },
+  { label: "Relatório", href: "/dashboard/direcao", icon: Landmark },
 ];
 
 export const publicCards = [

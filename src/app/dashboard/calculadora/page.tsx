@@ -422,7 +422,7 @@ export default function CalculatorPage() {
   }
 
   return (
-    <div className="hpsr-page gap-4">
+    <div className="hpsr-page hpsr-calculadora-page gap-4">
       <PageHeader
         eyebrow="Ferramentas"
         title="Calculadora"
@@ -431,7 +431,7 @@ export default function CalculatorPage() {
 
       <div className="hpsr-page-scroll space-y-4">
       <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_460px] xl:items-stretch">
-        <div className="order-2 flex min-h-[210px] flex-col rounded-[20px] border border-hpsr-border bg-[linear-gradient(180deg,#ffffff_0%,#fffaf6_100%)] p-4 shadow-[0_14px_34px_rgba(79,42,21,0.07)] xl:order-1 xl:h-full">
+        <div className="hpsr-calculadora-convenio order-2 flex min-h-[210px] flex-col rounded-[20px] border border-hpsr-border bg-[linear-gradient(180deg,#ffffff_0%,#fffaf6_100%)] p-4 shadow-[0_14px_34px_rgba(79,42,21,0.07)] xl:order-1 xl:h-full">
           <div className="mb-2 flex items-center gap-2 border-b border-hpsr-border/80 pb-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-[14px] bg-hpsr-wine text-white">
               <Handshake size={20} />
@@ -481,7 +481,7 @@ export default function CalculatorPage() {
             ))}
           </div>
 
-          <div className="mt-3 rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3">
+          <div className="hpsr-calculadora-sale-type mt-3 rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3">
             <div className="flex items-center gap-2">
               <div className={`flex h-8 w-8 items-center justify-center rounded-[12px] ${isPmSale ? "bg-blue-700 text-white" : "bg-[#f1dfcd] text-hpsr-wine"}`}>
                 <ShieldCheck size={16} />
@@ -523,7 +523,7 @@ export default function CalculatorPage() {
           </div>
         </div>
 
-        <section className="order-1 min-h-[210px] overflow-hidden rounded-[20px] border border-hpsr-border bg-[linear-gradient(180deg,#fffaf4_0%,#fff4e7_100%)] shadow-[0_14px_34px_rgba(79,42,21,0.07)] xl:order-2 xl:h-full">
+        <section className="hpsr-calculadora-summary order-1 min-h-[210px] overflow-hidden rounded-[20px] border border-hpsr-border bg-[linear-gradient(180deg,#fffaf4_0%,#fff4e7_100%)] shadow-[0_14px_34px_rgba(79,42,21,0.07)] xl:order-2 xl:h-full">
           <div className="flex h-full flex-col p-4">
             <div className="mb-2 flex items-center gap-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-[12px] bg-hpsr-wine text-white">
@@ -539,18 +539,18 @@ export default function CalculatorPage() {
               </div>
               <div className="mt-2 flex items-end justify-between gap-3">
                 <div><p className="text-[clamp(1.8rem,2.8vw,2.5rem)] font-black tracking-tight text-hpsr-text">{formatCurrency(total)}</p><p className="mt-1 text-[11px] font-bold text-hpsr-muted">{totalUnits} unidade{totalUnits === 1 ? "" : "s"} · {selectedItems.length} item{selectedItems.length === 1 ? "" : "s"}</p></div>
-                <span className="rounded-full border border-hpsr-border bg-[#f1dfcd] px-4 py-1.5 text-[12px] font-black text-hpsr-wine">
+                <span className="hpsr-calculadora-convenio-badge rounded-full border border-hpsr-border bg-[#f1dfcd] px-4 py-1.5 text-[12px] font-black text-hpsr-wine">
                   {isPmSale ? `${selectedConvenio.title} · PM` : selectedConvenio.title}
                 </span>
               </div>
 
               <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                <div className="rounded-[14px] border border-blue-200 bg-blue-50 px-3 py-2.5">
+                <div className="hpsr-calculadora-tablet rounded-[14px] border border-blue-200 bg-blue-50 px-3 py-2.5">
                   <p className="text-[10px] font-black uppercase tracking-[.1em] text-blue-700">Vai para o tablet HP</p>
                   <p className="mt-1 text-lg font-black text-blue-950">{formatCurrency(tabletHpTotal)}</p>
                   <p className="mt-1 text-[10px] font-semibold leading-relaxed text-blue-800">Procedimentos, exames, Raio-X e ressonâncias.</p>
                 </div>
-                <div className="rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+                <div className="hpsr-calculadora-doctor rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 py-2.5">
                   <p className="text-[10px] font-black uppercase tracking-[.1em] text-emerald-700">Fica com o médico</p>
                   <p className="mt-1 text-lg font-black text-emerald-950">{formatCurrency(doctorTotal)}</p>
                   <p className="mt-1 text-[10px] font-semibold leading-relaxed text-emerald-800">Valor restante após o repasse ao hospital.</p>
@@ -570,7 +570,7 @@ export default function CalculatorPage() {
                 <button
                   type="button"
                   onClick={clearAll}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-wine transition hover:bg-[#fff8f0]"
+                  className="hpsr-calculadora-clear inline-flex w-full items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-wine transition hover:bg-[#fff8f0]"
                 >
                   <RotateCcw size={16} />
                   Limpar seleção
