@@ -2323,17 +2323,20 @@ function ManageMemberModal({
     setForm((currentForm) => ({ ...currentForm, [field]: value }));
   }
 
+  const normalizeSpecialtyName = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+  const isGeneralClinician = (value: string) => normalizeSpecialtyName(value) === "clinico geral";
   const selectedSpecialties = form.specialty.split(",").map((item) => item.trim()).filter(Boolean);
+  const selectedAdditionalSpecialties = selectedSpecialties.filter((item) => !isGeneralClinician(item));
   const baseAndLowerRoles = ["Médico Clínico", "Residente", "Estagiário de Enfermagem", "Enfermeiro", "Técnico de Enfermagem"];
   const canHaveAdditionalSpecialties = !baseAndLowerRoles.includes(form.hospitalRole);
 
   function toggleSpecialty(specialty: string) {
-    if (specialty === "Clínico Geral") return;
+    if (isGeneralClinician(specialty)) return;
     if (!canHaveAdditionalSpecialties) {
       void hpsrAlert("Médico Clínico e cargos inferiores podem manter apenas Clínico Geral.", "Especialidades indisponíveis");
       return;
     }
-    const current = selectedSpecialties.filter((item) => item !== "Clínico Geral");
+    const current = selectedAdditionalSpecialties;
     const exists = current.includes(specialty);
     if (!exists && current.length >= 3) {
       void hpsrAlert("É permitido selecionar até 3 especialidades adicionais.", "Limite de especialidades");
@@ -2352,12 +2355,13 @@ function ManageMemberModal({
     }
 
     const selectedSpecialties = form.specialty.split(",").map((item) => item.trim()).filter(Boolean);
+    const additionalSpecialties = selectedSpecialties.filter((item) => !isGeneralClinician(item));
     const baseAndLowerRoles = ["Médico Clínico", "Residente", "Estagiário de Enfermagem", "Enfermeiro", "Técnico de Enfermagem"];
-    if (baseAndLowerRoles.includes(form.hospitalRole) && selectedSpecialties.some((item) => item !== "Clínico Geral")) {
+    if (baseAndLowerRoles.includes(form.hospitalRole) && additionalSpecialties.length > 0) {
       void hpsrAlert("Médico Clínico e cargos inferiores podem manter apenas Clínico Geral.", "Especialidades inválidas");
       return;
     }
-    const additional = selectedSpecialties.filter((item) => item !== "Clínico Geral");
+    const additional = additionalSpecialties;
     if (additional.length > 3) {
       void hpsrAlert("É permitido manter Clínico Geral e até 3 especialidades adicionais.", "Limite de especialidades");
       return;
@@ -2474,7 +2478,7 @@ function ManageMemberModal({
                         Clínico Geral
                       </label>
                       <div className="mt-2 flex max-h-52 flex-col gap-2 overflow-y-auto overflow-x-hidden pr-1">
-                        {systemSpecialties.filter((item) => item !== "Clínico Geral").map((item) => {
+                        {systemSpecialties.filter((item) => !isGeneralClinician(item)).map((item) => {
                           const checked = selectedSpecialties.includes(item);
                           return (
                             <label key={item} className={`flex items-center gap-2 rounded-[10px] border px-3 py-2 text-sm font-bold ${checked ? "border-hpsr-wine bg-[#fff1e8] text-hpsr-wine" : "border-hpsr-border bg-white text-hpsr-text"} ${!canHaveAdditionalSpecialties ? "cursor-not-allowed opacity-55" : "cursor-pointer"}`}>
@@ -2485,7 +2489,10 @@ function ManageMemberModal({
                         })}
                       </div>
                     </div>
-                    <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Selecione até 3 especialidades já cadastradas no sistema. Clínico Geral permanece como base.</p>
+                    <div className="mt-1 flex items-center justify-between gap-3 text-[11px] font-semibold text-hpsr-muted">
+                      <p>Clínico Geral é a especialidade base e não entra no limite.</p>
+                      <span className="shrink-0 rounded-full border border-hpsr-border bg-white px-2.5 py-1 font-black text-hpsr-wine">{selectedAdditionalSpecialties.length}/3 adicionais</span>
+                    </div>
                   </ModalField>
                 </div>
               </section>

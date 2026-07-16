@@ -9,6 +9,8 @@ import {
   ClipboardList,
   Handshake,
   HeartPulse,
+  LayoutGrid,
+  List,
   Minus,
   PackagePlus,
   Plus,
@@ -217,6 +219,7 @@ export default function CalculatorPage() {
   const [convenio, setConvenio] = useState<ConvenioId>("sem");
   const [searchTerm, setSearchTerm] = useState("");
   const [isPmSale, setIsPmSale] = useState(false);
+  const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
 
   const selectedConvenio = convenioOptions.find((option) => option.id === convenio) ?? convenioOptions[0];
 
@@ -433,229 +436,407 @@ export default function CalculatorPage() {
   }
 
   return (
-    <div className="hpsr-page hpsr-calculadora-page gap-4">
+    <div className="hpsr-page hpsr-calculadora-page gap-0 xl:h-[calc(100dvh-2.4rem)] xl:min-h-0 xl:overflow-hidden">
       <PageHeader
         eyebrow="Ferramentas"
         title="Calculadora"
         description="Calculadora de valores do Hospital São Rafael."
       />
 
-      <div className="hpsr-page-scroll space-y-4">
-      <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_460px] xl:items-stretch">
-        <div className="hpsr-calculadora-convenio order-2 flex min-h-[210px] flex-col rounded-[20px] border border-hpsr-border bg-[linear-gradient(180deg,#ffffff_0%,#fffaf6_100%)] p-4 shadow-[0_14px_34px_rgba(79,42,21,0.07)] xl:order-1 xl:h-full">
-          <div className="mb-2 flex items-center gap-2 border-b border-hpsr-border/80 pb-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-[14px] bg-hpsr-wine text-white">
-              <Handshake size={20} />
-            </div>
-            <div>
-              <p className="text-[1.05rem] font-black text-hpsr-text">Convênio do Cliente</p>
-            </div>
-          </div>
-
-          <div className="grid flex-1 gap-3 sm:grid-cols-3">
-            {convenioOptions.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => setConvenio(option.id)}
-                className={`group relative flex min-h-[112px] h-full items-center justify-center overflow-hidden rounded-[16px] border px-4 py-3 text-center transition duration-200 ${
-                  convenio === option.id
-                    ? "border-hpsr-wine bg-[linear-gradient(135deg,#6a1707_0%,#842713_60%,#9b4129_100%)] text-white shadow-[0_18px_32px_rgba(108,33,12,0.18)]"
-                    : "border-[#e7d2bf] bg-[linear-gradient(180deg,#fffdfa_0%,#fcf3e8_100%)] text-hpsr-text shadow-[0_10px_24px_rgba(113,74,41,0.06)] hover:border-hpsr-wine/30 hover:shadow-[0_14px_26px_rgba(113,74,41,0.10)]"
-                }`}
-              >
-                {convenio === option.id && (
-                  <span className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full border border-white/30 bg-white text-hpsr-wine shadow-sm">
-                    <CheckCircle2 size={15} />
-                  </span>
-                )}
-
-                <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center">
-                  <span className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                    convenio === option.id
-                      ? "text-white"
-                      : "text-hpsr-wine"
-                  }`}>
-                    {option.icon}
-                  </span>
-                </div>
-
-                <div className="flex flex-col items-center justify-center pt-4">
-                  <p className="mt-2 text-[1.02rem] font-black leading-tight">{option.title}</p>
-                  <span className={`mt-2 inline-flex rounded-full px-3 py-1 text-[11px] font-black ${
-                    convenio === option.id ? "bg-white/16 text-white" : "bg-[#efe1cf] text-hpsr-wine"
-                  }`}>
-                    {option.description}
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <div className="hpsr-calculadora-sale-type mt-3 rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3">
-            <div className="flex items-center gap-2">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-[12px] ${isPmSale ? "bg-blue-700 text-white" : "bg-[#f1dfcd] text-hpsr-wine"}`}>
-                <ShieldCheck size={16} />
-              </div>
-              <div>
-                <p className="text-sm font-black text-hpsr-text">Tipo de venda</p>
-                <p className="text-[11px] font-semibold text-hpsr-muted">Escolha se a venda será Civil ou PM.</p>
+      <div className="hpsr-page-scroll min-h-0 flex-1 overflow-hidden">
+      <section className="grid h-full min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-stretch">
+        <div className="order-2 min-h-0 overflow-hidden xl:order-1">
+          <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfa_0%,#ffffff_100%)] shadow-[0_14px_34px_rgba(79,42,21,0.07)]">
+            <div className="shrink-0 border-b border-hpsr-border/70 bg-[linear-gradient(180deg,#f8f1e8_0%,#f4ebe0_100%)] p-2.5">
+              <div className="grid gap-2 rounded-[16px] bg-[#f0e7dd] p-2 lg:grid-cols-2">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[14px] px-3 text-[11px] font-black transition ${
+                      activeTab === tab.id
+                        ? "bg-white text-hpsr-wine"
+                        : "text-hpsr-wine hover:bg-white/60"
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setIsPmSale(false)}
-                aria-pressed={!isPmSale}
-                className={`inline-flex items-center justify-center gap-2 rounded-[14px] px-4 py-2.5 text-sm font-black transition ${
-                  !isPmSale
-                    ? "border border-hpsr-wine bg-white text-hpsr-wine shadow-sm"
-                    : "border border-hpsr-border bg-[#fffdfa] text-hpsr-muted hover:bg-white"
-                }`}
-              >
-                <span className={`h-2.5 w-2.5 rounded-full ${!isPmSale ? "bg-hpsr-wine" : "bg-hpsr-muted/40"}`} />
-                Civil
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsPmSale(true)}
-                aria-pressed={isPmSale}
-                className={`inline-flex items-center justify-center gap-2 rounded-[14px] px-4 py-2.5 text-sm font-black transition ${
-                  isPmSale
-                    ? "bg-blue-700 text-white shadow-sm"
-                    : "border border-hpsr-border bg-[#fffdfa] text-hpsr-wine hover:bg-white"
-                }`}
-              >
-                <span className={`h-2.5 w-2.5 rounded-full ${isPmSale ? "bg-white" : "bg-hpsr-wineLight"}`} />
-                PM
-              </button>
+            <div className="shrink-0 border-b border-hpsr-border/70 px-3.5 py-2.5">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-hpsr-wine text-white">
+                    {currentTab.icon}
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-hpsr-text">{currentTab.label}</h2>
+                    <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">
+                      Defina livremente a quantidade de cada item, sem limite por produto.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <label className="flex min-h-[38px] flex-1 items-center gap-3 rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-4 focus-within:border-hpsr-wineLight focus-within:ring-2 focus-within:ring-hpsr-wineLight/20">
+                    <Search size={18} className="text-hpsr-muted" />
+                    <input
+                      className="w-full bg-transparent text-sm font-semibold text-hpsr-text outline-none placeholder:text-zinc-400"
+                      value={searchTerm}
+                      onChange={(event) => setSearchTerm(event.target.value)}
+                      placeholder="Buscar item"
+                    />
+                  </label>
+                  <div className="inline-flex shrink-0 rounded-[14px] border border-hpsr-border bg-[#f0e7dd] p-1">
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("cards")}
+                      aria-pressed={viewMode === "cards"}
+                      className={`inline-flex min-h-[36px] items-center justify-center gap-2 rounded-[11px] px-3 text-[11px] font-black transition ${
+                        viewMode === "cards" ? "bg-white text-hpsr-wine shadow-sm" : "text-hpsr-muted hover:text-hpsr-wine"
+                      }`}
+                    >
+                      <LayoutGrid size={15} />
+                      Cards
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("list")}
+                      aria-pressed={viewMode === "list"}
+                      className={`inline-flex min-h-[36px] items-center justify-center gap-2 rounded-[11px] px-3 text-[11px] font-black transition ${
+                        viewMode === "list" ? "bg-white text-hpsr-wine shadow-sm" : "text-hpsr-muted hover:text-hpsr-wine"
+                      }`}
+                    >
+                      <List size={15} />
+                      Modo lista
+                    </button>
+                  </div>
+                </div>
+              </div>
+
             </div>
-          </div>
+
+            <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-3.5 pb-3.5 pt-3">
+              {viewMode === "list" ? (
+                <ProductList
+                  products={filteredProducts}
+                  cart={cart}
+                  onIncrease={increase}
+                  onDecrease={decrease}
+                  onChangeQuantity={updateQuantity}
+                  onClear={clearProduct}
+                  getPrice={getEffectivePrice}
+                  isPmSale={isPmSale}
+                />
+              ) : (
+                <ProductGrid
+                  products={filteredProducts}
+                  cart={cart}
+                  onIncrease={increase}
+                  onDecrease={decrease}
+                  onChangeQuantity={updateQuantity}
+                  onClear={clearProduct}
+                  getPrice={getEffectivePrice}
+                  isPmSale={isPmSale}
+                />
+              )}
+            </div>
+          </section>
         </div>
 
-        <section className="hpsr-calculadora-summary order-1 min-h-[210px] overflow-hidden rounded-[20px] border border-hpsr-border bg-[linear-gradient(180deg,#fffaf4_0%,#fff4e7_100%)] shadow-[0_14px_34px_rgba(79,42,21,0.07)] xl:order-2 xl:h-full">
-          <div className="flex h-full flex-col p-4">
-            <div className="mb-2 flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-[12px] bg-hpsr-wine text-white">
-                <ReceiptText size={17} />
-              </div>
-              <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Fechamento</p><p className="text-[1.02rem] font-black text-hpsr-text">Resumo da compra</p></div>
-            </div>
-
-            <div className="flex flex-1 flex-col border-t border-dashed border-hpsr-border pt-3">
-              <div className="flex items-center justify-between gap-3 text-xs font-black text-hpsr-muted">
-                <span>Total cobrado do jogador</span>
-                <span>Convênio</span>
-              </div>
-              <div className="mt-2 flex items-end justify-between gap-3">
-                <div><p className="text-[clamp(1.8rem,2.8vw,2.5rem)] font-black tracking-tight text-hpsr-text">{formatCurrency(total)}</p><p className="mt-1 text-[11px] font-bold text-hpsr-muted">{totalUnits} unidade{totalUnits === 1 ? "" : "s"} · {selectedItems.length} item{selectedItems.length === 1 ? "" : "s"}</p></div>
-                <span className="hpsr-calculadora-convenio-badge rounded-full border border-hpsr-border bg-[#f1dfcd] px-4 py-1.5 text-[12px] font-black text-hpsr-wine">
-                  {isPmSale ? `${selectedConvenio.title} · PM` : selectedConvenio.title}
+        <aside className="order-1 min-h-0 overflow-hidden xl:order-2">
+          <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-[0_18px_42px_rgba(79,42,21,0.09)]">
+            <div className="min-h-0 flex-1 bg-[linear-gradient(145deg,#fff8f1_0%,#f8eadc_100%)] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white shadow-sm">
+                    <ReceiptText size={19} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Fechamento</p>
+                    <h2 className="text-lg font-black text-hpsr-text">Resumo da compra</h2>
+                  </div>
+                </div>
+                <span className="rounded-full border border-hpsr-border bg-white/80 px-3 py-1.5 text-[11px] font-black text-hpsr-wine">
+                  {totalUnits} items
                 </span>
               </div>
 
-              <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                <div className="hpsr-calculadora-tablet rounded-[14px] border border-blue-200 bg-blue-50 px-3 py-2.5">
-                  <p className="text-[10px] font-black uppercase tracking-[.1em] text-blue-700">Vai para o tablet HP</p>
-                  <p className="mt-1 text-lg font-black text-blue-950">{formatCurrency(tabletHpTotal)}</p>
-                  <p className="mt-1 text-[10px] font-semibold leading-relaxed text-blue-800">Procedimentos, exames, Raio-X e ressonâncias.</p>
+              <div className="mt-4 rounded-[20px] border border-[#d9cbbb] bg-[linear-gradient(180deg,#fffefd_0%,#fff8f1_100%)] p-4 shadow-[0_10px_28px_rgba(90,46,24,0.07)]">
+                <div className="flex items-center justify-end gap-3">
+                  <span className="rounded-full border border-[#ddc4ae] bg-white px-3 py-1.5 text-[11px] font-black text-hpsr-wine">
+                    {selectedItems.length} item{selectedItems.length === 1 ? "" : "s"}
+                  </span>
                 </div>
-                <div className="hpsr-calculadora-doctor rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-                  <p className="text-[10px] font-black uppercase tracking-[.1em] text-emerald-700">Fica com o médico</p>
-                  <p className="mt-1 text-lg font-black text-emerald-950">{formatCurrency(doctorTotal)}</p>
-                  <p className="mt-1 text-[10px] font-semibold leading-relaxed text-emerald-800">Valor restante após o repasse ao hospital.</p>
-                </div>
-              </div>
 
-              <div className="mt-auto grid gap-2 pt-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                <button
-                  type="button"
-                  onClick={() => void generateAndDownloadReceipt()}
-                  disabled={!selectedItems.length}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 py-3 text-sm font-black text-white transition hover:bg-hpsr-wineLight disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  <Download size={16} />
-                  Gerar recibo
-                </button>
-                <button
-                  type="button"
-                  onClick={clearAll}
-                  className="hpsr-calculadora-clear inline-flex w-full items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-wine transition hover:bg-[#fff8f0]"
-                >
-                  <RotateCcw size={16} />
-                  Limpar seleção
-                </button>
+                <div className="mt-3 flex items-center justify-between gap-3 border-b border-dashed border-[#cfbda9] pb-3">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[.08em] text-hpsr-muted">Condições da compra</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-[#ddc4ae] bg-[#f3e3d2] px-3 py-1 text-[11px] font-black text-hpsr-wine">{selectedConvenio.title}</span>
+                      <span className={`rounded-full px-3 py-1 text-[11px] font-black ${isPmSale ? "bg-blue-700 text-white" : "bg-[#f4ece3] text-hpsr-wine"}`}>{isPmSale ? "PM" : "Civil"}</span>
+                    </div>
+                  </div>
+                  <div className="inline-flex rounded-[12px] border border-[#dfcdbb] bg-[#f7efe6] p-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsPmSale(false)}
+                      aria-pressed={!isPmSale}
+                      className={`inline-flex min-h-[34px] items-center justify-center gap-2 rounded-[10px] px-3 text-[11px] font-black transition ${
+                        !isPmSale
+                          ? "border border-hpsr-wine bg-white text-hpsr-wine shadow-sm"
+                          : "border border-transparent bg-transparent text-hpsr-muted hover:bg-white/70"
+                      }`}
+                    >
+                      <span className={`h-2 w-2 rounded-full ${!isPmSale ? "bg-hpsr-wine" : "bg-hpsr-muted/40"}`} />
+                      Civil
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsPmSale(true)}
+                      aria-pressed={isPmSale}
+                      className={`inline-flex min-h-[34px] items-center justify-center gap-2 rounded-[10px] px-3 text-[11px] font-black transition ${
+                        isPmSale
+                          ? "border border-blue-700 bg-blue-700 text-white shadow-sm"
+                          : "border border-transparent bg-transparent text-hpsr-muted hover:bg-white/70"
+                      }`}
+                    >
+                      <span className={`h-2 w-2 rounded-full ${isPmSale ? "bg-white" : "bg-hpsr-muted/40"}`} />
+                      PM
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid gap-2">
+                  {convenioOptions.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setConvenio(option.id)}
+                      className={`group flex min-h-[52px] items-center justify-between gap-3 rounded-[14px] border px-3 py-2.5 text-left transition ${
+                        convenio === option.id
+                          ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_8px_18px_rgba(103,38,20,0.15)]"
+                          : "border-[#e5d3c2] bg-white/90 text-hpsr-text hover:border-hpsr-wine/35 hover:bg-[#fff8f0]"
+                      }`}
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] ${convenio === option.id ? "bg-white/15 text-white" : "bg-[#f2e4d5] text-hpsr-wine"}`}>{option.icon}</span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-xs font-black">{option.title}</span>
+                          <span className={`mt-0.5 block text-[10px] font-bold ${convenio === option.id ? "text-white/75" : "text-hpsr-muted"}`}>{option.description}</span>
+                        </span>
+                      </span>
+                      <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${convenio === option.id ? "border-white/35 bg-white text-hpsr-wine" : "border-hpsr-border bg-[#fffaf4] text-hpsr-muted"}`}>
+                        {convenio === option.id ? <CheckCircle2 size={14} /> : <span className="h-2 w-2 rounded-full bg-current opacity-40" />}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-3 border-t border-dashed border-[#cfbda9] pt-3">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="text-[11px] font-black uppercase tracking-[.08em] text-hpsr-muted">Itens da compra</p>
+                    <p className="text-[11px] font-bold text-hpsr-muted">Qtd. total: {totalUnits}</p>
+                  </div>
+                  <div className="min-h-[150px]">
+                    {selectedItems.length ? (
+                      <div className="space-y-2.5">
+                        {selectedItems.slice(0, 4).map((item, index) => (
+                          <div key={item.product.id} className="grid grid-cols-[22px_minmax(0,1fr)_auto] items-start gap-3 text-sm">
+                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f2e2d4] text-[11px] font-black text-hpsr-wine">{index + 1}</span>
+                            <div className="min-w-0">
+                              <p className="truncate font-black text-hpsr-text">{item.product.nome}</p>
+                              <p className="text-[11px] font-semibold text-hpsr-muted">{item.quantity} × {formatCurrency(getEffectivePrice(item.product))}</p>
+                            </div>
+                            <p className="font-black text-hpsr-text">{formatCurrency(item.quantity * getEffectivePrice(item.product))}</p>
+                          </div>
+                        ))}
+                        {selectedItems.length > 4 ? (
+                          <p className="pt-1 text-center text-[11px] font-semibold text-hpsr-muted">+ {selectedItems.length - 4} item(ns) adicionais no recibo final</p>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <div className="flex min-h-[120px] items-center justify-center text-center">
+                        <div>
+                          <p className="text-[12px] font-black text-hpsr-muted">Nenhum item selecionado</p>
+                          <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Adicione itens para preencher a prévia do recibo.</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-3 border-t border-dashed border-[#cbb8a2] pt-3">
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-hpsr-text">Subtotal</span>
+                      <span className="font-semibold text-hpsr-text">{formatCurrency(total)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-hpsr-text">Repasse ao Tablet HP</span>
+                      <span className="font-semibold text-blue-700">{formatCurrency(tabletHpTotal)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="font-semibold text-hpsr-text">Valor do médico</span>
+                      <span className="font-semibold text-emerald-700">{formatCurrency(doctorTotal)}</span>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-end justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-muted">Valor final</p>
+                      <p className="text-[1.15rem] font-black text-hpsr-text">TOTAL</p>
+                    </div>
+                    <p className="text-[2rem] font-black tracking-tight text-hpsr-text">{formatCurrency(total)}</p>
+                  </div>
+                </div>
               </div>
-              <p className="mt-2 text-center text-[10px] font-semibold leading-relaxed text-hpsr-muted">
-                Ao gerar, o recibo é baixado em PNG e salvo automaticamente no histórico financeiro.
+            </div>
+
+            <div className="grid gap-2 border-t border-hpsr-border bg-white p-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => void generateAndDownloadReceipt()}
+                disabled={!selectedItems.length}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 py-3 text-sm font-black text-white transition hover:bg-hpsr-wineLight disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                <Download size={16} />
+                Gerar recibo
+              </button>
+              <button
+                type="button"
+                onClick={clearAll}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-4 py-3 text-sm font-black text-hpsr-wine transition hover:bg-[#fff3e8]"
+              >
+                <RotateCcw size={16} />
+                Limpar seleção
+              </button>
+              <p className="text-center text-[9px] font-semibold leading-relaxed text-hpsr-muted sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+                O recibo é salvo no histórico financeiro após a confirmação.
               </p>
             </div>
-          </div>
-        </section>
+          </section>
+        </aside>
       </section>
+      </div>
+    </div>
+  );
+}
 
-      <section className="flex min-h-[560px] flex-col overflow-hidden rounded-[20px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfa_0%,#ffffff_100%)] shadow-[0_14px_34px_rgba(79,42,21,0.07)] lg:min-h-[620px]">
-        <div className="shrink-0 border-b border-hpsr-border/70 bg-[linear-gradient(180deg,#f8f1e8_0%,#f4ebe0_100%)] p-2.5">
-          <div className="grid gap-2 rounded-[16px] bg-[#f0e7dd] p-2 lg:grid-cols-2">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-                className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[14px] px-3 text-[11px] font-black transition ${
-                  activeTab === tab.id
-                    ? "bg-white text-hpsr-wine"
-                    : "text-hpsr-wine hover:bg-white/60"
-                }`}
-              >
-                {tab.icon}
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
 
-        <div className="shrink-0 border-b border-hpsr-border/70 px-3.5 py-3">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-hpsr-wine text-white">
-                {currentTab.icon}
+function ProductList({
+  products,
+  cart,
+  onIncrease,
+  onDecrease,
+  onChangeQuantity,
+  onClear,
+  getPrice,
+  isPmSale,
+}: {
+  products: Product[];
+  cart: Record<string, number>;
+  onIncrease: (id: string) => void;
+  onDecrease: (id: string) => void;
+  onChangeQuantity: (id: string, quantity: number) => void;
+  onClear: (id: string) => void;
+  getPrice: (product: Product) => number;
+  isPmSale: boolean;
+}) {
+  if (!products.length) {
+    return (
+      <div className="rounded-[16px] border border-dashed border-hpsr-border bg-[#fff8f0] p-3.5 text-center">
+        <p className="font-black text-hpsr-text">Nenhum item encontrado.</p>
+        <p className="mt-1 text-sm text-hpsr-muted">Tente buscar por outro nome ou categoria.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-hidden rounded-[18px] border border-hpsr-border bg-white shadow-[0_10px_24px_rgba(82,48,27,0.05)]">
+      <div className="hidden grid-cols-[72px_minmax(220px,1fr)_150px_150px_230px] items-center gap-3 bg-hpsr-wine px-4 py-3 text-[11px] font-black uppercase tracking-[0.08em] text-white lg:grid">
+        <span>Imagem</span>
+        <span>Produto</span>
+        <span>Preço</span>
+        <span>Quantidade</span>
+        <span className="text-right">Controles</span>
+      </div>
+      <div className="divide-y divide-hpsr-border/80">
+        {products.map((product) => {
+          const quantity = cart[product.id] || 0;
+          const active = quantity > 0;
+          const effectivePrice = getPrice(product);
+          const hasPmPrice = isPmSale && Boolean(product.precoPm);
+          return (
+            <article
+              key={product.id}
+              className={`grid gap-3 px-3 py-3 transition lg:grid-cols-[72px_minmax(220px,1fr)_150px_150px_230px] lg:items-center lg:px-4 ${
+                active ? "bg-[#fff8f0]" : "bg-white hover:bg-[#fffdf9]"
+              }`}
+            >
+              <div className="flex items-center gap-3 lg:block">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[13px] border border-hpsr-border bg-[#fffaf4] p-1.5">
+                  <img
+                    src={getImagePath(product.imagem)}
+                    alt={product.nome}
+                    className="h-full w-full object-contain"
+                    onError={(event) => { event.currentTarget.style.display = "none"; }}
+                  />
+                </div>
+                <div className="min-w-0 lg:hidden">
+                  <p className="text-[10px] font-black uppercase tracking-[0.1em] text-hpsr-muted">Produto</p>
+                  <p className="truncate text-sm font-black text-hpsr-text">{product.nome}</p>
+                </div>
               </div>
+
+              <div className="min-w-0">
+                <div className="hidden items-center gap-2 lg:flex">
+                  <h3 className="truncate text-sm font-black text-hpsr-text">{product.nome}</h3>
+                  {active && <span className="rounded-full bg-[#f1dfcd] px-2 py-0.5 text-[9px] font-black uppercase text-hpsr-wine">Selecionado</span>}
+                </div>
+                <p className="mt-1 text-[11px] font-semibold leading-relaxed text-hpsr-muted">{product.descricao}</p>
+              </div>
+
               <div>
-                <h2 className="text-lg font-black text-hpsr-text">{currentTab.label}</h2>
-                <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">
-                  Defina livremente a quantidade de cada item, sem limite por produto.
-                </p>
+                <p className="text-[10px] font-black uppercase tracking-[0.1em] text-hpsr-muted lg:hidden">Preço</p>
+                <p className="text-sm font-black text-hpsr-text">{formatCurrency(effectivePrice)}</p>
+                {hasPmPrice && <span className="mt-1 inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-[9px] font-black text-blue-800">Valor PM</span>}
               </div>
-            </div>
 
-            <label className="flex min-h-[38px] items-center gap-3 rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-4 focus-within:border-hpsr-wineLight focus-within:ring-2 focus-within:ring-hpsr-wineLight/20">
-              <Search size={18} className="text-hpsr-muted" />
-              <input
-                className="w-full bg-transparent text-sm font-semibold text-hpsr-text outline-none placeholder:text-zinc-400"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Buscar item"
-              />
-            </label>
-          </div>
+              <div>
+                <p className="mb-1 text-[10px] font-black uppercase tracking-[0.1em] text-hpsr-muted lg:hidden">Quantidade</p>
+                <input
+                  value={quantity}
+                  onChange={(event) => onChangeQuantity(product.id, normalizeQuantity(event.target.value))}
+                  inputMode="numeric"
+                  aria-label={`Quantidade de ${product.nome}`}
+                  className="h-10 w-full max-w-[110px] rounded-[12px] border border-hpsr-border bg-[#fffdfa] px-3 text-center text-sm font-black text-hpsr-text outline-none focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20"
+                />
+              </div>
 
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto p-3.5">
-          <ProductGrid
-            products={filteredProducts}
-            cart={cart}
-            onIncrease={increase}
-            onDecrease={decrease}
-            onChangeQuantity={updateQuantity}
-            onClear={clearProduct}
-            getPrice={getEffectivePrice}
-            isPmSale={isPmSale}
-          />
-        </div>
-      </section>
+              <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                <button type="button" onClick={() => onDecrease(product.id)} className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-rose-500 text-white transition hover:bg-rose-600" aria-label={`Diminuir ${product.nome}`}>
+                  <Minus size={15} />
+                </button>
+                <button type="button" onClick={() => onIncrease(product.id)} className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-emerald-600 text-white transition hover:bg-emerald-700" aria-label={`Aumentar ${product.nome}`}>
+                  <Plus size={15} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onClear(product.id)}
+                  disabled={!active}
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-[11px] border border-hpsr-border bg-[#fffaf4] px-3 text-[10px] font-black text-hpsr-wine transition hover:bg-[#fff8f0] disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  <RotateCcw size={13} />
+                  Zerar
+                </button>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </div>
   );

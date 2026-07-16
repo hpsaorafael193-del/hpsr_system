@@ -321,3 +321,17 @@ button:active {
     margin: 0;
   }
 }
+
+@media (min-width: 1280px) {
+  .hpsr-calculadora-page {
+    height: calc(100dvh - 2.4rem);
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .hpsr-calculadora-page > .hpsr-page-scroll {
+    min-height: 0;
+    flex: 1 1 0%;
+    overflow: hidden;
+  }
+}
