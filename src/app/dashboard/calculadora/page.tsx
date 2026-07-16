@@ -115,6 +115,13 @@ const procedimentos: Product[] = [
     imagem: "Icones/procedimentos/Tratamento.png",
   },
   {
+    id: "p10",
+    nome: "DESLOCAMENTO (ILHAS)",
+    descricao: "Atendimento com deslocamento para as Ilhas.",
+    preco: 300000,
+    imagem: "Icones/procedimentos/Tratamento.png",
+  },
+  {
     id: "p2",
     nome: "RESSONÂNCIA MAGNÉTICA",
     descricao: "Exame de ressonância magnética.",
