@@ -566,15 +566,19 @@ function ReportHtml({ html }: { html: string }) {
 function FullHeader({ metadata }: { metadata: RenderMetadata }) {
   return (
     <>
-      <div className="pointer-events-none absolute right-[3.55%] top-[3.5%] text-right text-[12px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Data da Emissão: {formatDate(metadata.date)}</div>
-      <div className="pointer-events-none absolute right-[3.55%] top-[5.28%] text-right text-[11px] text-[#b1adac]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Protocolo: {metadata.protocol || "-"}</div>
-      <div className="pointer-events-none absolute left-1/2 top-[10.08%] flex h-[2.05%] w-[32.9%] -translate-x-1/2 items-center justify-center rounded-full border border-[#5b1809] text-center text-[14px] font-black uppercase text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>{metadata.examName || "EXAME"}</div>
-      <div className="pointer-events-none absolute left-[3.55%] top-[14.1%] h-[8%] w-[92.9%] rounded-[16px] border border-[#5b1809]" />
-      <div className="pointer-events-none absolute left-0 top-[15.1%] w-full text-center text-[14px] font-normal uppercase tracking-wide text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Identificação do Paciente</div>
-      <div className="pointer-events-none absolute left-[5.25%] top-[17.82%] text-[12px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Nome: {metadata.patient.name || "-"}</div>
-      <div className="pointer-events-none absolute left-[45.4%] top-[17.82%] text-[12px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Passaporte: {metadata.patient.passport || "-"}</div>
-      <div className="pointer-events-none absolute left-[79.95%] top-[17.82%] text-[12px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Tipo Sanguíneo: {metadata.patient.bloodType || "-"}</div>
-      <div className="pointer-events-none absolute left-[5.25%] top-[19.98%] text-[12px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Idade: {metadata.patient.age || "-"}</div>
+      <div className="pointer-events-none absolute left-[3.6%] top-[1.8%] flex items-start gap-3" style={{ zIndex: 2 }}>
+        <img src="/logo-sao-rafael-horizontal.png" alt="Hospital São Rafael" className="h-[52px] w-auto object-contain" draggable={false} />
+      </div>
+      <div className="pointer-events-none absolute right-[3.55%] top-[2.05%] text-right text-[11px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Data da Emissão: {formatDate(metadata.date)}</div>
+      <div className="pointer-events-none absolute right-[3.55%] top-[3.85%] text-right text-[10px] text-[#b1adac]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Protocolo: {metadata.protocol || "-"}</div>
+      <div className="pointer-events-none absolute left-[3.55%] top-[6.35%] h-px w-[92.9%] bg-[#8a4b39]/70" style={{ zIndex: 2 }} />
+      <div className="pointer-events-none absolute left-1/2 top-[9.55%] flex h-[2.05%] w-[32.9%] -translate-x-1/2 items-center justify-center rounded-full border border-[#5b1809] text-center text-[14px] font-black uppercase text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>{metadata.examName || "EXAME"}</div>
+      <div className="pointer-events-none absolute left-[3.55%] top-[13.7%] h-[8%] w-[92.9%] rounded-[16px] border border-[#5b1809]" />
+      <div className="pointer-events-none absolute left-0 top-[14.7%] w-full text-center text-[14px] font-normal uppercase tracking-wide text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Identificação do Paciente</div>
+      <div className="pointer-events-none absolute left-[5.25%] top-[17.45%] text-[12px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Nome: {metadata.patient.name || "-"}</div>
+      <div className="pointer-events-none absolute left-[45.4%] top-[17.45%] text-[12px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Passaporte: {metadata.patient.passport || "-"}</div>
+      <div className="pointer-events-none absolute left-[79.95%] top-[17.45%] text-[12px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Tipo Sanguíneo: {metadata.patient.bloodType || "-"}</div>
+      <div className="pointer-events-none absolute left-[5.25%] top-[19.75%] text-[12px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Idade: {metadata.patient.age || "-"}</div>
     </>
   );
 }
