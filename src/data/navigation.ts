@@ -39,7 +39,7 @@ export const toolsNavigation = [
   { label: "Documentos", href: "/dashboard/documentos", icon: FileText },
   { label: "Traumatologia", href: "/dashboard/traumatologia", icon: Bone },
   { label: "Banco de Sangue", href: "/dashboard/banco-de-sangue", icon: Droplets },
-  { label: "Assistente Clínico", href: "/dashboard/obstetricia", icon: Brain, hideForRoles: ["Estagiário de Enfermagem"] },
+  { label: "Assistente Clínico", href: "/dashboard/assistente-clinico", icon: Brain, hideForRoles: ["Estagiário de Enfermagem"] },
   { label: "Gestão de Leitos", href: "/dashboard/gestao-de-leitos", icon: Bed },
   { label: "Financeiro", href: "/dashboard/financeiro", icon: WalletCards },
 ];
