@@ -1,6 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@/lib/supabase";
+import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
+
 import {
   CalendarClock,
   ChevronRight,
@@ -60,6 +63,49 @@ export default function TraumaPage() {
   const [records, setRecords] = useState<CastRecord[]>(initialCastRecords);
   const [search, setSearch] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<CastRecord | null>(null);
+  const [loadingRecords, setLoadingRecords] = useState(true);
+  const [savingRecord, setSavingRecord] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadRecords() {
+      const client = createClient();
+      if (!client) {
+        if (active) setLoadingRecords(false);
+        await hpsrAlert("Não foi possível conectar ao Supabase.", "Controle de Gesso");
+        return;
+      }
+
+      const { data, error } = await client
+        .from("cast_records")
+        .select("id, patient, passport, fractures, placed_at, removal_at, status_override")
+        .order("created_at", { ascending: false });
+
+      if (!active) return;
+      setLoadingRecords(false);
+
+      if (error) {
+        await hpsrAlert(`Não foi possível carregar os registros de gesso: ${error.message}`, "Controle de Gesso");
+        return;
+      }
+
+      setRecords(
+        (data || []).map((row) => ({
+          id: String(row.id),
+          patient: String(row.patient || ""),
+          passport: String(row.passport || ""),
+          fractures: Array.isArray(row.fractures) ? row.fractures.map(String) : [],
+          placedAt: String(row.placed_at || ""),
+          removalAt: String(row.removal_at || ""),
+          statusOverride: row.status_override === "retirado" ? "retirado" : undefined,
+        }))
+      );
+    }
+
+    void loadRecords();
+    return () => { active = false; };
+  }, []);
 
   const filteredRecords = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -90,10 +136,11 @@ export default function TraumaPage() {
     [records]
   );
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const patient = String(form.get("patient") ?? "").trim();
     const passport = String(form.get("passport") ?? "").trim();
     const fractures = String(form.get("fractures") ?? "")
@@ -105,22 +152,67 @@ export default function TraumaPage() {
 
     if (!patient || !passport || !fractures.length || !placedAt || !removalAt) return;
 
-    setRecords((current) => [
-      {
-        id: `gesso-${Date.now()}`,
-        patient,
-        passport,
-        fractures,
-        placedAt,
-        removalAt,
-      },
-      ...current,
-    ]);
+    const client = createClient();
+    if (!client) {
+      await hpsrAlert("Não foi possível conectar ao Supabase.", "Controle de Gesso");
+      return;
+    }
 
-    event.currentTarget.reset();
+    const record: CastRecord = {
+      id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `gesso-${Date.now()}`,
+      patient,
+      passport,
+      fractures,
+      placedAt,
+      removalAt,
+    };
+
+    setSavingRecord(true);
+    const { error } = await client.from("cast_records").insert({
+      id: record.id,
+      patient: record.patient,
+      passport: record.passport,
+      fractures: record.fractures,
+      placed_at: record.placedAt,
+      removal_at: record.removalAt,
+      status_override: null,
+    });
+    setSavingRecord(false);
+
+    if (error) {
+      await hpsrAlert(`O registro de gesso não foi salvo: ${error.message}`, "Controle de Gesso");
+      return;
+    }
+
+    setRecords((current) => [record, ...current]);
+    formElement.reset();
   }
 
-  function updateRecord(updatedRecord: CastRecord) {
+  async function updateRecord(updatedRecord: CastRecord) {
+    const client = createClient();
+    if (!client) {
+      await hpsrAlert("Não foi possível conectar ao Supabase.", "Controle de Gesso");
+      return;
+    }
+
+    const { error } = await client
+      .from("cast_records")
+      .update({
+        patient: updatedRecord.patient,
+        passport: updatedRecord.passport,
+        fractures: updatedRecord.fractures,
+        placed_at: updatedRecord.placedAt,
+        removal_at: updatedRecord.removalAt,
+        status_override: updatedRecord.statusOverride || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", updatedRecord.id);
+
+    if (error) {
+      await hpsrAlert(`Não foi possível atualizar o registro de gesso: ${error.message}`, "Controle de Gesso");
+      return;
+    }
+
     setRecords((current) => current.map((record) => (record.id === updatedRecord.id ? updatedRecord : record)));
     setSelectedRecord(updatedRecord);
   }
@@ -242,10 +334,11 @@ export default function TraumaPage() {
             <div className="sticky bottom-0 mt-3 bg-white/[0.94] pt-3">
               <button
                 type="submit"
+                disabled={savingRecord}
                 className="flex w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#672614,#2a0700)] px-4 py-3 text-sm font-black text-white shadow-[0_12px_24px_rgba(42,7,0,0.16)] transition hover:brightness-105"
               >
                 <FilePlus2 size={17} />
-                Registrar gesso
+                {savingRecord ? "Salvando..." : "Registrar gesso"}
               </button>
             </div>
           </form>
@@ -275,7 +368,13 @@ export default function TraumaPage() {
               <CastHistoryCard key={record.id} record={record} onOpen={() => setSelectedRecord(record)} />
             ))}
 
-            {filteredRecords.length === 0 && (
+            {loadingRecords && (
+              <div className="rounded-[20px] border border-dashed border-hpsr-border bg-[#fffaf4] p-3.5 text-center">
+                <p className="font-black text-hpsr-text">Carregando registros...</p>
+              </div>
+            )}
+
+            {!loadingRecords && filteredRecords.length === 0 && (
               <div className="rounded-[20px] border border-dashed border-hpsr-border bg-[#fffaf4] p-3.5 text-center">
                 <p className="font-black text-hpsr-text">Nenhum registro encontrado.</p>
                 <p className="mt-1 text-sm font-semibold text-hpsr-muted">Tente buscar por outro paciente, passaporte ou status.</p>
@@ -377,7 +476,7 @@ function CastRecordModal({
 }: {
   record: CastRecord;
   onClose: () => void;
-  onSave: (record: CastRecord) => void;
+  onSave: (record: CastRecord) => Promise<void>;
 }) {
   const [patient, setPatient] = useState(record.patient);
   const [passport, setPassport] = useState(record.passport);
@@ -397,7 +496,7 @@ function CastRecordModal({
   const status = statusMap[statusKey];
   const Icon = status.icon;
 
-  function saveChanges(markRemoved = false) {
+  async function saveChanges(markRemoved = false) {
     const updated: CastRecord = {
       ...record,
       patient: patient.trim(),
@@ -408,7 +507,7 @@ function CastRecordModal({
       statusOverride: markRemoved ? "retirado" : record.statusOverride,
     };
 
-    onSave(updated);
+    await onSave(updated);
   }
 
   return (

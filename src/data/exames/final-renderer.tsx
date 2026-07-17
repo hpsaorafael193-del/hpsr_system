@@ -68,6 +68,60 @@ const CONTINUATION_PAGE_CAPACITY = 850;
 
 const REPORT_MEASURE_CLASS = "hpsr-document-body [&_blockquote]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-[#5b1809]/35 [&_blockquote]:bg-[#fffaf4] [&_blockquote]:px-2 [&_blockquote]:py-1.5 [&_h1]:mb-2 [&_h1]:text-center [&_h1]:text-base [&_h1]:font-black [&_h1]:uppercase [&_h1]:tracking-[0.06em] [&_h1]:text-[#5b1809] [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:break-after-avoid [&_h2]:border-b [&_h2]:border-[#5b1809]/20 [&_h2]:pb-1 [&_h2]:text-sm [&_h2]:font-black [&_h2]:uppercase [&_h2]:tracking-[0.04em] [&_h2]:text-[#5b1809] [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:break-after-avoid [&_h3]:text-xs [&_h3]:font-black [&_h3]:text-[#5b1809] [&_li]:ml-5 [&_ol]:my-1.5 [&_p]:my-1.5 [&_table]:my-2 [&_table]:w-full [&_table]:break-inside-avoid [&_table]:border-collapse [&_td]:border [&_td]:border-[#5b1809]/20 [&_td]:px-2 [&_td]:py-1.5 [&_td]:align-top [&_th]:border [&_th]:border-[#5b1809]/25 [&_th]:bg-[#5b1809]/10 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-black [&_th]:text-[#5b1809] [&_ul]:my-1.5";
 
+function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity: number) {
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = html;
+  const root = wrapper.firstElementChild as HTMLElement | null;
+  if (!root) return [html];
+
+  const tag = root.tagName.toLowerCase();
+
+  if (tag === "table") {
+    const thead = root.querySelector("thead")?.outerHTML || "";
+    const rows = Array.from(root.querySelectorAll("tbody tr"));
+    if (!rows.length) return [html];
+    return rows.map((row) => `<table>${thead}<tbody>${row.outerHTML}</tbody></table>`);
+  }
+
+  if (tag === "ul" || tag === "ol") {
+    const items = Array.from(root.children).filter((child) => child.tagName.toLowerCase() === "li");
+    if (!items.length) return [html];
+    return items.map((item, index) => {
+      const start = tag === "ol" && index > 0 ? ` start="${index + 1}"` : "";
+      return `<${tag}${start}>${item.outerHTML}</${tag}>`;
+    });
+  }
+
+  if ((tag === "div" || tag === "section" || tag === "article") && root.children.length > 1) {
+    return Array.from(root.children).map((child) => child.outerHTML);
+  }
+
+  if (tag === "p" || tag === "blockquote" || tag === "div") {
+    const text = (root.textContent || "").trim();
+    if (!text) return [html];
+    const words = text.split(/\s+/);
+    const fragments: string[] = [];
+    let current: string[] = [];
+    const opening = root.outerHTML.match(/^<[^>]+>/)?.[0] || `<${tag}>`;
+    const closing = `</${tag}>`;
+
+    for (const word of words) {
+      const candidate = [...current, word];
+      measure.innerHTML = `${opening}${candidate.join(" ")}${closing}`;
+      if (current.length && measure.scrollHeight > capacity) {
+        fragments.push(`${opening}${current.join(" ")}${closing}`);
+        current = [word];
+      } else {
+        current = candidate;
+      }
+    }
+    if (current.length) fragments.push(`${opening}${current.join(" ")}${closing}`);
+    return fragments.length ? fragments : [html];
+  }
+
+  return [html];
+}
+
 function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[]) {
   if (typeof window === "undefined" || typeof document === "undefined") return null;
 
@@ -93,30 +147,85 @@ function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[]) {
   const pages: string[][] = [];
   let current: string[] = [];
   let pageIndex = 0;
+  const queue = [...blocks];
 
-  const fits = (candidate: string[]) => {
-    measure.innerHTML = candidate.join("");
-    return measure.scrollHeight <= capacities[Math.min(pageIndex, 1)] + 1;
+  const currentCapacity = () => capacities[Math.min(pageIndex, 1)];
+  const renderedHeight = (html: string) => {
+    measure.innerHTML = html;
+    return measure.scrollHeight;
   };
+  const fitsCurrentPage = (html: string) => renderedHeight(html) <= currentCapacity() + 1;
 
   try {
-    for (const block of blocks) {
-      const candidate = [...current, block.html];
-      if (current.length > 0 && !fits(candidate)) {
-        pages.push(current);
-        current = [block.html];
-        pageIndex += 1;
-      } else {
-        current = candidate;
+    while (queue.length) {
+      const block = queue.shift()!;
+      const candidateHtml = [...current, block.html].join("");
+
+      if (fitsCurrentPage(candidateHtml)) {
+        current.push(block.html);
+        continue;
       }
+
+      // Antes de abrir outra página, tenta usar exatamente o espaço que ainda
+      // resta. Isso evita grandes áreas vazias quando o próximo bloco é uma
+      // tabela, lista ou parágrafo que pode ser dividido com segurança.
+      const currentHtml = current.join("");
+      const remainingCapacity = Math.max(0, currentCapacity() - renderedHeight(currentHtml));
+      if (remainingCapacity >= 28) {
+        const fragments = splitOversizedHtmlBlock(block.html, measure, remainingCapacity);
+        if (fragments.length > 1) {
+          let consumed = 0;
+          for (let index = 0; index < fragments.length; index += 1) {
+            const fragment = fragments[index];
+            const withFragment = [...current, fragment].join("");
+            if (!fitsCurrentPage(withFragment)) break;
+            current.push(fragment);
+            consumed += 1;
+          }
+
+          if (consumed > 0) {
+            pages.push(current);
+            current = [];
+            pageIndex += 1;
+            const remainingFragments = fragments.slice(consumed).map((fragment) => ({
+              html: fragment,
+              kind: blockKind(fragment),
+              weight: estimateBlockWeight(fragment),
+            }));
+            queue.unshift(...remainingFragments);
+            continue;
+          }
+        }
+      }
+
+      if (current.length) {
+        pages.push(current);
+        current = [];
+        pageIndex += 1;
+        queue.unshift(block);
+        continue;
+      }
+
+      const fragments = splitOversizedHtmlBlock(block.html, measure, currentCapacity());
+      if (fragments.length > 1) {
+        queue.unshift(...fragments.map((fragment) => ({
+          html: fragment,
+          kind: blockKind(fragment),
+          weight: estimateBlockWeight(fragment),
+        })));
+        continue;
+      }
+
+      // Último recurso para um elemento realmente indivisível.
+      current.push(block.html);
     }
+
     if (current.length || !pages.length) pages.push(current);
     return pages;
   } finally {
     measure.remove();
   }
 }
-
 function textOnly(html: string) {
   return html.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
 }
@@ -298,7 +407,7 @@ function mergeConclusionWithText(blocks: ClinicalBlock[]) {
 
 export function splitClinicalReportHtmlIntoPages(html: string, signatureImage?: string | null) {
   const body = stripInstitutionalShell(html, signatureImage);
-  const blocks = mergeConclusionWithText(parseClinicalBlocks(body));
+  const blocks = parseClinicalBlocks(body);
   if (!blocks.length) return [""];
 
   const renderedPages = splitClinicalBlocksByRenderedHeight(blocks);

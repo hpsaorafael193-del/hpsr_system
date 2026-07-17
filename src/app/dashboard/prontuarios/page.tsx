@@ -383,31 +383,31 @@ export default function RecordsPage() {
   }
 
   return (
-    <div className="hpsr-page gap-3">
+    <div className="hpsr-page gap-2 xl:h-[calc(100dvh-2.4rem)] xl:min-h-0 xl:overflow-hidden">
       <PageHeader
         eyebrow="Prontuários"
         title="Prontuários"
         description="Histórico clínico por paciente."
       />
 
-      <section className="overflow-hidden rounded-[16px] border border-hpsr-border bg-white">
-        <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-3.5">
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.68fr)] xl:items-center">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-white">
+        <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] px-3 py-2.5">
+          <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.68fr)] xl:items-center">
             <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-hpsr-border bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wine">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-hpsr-border bg-white px-2.5 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wine">
                 <UsersRound size={14} />
                 Painel geral dos pacientes
               </span>
-              <h2 className="mt-3 text-[clamp(1.35rem,2vw,1.8rem)] font-black text-hpsr-text">
+              <h2 className="mt-1.5 text-[clamp(1.15rem,1.6vw,1.5rem)] font-black leading-tight text-hpsr-text">
                 Lista de pacientes e resumo do prontuário
               </h2>
-              <p className="mt-1 max-w-3xl text-sm leading-relaxed text-hpsr-muted">
+              <p className="mt-0.5 max-w-3xl text-xs leading-snug text-hpsr-muted">
                 Cada paciente aparece como um resumo. Ao selecionar, o painel do prontuário é expandido logo abaixo da lista.
               </p>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
-              <label className="flex min-h-[52px] items-center gap-3 rounded-[16px] border border-hpsr-border bg-white px-4 focus-within:border-hpsr-wineLight focus-within:ring-2 focus-within:ring-hpsr-wineLight/20">
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <label className="flex min-h-[42px] items-center gap-2.5 rounded-[14px] border border-hpsr-border bg-white px-3 focus-within:border-hpsr-wineLight focus-within:ring-2 focus-within:ring-hpsr-wineLight/20">
                 <Search size={18} className="text-hpsr-muted" />
                 <input
                   className="w-full bg-transparent text-sm font-semibold text-hpsr-text outline-none placeholder:text-zinc-400"
@@ -425,7 +425,7 @@ export default function RecordsPage() {
               <button
                 type="button"
                 onClick={() => setIsRegisterOpen(true)}
-                className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 text-sm font-black text-white transition"
+                className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#672614,#74321e)] px-3.5 text-xs font-black text-white transition"
               >
                 <Plus size={16} />
                 Novo registro
@@ -433,7 +433,7 @@ export default function RecordsPage() {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-2.5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <GeneralMetric label="Pacientes" value={String(patients.length)} icon={<UserRound size={17} />} />
             <GeneralMetric label="Em acompanhamento" value={String(patients.filter((patient) => patient.status === "Em acompanhamento").length)} icon={<HeartPulse size={17} />} />
             <GeneralMetric label="Eventos clínicos" value={String(timelineEvents.length)} icon={<FileClock size={17} />} />
@@ -441,9 +441,9 @@ export default function RecordsPage() {
           </div>
         </div>
 
-        <div className="grid gap-3 p-3.5 xl:grid-cols-[minmax(360px,0.45fr)_minmax(0,1fr)]">
-          <div className="rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3">
-            <div className="mb-3 flex items-center justify-between gap-3 px-1">
+        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden p-3.5 xl:grid-cols-[minmax(360px,0.45fr)_minmax(0,1fr)] xl:items-stretch">
+          <div className="flex min-h-0 flex-col rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3 xl:h-full">
+            <div className="mb-3 flex shrink-0 items-center justify-between gap-3 px-1">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Pacientes</p>
                 <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{visiblePatients.length} resultado{visiblePatients.length === 1 ? "" : "s"}</p>
@@ -453,7 +453,7 @@ export default function RecordsPage() {
               </span>
             </div>
 
-            <div className="grid max-h-[560px] gap-2 overflow-y-auto pr-1">
+            <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto pr-1">
               {visiblePatients.map((patient) => {
                 const selected = selectedPatient?.passport === patient.passport;
                 const events = timelineEvents.filter((event) => event.patientPassport === patient.passport);
@@ -519,7 +519,7 @@ export default function RecordsPage() {
           </div>
 
           {selectedPatient ? (
-            <div className="min-w-0 overflow-hidden rounded-[16px] border border-hpsr-border bg-white">
+            <div className="min-w-0 overflow-hidden rounded-[16px] border border-hpsr-border bg-white xl:h-full xl:min-h-0 xl:overflow-y-auto">
               <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-3.5">
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                   <div>
@@ -991,12 +991,14 @@ function SummaryCard({ label, value, icon }: { label: string; value: string; ico
 
 function GeneralMetric({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
-    <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">{label}</p>
-        <span className="text-hpsr-wine">{icon}</span>
+    <div className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="truncate text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">{label}</p>
+          <p className="mt-0.5 text-base font-black leading-none text-hpsr-text">{value}</p>
+        </div>
+        <span className="shrink-0 text-hpsr-wine">{icon}</span>
       </div>
-      <p className="mt-2 text-lg font-black text-hpsr-text">{value}</p>
     </div>
   );
 }

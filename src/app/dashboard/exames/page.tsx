@@ -2080,7 +2080,7 @@ export default function ExamesPage() {
                 <div className="grid grid-cols-[1fr_120px] gap-2 rounded-[15px] border border-[#e0c7b0] bg-white/70 p-2.5">
                   <div>
                     <FieldLabel>Médico</FieldLabel>
-                    <p className="truncate text-sm font-black text-hpsr-text">{doctor.name || "-"}</p>
+                    <p className="break-words text-sm font-black leading-snug text-hpsr-text">{doctor.name || "-"}</p>
                     <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">
                       {availableDoctors.find((item) => item.id === selectedDoctorId)?.specialty || "Especialidade"}
                     </p>
@@ -2102,7 +2102,7 @@ export default function ExamesPage() {
                         {(() => { const ExamIcon = resolveExamIcon(selectedExam?.icone); return <ExamIcon size={20} strokeWidth={2.2} />; })()}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-hpsr-text">{selectedExam?.nome || "Exame selecionado"}</p>
+                        <p className="break-words text-sm font-black leading-snug text-hpsr-text">{selectedExam?.nome || "Exame selecionado"}</p>
                         <p className="text-[11px] font-semibold text-hpsr-muted">{categoryLabels[selectedExam?.categoria || selectedCategory] || selectedCategory}</p>
                       </div>
                     </div>
@@ -2164,7 +2164,7 @@ export default function ExamesPage() {
                             type="button"
                             onClick={() => applyModelFor(exam)}
                             aria-pressed={isSelected}
-                            className={`group relative min-h-[92px] overflow-hidden rounded-[16px] border p-3 text-left transition-all duration-200 ${isSelected ? "border-hpsr-wine bg-[linear-gradient(145deg,#fff7ec_0%,#ffedda_100%)] shadow-[0_10px_22px_rgba(103,38,20,0.12)] ring-1 ring-hpsr-wine/10" : "border-[#ddc7b4] bg-white shadow-[0_4px_12px_rgba(42,7,0,0.035)] hover:-translate-y-0.5 hover:border-hpsr-wine/40 hover:bg-[#fffaf4] hover:shadow-[0_10px_20px_rgba(42,7,0,0.08)]"}`}
+                            className={`group relative min-h-[104px] overflow-visible rounded-[16px] border p-3 text-left transition-all duration-200 ${isSelected ? "border-hpsr-wine bg-[linear-gradient(145deg,#fff7ec_0%,#ffedda_100%)] shadow-[0_10px_22px_rgba(103,38,20,0.12)] ring-1 ring-hpsr-wine/10" : "border-[#ddc7b4] bg-white shadow-[0_4px_12px_rgba(42,7,0,0.035)] hover:-translate-y-0.5 hover:border-hpsr-wine/40 hover:bg-[#fffaf4] hover:shadow-[0_10px_20px_rgba(42,7,0,0.08)]"}`}
                           >
                             <span className={`absolute inset-y-0 left-0 w-1 transition ${isSelected ? "bg-hpsr-wine" : "bg-transparent group-hover:bg-hpsr-wine/25"}`} />
                             <div className="flex h-full items-start gap-3">
@@ -2175,7 +2175,7 @@ export default function ExamesPage() {
                                 <p className="mb-1 text-[9px] font-black uppercase tracking-[0.11em] text-hpsr-muted">
                                   {categoryLabels[exam.categoria] || exam.categoria}
                                 </p>
-                                <p className="line-clamp-3 text-[13px] font-black leading-[1.2] text-hpsr-text">
+                                <p className="break-words text-[13px] font-black leading-[1.25] text-hpsr-text">
                                   {exam.nome}
                                 </p>
                               </div>

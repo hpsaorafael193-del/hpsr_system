@@ -537,6 +537,34 @@ export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
     ? paragraphs(rows.map((row) => `${row[0]}: ${row[1]} (${row[2]})`).join("\n"))
     : "";
 
+  if (model.id === "geral_exame_toxicologico") {
+    const substanceIds = new Set(["canabinoides", "cocaina", "anfetaminas", "metanfetaminas", "opiaceos", "benzodiazepinicos", "barbituricos", "metadona", "fenciclidina", "outras_substancias"]);
+    const substanceRows = resolved.parameters.filter((parameter) => substanceIds.has(parameter.id)).map((parameter) => [
+      parameter.label,
+      resultForParameter(model, parameter, profile),
+      (parameter.referencia || "Conforme método").replace(/^Valor de corte:\s*/i, ""),
+    ]);
+    const qualityRows = resolved.parameters.filter((parameter) => !substanceIds.has(parameter.id)).map((parameter) => [
+      parameter.label,
+      resultForParameter(model, parameter, profile),
+      parameter.referencia || "Conforme método",
+    ]);
+    const material = resolved.adapterValue || "A informar";
+    const purpose = paragraphs(model.technique);
+    const biologicalMaterial = `<p><strong>Amostra analisada:</strong> ${htmlEscape(material)}</p><p><strong>Data da coleta:</strong> DD/MM/AAAA</p><p><strong>Hora da coleta:</strong> HH:MM</p><p><strong>Condições da amostra:</strong> A informar</p><p><strong>Número de identificação da amostra:</strong> A informar</p>`;
+    const method = paragraphs(model.method) + contextText;
+    return [
+      section("finalidade", "1. Finalidade do Exame", purpose),
+      section("material_biologico", "2. Material Biológico", biologicalMaterial),
+      section("tecnica_metodo", "3. Técnica e Método Utilizado", method),
+      section("substancias_pesquisadas", "4. Substâncias Pesquisadas", tableHtml(["Substância ou classe", "Resultado", "Valor de corte"], substanceRows)),
+      section("controle_qualidade", "5. Controle de Qualidade da Amostra", tableHtml(["Parâmetro", "Resultado", "Referência"], qualityRows)),
+      section("resultado_laboratorial", "6. Resultado Laboratorial", paragraphs(profile.resultSummary)),
+      section("interpretacao", "7. Interpretação", paragraphs(profile.interpretation)),
+      section("conclusao", "8. Conclusão", paragraphs(`Perfil do resultado: ${profile.name}.\n${profile.conclusion}\nOs achados devem ser interpretados em conjunto com os dados clínicos, ocupacionais e administrativos disponíveis. Este exame não determina, isoladamente, o grau de comprometimento funcional, o momento exato do uso ou a frequência de exposição à substância pesquisada.`)),
+    ].join("");
+  }
+
   if (isImage) {
     return [
       section("tecnica", "1. Técnica / Método", technique + adapterText + contrastText + contextText),

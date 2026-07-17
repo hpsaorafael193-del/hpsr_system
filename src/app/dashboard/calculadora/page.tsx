@@ -550,8 +550,8 @@ export default function CalculatorPage() {
 
         <aside className="order-1 min-h-0 overflow-hidden xl:order-2">
           <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-[0_18px_42px_rgba(79,42,21,0.09)]">
-            <div className="min-h-0 flex-1 bg-[linear-gradient(145deg,#fff8f1_0%,#f8eadc_100%)] p-4">
-              <div className="flex items-center justify-between gap-3">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[linear-gradient(145deg,#fff8f1_0%,#f8eadc_100%)] p-4">
+              <div className="flex shrink-0 items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white shadow-sm">
                     <ReceiptText size={19} />
@@ -566,8 +566,8 @@ export default function CalculatorPage() {
                 </span>
               </div>
 
-              <div className="mt-4 rounded-[20px] border border-[#d9cbbb] bg-[linear-gradient(180deg,#fffefd_0%,#fff8f1_100%)] p-4 shadow-[0_10px_28px_rgba(90,46,24,0.07)]">
-                <div className="flex items-center justify-between gap-3 border-b border-dashed border-[#cfbda9] pb-3">
+              <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[#d9cbbb] bg-[linear-gradient(180deg,#fffefd_0%,#fff8f1_100%)] p-4 shadow-[0_10px_28px_rgba(90,46,24,0.07)]">
+                <div className="flex shrink-0 items-center justify-between gap-3 border-b border-dashed border-[#cfbda9] pb-3">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[.08em] text-hpsr-muted">Condições da compra</p>
                     <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -605,7 +605,7 @@ export default function CalculatorPage() {
                   </div>
                 </div>
 
-                <div className="mt-3 grid gap-2">
+                <div className="mt-3 grid shrink-0 gap-2">
                   {convenioOptions.map((option) => (
                     <button
                       key={option.id}
@@ -631,15 +631,15 @@ export default function CalculatorPage() {
                   ))}
                 </div>
 
-                <div className="mt-3 border-t border-dashed border-[#cfbda9] pt-3">
+                <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden border-t border-dashed border-[#cfbda9] pt-3">
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <p className="text-[11px] font-black uppercase tracking-[.08em] text-hpsr-muted">Itens da compra</p>
                     <p className="text-[11px] font-bold text-hpsr-muted">Qtd. total: {totalUnits}</p>
                   </div>
-                  <div className="min-h-[150px]">
+                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
                     {selectedItems.length ? (
                       <div className="space-y-2.5">
-                        {selectedItems.slice(0, 4).map((item, index) => (
+                        {selectedItems.map((item, index) => (
                           <div key={item.product.id} className="grid grid-cols-[22px_minmax(0,1fr)_auto] items-start gap-3 text-sm">
                             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#f2e2d4] text-[11px] font-black text-hpsr-wine">{index + 1}</span>
                             <div className="min-w-0">
@@ -649,9 +649,6 @@ export default function CalculatorPage() {
                             <p className="font-black text-hpsr-text">{formatCurrency(item.quantity * getEffectivePrice(item.product))}</p>
                           </div>
                         ))}
-                        {selectedItems.length > 4 ? (
-                          <p className="pt-1 text-center text-[11px] font-semibold text-hpsr-muted">+ {selectedItems.length - 4} item(ns) adicionais no recibo final</p>
-                        ) : null}
                       </div>
                     ) : (
                       <div className="flex min-h-[120px] items-center justify-center text-center">
@@ -664,7 +661,7 @@ export default function CalculatorPage() {
                   </div>
                 </div>
 
-                <div className="mt-3 border-t border-dashed border-[#cbb8a2] pt-3">
+                <div className="mt-3 shrink-0 border-t border-dashed border-[#cbb8a2] pt-3">
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-semibold text-hpsr-text">Subtotal</span>
