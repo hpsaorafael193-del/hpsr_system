@@ -125,6 +125,29 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
     router.push("/dashboard");
   }
 
+  async function handleForgotPassword() {
+    setAuthMessage("");
+    const email = loginForm.email.trim();
+    if (!email) {
+      setAuthMessage("Informe o e-mail institucional para receber o link de redefinição.");
+      return;
+    }
+    const client = createClient();
+    if (!client) {
+      setAuthMessage("Não foi possível conectar ao Supabase.");
+      return;
+    }
+    setAuthLoading(true);
+    const redirectTo = `${window.location.origin}/redefinir-senha`;
+    const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
+    setAuthLoading(false);
+    if (error) {
+      setAuthMessage(error.message || "Não foi possível enviar o link de redefinição.");
+      return;
+    }
+    setAuthMessage("Se o e-mail estiver cadastrado, você receberá um link para criar uma nova senha.");
+  }
+
   async function handleRegister(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = registerForm;
@@ -319,6 +342,9 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                 <AccessField label="Senha" icon={<Lock size={16} className="text-hpsr-wine" />}>
                   <input type={showLoginPassword ? "text" : "password"} value={loginForm.password} onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))} placeholder="Digite sua senha" className="w-full bg-transparent text-[13px] font-semibold text-hpsr-text outline-none placeholder:text-zinc-400" /><button type="button" onClick={() => setShowLoginPassword((v) => !v)} className="text-[11px] font-black text-hpsr-wine">{showLoginPassword ? "Ocultar" : "Mostrar"}</button>
                 </AccessField>
+                <div className="flex justify-end">
+                  <button type="button" onClick={() => void handleForgotPassword()} disabled={authLoading} className="text-[11px] font-black text-hpsr-wine underline-offset-4 hover:underline disabled:opacity-60">Esqueci minha senha</button>
+                </div>
               </>}
               <label className="flex cursor-pointer items-start gap-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3">
                 <input type="checkbox" checked={rememberEmail} onChange={(event) => setRememberEmail(event.target.checked)} className="mt-0.5 h-4 w-4 accent-hpsr-wine" />

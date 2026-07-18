@@ -82,6 +82,29 @@ function LoginContent() {
     window.location.href = "/dashboard";
   }
 
+  async function handleForgotPassword() {
+    setMessage("");
+    const email = loginEmail.trim();
+    if (!email) {
+      setMessage("Informe o e-mail institucional para receber o link de redefinição.");
+      return;
+    }
+    const client = createClient();
+    if (!client) {
+      setMessage("Configure o Supabase para redefinir a senha.");
+      return;
+    }
+    setBusy(true);
+    const redirectTo = `${window.location.origin}/redefinir-senha`;
+    const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
+    setBusy(false);
+    if (error) {
+      setMessage(error.message || "Não foi possível enviar o link de redefinição.");
+      return;
+    }
+    setMessage("Se o e-mail estiver cadastrado, você receberá um link para criar uma nova senha.");
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!form.name.trim() || !form.passport.trim() || !form.email.trim() || !form.discord.trim()) {
@@ -158,6 +181,7 @@ function LoginContent() {
             <div className="space-y-4">
               <FormField label="E-mail institucional"><input className={inputClass} type="email" value={loginEmail} onChange={(e)=>setLoginEmail(e.target.value)} /></FormField>
               <FormField label="Senha"><div className="relative"><input className={`${inputClass} pr-20`} type={showLoginPassword ? "text" : "password"} value={loginPassword} onChange={(e)=>setLoginPassword(e.target.value)} /><button type="button" onClick={() => setShowLoginPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-hpsr-wine">{showLoginPassword ? "Ocultar" : "Mostrar"}</button></div></FormField>
+              <div className="flex justify-end"><button type="button" onClick={() => void handleForgotPassword()} disabled={busy} className="text-xs font-black text-hpsr-wine underline-offset-4 hover:underline disabled:opacity-60">Esqueci minha senha</button></div>
             </div>
             <div className="mt-4 space-y-2">
               <label className="flex cursor-pointer items-start gap-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3">
