@@ -158,8 +158,8 @@ export default function RecordsPage() {
       setIsLoadingPatients(true);
       const [registryResult, recordsResult, appointmentsResult, portalResult] = await Promise.all([
         supabase.from("patient_registry").select("passport,name,age,blood_type,city_phone,email,created_at,updated_at").order("created_at", { ascending: false }),
-        supabase.from("clinical_records").select("id,patient_passport,record_type,payload,created_at").order("created_at", { ascending: false }),
-        supabase.from("appointments").select("id,passport,patient,status,payload,created_at,updated_at").order("created_at", { ascending: false }),
+        supabase.from("clinical_records").select("id,patient_passport,record_type,created_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,summary:payload->>summary").order("created_at", { ascending: false }),
+        supabase.from("appointments").select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,doctor_name:payload->>doctor,reason:payload->>reason,notes:payload->>notes").order("created_at", { ascending: false }),
         supabase.from("patient_portal_access").select("id,patient_passport,email,access_enabled,created_at").order("created_at", { ascending: false }),
       ]);
 
@@ -211,8 +211,7 @@ export default function RecordsPage() {
       }
 
       for (const row of (appointmentsResult.data || []) as any[]) {
-        const payload = row.payload || {};
-        const passport = String(row.passport || payload.passport || "").trim();
+        const passport = String(row.passport || "").trim();
         if (!passport) continue;
         const registeredPatient = patientMap.get(passport);
         if (registeredPatient) {
@@ -226,18 +225,17 @@ export default function RecordsPage() {
           id: `appointment-${row.id}`,
           patientPassport: passport,
           type: "Consulta",
-          title: payload.specialty ? `Consulta · ${payload.specialty}` : "Consulta agendada",
-          date: String(payload.preferredDate || row.created_at || "").slice(0, 10),
-          doctor: payload.doctor || "Equipe médica",
+          title: row.specialty ? `Consulta · ${row.specialty}` : "Consulta agendada",
+          date: String(row.preferred_date || row.created_at || "").slice(0, 10),
+          doctor: row.doctor_name || "Equipe médica",
           status: row.status || "Agendada",
-          summary: payload.reason || payload.notes || "Consulta registrada no sistema.",
+          summary: row.reason || row.notes || "Consulta registrada no sistema.",
         });
       }
 
       for (const row of (recordsResult.data || []) as any[]) {
         const passport = String(row.patient_passport || "").trim();
         if (!passport) continue;
-        const payload = row.payload || {};
         const registeredPatient = patientMap.get(passport);
         if (registeredPatient) {
           upsertPatient(passport, {
@@ -260,11 +258,11 @@ export default function RecordsPage() {
           id: row.id,
           patientPassport: passport,
           type: kind,
-          title: payload.examName || payload.documentTitle || payload.title || row.record_type,
+          title: row.exam_name || row.document_title || row.title || row.record_type,
           date: String(row.created_at || "").slice(0, 10),
-          doctor: payload.doctor?.name || payload.doctorName || "Equipe médica",
+          doctor: row.doctor_name || row.doctor_name_flat || "Equipe médica",
           status: "Concluído",
-          summary: payload.summary || "Registro armazenado no prontuário.",
+          summary: row.summary || "Registro armazenado no prontuário.",
         });
       }
 

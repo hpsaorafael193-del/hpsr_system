@@ -18,15 +18,14 @@ export function ClinicalHistoryButton({ recordType }: { recordType: "Exame" | "D
     if (!client) return;
     let active = true;
     setLoading(true);
-    void client.from("clinical_records").select("id,record_type,payload,created_at").eq("record_type", recordType).order("created_at", { ascending: false }).limit(150).then(({ data }: { data: any[] | null }) => {
+    void client.from("clinical_records").select("id,record_type,created_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,patient_name:payload->patient->>name,patient_name_flat:payload->>patientName,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName").eq("record_type", recordType).order("created_at", { ascending: false }).limit(150).then(({ data }: { data: any[] | null }) => {
       if (!active) return;
       setItems((data || []).map((row: any) => {
-        const payload = (row.payload || {}) as Record<string, any>;
         return {
           id: String(row.id),
-          title: String(payload.examName || payload.documentTitle || payload.title || recordType),
-          patient: String(payload.patient?.name || payload.patientName || "Paciente não informado"),
-          doctor: String(payload.doctor?.name || payload.doctorName || "Médico não informado"),
+          title: String(row.exam_name || row.document_title || row.title || recordType),
+          patient: String(row.patient_name || row.patient_name_flat || "Paciente não informado"),
+          doctor: String(row.doctor_name || row.doctor_name_flat || "Médico não informado"),
           createdAt: String(row.created_at || ""),
         };
       }));

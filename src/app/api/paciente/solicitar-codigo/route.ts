@@ -96,47 +96,7 @@ async function findPatient(
     return { exists: true, email: normalizeEmail(registeredPatient.email) };
   }
 
-  // Compatibilidade para registros anteriores à criação do cadastro institucional.
-  const [{ data: records, error: recordsError }, { data: appointments, error: appointmentsError }] = await Promise.all([
-    supabase.from("clinical_records").select("patient_passport,payload"),
-    supabase.from("appointments").select("passport,patient,payload"),
-  ]);
-  if (recordsError) throw recordsError;
-  if (appointmentsError) throw appointmentsError;
-
-  for (const row of records || []) {
-    const storedPassport = normalizePassport(row.patient_passport) || findPassportInPayload(row.payload);
-    if (storedPassport !== normalizedPassport) continue;
-    const payload = asRecord(row.payload);
-    const patient = asRecord(payload.patient);
-    const email = findEmailInPayload(row.payload);
-    await supabase.from("patient_registry").upsert({
-      passport: normalizedPassport,
-      name: String(patient.name || payload.patientName || `Paciente ${normalizedPassport}`),
-      age: String(patient.age || payload.age || "") || null,
-      blood_type: String(patient.bloodType || payload.bloodType || "") || null,
-      city_phone: String(patient.cityPhone || payload.cityPhone || "") || null,
-      email: email || null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "passport" });
-    return { exists: true, email };
-  }
-
-  for (const row of appointments || []) {
-    const storedPassport = normalizePassport(row.passport) || findPassportInPayload(row.payload);
-    if (storedPassport !== normalizedPassport) continue;
-    const payload = asRecord(row.payload);
-    const patient = asRecord(payload.patient);
-    const email = findEmailInPayload(row.payload);
-    await supabase.from("patient_registry").upsert({
-      passport: normalizedPassport,
-      name: String(row.patient || patient.name || payload.patientName || `Paciente ${normalizedPassport}`),
-      email: email || null,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "passport" });
-    return { exists: true, email };
-  }
-
+  // O cadastro institucional é a fonte de verdade. Evita varrer prontuários e consultas inteiros.
   return { exists: false, email: "" };
 }
 
@@ -154,23 +114,23 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = getServiceClient();
-    const { data: accessRows, error: accessLookupError } = await supabase
+    const { data: access, error: accessLookupError } = await supabase
       .from("patient_portal_access")
-      .select("id,patient_passport,email,access_enabled");
+      .select("id,patient_passport,email,access_enabled")
+      .eq("patient_passport", passport)
+      .maybeSingle();
     if (accessLookupError) throw accessLookupError;
 
-    let access = (accessRows || []).find(
-      (row) => normalizePassport(row.patient_passport) === passport,
-    ) || null;
+    let portalAccess = access;
 
-    if (access && !access.access_enabled) {
+    if (portalAccess && !portalAccess.access_enabled) {
       return NextResponse.json(
         { ok: false, error: "O acesso deste paciente ao portal está desativado." },
         { status: 403 },
       );
     }
 
-    if (!access) {
+    if (!portalAccess) {
       const patient = await findPatient(supabase, passport);
       if (!patient.exists) {
         return NextResponse.json(
@@ -207,11 +167,11 @@ export async function POST(request: NextRequest) {
         .select("id,patient_passport,email,access_enabled")
         .single();
       if (accessError) throw accessError;
-      access = createdAccess;
+      portalAccess = createdAccess;
       await supabase.from("patient_registry").update({ email: emailToRegister }).eq("passport", passport);
     }
 
-    const accessEmail = normalizeEmail(access.email);
+    const accessEmail = normalizeEmail(portalAccess.email);
     if (!accessEmail) {
       if (!suppliedEmail) {
         return NextResponse.json({
@@ -224,15 +184,15 @@ export async function POST(request: NextRequest) {
       const { data: updatedAccess, error: updateError } = await supabase
         .from("patient_portal_access")
         .update({ email: suppliedEmail })
-        .eq("id", access.id)
+        .eq("id", portalAccess.id)
         .select("id,patient_passport,email,access_enabled")
         .single();
       if (updateError) throw updateError;
-      access = updatedAccess;
+      portalAccess = updatedAccess;
       await supabase.from("patient_registry").update({ email: suppliedEmail }).eq("passport", passport);
     }
 
-    const email = normalizeEmail(access.email);
+    const email = normalizeEmail(portalAccess.email);
     if (!email) {
       return NextResponse.json(
         { ok: false, error: "O e-mail registrado para este paciente é inválido." },
@@ -243,7 +203,7 @@ export async function POST(request: NextRequest) {
     const { data: lastCode, error: lastCodeError } = await supabase
       .from("patient_access_codes")
       .select("resend_available_at")
-      .eq("portal_access_id", access.id)
+      .eq("portal_access_id", portalAccess.id)
       .order("sent_at", { ascending: false })
       .limit(1)
       .maybeSingle();
@@ -258,7 +218,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { error: invalidateError } = await supabase.rpc("invalidate_patient_access_codes", {
-      target_portal_access_id: access.id,
+      target_portal_access_id: portalAccess.id,
     });
     if (invalidateError) throw invalidateError;
 
@@ -270,7 +230,7 @@ export async function POST(request: NextRequest) {
     const { data: createdCode, error: insertError } = await supabase
       .from("patient_access_codes")
       .insert({
-        portal_access_id: access.id,
+        portal_access_id: portalAccess.id,
         code_hash: hashPatientSecret(code),
         expires_at: expiresAt,
         resend_available_at: resendAt,

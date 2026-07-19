@@ -12,29 +12,28 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await valid.supabase
       .from("appointments")
-      .select("id,passport,patient,status,payload,created_at,updated_at")
+      .select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,date:payload->>date,preferred_period:payload->>preferredPeriod,time:payload->>time,physician:payload->>physician,doctor:payload->>doctor,reason:payload->>reason,notes:payload->>notes,proposed_date:payload->>proposedDate,proposed_time:payload->>proposedTime,reschedule_reason:payload->>rescheduleReason,patient_availability:payload->>patientAvailability")
       .eq("passport", valid.access.patient_passport)
       .order("created_at", { ascending: false });
 
     if (error) throw error;
 
     const appointments = (data || []).map((row: any) => {
-      const payload = (row.payload || {}) as Record<string, unknown>;
-      const status = String(row.status || payload.status || "Enviada — médico a definir");
+      const status = String(row.status || "Enviada — médico a definir");
       return {
         id: row.id,
         patient: row.patient,
         status,
-        specialty: String(payload.specialty || "Não informada"),
-        preferredDate: String(payload.preferredDate || payload.date || ""),
-        preferredPeriod: String(payload.preferredPeriod || payload.time || ""),
-        physician: String(payload.physician || payload.doctor || "Médico a definir"),
-        reason: String(payload.reason || ""),
-        notes: String(payload.notes || ""),
-        proposedDate: String(payload.proposedDate || ""),
-        proposedTime: String(payload.proposedTime || ""),
-        rescheduleReason: String(payload.rescheduleReason || ""),
-        patientAvailability: String(payload.patientAvailability || ""),
+        specialty: String(row.specialty || "Não informada"),
+        preferredDate: String(row.preferred_date || row.date || ""),
+        preferredPeriod: String(row.preferred_period || row.time || ""),
+        physician: String(row.physician || row.doctor || "Médico a definir"),
+        reason: String(row.reason || ""),
+        notes: String(row.notes || ""),
+        proposedDate: String(row.proposed_date || ""),
+        proposedTime: String(row.proposed_time || ""),
+        rescheduleReason: String(row.reschedule_reason || ""),
+        patientAvailability: String(row.patient_availability || ""),
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };

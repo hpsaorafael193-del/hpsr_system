@@ -11,7 +11,7 @@ type PatientRecord = {
   createdAt: string;
   updatedAt: string;
   protocol: string | null;
-  html: string;
+  html?: string;
   isConfidential: boolean;
   previewImage?: string | null;
   previewImages?: string[];
@@ -46,19 +46,30 @@ export function PatientRecordsPanel({ onSessionExpired }: { onSessionExpired?: (
 
   useEffect(() => {
     void loadRecords();
-    const timer = window.setInterval(() => void loadRecords(true), 45000);
     const onVisibility = () => { if (document.visibilityState === "visible") void loadRecords(true); };
     document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, []);
 
   const visibleRecords = useMemo(() => {
     if (activeType === "Todos") return records;
     return records.filter((record) => record.type.toLowerCase().includes(activeType.toLowerCase()));
   }, [activeType, records]);
+
+  async function loadRecordDetail(record: PatientRecord, action: "view" | "download") {
+    try {
+      const response = await fetch(`/api/paciente/registros?id=${encodeURIComponent(record.id)}`, { cache: "no-store" });
+      const data = await response.json();
+      if (response.status === 401) { onSessionExpired?.(); return; }
+      if (!response.ok) throw new Error(data.error || "Não foi possível carregar o registro.");
+      const detailed = data.record as PatientRecord;
+      setRecords((current) => current.map((item) => item.id === detailed.id ? { ...item, ...detailed } : item));
+      if (action === "view") setSelected(detailed);
+      else downloadRecord(detailed);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : "Não foi possível carregar o registro.");
+    }
+  }
 
   function downloadRecord(record: PatientRecord) {
     const pages = record.previewImages?.length ? record.previewImages : (record.previewImage ? [record.previewImage] : []);
@@ -115,8 +126,8 @@ export function PatientRecordsPanel({ onSessionExpired }: { onSessionExpired?: (
                 {record.protocol && <p className="mt-1 text-[11px] font-bold text-hpsr-wineLight">Protocolo: {record.protocol}</p>}
               </div>
               <div className="flex gap-2">
-                <button type="button" onClick={() => setSelected(record)} className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine"><Eye size={15} /> Visualizar</button>
-                <button type="button" onClick={() => downloadRecord(record)} className="inline-flex items-center gap-2 rounded-[12px] bg-hpsr-wine px-3 py-2 text-xs font-black text-white"><Download size={15} /> Baixar</button>
+                <button type="button" onClick={() => void loadRecordDetail(record, "view")} className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine"><Eye size={15} /> Visualizar</button>
+                <button type="button" onClick={() => void loadRecordDetail(record, "download")} className="inline-flex items-center gap-2 rounded-[12px] bg-hpsr-wine px-3 py-2 text-xs font-black text-white"><Download size={15} /> Baixar</button>
               </div>
             </div>
           </article>

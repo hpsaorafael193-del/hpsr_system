@@ -7,7 +7,9 @@ import { createClient } from "@/lib/supabase";
 type ClinicalRecord = {
   id: string;
   record_type: string;
-  payload: any;
+  title: string | null;
+  exam_name: string | null;
+  document_title: string | null;
   created_at: string;
   is_confidential: boolean;
   released_at: string | null;
@@ -24,7 +26,7 @@ export function ClinicalRecordsPortalPanel({ passport }: { passport: string }) {
     if (!client) { setLoading(false); return; }
     const { data, error: loadError } = await client
       .from("clinical_records")
-      .select("id,record_type,payload,created_at,is_confidential,released_at")
+      .select("id,record_type,created_at,is_confidential,released_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle")
       .eq("patient_passport", passport)
       .order("created_at", { ascending: false });
     if (loadError) setError(loadError.message);
@@ -55,7 +57,7 @@ export function ClinicalRecordsPortalPanel({ passport }: { passport: string }) {
       {error && <p className="mt-3 rounded-[12px] border border-rose-200 bg-rose-50 p-2 text-xs font-bold text-rose-800">{error}</p>}
       <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto pr-1">
         {records.map((record) => {
-          const title = record.payload?.examName || record.payload?.documentTitle || record.payload?.title || record.record_type;
+          const title = record.exam_name || record.document_title || record.title || record.record_type;
           return (
             <article key={record.id} className="flex flex-col gap-3 rounded-[14px] border border-hpsr-border bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0"><div className="flex items-center gap-2"><FileText size={16} className="shrink-0 text-hpsr-wine" /><p className="truncate font-black text-hpsr-text">{title}</p></div><p className="mt-1 text-xs font-semibold text-hpsr-muted">{record.record_type} · {new Date(record.created_at).toLocaleString("pt-BR")}</p><span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black ${record.is_confidential ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>{record.is_confidential ? <EyeOff size={12} /> : <Eye size={12} />}{record.is_confidential ? "Em sigilo" : "Liberado ao paciente"}</span></div>
