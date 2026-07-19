@@ -78,9 +78,6 @@ type PendingAdministrativeAction = {
   value: string;
 };
 
-const STAFF_APPLICATIONS_KEY = "hpsr-staff-applications";
-const TEAM_MEMBERS_STORAGE_KEY = "hpsr-team-members";
-const STAFF_REGISTRATION_REQUESTS_KEY = "hpsr-staff-registration-requests";
 
 type StaffRegistrationRequest = {
   id: string;
@@ -131,23 +128,6 @@ type PublicStaffApplication = {
     correct: boolean;
   }>;
 };
-
-function readStoredStaffApplications(): PublicStaffApplication[] {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const raw = window.localStorage.getItem(STAFF_APPLICATIONS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveStoredStaffApplications(applications: PublicStaffApplication[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STAFF_APPLICATIONS_KEY, JSON.stringify(applications));
-}
-
 
 const initialTeamMembers: TeamMember[] = [];
 
@@ -303,14 +283,6 @@ function roleIcon(role: string) {
   if (role === "Diretor Clínico") return <ShieldCheck size={17} />;
   if (role.includes("Médico")) return <Stethoscope size={17} />;
   return <UserRound size={17} />;
-}
-
-function readRegistrationRequests(): StaffRegistrationRequest[] {
-  if (typeof window === "undefined") return [];
-  try { const raw = window.localStorage.getItem(STAFF_REGISTRATION_REQUESTS_KEY); return raw ? JSON.parse(raw) : []; } catch { return []; }
-}
-function saveRegistrationRequests(items: StaffRegistrationRequest[]) {
-  window.localStorage.setItem(STAFF_REGISTRATION_REQUESTS_KEY, JSON.stringify(items));
 }
 
 function categoryFromRole(role: string): TeamCategory {
@@ -537,13 +509,8 @@ export default function TeamPage() {
     const completeItems = [...remoteItems, ...missingProfileRequests]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     setRegistrationRequests(completeItems);
-    saveRegistrationRequests(completeItems);
     setRegistrationRequestsLoading(false);
   }
-
-  useEffect(() => {
-    window.localStorage.setItem(TEAM_MEMBERS_STORAGE_KEY, JSON.stringify(members));
-  }, [members]);
 
   const selectedMember = members.find((member) => member.id === selectedId) ?? null;
 
@@ -783,11 +750,9 @@ export default function TeamPage() {
       setMembers((current) => [newMember, ...current]);
     }
 
-    setRegistrationRequests((current) => {
-      const next = current.map((item) => item.id === request.id ? { ...item, status: decision } : item);
-      saveRegistrationRequests(next);
-      return next;
-    });
+    setRegistrationRequests((current) =>
+      current.map((item) => item.id === request.id ? { ...item, status: decision } : item)
+    );
 
     registerSystemActivity({
       module: "Equipe",
@@ -858,7 +823,6 @@ export default function TeamPage() {
         ? currentApplications.map((item) => (item.protocol === application.protocol ? updatedApplication : item))
         : [updatedApplication, ...currentApplications];
 
-      saveStoredStaffApplications(nextApplications);
       return nextApplications;
     });
   }
@@ -883,7 +847,6 @@ export default function TeamPage() {
       const nextApplications = exists
         ? currentApplications.map((item) => (item.protocol === application.protocol ? application : item))
         : [application, ...currentApplications];
-      saveStoredStaffApplications(nextApplications);
       return nextApplications;
     });
     setSelectedApplication(application);
@@ -899,7 +862,6 @@ export default function TeamPage() {
     }
     setPublicApplications((currentApplications) => {
       const nextApplications = currentApplications.filter((item) => item.protocol !== application.protocol);
-      saveStoredStaffApplications(nextApplications);
       return nextApplications;
     });
     setSelectedApplication(null);

@@ -18,8 +18,7 @@ export function UserMenu() {
   const router = useRouter();
 
   useEffect(() => {
-    const storedStatus = localStorage.getItem(statusStorageKey);
-    setServiceStatus((storedStatus as typeof currentUserProfile.serviceStatus) || currentUserProfile.serviceStatus);
+    setServiceStatus(currentUserProfile.serviceStatus);
 
     function handleClickOutside(event: MouseEvent) {
       if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
@@ -43,7 +42,6 @@ export function UserMenu() {
   }, [currentUserProfile.serviceStatus, currentUserProfile.passport, currentUserProfile.systemName]);
 
   async function handleLogout() {
-    localStorage.setItem(statusStorageKey, "Fora de serviço");
     await updateProfile({ serviceStatus: "Fora de serviço" });
     const client = createClient();
     if (client) await client.auth.signOut();

@@ -81,7 +81,6 @@ const rules = [
   "O uso correto de animações, comandos e interpretação será considerado no processo.",
 ];
 
-const STAFF_APPLICATIONS_KEY = "hpsr-staff-applications";
 
 type StoredStaffApplication = {
   protocol: string;
@@ -117,28 +116,6 @@ type StoredStaffApplication = {
     correct: boolean;
   }>;
 };
-
-function readStoredApplications(): StoredStaffApplication[] {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const raw = window.localStorage.getItem(STAFF_APPLICATIONS_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function cacheConfirmedApplication(application: StoredStaffApplication) {
-  if (typeof window === "undefined") return;
-
-  const current = readStoredApplications();
-  const withoutSameProtocol = current.filter((item) => item.protocol !== application.protocol);
-  window.localStorage.setItem(
-    STAFF_APPLICATIONS_KEY,
-    JSON.stringify([application, ...withoutSameProtocol].slice(0, 10))
-  );
-}
 
 function generateApplicationProtocol() {
   const randomPart =
@@ -368,7 +345,6 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
       if (error) throw error;
 
       const confirmedApplication = { ...application, status: "Pendente" };
-      cacheConfirmedApplication(confirmedApplication);
       setSubmittedApplication(confirmedApplication);
       formElement.reset();
     } catch (error) {

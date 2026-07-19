@@ -18,6 +18,7 @@ import {
   Syringe,
   UserRound,
   UsersRound,
+  Trash2,
   X,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
@@ -117,6 +118,7 @@ export default function RecordsPage() {
   const [activeTab, setActiveTab] = useState<RecordTab>("geral");
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [isLoadingPatients, setIsLoadingPatients] = useState(true);
+  const [isDeletingPatient, setIsDeletingPatient] = useState(false);
 
   useEffect(() => {
     if (sharedSelectedPassport) setSelectedPassport(sharedSelectedPassport);
@@ -154,7 +156,8 @@ export default function RecordsPage() {
 
     async function loadPatients() {
       setIsLoadingPatients(true);
-      const [recordsResult, appointmentsResult, portalResult] = await Promise.all([
+      const [registryResult, recordsResult, appointmentsResult, portalResult] = await Promise.all([
+        supabase.from("patient_registry").select("passport,name,age,blood_type,city_phone,email,created_at,updated_at").order("created_at", { ascending: false }),
         supabase.from("clinical_records").select("id,patient_passport,record_type,payload,created_at").order("created_at", { ascending: false }),
         supabase.from("appointments").select("id,passport,patient,status,payload,created_at,updated_at").order("created_at", { ascending: false }),
         supabase.from("patient_portal_access").select("id,patient_passport,email,access_enabled,created_at").order("created_at", { ascending: false }),
@@ -183,13 +186,27 @@ export default function RecordsPage() {
         });
       };
 
+      for (const row of (registryResult.data || []) as any[]) {
+        upsertPatient(row.passport, {
+          name: row.name || `Paciente ${row.passport}`,
+          age: row.age || "—",
+          bloodType: row.blood_type || "—",
+          cityPhone: row.city_phone || "Não informado",
+          status: "Ativo",
+          followUp: "Cadastro institucional",
+          lastVisit: String(row.updated_at || row.created_at || "").slice(0, 10),
+        });
+      }
+
       for (const row of (portalResult.data || []) as any[]) {
-        upsertPatient(row.patient_passport, {
-          name: `Paciente ${row.patient_passport}`,
-          status: row.access_enabled ? "Ativo" : "Arquivado",
-          followUp: "Acesso ao Portal do Paciente",
-          lastVisit: String(row.created_at || "").slice(0, 10),
-          alerts: row.access_enabled ? [] : ["Acesso ao portal desativado"],
+        const passport = String(row.patient_passport || "").trim();
+        const current = patientMap.get(passport);
+        if (!current) continue;
+        upsertPatient(passport, {
+          status: row.access_enabled ? current.status : "Arquivado",
+          followUp: current.followUp,
+          lastVisit: String(row.created_at || current.lastVisit || "").slice(0, 10),
+          alerts: row.access_enabled ? current.alerts : [...current.alerts, "Acesso ao portal desativado"],
         });
       }
 
@@ -197,12 +214,14 @@ export default function RecordsPage() {
         const payload = row.payload || {};
         const passport = String(row.passport || payload.passport || "").trim();
         if (!passport) continue;
-        upsertPatient(passport, {
-          name: row.patient || payload.patient || `Paciente ${passport}`,
-          status: "Em acompanhamento",
-          followUp: "Consultas e agendamentos",
-          lastVisit: String(row.updated_at || row.created_at || "").slice(0, 10),
-        });
+        const registeredPatient = patientMap.get(passport);
+        if (registeredPatient) {
+          upsertPatient(passport, {
+            status: "Em acompanhamento",
+            followUp: "Consultas e agendamentos",
+            lastVisit: String(row.updated_at || row.created_at || "").slice(0, 10),
+          });
+        }
         events.push({
           id: `appointment-${row.id}`,
           patientPassport: passport,
@@ -219,16 +238,14 @@ export default function RecordsPage() {
         const passport = String(row.patient_passport || "").trim();
         if (!passport) continue;
         const payload = row.payload || {};
-        const patient = payload.patient || {};
-        upsertPatient(passport, {
-          name: patient.name || payload.patientName || `Paciente ${passport}`,
-          age: patient.age || "—",
-          bloodType: patient.bloodType || "—",
-          cityPhone: patient.cityPhone || "Não informado",
-          status: "Em acompanhamento",
-          followUp: "Prontuário clínico",
-          lastVisit: String(row.created_at || "").slice(0, 10),
-        });
+        const registeredPatient = patientMap.get(passport);
+        if (registeredPatient) {
+          upsertPatient(passport, {
+            status: "Em acompanhamento",
+            followUp: "Prontuário clínico",
+            lastVisit: String(row.created_at || "").slice(0, 10),
+          });
+        }
         const recordType = String(row.record_type || "").toLowerCase();
         const kind: TimelineEvent["type"] = recordType.includes("exame")
           ? "Exame"
@@ -251,13 +268,7 @@ export default function RecordsPage() {
         });
       }
 
-      setPatients((current) => {
-        const mergedMap = new Map(patientMap);
-        for (const patient of current) {
-          if (!mergedMap.has(patient.passport)) mergedMap.set(patient.passport, patient);
-        }
-        return Array.from(mergedMap.values()).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-      });
+      setPatients(Array.from(patientMap.values()).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
       setTimelineEvents(events);
       setIsLoadingPatients(false);
     }
@@ -266,6 +277,7 @@ export default function RecordsPage() {
 
     const channel = client
       .channel("prontuarios-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "patient_registry" }, loadPatients)
       .on("postgres_changes", { event: "*", schema: "public", table: "clinical_records" }, loadPatients)
       .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, loadPatients)
       .on("postgres_changes", { event: "*", schema: "public", table: "patient_portal_access" }, loadPatients)
@@ -305,6 +317,50 @@ export default function RecordsPage() {
   const prescriptionCount = patientEvents.filter((event) => event.type === "Prescrição").length;
   const procedureCount = patientEvents.filter((event) => event.type === "Procedimento").length;
 
+  async function deletePatient(patient: PatientRecord) {
+    const firstConfirmation = await hpsrConfirm(
+      `Deseja excluir permanentemente ${patient.name} do Prontuário?\n\nEssa ação removerá o cadastro institucional, registros clínicos, consultas e o acesso ao Portal do Paciente vinculados ao passaporte ${patient.passport}.`,
+      "Excluir paciente"
+    );
+    if (!firstConfirmation) return;
+
+    const finalConfirmation = await hpsrConfirm(
+      `Esta ação não pode ser desfeita. Confirma a exclusão definitiva do passaporte ${patient.passport}?`,
+      "Confirmar exclusão definitiva"
+    );
+    if (!finalConfirmation) return;
+
+    const client = createClient();
+    if (!client) {
+      await hpsrAlert("Não foi possível conectar ao Supabase.", "Paciente não excluído");
+      return;
+    }
+
+    setIsDeletingPatient(true);
+    const { data, error } = await client.rpc("delete_patient_registry_cascade", {
+      target_passport: patient.passport,
+    });
+    setIsDeletingPatient(false);
+
+    if (error) {
+      await hpsrAlert(error.message, "Não foi possível excluir o paciente");
+      return;
+    }
+
+    setPatients((current) => current.filter((item) => item.passport !== patient.passport));
+    setTimelineEvents((current) => current.filter((item) => item.patientPassport !== patient.passport));
+    setSelectedPassport("");
+    selectSharedPatient(null);
+    setActiveTab("geral");
+
+    const result = Array.isArray(data) ? data[0] : data;
+    const removedRecords = Number(result?.deleted_clinical_records || 0);
+    const removedAppointments = Number(result?.deleted_appointments || 0);
+    await hpsrAlert(
+      `Paciente excluído. Foram removidos ${removedRecords} registro(s) clínico(s) e ${removedAppointments} consulta(s) vinculada(s).`,
+      "Paciente excluído"
+    );
+  }
 
   async function deleteClinicalRecord(event: TimelineEvent) {
     if (event.type !== "Exame" && event.type !== "Documento") return;
@@ -317,7 +373,7 @@ export default function RecordsPage() {
     setTimelineEvents((current) => current.filter((item) => item.id !== event.id));
   }
 
-  function handleCreateRecord(data: {
+  async function handleCreateRecord(data: {
     name: string;
     passport: string;
     age: string;
@@ -367,6 +423,59 @@ export default function RecordsPage() {
       summary: data.recordSummary.trim() || "Registro médico criado no prontuário.",
     };
 
+    const client = createClient();
+    if (!client) {
+      await hpsrAlert("Não foi possível conectar ao Supabase.", "Cadastro não salvo");
+      return;
+    }
+
+    const createdAt = new Date().toISOString();
+    const payload = {
+      patient: {
+        name: nextPatient.name,
+        passport: nextPatient.passport,
+        age: nextPatient.age,
+        bloodType: nextPatient.bloodType,
+        cityPhone: nextPatient.cityPhone,
+      },
+      patientName: nextPatient.name,
+      patientPassport: nextPatient.passport,
+      followUp: nextPatient.followUp,
+      title: newEvent.title,
+      summary: newEvent.summary,
+      doctor: newEvent.doctor,
+      status: newEvent.status,
+      date: newEvent.date,
+    };
+
+    const { error: patientError } = await client.from("patient_registry").upsert({
+      passport: nextPatient.passport.trim().toUpperCase(),
+      name: nextPatient.name,
+      age: nextPatient.age || null,
+      blood_type: nextPatient.bloodType || null,
+      city_phone: nextPatient.cityPhone === "Não informado" ? null : nextPatient.cityPhone,
+      updated_at: createdAt,
+    }, { onConflict: "passport" });
+
+    if (patientError) {
+      await hpsrAlert(patientError.message, "Não foi possível salvar o cadastro do paciente");
+      return;
+    }
+
+    const { error } = await client.from("clinical_records").insert({
+      id: newEvent.id,
+      patient_passport: nextPatient.passport,
+      record_type: data.recordType.toLowerCase(),
+      payload,
+      created_at: createdAt,
+      updated_at: createdAt,
+    });
+
+    if (error) {
+      await hpsrAlert(error.message, "Não foi possível salvar o prontuário");
+      return;
+    }
+
     setPatients((currentPatients) => {
       if (existingPatient) {
         return currentPatients.map((patient) => (patient.passport === nextPatient.passport ? nextPatient : patient));
@@ -390,27 +499,27 @@ export default function RecordsPage() {
         description="Histórico clínico por paciente."
       />
 
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-white">
-        <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] px-3 py-2.5">
-          <div className="grid gap-2.5 xl:grid-cols-[minmax(0,1fr)_minmax(420px,0.68fr)] xl:items-center">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-hpsr-border bg-white shadow-[0_14px_34px_rgba(79,42,21,0.06)]">
+        <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffdf9_0%,#f6eadf_100%)] px-4 py-3">
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(430px,0.62fr)] xl:items-center">
             <div>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-hpsr-border bg-white px-2.5 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wine">
                 <UsersRound size={14} />
                 Painel geral dos pacientes
               </span>
-              <h2 className="mt-1.5 text-[clamp(1.15rem,1.6vw,1.5rem)] font-black leading-tight text-hpsr-text">
-                Lista de pacientes e resumo do prontuário
+              <h2 className="mt-1.5 text-[clamp(1.2rem,1.6vw,1.55rem)] font-black leading-tight text-hpsr-text">
+                Prontuário clínico dos pacientes
               </h2>
-              <p className="mt-0.5 max-w-3xl text-xs leading-snug text-hpsr-muted">
-                Cada paciente aparece como um resumo. Ao selecionar, o painel do prontuário é expandido logo abaixo da lista.
+              <p className="mt-1 max-w-3xl text-xs leading-relaxed text-hpsr-muted">
+                Localize o paciente, consulte o histórico e registre novas informações sem perder o contexto.
               </p>
             </div>
 
             <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-              <label className="flex min-h-[42px] items-center gap-2.5 rounded-[14px] border border-hpsr-border bg-white px-3 focus-within:border-hpsr-wineLight focus-within:ring-2 focus-within:ring-hpsr-wineLight/20">
-                <Search size={18} className="text-hpsr-muted" />
+              <label className="flex min-h-[44px] items-center gap-2.5 rounded-[14px] border border-hpsr-border bg-white px-3 shadow-sm focus-within:border-hpsr-wineLight focus-within:ring-2 focus-within:ring-hpsr-wineLight/20">
+                <Search size={18} className="shrink-0 text-hpsr-muted" />
                 <input
-                  className="w-full bg-transparent text-sm font-semibold text-hpsr-text outline-none placeholder:text-zinc-400"
+                  className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-hpsr-text outline-none placeholder:text-zinc-400"
                   value={searchTerm}
                   onChange={(event) => {
                     setSearchTerm(event.target.value);
@@ -418,8 +527,22 @@ export default function RecordsPage() {
                     selectSharedPatient(null);
                     setActiveTab("geral");
                   }}
-                  placeholder="Buscar por passaporte ou nome"
+                  placeholder="Buscar por nome ou passaporte"
                 />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    aria-label="Limpar busca"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setSelectedPassport("");
+                      selectSharedPatient(null);
+                    }}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-hpsr-muted transition hover:bg-[#fff3e8] hover:text-hpsr-wine"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
               </label>
 
               <button
@@ -433,7 +556,7 @@ export default function RecordsPage() {
             </div>
           </div>
 
-          <div className="mt-2.5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <GeneralMetric label="Pacientes" value={String(patients.length)} icon={<UserRound size={17} />} />
             <GeneralMetric label="Em acompanhamento" value={String(patients.filter((patient) => patient.status === "Em acompanhamento").length)} icon={<HeartPulse size={17} />} />
             <GeneralMetric label="Eventos clínicos" value={String(timelineEvents.length)} icon={<FileClock size={17} />} />
@@ -441,62 +564,79 @@ export default function RecordsPage() {
           </div>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden p-3.5 xl:grid-cols-[minmax(360px,0.45fr)_minmax(0,1fr)] xl:items-stretch">
-          <div className="flex min-h-0 flex-col rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3 xl:h-full">
-            <div className="mb-3 flex shrink-0 items-center justify-between gap-3 px-1">
+        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden p-3 xl:grid-cols-[minmax(330px,0.38fr)_minmax(0,1fr)] xl:items-stretch">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-[#fffaf5] xl:h-full">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-hpsr-border bg-white/80 px-3.5 py-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Pacientes</p>
                 <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{visiblePatients.length} resultado{visiblePatients.length === 1 ? "" : "s"}</p>
               </div>
-              <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-xs font-black text-hpsr-wine">
-                Lista
+              <span className="rounded-full border border-hpsr-border bg-[#fff8f0] px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-hpsr-wine">
+                {visiblePatients.length}/{patients.length}
               </span>
             </div>
 
-            <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto pr-1">
+            <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto p-2.5">
               {visiblePatients.map((patient) => {
                 const selected = selectedPatient?.passport === patient.passport;
                 const events = timelineEvents.filter((event) => event.patientPassport === patient.passport);
 
                 return (
-                  <button
+                  <div
                     key={patient.passport}
-                    type="button"
-                    onClick={() => {
-                      setSelectedPassport(patient.passport);
-                      selectSharedPatient({ name: patient.name, passport: patient.passport, age: patient.age, bloodType: patient.bloodType, cityPhone: patient.cityPhone });
-                      setActiveTab("geral");
-                    }}
-                    className={`rounded-[16px] border p-3 text-left transition ${
+                    className={`group relative overflow-hidden rounded-[15px] border transition ${
                       selected
-                        ? "border-hpsr-wine bg-white"
-                        : "border-hpsr-border bg-white/[0.86] hover:bg-white"
+                        ? "border-hpsr-wine bg-white shadow-[0_8px_22px_rgba(103,38,20,0.10)]"
+                        : "border-hpsr-border bg-white/90 hover:border-[#d6b9a4] hover:bg-white"
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
+                    {selected && <span className="absolute inset-y-0 left-0 w-1 bg-hpsr-wine" />}
+                    <div className="flex items-start gap-2 p-3 pl-3.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedPassport(patient.passport);
+                          selectSharedPatient({ name: patient.name, passport: patient.passport, age: patient.age, bloodType: patient.bloodType, cityPhone: patient.cityPhone });
+                          setActiveTab("geral");
+                        }}
+                        className="min-w-0 flex-1 text-left"
+                      >
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="truncate text-sm font-black text-hpsr-text">{patient.name}</p>
-                          <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${statusClasses(patient.status)}`}>
+                          <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black ${statusClasses(patient.status)}`}>
                             {patient.status}
                           </span>
                         </div>
-                        <p className="mt-1 text-xs font-semibold text-hpsr-muted">
-                          Passaporte {patient.passport} · {patient.age} anos · {patient.bloodType} · {patient.followUp}
+                        <p className="mt-1 truncate text-[11px] font-semibold text-hpsr-muted">
+                          Passaporte {patient.passport} · {patient.age} anos · {patient.bloodType}
                         </p>
-                      </div>
-                      <ChevronDown
-                        size={18}
-                        className={`shrink-0 text-hpsr-wine transition ${selected ? "rotate-[-90deg]" : ""}`}
-                      />
-                    </div>
+                        <p className="mt-1 truncate text-[11px] text-hpsr-muted">{patient.followUp}</p>
 
-                    <div className="mt-3 grid grid-cols-3 gap-2 border-t border-hpsr-border pt-3">
-                      <MiniPatientStat label="Registros" value={String(events.length)} />
-                      <MiniPatientStat label="Alertas" value={String(patient.alerts.length)} />
-                      <MiniPatientStat label="Último" value={formatDate(patient.lastVisit)} />
+                        <div className="mt-2.5 grid grid-cols-3 gap-1.5 border-t border-hpsr-border pt-2.5">
+                          <MiniPatientStat label="Registros" value={String(events.length)} />
+                          <MiniPatientStat label="Alertas" value={String(patient.alerts.length)} />
+                          <MiniPatientStat label="Último" value={formatDate(patient.lastVisit)} />
+                        </div>
+                      </button>
+
+                      <div className="flex shrink-0 flex-col items-center gap-1.5">
+                        <button
+                          type="button"
+                          aria-label={`Excluir ${patient.name}`}
+                          title="Excluir paciente"
+                          disabled={isDeletingPatient}
+                          onClick={() => void deletePatient(patient)}
+                          className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-red-100 bg-red-50 text-red-600 transition hover:border-red-200 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                        <ChevronDown
+                          size={17}
+                          className={`text-hpsr-wine transition ${selected ? "rotate-[-90deg]" : ""}`}
+                        />
+                      </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
 
@@ -520,7 +660,7 @@ export default function RecordsPage() {
 
           {selectedPatient ? (
             <div className="min-w-0 overflow-hidden rounded-[16px] border border-hpsr-border bg-white xl:h-full xl:min-h-0 xl:overflow-y-auto">
-              <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-3.5">
+              <div className="sticky top-0 z-20 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffdf9_0%,#f4e7dc_100%)] p-3.5 shadow-[0_8px_18px_rgba(79,42,21,0.05)]">
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -529,26 +669,38 @@ export default function RecordsPage() {
                         {selectedPatient.status}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm font-semibold text-hpsr-muted">
-                      Passaporte {selectedPatient.passport} · {selectedPatient.age} anos · Tipo sanguíneo {selectedPatient.bloodType} · {selectedPatient.cityPhone}
-                    </p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-[11px] font-bold text-hpsr-muted">Passaporte {selectedPatient.passport}</span>
+                      <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-[11px] font-bold text-hpsr-muted">{selectedPatient.age} anos</span>
+                      <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-[11px] font-bold text-hpsr-muted">Tipo {selectedPatient.bloodType}</span>
+                      <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-[11px] font-bold text-hpsr-muted">{selectedPatient.cityPhone}</span>
+                    </div>
                   </div>
 
-                  <div className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Regra de segurança</p>
-                    <p className="mt-1 text-xs font-semibold text-hpsr-muted">
-                      Correções entram como nova observação, sem apagar histórico.
-                    </p>
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    <div className="hidden rounded-[14px] border border-hpsr-border bg-white px-3 py-2.5 2xl:block">
+                      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Histórico protegido</p>
+                      <p className="mt-0.5 text-[11px] font-semibold text-hpsr-muted">Correções entram como nova observação.</p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isDeletingPatient}
+                      onClick={() => void deletePatient(selectedPatient)}
+                      className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-red-200 bg-red-50 px-3.5 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Trash2 size={16} />
+                      {isDeletingPatient ? "Excluindo..." : "Excluir paciente"}
+                    </button>
                   </div>
                 </div>
 
-                <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {tabs.map((tab) => (
                     <button
                       key={tab.id}
                       type="button"
                       onClick={() => setActiveTab(tab.id)}
-                      className={`inline-flex shrink-0 items-center gap-2 rounded-[16px] border px-4 py-2.5 text-xs font-black transition ${
+                      className={`inline-flex items-center gap-2 rounded-[13px] border px-3 py-2 text-[11px] font-black transition ${
                         activeTab === tab.id
                           ? "border-hpsr-wine bg-[linear-gradient(135deg,#672614,#74321e)] text-white"
                           : "border-hpsr-border bg-white text-hpsr-wine hover:bg-[#fffdf9]"
@@ -561,7 +713,7 @@ export default function RecordsPage() {
                 </div>
               </div>
 
-              <div className="p-4">
+              <div className="p-3.5">
                 {activeTab === "geral" && (
                   <OverviewTab
                     patient={selectedPatient}
@@ -584,11 +736,13 @@ export default function RecordsPage() {
             </div>
           ) : (
             <div className="flex min-h-[420px] items-center justify-center rounded-[16px] border border-dashed border-hpsr-border bg-[#fff8f0] p-3.5 text-center">
-              <div>
-                <Search className="mx-auto text-hpsr-wine" size={30} />
-                <h3 className="mt-3 text-lg font-black text-hpsr-text">Selecione ou pesquise um paciente</h3>
-                <p className="mt-1 max-w-md text-sm leading-relaxed text-hpsr-muted">
-                  O prontuário completo só será exibido depois que um paciente for selecionado na lista ou localizado por uma pesquisa específica.
+              <div className="max-w-md">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-hpsr-border bg-white text-hpsr-wine shadow-sm">
+                  <Search size={25} />
+                </div>
+                <h3 className="mt-4 text-lg font-black text-hpsr-text">Selecione um paciente</h3>
+                <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">
+                  Use a busca ou escolha um nome na lista para abrir o prontuário completo.
                 </p>
               </div>
             </div>
@@ -622,7 +776,7 @@ function CreateRecordModal({
     recordType: TimelineEvent["type"];
     recordTitle: string;
     recordSummary: string;
-  }) => void;
+  }) => void | Promise<void>;
 }) {
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const [form, setForm] = useState({
@@ -631,7 +785,7 @@ function CreateRecordModal({
     age: "",
     bloodType: "+A",
     cityPhone: "",
-    followUp: "",
+    followUp: "Rotina",
     recordType: "Consulta" as TimelineEvent["type"],
     recordTitle: "",
     recordSummary: "",
@@ -641,11 +795,11 @@ function CreateRecordModal({
     setForm((currentForm) => ({ ...currentForm, [field]: value }));
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!form.name.trim() || !form.passport.trim() || !form.age.trim() || !form.bloodType.trim()) {
-      void hpsrAlert("Informe nome, passaporte, idade e tipo sanguíneo do paciente.", "Dados do paciente");
+    if (!form.name.trim() || !form.passport.trim()) {
+      void hpsrAlert("Informe o nome e o passaporte do paciente.", "Campos obrigatórios");
       return;
     }
 
@@ -654,7 +808,7 @@ function CreateRecordModal({
       return;
     }
 
-    onSave(form);
+    await onSave(form);
   }
 
   return (
@@ -668,9 +822,9 @@ function CreateRecordModal({
 
       <form
         onSubmit={handleSubmit}
-        className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[980px] flex-col overflow-hidden rounded-[16px] border border-white/70 bg-[#fffaf4]"
+        className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[1040px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf4] shadow-[0_28px_90px_rgba(42,7,0,0.28)]"
       >
-        <div className="relative overflow-hidden bg-[linear-gradient(135deg,#2a0700_0%,#672614_54%,#a67a5f_100%)] p-3.5 text-white">
+        <div className="relative overflow-hidden bg-[linear-gradient(135deg,#2a0700_0%,#672614_52%,#9d6b4f_100%)] px-5 py-4 text-white">
           <div className="pointer-events-none absolute -right-14 -top-20 h-52 w-52 rounded-full bg-white/10" />
           <div className="relative z-10 flex items-start justify-between gap-3">
             <div>
@@ -678,9 +832,9 @@ function CreateRecordModal({
                 <ClipboardPlus size={14} />
                 Novo registro
               </span>
-              <h2 className="mt-3 text-lg font-black tracking-tight">Cadastrar paciente e registro do prontuário</h2>
+              <h2 className="mt-3 text-xl font-black tracking-tight">Cadastrar paciente e registro do prontuário</h2>
               <p className="mt-1 max-w-3xl text-sm leading-relaxed text-white/84">
-                Primeiro informe os dados do paciente. Depois registre a evolução, conduta ou observação feita pelo médico.
+                Preencha os dados essenciais do paciente e registre o atendimento em um único fluxo.
               </p>
             </div>
 
@@ -694,16 +848,18 @@ function CreateRecordModal({
           </div>
         </div>
 
-        <div className="min-h-0 overflow-y-auto p-3.5">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-            <section className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
+        <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+            <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-[0_10px_28px_rgba(79,42,21,0.05)]">
               <p className="text-[11px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">
                 Dados do paciente
               </p>
 
               <div className="mt-4 grid gap-3">
-                <ModalField label="Nome do paciente">
+                <ModalField label="Nome do paciente" required>
                   <input
+                    required
+                    autoFocus
                     className={modalInputClass}
                     value={form.name}
                     onChange={(event) => updateField("name", event.target.value)}
@@ -712,8 +868,9 @@ function CreateRecordModal({
                 </ModalField>
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <ModalField label="Passaporte">
+                  <ModalField label="Passaporte" required>
                     <input
+                      required
                       className={modalInputClass}
                       value={form.passport}
                       onChange={(event) => updateField("passport", event.target.value)}
@@ -756,17 +913,53 @@ function CreateRecordModal({
                 </div>
 
                 <ModalField label="Acompanhamento">
-                  <input
-                    className={modalInputClass}
-                    value={form.followUp}
-                    onChange={(event) => updateField("followUp", event.target.value)}
-                    placeholder="Ex.: Obstétrico, clínico, pediatria..."
-                  />
+                  <div className="grid gap-2">
+                    {[
+                      {
+                        value: "Especializado",
+                        title: "Especializado",
+                        description: "Acompanhamento por um médico especialista.",
+                      },
+                      {
+                        value: "Clínico",
+                        title: "Clínico",
+                        description: "Acompanhamento clínico geral.",
+                      },
+                      {
+                        value: "Rotina",
+                        title: "Rotina",
+                        description: "Tratamentos simples e rotineiros, sem necessidade de especialista.",
+                      },
+                    ].map((option) => {
+                      const selected = form.followUp === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => updateField("followUp", option.value)}
+                          className={`flex w-full items-start gap-3 rounded-[15px] border px-3.5 py-3 text-left transition ${
+                            selected
+                              ? "border-hpsr-wine bg-[#fff3e9] ring-2 ring-hpsr-wine/10"
+                              : "border-hpsr-border bg-[#fffaf5] hover:border-hpsr-wineLight/55 hover:bg-white"
+                          }`}
+                          aria-pressed={selected}
+                        >
+                          <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${selected ? "border-hpsr-wine" : "border-zinc-300"}`}>
+                            {selected && <span className="h-2 w-2 rounded-full bg-hpsr-wine" />}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-black text-hpsr-text">{option.title}</span>
+                            <span className="mt-0.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">{option.description}</span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </ModalField>
               </div>
             </section>
 
-            <section className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
+            <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-[0_10px_28px_rgba(79,42,21,0.05)]">
               <p className="text-[11px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">
                 Registro do prontuário médico
               </p>
@@ -812,7 +1005,9 @@ function CreateRecordModal({
           </div>
         </div>
 
-        <div className="flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white/[0.86] p-3.5 sm:flex-row sm:justify-end">
+        <div className="flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white/95 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <p className="text-xs font-semibold text-hpsr-muted"><span className="font-black text-hpsr-wine">*</span> Nome e passaporte são obrigatórios.</p>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row">
           <button
             type="button"
             onClick={onClose}
@@ -822,10 +1017,11 @@ function CreateRecordModal({
           </button>
           <button
             type="submit"
-            className="rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 py-3 text-sm font-black text-white transition"
+            className="rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-5 py-3 text-sm font-black text-white shadow-[0_10px_22px_rgba(103,38,20,0.18)] transition hover:-translate-y-0.5"
           >
             Salvar registro
           </button>
+          </div>
         </div>
       </form>
     </div>
@@ -835,12 +1031,14 @@ function CreateRecordModal({
 const modalInputClass =
   "min-w-0 w-full rounded-[16px] border border-hpsr-border bg-[#fff8f0] px-4 py-3 text-sm font-semibold text-hpsr-text outline-none transition placeholder:text-zinc-400 focus:border-hpsr-wineLight focus:bg-white focus:ring-2 focus:ring-hpsr-wineLight/20";
 
-function ModalField({ label, children }: { label: string; children: ReactNode }) {
+function ModalField({ label, required = false, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
-    <label className="block min-w-0">
-      <span className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">{label}</span>
+    <div className="block min-w-0">
+      <span className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">
+        {label}{required && <span className="ml-1 text-red-600">*</span>}
+      </span>
       <div className="mt-2">{children}</div>
-    </label>
+    </div>
   );
 }
 

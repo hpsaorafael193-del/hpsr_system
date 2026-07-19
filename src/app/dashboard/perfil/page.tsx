@@ -63,8 +63,7 @@ export default function PerfilPage() {
   const [showPasswords, setShowPasswords] = useState(false);
 
   useEffect(() => {
-    const storedStatus = localStorage.getItem(statusStorageKey);
-    if (storedStatus) setServiceStatus(storedStatus);
+    setServiceStatus(currentUserProfile.serviceStatus);
 
     const profileSignature = currentUserProfile.signatureImage || null;
     if (profileSignature) {
@@ -103,7 +102,6 @@ export default function PerfilPage() {
     const result = await persistProfile({ serviceStatus: next });
     if (!result.ok) { setSaveMessage(result.error || "Não foi possível alterar o status."); return; }
     setServiceStatus(next);
-    localStorage.setItem(statusStorageKey, next);
     registerSystemActivity({ module: "Perfil", action: "Status alterado", description: `Status alterado para ${next}.`, actor: currentUserProfile.systemName, reference: currentUserProfile.passport });
     setSaveMessage(`Status alterado para ${next}.`);
   }
@@ -155,7 +153,6 @@ export default function PerfilPage() {
       setSaveMessage(`Não foi possível salvar: ${result.error || "erro desconhecido"}`);
       return;
     }
-    localStorage.setItem("hpsr-profile-edits", JSON.stringify(profile));
     setEditing(false);
     setSaveMessage("Dados atualizados no sistema.");
   }

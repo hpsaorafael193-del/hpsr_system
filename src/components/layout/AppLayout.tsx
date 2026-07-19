@@ -17,7 +17,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     setCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true");
     window.localStorage.removeItem("hpsr-theme");
     delete document.documentElement.dataset.hpsrTheme;
-    if (isSupabaseConfigured() && window.localStorage.getItem("hpsr-supabase-cleanup-v335") !== "done") {
+    if (isSupabaseConfigured()) {
+      // Estes dados são institucionais e vêm exclusivamente do Supabase.
+      // Cópias legadas são removidas para nunca ressuscitarem registros excluídos.
       [
         "hpsr-team-members",
         "hpsr-staff-applications",
@@ -26,8 +28,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         "hpsr-financial-receipts",
         "hpsr-financial-plan-entries",
         "hpsr-system-activity-log",
+        "hpsr-profile-edits",
+        "hpsr-service-status",
       ].forEach((key) => window.localStorage.removeItem(key));
-      window.localStorage.setItem("hpsr-supabase-cleanup-v335", "done");
+      window.localStorage.setItem("hpsr-supabase-cleanup-v462", "done");
     }
 
     setHydrated(true);

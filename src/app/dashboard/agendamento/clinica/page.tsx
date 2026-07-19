@@ -612,22 +612,36 @@ function NewAppointmentForm({
       setMessage({ type: "error", text: "Informe nome completo e documento/passaporte." });
       return;
     }
-    const patient = { name, passport, age: quickPatient.age.trim(), bloodType: quickPatient.bloodType.trim() };
+    const normalizedPassport = passport.toUpperCase();
+    const patient = { name, passport: normalizedPassport, age: quickPatient.age.trim(), bloodType: quickPatient.bloodType.trim() };
     const client = createClient();
-    if (client) {
-      const now = new Date().toISOString();
-      const { error } = await client.from("clinical_records").insert({
-        id: `patient-${Date.now()}-${Math.random().toString(16).slice(2)}`,
-        patient_passport: passport,
-        record_type: "Cadastro de paciente",
-        is_confidential: true,
-        released_at: null,
-        payload: { patient, patientName: name, age: patient.age, bloodType: patient.bloodType, source: "quick_registration", savedAt: now },
-      });
-      if (error) {
-        setMessage({ type: "error", text: error.message });
-        return;
-      }
+    if (!client) {
+      setMessage({ type: "error", text: "Não foi possível conectar ao Supabase." });
+      return;
+    }
+    const now = new Date().toISOString();
+    const { error: registryError } = await client.from("patient_registry").upsert({
+      passport: normalizedPassport,
+      name,
+      age: patient.age || null,
+      blood_type: patient.bloodType || null,
+      updated_at: now,
+    }, { onConflict: "passport" });
+    if (registryError) {
+      setMessage({ type: "error", text: `Não foi possível cadastrar o paciente: ${registryError.message}` });
+      return;
+    }
+    const { error } = await client.from("clinical_records").insert({
+      id: `patient-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      patient_passport: normalizedPassport,
+      record_type: "Cadastro de paciente",
+      is_confidential: true,
+      released_at: null,
+      payload: { patient, patientName: name, age: patient.age, bloodType: patient.bloodType, source: "quick_registration", savedAt: now },
+    });
+    if (error) {
+      setMessage({ type: "error", text: `O paciente foi cadastrado, mas o registro clínico não foi criado: ${error.message}` });
+      return;
     }
     upsertPatient(patient);
     selectPatient(patient);
