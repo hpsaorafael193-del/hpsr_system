@@ -117,6 +117,7 @@ export default function RecordsPage() {
   const [selectedPassport, setSelectedPassport] = useState("");
   const [activeTab, setActiveTab] = useState<RecordTab>("geral");
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
+  const [isClinicalRecordOpen, setIsClinicalRecordOpen] = useState(false);
   const [isLoadingPatients, setIsLoadingPatients] = useState(true);
   const [isDeletingPatient, setIsDeletingPatient] = useState(false);
 
@@ -157,7 +158,7 @@ export default function RecordsPage() {
     async function loadPatients() {
       setIsLoadingPatients(true);
       const [registryResult, recordsResult, appointmentsResult, portalResult] = await Promise.all([
-        supabase.from("patient_registry").select("passport,name,age,blood_type,city_phone,email,created_at,updated_at").order("created_at", { ascending: false }),
+        supabase.from("patient_registry").select("passport,name,age,blood_type,city_phone,email,follow_up,created_at,updated_at").order("created_at", { ascending: false }),
         supabase.from("clinical_records").select("id,patient_passport,record_type,created_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,summary:payload->>summary").order("created_at", { ascending: false }),
         supabase.from("appointments").select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,doctor_name:payload->>doctor,reason:payload->>reason,notes:payload->>notes").order("created_at", { ascending: false }),
         supabase.from("patient_portal_access").select("id,patient_passport,email,access_enabled,created_at").order("created_at", { ascending: false }),
@@ -193,7 +194,7 @@ export default function RecordsPage() {
           bloodType: row.blood_type || "—",
           cityPhone: row.city_phone || "Não informado",
           status: "Ativo",
-          followUp: "Cadastro institucional",
+          followUp: row.follow_up || "Rotina",
           lastVisit: String(row.updated_at || row.created_at || "").slice(0, 10),
         });
       }
@@ -371,54 +372,29 @@ export default function RecordsPage() {
     setTimelineEvents((current) => current.filter((item) => item.id !== event.id));
   }
 
-  async function handleCreateRecord(data: {
+  async function handleCreatePatient(data: {
     name: string;
     passport: string;
     age: string;
     bloodType: string;
     cityPhone: string;
     followUp: string;
-    recordType: TimelineEvent["type"];
-    recordTitle: string;
-    recordSummary: string;
   }) {
-    const trimmedPassport = data.passport.trim();
-    const existingPatient = patients.find((patient) => patient.passport === trimmedPassport);
-    const recordDate = todayIso();
+    const normalizedPassport = data.passport.trim().toUpperCase();
+    const existingPatient = patients.find((patient) => patient.passport.trim().toUpperCase() === normalizedPassport);
+    const createdAt = new Date().toISOString();
 
-    const nextPatient: PatientRecord = existingPatient
-      ? {
-          ...existingPatient,
-          name: data.name.trim() || existingPatient.name,
-          age: data.age.trim() || existingPatient.age,
-          bloodType: data.bloodType || existingPatient.bloodType,
-          cityPhone: data.cityPhone.trim() || existingPatient.cityPhone,
-          followUp: data.followUp.trim() || existingPatient.followUp,
-          status: "Em acompanhamento",
-          lastVisit: recordDate,
-        }
-      : {
-          id: `pac-${trimmedPassport || Date.now()}`,
-          name: data.name.trim(),
-          passport: trimmedPassport,
-          age: data.age.trim(),
-          bloodType: data.bloodType,
-          cityPhone: data.cityPhone.trim() || "Não informado",
-          status: "Em acompanhamento",
-          followUp: data.followUp.trim() || "Acompanhamento clínico",
-          lastVisit: recordDate,
-          alerts: ["Registro novo"],
-        };
-
-    const newEvent: TimelineEvent = {
-      id: `evt-${Date.now()}`,
-      patientPassport: nextPatient.passport,
-      type: data.recordType,
-      title: data.recordTitle.trim() || "Registro de prontuário",
-      date: recordDate,
-      doctor: currentUserProfile.systemName,
-      status: "Concluído",
-      summary: data.recordSummary.trim() || "Registro médico criado no prontuário.",
+    const nextPatient: PatientRecord = {
+      id: existingPatient?.id || `pac-${normalizedPassport}`,
+      name: data.name.trim(),
+      passport: normalizedPassport,
+      age: data.age.trim() || "—",
+      bloodType: data.bloodType || "—",
+      cityPhone: data.cityPhone.trim() || "Não informado",
+      status: existingPatient?.status || "Ativo",
+      followUp: data.followUp,
+      lastVisit: existingPatient?.lastVisit || "—",
+      alerts: existingPatient?.alerts || [],
     };
 
     const client = createClient();
@@ -427,18 +403,75 @@ export default function RecordsPage() {
       return;
     }
 
+    const { error } = await client.from("patient_registry").upsert({
+      passport: normalizedPassport,
+      name: nextPatient.name,
+      age: nextPatient.age === "—" ? null : nextPatient.age,
+      blood_type: nextPatient.bloodType === "—" ? null : nextPatient.bloodType,
+      city_phone: nextPatient.cityPhone === "Não informado" ? null : nextPatient.cityPhone,
+      follow_up: nextPatient.followUp,
+      updated_at: createdAt,
+    }, { onConflict: "passport" });
+
+    if (error) {
+      await hpsrAlert(error.message, "Não foi possível cadastrar o paciente");
+      return;
+    }
+
+    setPatients((currentPatients) => {
+      const withoutCurrent = currentPatients.filter((patient) => patient.passport.trim().toUpperCase() !== normalizedPassport);
+      return [nextPatient, ...withoutCurrent].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    });
+    setSelectedPassport(normalizedPassport);
+    selectSharedPatient({
+      name: nextPatient.name,
+      passport: nextPatient.passport,
+      age: nextPatient.age,
+      bloodType: nextPatient.bloodType,
+      cityPhone: nextPatient.cityPhone,
+    });
+    setSearchTerm("");
+    setActiveTab("geral");
+    setIsRegisterOpen(false);
+  }
+
+  async function handleAddClinicalRecord(data: {
+    recordType: TimelineEvent["type"];
+    recordTitle: string;
+    recordSummary: string;
+  }) {
+    if (!selectedPatient) return;
+
+    const recordDate = todayIso();
     const createdAt = new Date().toISOString();
+    const newEvent: TimelineEvent = {
+      id: `evt-${Date.now()}`,
+      patientPassport: selectedPatient.passport,
+      type: data.recordType,
+      title: data.recordTitle.trim(),
+      date: recordDate,
+      doctor: currentUserProfile.systemName,
+      status: "Concluído",
+      summary: data.recordSummary.trim(),
+    };
+
+    const client = createClient();
+    if (!client) {
+      await hpsrAlert("Não foi possível conectar ao Supabase.", "Registro não salvo");
+      return;
+    }
+
     const payload = {
       patient: {
-        name: nextPatient.name,
-        passport: nextPatient.passport,
-        age: nextPatient.age,
-        bloodType: nextPatient.bloodType,
-        cityPhone: nextPatient.cityPhone,
+        name: selectedPatient.name,
+        passport: selectedPatient.passport,
+        age: selectedPatient.age,
+        bloodType: selectedPatient.bloodType,
+        cityPhone: selectedPatient.cityPhone,
       },
-      patientName: nextPatient.name,
-      patientPassport: nextPatient.passport,
-      followUp: nextPatient.followUp,
+      patientName: selectedPatient.name,
+      patientPassport: selectedPatient.passport,
+      followUp: selectedPatient.followUp,
       title: newEvent.title,
       summary: newEvent.summary,
       doctor: newEvent.doctor,
@@ -446,23 +479,9 @@ export default function RecordsPage() {
       date: newEvent.date,
     };
 
-    const { error: patientError } = await client.from("patient_registry").upsert({
-      passport: nextPatient.passport.trim().toUpperCase(),
-      name: nextPatient.name,
-      age: nextPatient.age || null,
-      blood_type: nextPatient.bloodType || null,
-      city_phone: nextPatient.cityPhone === "Não informado" ? null : nextPatient.cityPhone,
-      updated_at: createdAt,
-    }, { onConflict: "passport" });
-
-    if (patientError) {
-      await hpsrAlert(patientError.message, "Não foi possível salvar o cadastro do paciente");
-      return;
-    }
-
     const { error } = await client.from("clinical_records").insert({
       id: newEvent.id,
-      patient_passport: nextPatient.passport,
+      patient_passport: selectedPatient.passport,
       record_type: data.recordType.toLowerCase(),
       payload,
       created_at: createdAt,
@@ -470,23 +489,18 @@ export default function RecordsPage() {
     });
 
     if (error) {
-      await hpsrAlert(error.message, "Não foi possível salvar o prontuário");
+      await hpsrAlert(error.message, "Não foi possível salvar o registro clínico");
       return;
     }
 
-    setPatients((currentPatients) => {
-      if (existingPatient) {
-        return currentPatients.map((patient) => (patient.passport === nextPatient.passport ? nextPatient : patient));
-      }
-
-      return [nextPatient, ...currentPatients];
-    });
-
     setTimelineEvents((currentEvents) => [newEvent, ...currentEvents]);
-    setSelectedPassport(nextPatient.passport);
-    setSearchTerm("");
+    setPatients((currentPatients) => currentPatients.map((patient) =>
+      patient.passport === selectedPatient.passport
+        ? { ...patient, status: "Em acompanhamento", lastVisit: recordDate }
+        : patient
+    ));
     setActiveTab("timeline");
-    setIsRegisterOpen(false);
+    setIsClinicalRecordOpen(false);
   }
 
   return (
@@ -549,7 +563,7 @@ export default function RecordsPage() {
                 className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#672614,#74321e)] px-3.5 text-xs font-black text-white transition"
               >
                 <Plus size={16} />
-                Novo registro
+                Novo paciente
               </button>
             </div>
           </div>
@@ -682,6 +696,14 @@ export default function RecordsPage() {
                     </div>
                     <button
                       type="button"
+                      onClick={() => setIsClinicalRecordOpen(true)}
+                      className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#672614,#74321e)] px-3.5 text-xs font-black text-white transition hover:-translate-y-0.5"
+                    >
+                      <ClipboardPlus size={16} />
+                      Adicionar registro
+                    </button>
+                    <button
+                      type="button"
                       disabled={isDeletingPatient}
                       onClick={() => void deletePatient(selectedPatient)}
                       className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-red-200 bg-red-50 px-3.5 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
@@ -749,9 +771,17 @@ export default function RecordsPage() {
       </section>
 
       {isRegisterOpen && (
-        <CreateRecordModal
+        <CreatePatientModal
           onClose={() => setIsRegisterOpen(false)}
-          onSave={handleCreateRecord}
+          onSave={handleCreatePatient}
+        />
+      )}
+
+      {isClinicalRecordOpen && selectedPatient && (
+        <AddClinicalRecordModal
+          patient={selectedPatient}
+          onClose={() => setIsClinicalRecordOpen(false)}
+          onSave={handleAddClinicalRecord}
         />
       )}
     </div>
@@ -759,7 +789,7 @@ export default function RecordsPage() {
 }
 
 
-function CreateRecordModal({
+function CreatePatientModal({
   onClose,
   onSave,
 }: {
@@ -771,12 +801,8 @@ function CreateRecordModal({
     bloodType: string;
     cityPhone: string;
     followUp: string;
-    recordType: TimelineEvent["type"];
-    recordTitle: string;
-    recordSummary: string;
   }) => void | Promise<void>;
 }) {
-  const { profile: currentUserProfile } = useCurrentUserProfile();
   const [form, setForm] = useState({
     name: "",
     passport: "",
@@ -784,9 +810,6 @@ function CreateRecordModal({
     bloodType: "+A",
     cityPhone: "",
     followUp: "Rotina",
-    recordType: "Consulta" as TimelineEvent["type"],
-    recordTitle: "",
-    recordSummary: "",
   });
 
   function updateField(field: keyof typeof form, value: string) {
@@ -795,232 +818,97 @@ function CreateRecordModal({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     if (!form.name.trim() || !form.passport.trim()) {
-      void hpsrAlert("Informe o nome e o passaporte do paciente.", "Campos obrigatórios");
+      await hpsrAlert("Informe o nome e o passaporte do paciente.", "Campos obrigatórios");
       return;
     }
-
-    if (!form.recordTitle.trim() || !form.recordSummary.trim()) {
-      void hpsrAlert("Informe o título e o registro do prontuário médico.", "Prontuário incompleto");
-      return;
-    }
-
     await onSave(form);
   }
 
   return (
     <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3">
-      <button
-        type="button"
-        aria-label="Fechar cadastro"
-        onClick={onClose}
-        className="absolute inset-0 bg-[#2a0700]/45"
-      />
-
-      <form
-        onSubmit={handleSubmit}
-        className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[1040px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf4] shadow-[0_28px_90px_rgba(42,7,0,0.28)]"
-      >
+      <button type="button" aria-label="Fechar cadastro" onClick={onClose} className="absolute inset-0 bg-[#2a0700]/45" />
+      <form onSubmit={handleSubmit} className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[720px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf4] shadow-[0_28px_90px_rgba(42,7,0,0.28)]">
         <div className="relative overflow-hidden bg-[linear-gradient(135deg,#2a0700_0%,#672614_52%,#9d6b4f_100%)] px-5 py-4 text-white">
           <div className="pointer-events-none absolute -right-14 -top-20 h-52 w-52 rounded-full bg-white/10" />
           <div className="relative z-10 flex items-start justify-between gap-3">
             <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]">
-                <ClipboardPlus size={14} />
-                Novo registro
-              </span>
-              <h2 className="mt-3 text-xl font-black tracking-tight">Cadastrar paciente e registro do prontuário</h2>
-              <p className="mt-1 max-w-3xl text-sm leading-relaxed text-white/84">
-                Preencha os dados essenciais do paciente e registre o atendimento em um único fluxo.
-              </p>
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]"><UserRound size={14} />Novo paciente</span>
+              <h2 className="mt-3 text-xl font-black tracking-tight">Cadastrar paciente</h2>
+              <p className="mt-1 max-w-xl text-sm leading-relaxed text-white/84">Cadastre os dados essenciais. O prontuário clínico poderá ser preenchido depois, na área do paciente.</p>
             </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-white/25 bg-white/10 text-white transition hover:bg-white/20"
-            >
-              <X size={18} />
-            </button>
+            <button type="button" onClick={onClose} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-white/25 bg-white/10 text-white transition hover:bg-white/20"><X size={18} /></button>
           </div>
         </div>
 
         <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-            <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-[0_10px_28px_rgba(79,42,21,0.05)]">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">
-                Dados do paciente
-              </p>
-
-              <div className="mt-4 grid gap-3">
-                <ModalField label="Nome do paciente" required>
-                  <input
-                    required
-                    autoFocus
-                    className={modalInputClass}
-                    value={form.name}
-                    onChange={(event) => updateField("name", event.target.value)}
-                    placeholder="Nome completo do paciente"
-                  />
-                </ModalField>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ModalField label="Passaporte" required>
-                    <input
-                      required
-                      className={modalInputClass}
-                      value={form.passport}
-                      onChange={(event) => updateField("passport", event.target.value)}
-                      placeholder="Ex.: 876"
-                    />
-                  </ModalField>
-
-                  <ModalField label="Idade">
-                    <input
-                      className={modalInputClass}
-                      value={form.age}
-                      onChange={(event) => updateField("age", event.target.value)}
-                      placeholder="Ex.: 22"
-                    />
-                  </ModalField>
-                </div>
-
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <ModalField label="Tipo sanguíneo">
-                    <select
-                      className={modalInputClass}
-                      value={form.bloodType}
-                      onChange={(event) => updateField("bloodType", event.target.value)}
-                    >
-                      <option value="+A">+A</option>
-                      <option value="-A">-A</option>
-                      <option value="+B">+B</option>
-                      <option value="-B">-B</option>
-                    </select>
-                  </ModalField>
-
-                  <ModalField label="Telefone na cidade">
-                    <input
-                      className={modalInputClass}
-                      value={form.cityPhone}
-                      onChange={(event) => updateField("cityPhone", event.target.value)}
-                      placeholder="Ex.: (055) 193-000"
-                    />
-                  </ModalField>
-                </div>
-
-                <ModalField label="Acompanhamento">
-                  <div className="grid gap-2">
-                    {[
-                      {
-                        value: "Especializado",
-                        title: "Especializado",
-                        description: "Acompanhamento por um médico especialista.",
-                      },
-                      {
-                        value: "Clínico",
-                        title: "Clínico",
-                        description: "Acompanhamento clínico geral.",
-                      },
-                      {
-                        value: "Rotina",
-                        title: "Rotina",
-                        description: "Tratamentos simples e rotineiros, sem necessidade de especialista.",
-                      },
-                    ].map((option) => {
-                      const selected = form.followUp === option.value;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => updateField("followUp", option.value)}
-                          className={`flex w-full items-start gap-3 rounded-[15px] border px-3.5 py-3 text-left transition ${
-                            selected
-                              ? "border-hpsr-wine bg-[#fff3e9] ring-2 ring-hpsr-wine/10"
-                              : "border-hpsr-border bg-[#fffaf5] hover:border-hpsr-wineLight/55 hover:bg-white"
-                          }`}
-                          aria-pressed={selected}
-                        >
-                          <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${selected ? "border-hpsr-wine" : "border-zinc-300"}`}>
-                            {selected && <span className="h-2 w-2 rounded-full bg-hpsr-wine" />}
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block text-sm font-black text-hpsr-text">{option.title}</span>
-                            <span className="mt-0.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">{option.description}</span>
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </ModalField>
+          <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-[0_10px_28px_rgba(79,42,21,0.05)]">
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Dados do paciente</p>
+            <div className="mt-4 grid gap-3">
+              <ModalField label="Nome do paciente" required><input required autoFocus className={modalInputClass} value={form.name} onChange={(event) => updateField("name", event.target.value)} placeholder="Nome completo do paciente" /></ModalField>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <ModalField label="Passaporte" required><input required className={modalInputClass} value={form.passport} onChange={(event) => updateField("passport", event.target.value)} placeholder="Ex.: 876" /></ModalField>
+                <ModalField label="Idade"><input className={modalInputClass} value={form.age} onChange={(event) => updateField("age", event.target.value)} placeholder="Ex.: 22" /></ModalField>
               </div>
-            </section>
-
-            <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-[0_10px_28px_rgba(79,42,21,0.05)]">
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">
-                Registro do prontuário médico
-              </p>
-
-              <div className="mt-4 grid gap-3">
-                <ModalField label="Tipo de registro">
-                  <select
-                    className={modalInputClass}
-                    value={form.recordType}
-                    onChange={(event) => updateField("recordType", event.target.value)}
-                  >
-                    <option value="Consulta">Consulta</option>
-                    <option value="Exame">Exame</option>
-                    <option value="Prescrição">Prescrição</option>
-                    <option value="Procedimento">Procedimento</option>
-                    <option value="Observação">Observação</option>
-                  </select>
-                </ModalField>
-
-                <ModalField label="Título do registro">
-                  <input
-                    className={modalInputClass}
-                    value={form.recordTitle}
-                    onChange={(event) => updateField("recordTitle", event.target.value)}
-                    placeholder="Ex.: Consulta obstétrica"
-                  />
-                </ModalField>
-
-                <ModalField label="Registro / evolução médica">
-                  <textarea
-                    className={`${modalInputClass} min-h-[180px] resize-y leading-relaxed`}
-                    value={form.recordSummary}
-                    onChange={(event) => updateField("recordSummary", event.target.value)}
-                    placeholder="Descreva queixa, achados relevantes, conduta, orientação, retorno ou observação interna."
-                  />
-                </ModalField>
-
-                <div className="rounded-[16px] border border-amber-200 bg-amber-50 p-3.5 text-sm leading-relaxed text-amber-800">
-                  O registro será assinado como <strong>{currentUserProfile.systemName}</strong> e entrará na linha do tempo do prontuário.
-                </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <ModalField label="Tipo sanguíneo"><select className={modalInputClass} value={form.bloodType} onChange={(event) => updateField("bloodType", event.target.value)}><option value="+A">+A</option><option value="-A">-A</option><option value="+B">+B</option><option value="-B">-B</option></select></ModalField>
+                <ModalField label="Telefone na cidade"><input className={modalInputClass} value={form.cityPhone} onChange={(event) => updateField("cityPhone", event.target.value)} placeholder="Ex.: (055) 193-000" /></ModalField>
               </div>
-            </section>
-          </div>
+              <ModalField label="Acompanhamento">
+                <div className="grid gap-2">
+                  {[
+                    { value: "Especializado", title: "Especializado", description: "Acompanhamento por um médico especialista." },
+                    { value: "Clínico", title: "Clínico", description: "Acompanhamento clínico geral." },
+                    { value: "Rotina", title: "Rotina", description: "Tratamentos simples e rotineiros, sem necessidade de especialista." },
+                  ].map((option) => {
+                    const selected = form.followUp === option.value;
+                    return <button key={option.value} type="button" onClick={() => updateField("followUp", option.value)} className={`flex w-full items-start gap-3 rounded-[15px] border px-3.5 py-3 text-left transition ${selected ? "border-hpsr-wine bg-[#fff3e9] ring-2 ring-hpsr-wine/10" : "border-hpsr-border bg-[#fffaf5] hover:border-hpsr-wineLight/55 hover:bg-white"}`} aria-pressed={selected}><span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${selected ? "border-hpsr-wine" : "border-zinc-300"}`}>{selected && <span className="h-2 w-2 rounded-full bg-hpsr-wine" />}</span><span className="min-w-0"><span className="block text-sm font-black text-hpsr-text">{option.title}</span><span className="mt-0.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">{option.description}</span></span></button>;
+                  })}
+                </div>
+              </ModalField>
+            </div>
+          </section>
         </div>
 
         <div className="flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white/95 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <p className="text-xs font-semibold text-hpsr-muted"><span className="font-black text-hpsr-wine">*</span> Nome e passaporte são obrigatórios.</p>
-          <div className="flex flex-col-reverse gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-text transition hover:bg-[#fff8f0]"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            className="rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-5 py-3 text-sm font-black text-white shadow-[0_10px_22px_rgba(103,38,20,0.18)] transition hover:-translate-y-0.5"
-          >
-            Salvar registro
-          </button>
-          </div>
+          <div className="flex flex-col-reverse gap-3 sm:flex-row"><button type="button" onClick={onClose} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-text transition hover:bg-[#fff8f0]">Cancelar</button><button type="submit" className="rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-5 py-3 text-sm font-black text-white shadow-[0_10px_22px_rgba(103,38,20,0.18)] transition hover:-translate-y-0.5">Cadastrar paciente</button></div>
         </div>
+      </form>
+    </div>
+  );
+}
+
+function AddClinicalRecordModal({
+  patient,
+  onClose,
+  onSave,
+}: {
+  patient: PatientRecord;
+  onClose: () => void;
+  onSave: (data: { recordType: TimelineEvent["type"]; recordTitle: string; recordSummary: string }) => void | Promise<void>;
+}) {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
+  const [form, setForm] = useState({ recordType: "Consulta" as TimelineEvent["type"], recordTitle: "", recordSummary: "" });
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!form.recordTitle.trim() || !form.recordSummary.trim()) {
+      await hpsrAlert("Informe o título e a evolução médica.", "Registro incompleto");
+      return;
+    }
+    await onSave(form);
+  }
+
+  return (
+    <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3">
+      <button type="button" aria-label="Fechar registro" onClick={onClose} className="absolute inset-0 bg-[#2a0700]/45" />
+      <form onSubmit={handleSubmit} className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[760px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf4] shadow-[0_28px_90px_rgba(42,7,0,0.28)]">
+        <div className="bg-[linear-gradient(135deg,#2a0700_0%,#672614_52%,#9d6b4f_100%)] px-5 py-4 text-white">
+          <div className="flex items-start justify-between gap-3"><div><span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]"><ClipboardPlus size={14} />Novo registro clínico</span><h2 className="mt-3 text-xl font-black">{patient.name}</h2><p className="mt-1 text-sm text-white/80">Passaporte {patient.passport}</p></div><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-white/25 bg-white/10"><X size={18} /></button></div>
+        </div>
+        <div className="min-h-0 overflow-y-auto p-4 sm:p-5"><section className="rounded-[18px] border border-hpsr-border bg-white p-4"><div className="grid gap-3"><ModalField label="Tipo de registro"><select className={modalInputClass} value={form.recordType} onChange={(event) => setForm((current) => ({ ...current, recordType: event.target.value as TimelineEvent["type"] }))}><option value="Consulta">Consulta</option><option value="Exame">Exame</option><option value="Prescrição">Prescrição</option><option value="Procedimento">Procedimento</option><option value="Observação">Observação</option></select></ModalField><ModalField label="Título do registro" required><input required className={modalInputClass} value={form.recordTitle} onChange={(event) => setForm((current) => ({ ...current, recordTitle: event.target.value }))} placeholder="Ex.: Consulta obstétrica" /></ModalField><ModalField label="Registro / evolução médica" required><textarea required className={`${modalInputClass} min-h-[190px] resize-y leading-relaxed`} value={form.recordSummary} onChange={(event) => setForm((current) => ({ ...current, recordSummary: event.target.value }))} placeholder="Descreva queixa, achados relevantes, conduta, orientação ou retorno." /></ModalField><div className="rounded-[16px] border border-amber-200 bg-amber-50 p-3.5 text-sm leading-relaxed text-amber-800">O registro será assinado como <strong>{currentUserProfile.systemName}</strong> e entrará na linha do tempo do paciente.</div></div></section></div>
+        <div className="flex justify-end gap-3 border-t border-hpsr-border bg-white/95 px-5 py-3.5"><button type="button" onClick={onClose} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-text">Cancelar</button><button type="submit" className="rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-5 py-3 text-sm font-black text-white">Salvar registro</button></div>
       </form>
     </div>
   );
