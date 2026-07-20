@@ -9,6 +9,11 @@ import {
   Check,
   ChevronDown,
   ClipboardList,
+  ClipboardPaste,
+  Eraser,
+  Highlighter,
+  CaseUpper,
+  CaseLower,
   Download,
   Eye,
   FileSignature,
@@ -822,6 +827,50 @@ export default function DocumentsPage() {
     exec(ordered ? "insertOrderedList" : "insertUnorderedList");
   }
 
+  async function pasteWithoutFormatting() {
+    editorRef.current?.focus();
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) return;
+      document.execCommand("insertText", false, text);
+      syncEditor();
+    } catch {
+      setAppDialog({
+        title: "Não foi possível acessar a área de transferência",
+        message: "Use Ctrl + Shift + V para colar sem formatação neste campo.",
+        actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
+      });
+    }
+  }
+
+  function transformSelectionCase(mode: "upper" | "lower") {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || !editorRef.current) return;
+    const range = selection.getRangeAt(0);
+    if (range.collapsed || !editorRef.current.contains(range.commonAncestorContainer)) return;
+
+    const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT);
+    const nodes: Text[] = [];
+    let current = walker.nextNode();
+    while (current) {
+      const textNode = current as Text;
+      try {
+        if (range.intersectsNode(textNode)) nodes.push(textNode);
+      } catch {}
+      current = walker.nextNode();
+    }
+
+    nodes.forEach((node) => {
+      const start = node === range.startContainer ? range.startOffset : 0;
+      const end = node === range.endContainer ? range.endOffset : node.data.length;
+      if (end <= start) return;
+      const selected = node.data.slice(start, end);
+      const converted = mode === "upper" ? selected.toLocaleUpperCase("pt-BR") : selected.toLocaleLowerCase("pt-BR");
+      node.data = `${node.data.slice(0, start)}${converted}${node.data.slice(end)}`;
+    });
+    syncEditor();
+  }
+
   function openQuickPatient() {
     setQuickPatientDraft(patient.name || patient.passport ? patient : emptyPatient);
     setQuickPatientOpen(true);
@@ -1432,7 +1481,19 @@ export default function DocumentsPage() {
               <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => insertList(true)}><ListOrdered size={15} /></button>
               <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("justifyLeft")}><AlignLeft size={15} /></button>
               <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("justifyCenter")}><AlignCenter size={15} /></button>
-              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("justifyRight")}><AlignRight size={15} /></button>
+              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("justifyRight")} title="Alinhar à direita"><AlignRight size={15} /></button>
+              <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-text" title="Cor da fonte">
+                <Type size={15} />
+                <input type="color" onChange={(event) => exec("foreColor", event.target.value)} className="h-5 w-7 cursor-pointer border-0 bg-transparent p-0" aria-label="Cor da fonte" />
+              </label>
+              <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-text" title="Cor de fundo do texto">
+                <Highlighter size={15} />
+                <input type="color" defaultValue="#fff2a8" onChange={(event) => exec("hiliteColor", event.target.value)} className="h-5 w-7 cursor-pointer border-0 bg-transparent p-0" aria-label="Cor de fundo do texto" />
+              </label>
+              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("removeFormat")} title="Remover formatação"><Eraser size={15} /></button>
+              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => void pasteWithoutFormatting()} title="Colar sem formatação"><ClipboardPaste size={15} /></button>
+              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => transformSelectionCase("upper")} title="Converter seleção para maiúsculas"><CaseUpper size={16} /></button>
+              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => transformSelectionCase("lower")} title="Converter seleção para minúsculas"><CaseLower size={16} /></button>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto bg-[#f2eee9] p-4">

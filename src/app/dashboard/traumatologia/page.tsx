@@ -14,9 +14,20 @@ import {
   Search,
   ShieldAlert,
   TimerReset,
+  UserPlus,
   UserRound,
   X,
 } from "lucide-react";
+
+type PatientRegistryItem = {
+  name: string;
+  passport: string;
+  age: string;
+  bloodType: string;
+  cityPhone: string;
+  email: string;
+  followUp: string;
+};
 
 type CastStatus = "recuperacao" | "reavaliacao" | "atrasada" | "retirado";
 
@@ -60,11 +71,40 @@ const statusMap: Record<CastStatus, { label: string; description: string; classN
 };
 
 export default function TraumaPage() {
+  useEffect(() => {
+    const main = document.querySelector(".hpsr-dashboard-shell > main") as HTMLElement | null;
+    if (!main) return;
+
+    const previousOverflowY = main.style.overflowY;
+    const previousOverscrollBehavior = main.style.overscrollBehavior;
+    const desktopQuery = window.matchMedia("(min-width: 1280px)");
+
+    const syncPageScroll = () => {
+      main.style.overflowY = desktopQuery.matches ? "hidden" : previousOverflowY;
+      main.style.overscrollBehavior = desktopQuery.matches ? "none" : previousOverscrollBehavior;
+    };
+
+    syncPageScroll();
+    desktopQuery.addEventListener("change", syncPageScroll);
+
+    return () => {
+      desktopQuery.removeEventListener("change", syncPageScroll);
+      main.style.overflowY = previousOverflowY;
+      main.style.overscrollBehavior = previousOverscrollBehavior;
+    };
+  }, []);
   const [records, setRecords] = useState<CastRecord[]>(initialCastRecords);
   const [search, setSearch] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<CastRecord | null>(null);
   const [loadingRecords, setLoadingRecords] = useState(true);
   const [savingRecord, setSavingRecord] = useState(false);
+  const [patients, setPatients] = useState<PatientRegistryItem[]>([]);
+  const [selectedPatientPassport, setSelectedPatientPassport] = useState("");
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickSaving, setQuickSaving] = useState(false);
+  const [quickPatient, setQuickPatient] = useState<PatientRegistryItem>({
+    name: "", passport: "", age: "", bloodType: "", cityPhone: "", email: "", followUp: "Clínico",
+  });
 
   useEffect(() => {
     let active = true;
@@ -77,10 +117,17 @@ export default function TraumaPage() {
         return;
       }
 
-      const { data, error } = await client
-        .from("cast_records")
-        .select("id, patient, passport, fractures, placed_at, removal_at, status_override")
-        .order("created_at", { ascending: false });
+      const [{ data, error }, { data: patientRows, error: patientError }] = await Promise.all([
+        client
+          .from("cast_records")
+          .select("id, patient, passport, fractures, placed_at, removal_at, status_override")
+          .order("created_at", { ascending: false }),
+        client
+          .from("patient_registry")
+          .select("name,passport,age,blood_type,city_phone,email,follow_up")
+          .order("name", { ascending: true })
+          .limit(500),
+      ]);
 
       if (!active) return;
       setLoadingRecords(false);
@@ -88,6 +135,18 @@ export default function TraumaPage() {
       if (error) {
         await hpsrAlert(`Não foi possível carregar os registros de gesso: ${error.message}`, "Controle de Gesso");
         return;
+      }
+
+      if (!patientError) {
+        setPatients((patientRows || []).map((row) => ({
+          name: String(row.name || ""),
+          passport: String(row.passport || ""),
+          age: String(row.age || ""),
+          bloodType: String(row.blood_type || ""),
+          cityPhone: String(row.city_phone || ""),
+          email: String(row.email || ""),
+          followUp: String(row.follow_up || "Clínico"),
+        })));
       }
 
       setRecords(
@@ -136,13 +195,65 @@ export default function TraumaPage() {
     [records]
   );
 
+
+  const selectedPatient = useMemo(
+    () => patients.find((patient) => patient.passport === selectedPatientPassport) || null,
+    [patients, selectedPatientPassport]
+  );
+
+  function selectPatient(passport: string) {
+    setSelectedPatientPassport(passport);
+  }
+
+  async function saveQuickPatient() {
+    const patient = {
+      ...quickPatient,
+      name: quickPatient.name.trim(),
+      passport: quickPatient.passport.trim().toUpperCase(),
+      age: quickPatient.age.trim(),
+      bloodType: quickPatient.bloodType.trim(),
+      cityPhone: quickPatient.cityPhone.trim(),
+      email: quickPatient.email.trim(),
+      followUp: quickPatient.followUp.trim() || "Clínico",
+    };
+    if (!patient.name || !patient.passport) {
+      await hpsrAlert("Informe o nome completo e o passaporte do paciente.", "Cadastro rápido");
+      return;
+    }
+    const client = createClient();
+    if (!client) {
+      await hpsrAlert("Não foi possível conectar ao Supabase.", "Cadastro rápido");
+      return;
+    }
+    setQuickSaving(true);
+    const { error } = await client.from("patient_registry").upsert({
+      passport: patient.passport,
+      name: patient.name,
+      age: patient.age || null,
+      blood_type: patient.bloodType || null,
+      city_phone: patient.cityPhone || null,
+      email: patient.email || null,
+      follow_up: patient.followUp,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "passport" });
+    setQuickSaving(false);
+    if (error) {
+      await hpsrAlert(`Não foi possível cadastrar o paciente: ${error.message}`, "Cadastro rápido");
+      return;
+    }
+    setPatients((current) => [patient, ...current.filter((item) => item.passport !== patient.passport)].sort((a,b) => a.name.localeCompare(b.name)));
+    setSelectedPatientPassport(patient.passport);
+    setQuickOpen(false);
+    setQuickPatient({ name: "", passport: "", age: "", bloodType: "", cityPhone: "", email: "", followUp: "Clínico" });
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const patient = String(form.get("patient") ?? "").trim();
-    const passport = String(form.get("passport") ?? "").trim();
+    const patient = selectedPatient?.name || "";
+    const passport = selectedPatient?.passport || "";
     const fractures = String(form.get("fractures") ?? "")
       .split(",")
       .map((item) => item.trim())
@@ -186,6 +297,7 @@ export default function TraumaPage() {
 
     setRecords((current) => [record, ...current]);
     formElement.reset();
+    setSelectedPatientPassport("");
   }
 
   async function updateRecord(updatedRecord: CastRecord) {
@@ -218,8 +330,8 @@ export default function TraumaPage() {
   }
 
   return (
-    <div className="hpsr-page gap-3">
-      <div className="hpsr-topbar" />
+    <div className="hpsr-page min-h-0 gap-2 xl:h-full xl:min-h-0 xl:overflow-hidden">
+      <div className="hpsr-topbar !mb-0 shrink-0" />
 
       <section className="shrink-0 overflow-hidden rounded-[22px] border border-hpsr-border bg-white/[0.9] shadow-[0_18px_42px_rgba(42,7,0,0.07)]">
         <div className="relative overflow-hidden border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f6eadc_62%,#efe0d2_100%)] px-4 py-3">
@@ -247,9 +359,9 @@ export default function TraumaPage() {
         </div>
       </section>
 
-      <section className="grid min-h-0 flex-1 gap-3 rounded-[22px] xl:grid-cols-[minmax(340px,420px)_minmax(0,1fr)]">
-        <aside className="h-full min-h-0 overflow-hidden rounded-[22px] border border-hpsr-border bg-white/[0.94] shadow-[0_16px_38px_rgba(42,7,0,0.065)]">
-          <div className="relative overflow-hidden border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f6eadc_58%,#ead7c5_100%)] p-3.5">
+      <section className="grid min-h-0 flex-1 overflow-hidden gap-2 rounded-[22px] xl:grid-cols-[minmax(340px,420px)_minmax(0,1fr)]">
+        <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white/[0.94] shadow-[0_16px_38px_rgba(42,7,0,0.065)]">
+          <div className="relative overflow-hidden border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f6eadc_58%,#ead7c5_100%)] p-3">
             <div className="pointer-events-none absolute -right-12 -top-14 h-32 w-32 rounded-full bg-hpsr-wine/10 blur-2xl" />
             <div className="relative flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-[15px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white shadow-[0_8px_18px_rgba(42,7,0,0.14)]">
@@ -263,8 +375,8 @@ export default function TraumaPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex max-h-[calc(100%-5.25rem)] min-h-0 flex-col overflow-y-auto p-3.5 pr-3">
-            <div className="space-y-2.5">
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col p-3">
+            <div className="space-y-2">
               <div className="rounded-[18px] border border-hpsr-border bg-[#fffaf4] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
                 <div className="mb-2 flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-white text-hpsr-wine">
@@ -276,15 +388,37 @@ export default function TraumaPage() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <TraumaField label="Nome do paciente">
-                    <input name="patient" className={inputClass} placeholder="Nome completo do paciente" required />
-                  </TraumaField>
-
-                  <TraumaField label="Passaporte">
-                    <input name="passport" className={inputClass} placeholder="Ex: 2031" required />
-                  </TraumaField>
+                <div className="flex gap-2">
+                  <select
+                    className={inputClass}
+                    value={selectedPatientPassport}
+                    onChange={(event) => selectPatient(event.target.value)}
+                    required
+                  >
+                    <option value="">Selecione o paciente</option>
+                    {patients.map((patient) => (
+                      <option key={patient.passport} value={patient.passport}>{patient.name} · {patient.passport}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setQuickOpen(true)}
+                    title="Cadastro rápido de paciente"
+                    aria-label="Cadastro rápido de paciente"
+                    className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[13px] border border-hpsr-border bg-white text-hpsr-wine transition hover:bg-[#fff8f0]"
+                  >
+                    <UserPlus size={17} />
+                  </button>
                 </div>
+
+                {selectedPatient && (
+                  <div className="mt-2 grid grid-cols-2 gap-2 rounded-[14px] border border-hpsr-border bg-white p-2.5 text-xs">
+                    <PatientInfo label="Nome" value={selectedPatient.name} />
+                    <PatientInfo label="Passaporte" value={selectedPatient.passport} />
+                    <PatientInfo label="Idade" value={selectedPatient.age || "Não informada"} />
+                    <PatientInfo label="Tipo sanguíneo" value={selectedPatient.bloodType || "Não informado"} />
+                  </div>
+                )}
               </div>
 
               <div className="rounded-[18px] border border-hpsr-border bg-[#fffaf4] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
@@ -331,7 +465,7 @@ export default function TraumaPage() {
               </div>
             </div>
 
-            <div className="sticky bottom-0 mt-3 bg-white/[0.94] pt-3">
+            <div className="mt-2 shrink-0 bg-white/[0.94] pt-2">
               <button
                 type="submit"
                 disabled={savingRecord}
@@ -344,7 +478,7 @@ export default function TraumaPage() {
           </form>
 
         </aside>
-        <div className="min-h-0 min-w-0 overflow-y-auto rounded-[22px] border border-hpsr-border bg-white/[0.92] p-3.5 pr-3 shadow-[0_14px_34px_rgba(42,7,0,0.055)]">
+        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white/[0.92] p-3.5 shadow-[0_14px_34px_rgba(42,7,0,0.055)]">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Histórico</p>
@@ -363,7 +497,8 @@ export default function TraumaPage() {
             </label>
           </div>
 
-          <div className="mt-4 grid gap-3">
+          <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+            <div className="grid gap-3">
             {filteredRecords.map((record) => (
               <CastHistoryCard key={record.id} record={record} onOpen={() => setSelectedRecord(record)} />
             ))}
@@ -380,9 +515,20 @@ export default function TraumaPage() {
                 <p className="mt-1 text-sm font-semibold text-hpsr-muted">Tente buscar por outro paciente, passaporte ou status.</p>
               </div>
             )}
+            </div>
           </div>
         </div>
       </section>
+
+      {quickOpen && (
+        <QuickPatientModal
+          patient={quickPatient}
+          setPatient={setQuickPatient}
+          saving={quickSaving}
+          onClose={() => setQuickOpen(false)}
+          onSave={() => void saveQuickPatient()}
+        />
+      )}
 
       {selectedRecord && (
         <CastRecordModal
@@ -623,6 +769,41 @@ function CastRecordModal({
             Salvar alterações
           </button>
         </div>
+      </section>
+    </div>
+  );
+}
+
+
+function PatientInfo({ label, value }: { label: string; value: string }) {
+  return <div className="min-w-0"><p className="text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">{label}</p><p className="truncate font-bold text-hpsr-text">{value}</p></div>;
+}
+
+function QuickPatientModal({ patient, setPatient, saving, onClose, onSave }: {
+  patient: PatientRegistryItem;
+  setPatient: React.Dispatch<React.SetStateAction<PatientRegistryItem>>;
+  saving: boolean;
+  onClose: () => void;
+  onSave: () => void;
+}) {
+  const field = (key: keyof PatientRegistryItem, value: string) => setPatient((current) => ({ ...current, [key]: value }));
+  return (
+    <div className="fixed inset-0 z-[100000] grid place-items-center bg-[#1f0805]/62 p-4 backdrop-blur-md">
+      <section className="w-full max-w-xl overflow-hidden rounded-[22px] border border-white/40 bg-[#fffaf4] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
+        <div className="flex items-start justify-between border-b border-hpsr-border bg-white px-5 py-4">
+          <div className="flex gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-hpsr-border text-hpsr-wine"><UserPlus size={19}/></div><div><h3 className="font-black text-hpsr-text">Cadastro rápido de paciente</h3><p className="text-xs font-semibold text-hpsr-muted">O paciente será cadastrado no registro compartilhado e selecionado automaticamente.</p></div></div>
+          <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><X size={18}/></button>
+        </div>
+        <div className="grid gap-3 p-5 sm:grid-cols-2">
+          <TraumaField label="Nome completo"><input className={inputClass} value={patient.name} onChange={(e)=>field("name",e.target.value)} /></TraumaField>
+          <TraumaField label="Passaporte"><input className={inputClass} value={patient.passport} onChange={(e)=>field("passport",e.target.value)} /></TraumaField>
+          <TraumaField label="Idade"><input className={inputClass} value={patient.age} onChange={(e)=>field("age",e.target.value)} /></TraumaField>
+          <TraumaField label="Tipo sanguíneo"><input className={inputClass} placeholder="Ex.: B-" value={patient.bloodType} onChange={(e)=>field("bloodType",e.target.value)} /></TraumaField>
+          <TraumaField label="Telefone"><input className={inputClass} value={patient.cityPhone} onChange={(e)=>field("cityPhone",e.target.value)} /></TraumaField>
+          <TraumaField label="E-mail"><input type="email" className={inputClass} value={patient.email} onChange={(e)=>field("email",e.target.value)} /></TraumaField>
+          <div className="sm:col-span-2"><TraumaField label="Acompanhamento"><select className={inputClass} value={patient.followUp} onChange={(e)=>field("followUp",e.target.value)}><option>Clínico</option><option>Especializado</option><option>Rotina</option></select></TraumaField></div>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-hpsr-border bg-white px-5 py-4"><button type="button" onClick={onClose} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-xs font-black text-hpsr-text">Cancelar</button><button type="button" disabled={saving} onClick={onSave} className="rounded-[14px] bg-hpsr-wine px-4 py-3 text-xs font-black text-white disabled:opacity-60">{saving ? "Salvando..." : "Salvar e selecionar"}</button></div>
       </section>
     </div>
   );

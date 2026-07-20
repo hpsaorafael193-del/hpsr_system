@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, RefreshCcw, Stethoscope, XCircle, CalendarClock } from "lucide-react";
 import { specialties } from "@/data/mock";
+import { PatientBookingPanel } from "@/components/public/PatientBookingPanel";
 
 type Appointment = {
   id: string;
@@ -38,29 +39,58 @@ export function PatientAppointmentsPanel({ onSessionExpired }: { onSessionExpire
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [availability, setAvailability] = useState<Record<string, string>>({});
-
-  const loadAppointments = useCallback(async () => {
-    setLoading(true); setError("");
-    try {
-      const response = await fetch("/api/paciente/consultas", { cache: "no-store" });
-      const data = await response.json();
-      if (response.status === 401) { onSessionExpired?.(); return; }
-      if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível carregar as consultas.");
-      setAppointments(data.appointments || []);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "Não foi possível carregar as consultas.");
-    } finally { setLoading(false); }
-  }, [onSessionExpired]);
+  const requestInFlightRef = useRef<Promise<void> | null>(null);
+  const lastLoadedAtRef = useRef(0);
+  const onSessionExpiredRef = useRef(onSessionExpired);
 
   useEffect(() => {
-    void loadAppointments();
-    const timer = window.setInterval(() => void loadAppointments(), 45000);
-    const onVisibility = () => { if (document.visibilityState === "visible") void loadAppointments(); };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", onVisibility);
+    onSessionExpiredRef.current = onSessionExpired;
+  }, [onSessionExpired]);
+
+  const loadAppointments = useCallback(async ({ silent = false, force = false }: { silent?: boolean; force?: boolean } = {}) => {
+    const now = Date.now();
+    if (!force && now - lastLoadedAtRef.current < 15000) return;
+    if (requestInFlightRef.current) return requestInFlightRef.current;
+
+    const request = (async () => {
+      if (!silent) setLoading(true);
+      setError("");
+      try {
+        const response = await fetch("/api/paciente/consultas", { cache: "no-store" });
+        const data = await response.json();
+        if (response.status === 401) {
+          onSessionExpiredRef.current?.();
+          return;
+        }
+        if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível carregar as consultas.");
+        setAppointments(data.appointments || []);
+        lastLoadedAtRef.current = Date.now();
+      } catch (loadError) {
+        setError(loadError instanceof Error ? loadError.message : "Não foi possível carregar as consultas.");
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    })();
+
+    requestInFlightRef.current = request;
+    try {
+      await request;
+    } finally {
+      requestInFlightRef.current = null;
+    }
+  }, []);
+
+  const handleBooked = useCallback(() => {
+    void loadAppointments({ silent: true, force: true });
+  }, [loadAppointments]);
+
+  useEffect(() => {
+    void loadAppointments({ force: true });
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void loadAppointments({ silent: true });
     };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [loadAppointments]);
 
 
@@ -71,7 +101,7 @@ export function PatientAppointmentsPanel({ onSessionExpired }: { onSessionExpire
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível atualizar a consulta.");
       setMessage("Resposta registrada com sucesso.");
-      await loadAppointments();
+      await loadAppointments({ silent: true, force: true });
     } catch (actionError) { setError(actionError instanceof Error ? actionError.message : "Não foi possível atualizar a consulta."); }
     finally { setSaving(false); }
   }
@@ -92,7 +122,7 @@ export function PatientAppointmentsPanel({ onSessionExpired }: { onSessionExpire
       if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível solicitar a consulta.");
       setMessage(`Solicitação registrada. Protocolo: ${data.id}`);
       formElement.reset();
-      await loadAppointments();
+      await loadAppointments({ silent: true, force: true });
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Não foi possível solicitar a consulta.");
     } finally { setSaving(false); }
@@ -100,13 +130,14 @@ export function PatientAppointmentsPanel({ onSessionExpired }: { onSessionExpire
 
   return (
     <div className="space-y-4">
+      <PatientBookingPanel onSessionExpired={onSessionExpired} onBooked={handleBooked} />
       <section className="rounded-[22px] border border-hpsr-border bg-white/90 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><CalendarDays size={20} /></div>
             <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Portal do paciente</p><h3 className="text-lg font-black text-hpsr-text">Minhas consultas</h3></div>
           </div>
-          <button type="button" onClick={() => void loadAppointments()} className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine"><RefreshCcw size={14} /> Atualizar</button>
+          <button type="button" onClick={() => void loadAppointments({ force: true })} className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine"><RefreshCcw size={14} /> Atualizar</button>
         </div>
 
         {loading ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-hpsr-wine" /></div> : appointments.length === 0 ? (

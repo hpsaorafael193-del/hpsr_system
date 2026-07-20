@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     const supabase = getServiceClient();
     const { data: session } = await supabase
       .from("patient_portal_sessions")
-      .select("id,expires_at,revoked_at,portal_access_id")
+      .select("id,expires_at,revoked_at,portal_access_id,last_seen_at")
       .eq("token_hash", hashPatientSecret(token))
       .maybeSingle();
     if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) {
@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
       response.cookies.set(getPatientSessionCookieName(), "", { path: "/", maxAge: 0 });
       return response;
     }
-    await supabase.from("patient_portal_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", session.id);
+    const lastSeenAt = session.last_seen_at ? new Date(session.last_seen_at).getTime() : 0;
+    if (!lastSeenAt || Date.now() - lastSeenAt >= 10 * 60 * 1000) {
+      await supabase.from("patient_portal_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", session.id);
+    }
     const passport = String(access.patient_passport || "");
     const passportHint = passport.length > 4 ? `${passport.slice(0, 2)}•••${passport.slice(-2)}` : "••••";
     return NextResponse.json({ authenticated: true, expiresAt: session.expires_at, passportHint });

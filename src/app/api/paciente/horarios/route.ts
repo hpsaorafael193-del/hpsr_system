@@ -1,23 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession } from "@/lib/patient-portal/server";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-export async function GET(request: NextRequest) {
-  try {
-    const valid = await getValidPatientSession(request);
-    if (!valid) return NextResponse.json({ ok: false, error: "Sessão expirada." }, { status: 401 });
-    await valid.supabase.rpc("cleanup_old_clinical_slots");
-    const from = new Date().toISOString();
-    const until = new Date(Date.now() + 1000 * 60 * 60 * 24 * 90).toISOString();
-    const { data, error } = await valid.supabase.from("clinical_appointment_slots")
-      .select("id,doctor_name,specialty,starts_at,ends_at,status")
-      .eq("status", "Disponível").gte("starts_at", from).lte("starts_at", until).order("starts_at");
-    if (error) throw error;
-    return NextResponse.json({ ok: true, slots: data || [] });
-  } catch (error) {
-    console.error("[patient-portal] available slots", error);
-    return NextResponse.json({ ok: false, error: "Não foi possível carregar os horários disponíveis." }, { status: 500 });
-  }
-}
+export const runtime="nodejs"; export const dynamic="force-dynamic";
+function dateInSaoPaulo(offset=0){const d=new Date(Date.now()+offset*86400000);return new Intl.DateTimeFormat("en-CA",{timeZone:"America/Sao_Paulo",year:"numeric",month:"2-digit",day:"2-digit"}).format(d)}
+export async function GET(request:NextRequest){try{const valid=await getValidPatientSession(request);if(!valid)return NextResponse.json({ok:false,error:"Sessão expirada."},{status:401});const today=dateInSaoPaulo();const tomorrow=dateInSaoPaulo(1);const {data:occ,error:occError}=await valid.supabase.from("clinical_followup_occurrences").select("id,doctor_id,specialty,planned_date,status,patient_name").eq("patient_passport",valid.access.patient_passport).eq("planned_date",tomorrow).in("status",["Planejada","Aguardando abertura","Horários disponíveis"]).limit(50);if(occError)throw occError;if(!occ?.length)return NextResponse.json({ok:true,slots:[],window:{today,tomorrow,eligible:false}});const starts=`${tomorrow}T00:00:00-03:00`,ends=`${tomorrow}T23:59:59-03:00`;const doctorIds=[...new Set(occ.map((o:any)=>o.doctor_id))];const specialties=[...new Set(occ.map((o:any)=>o.specialty))];const {data,error}=await valid.supabase.from("clinical_appointment_slots").select("id,doctor_id,doctor_name,specialty,starts_at,ends_at,status").eq("status","Disponível").in("doctor_id",doctorIds).in("specialty",specialties).gte("starts_at",starts).lte("starts_at",ends).order("starts_at").limit(200);if(error)throw error;return NextResponse.json({ok:true,slots:data||[],window:{today,tomorrow,eligible:true},patientName:String(occ[0]?.patient_name||"")});}catch(error){console.error("[patient-portal] available slots",error);return NextResponse.json({ok:false,error:"Não foi possível carregar os horários disponíveis."},{status:500})}}

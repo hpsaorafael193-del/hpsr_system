@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { MobileSidebar } from "./MobileSidebar";
 import { cn } from "@/lib/utils";
@@ -10,6 +11,8 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 const SIDEBAR_COLLAPSED_KEY = "hpsr-sidebar-collapsed";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isTraumatologyFixedPage = pathname === "/dashboard/traumatologia";
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
@@ -50,6 +53,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <main
         className={cn(
           "relative min-h-dvh min-w-0 overflow-x-hidden overflow-y-auto transition-all duration-300",
+          isTraumatologyFixedPage && "xl:h-dvh xl:min-h-0 xl:overflow-y-hidden",
           collapsed ? "lg:pl-[92px]" : "lg:pl-[292px]"
         )}
       >
@@ -58,7 +62,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_18%_16%,rgba(103,38,20,0.052),transparent_24rem),radial-gradient(circle_at_88%_12%,rgba(255,255,255,0.55),transparent_24rem),radial-gradient(circle_at_52%_100%,rgba(42,7,0,0.036),transparent_30rem)]" />
-        <div className="relative z-10 min-h-dvh min-w-0 overflow-visible px-[clamp(0.65rem,1.8vw,1.35rem)] pb-[clamp(0.85rem,1.45vw,1.2rem)] pt-[clamp(0.75rem,1.45vw,1.2rem)] max-lg:pt-3">
+        <div
+          className={cn(
+            "relative z-10 min-h-dvh min-w-0 overflow-visible px-[clamp(0.65rem,1.8vw,1.35rem)] pb-[clamp(0.85rem,1.45vw,1.2rem)] pt-[clamp(0.75rem,1.45vw,1.2rem)] max-lg:pt-3",
+            isTraumatologyFixedPage && "xl:h-dvh xl:min-h-0 xl:overflow-hidden"
+          )}
+        >
           {children}
         </div>
       </main>

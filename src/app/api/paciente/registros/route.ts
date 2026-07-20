@@ -61,7 +61,8 @@ export async function GET(request: NextRequest) {
       .eq("patient_passport", patientSession.access.patient_passport)
       .eq("is_confidential", false)
       .not("released_at", "is", null)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(100);
 
     if (error) throw error;
     const records = (data || []).map((record: any) => ({

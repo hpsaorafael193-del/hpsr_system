@@ -70,7 +70,7 @@ export async function sendPatientCode(email: string, code: string) {
             <p style="line-height:1.6">Use o código abaixo para acessar sua área temporária:</p>
             <div style="font-size:34px;font-weight:800;letter-spacing:8px;text-align:center;background:#f8eee4;border-radius:14px;padding:18px;margin:20px 0">${code}</div>
             <p style="line-height:1.6"><strong>Validade:</strong> 15 minutos. O código pode ser usado apenas uma vez.</p>
-            <p style="font-size:12px;color:#7a6258;line-height:1.5">Ambiente fictício de roleplay. As informações exibidas não possuem validade médica real.</p>
+            <p style="font-size:12px;color:#7a6258;line-height:1.5">Código de uso pessoal e temporário. Não compartilhe este acesso.</p>
           </div>
         </div>`,
     }),
@@ -95,7 +95,7 @@ export async function getValidPatientSession(request: Request) {
   const supabase = getServiceClient();
   const { data: session } = await supabase
     .from("patient_portal_sessions")
-    .select("id,expires_at,revoked_at,portal_access_id")
+    .select("id,expires_at,revoked_at,portal_access_id,last_seen_at")
     .eq("token_hash", hashPatientSecret(decodeURIComponent(token)))
     .maybeSingle();
   if (!session || session.revoked_at || new Date(session.expires_at).getTime() <= Date.now()) return null;
@@ -107,6 +107,9 @@ export async function getValidPatientSession(request: Request) {
     .maybeSingle();
   if (!access?.access_enabled) return null;
 
-  await supabase.from("patient_portal_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", session.id);
+  const lastSeenAt = session.last_seen_at ? new Date(session.last_seen_at).getTime() : 0;
+  if (!lastSeenAt || Date.now() - lastSeenAt >= 10 * 60 * 1000) {
+    await supabase.from("patient_portal_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", session.id);
+  }
   return { supabase, session, access };
 }

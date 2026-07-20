@@ -8,12 +8,16 @@ import {
   ClipboardPlus,
   FileClock,
   FileText,
+  Eye,
+  Download,
+  LoaderCircle,
   HeartPulse,
   IdCard,
   NotebookPen,
   Pill,
   Plus,
   Search,
+  RefreshCw,
   Stethoscope,
   Syringe,
   UserRound,
@@ -120,6 +124,17 @@ export default function RecordsPage() {
   const [isClinicalRecordOpen, setIsClinicalRecordOpen] = useState(false);
   const [isLoadingPatients, setIsLoadingPatients] = useState(true);
   const [isDeletingPatient, setIsDeletingPatient] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [examViewer, setExamViewer] = useState<{
+    open: boolean;
+    loading: boolean;
+    title: string;
+    reportHtml: string;
+    previewImages: string[];
+    patientName: string;
+    doctorName: string;
+    savedAt: string;
+  }>({ open: false, loading: false, title: "", reportHtml: "", previewImages: [], patientName: "", doctorName: "", savedAt: "" });
 
   useEffect(() => {
     if (sharedSelectedPassport) setSelectedPassport(sharedSelectedPassport);
@@ -286,7 +301,13 @@ export default function RecordsPage() {
       active = false;
       void client.removeChannel(channel);
     };
-  }, []);
+  }, [refreshKey]);
+
+  function refreshRecords() {
+    if (isLoadingPatients || sharedPatientsLoading) return;
+    setIsLoadingPatients(true);
+    setRefreshKey((current) => current + 1);
+  }
 
   const visiblePatients = useMemo(() => {
     const normalized = searchTerm.trim().toLowerCase();
@@ -359,6 +380,65 @@ export default function RecordsPage() {
       `Paciente excluído. Foram removidos ${removedRecords} registro(s) clínico(s) e ${removedAppointments} consulta(s) vinculada(s).`,
       "Paciente excluído"
     );
+  }
+
+  async function openSavedExam(event: TimelineEvent) {
+    if (event.type !== "Exame") return;
+    const client = createClient();
+    if (!client) {
+      await hpsrAlert("Não foi possível conectar ao Supabase.", "Exame indisponível");
+      return;
+    }
+
+    setExamViewer({ open: true, loading: true, title: event.title, reportHtml: "", previewImages: [], patientName: selectedPatient?.name || "", doctorName: event.doctor, savedAt: event.date });
+    const { data, error } = await client
+      .from("clinical_records")
+      .select("payload,created_at")
+      .eq("id", event.id)
+      .eq("record_type", "Exame")
+      .maybeSingle();
+
+    if (error || !data) {
+      setExamViewer((current) => ({ ...current, loading: false }));
+      await hpsrAlert(error?.message || "O exame não foi encontrado no banco.", "Não foi possível abrir o exame");
+      return;
+    }
+
+    const payload = (data.payload || {}) as Record<string, any>;
+    const previewImages = Array.isArray(payload.previewImages)
+      ? payload.previewImages.filter((item: unknown): item is string => typeof item === "string" && item.startsWith("data:image/"))
+      : typeof payload.previewImage === "string" && payload.previewImage.startsWith("data:image/")
+        ? [payload.previewImage]
+        : [];
+
+    setExamViewer({
+      open: true,
+      loading: false,
+      title: String(payload.examName || payload.title || event.title || "Exame"),
+      reportHtml: String(payload.reportHtml || ""),
+      previewImages,
+      patientName: String(payload.patient?.name || selectedPatient?.name || "Paciente"),
+      doctorName: String(payload.doctor?.name || event.doctor || "Equipe médica"),
+      savedAt: String(payload.savedAt || data.created_at || event.date || ""),
+    });
+  }
+
+  function downloadSavedExam() {
+    if (!examViewer.open || examViewer.loading) return;
+    const safeTitle = examViewer.title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "exame";
+    const pages = examViewer.previewImages.length
+      ? examViewer.previewImages.map((src, index) => `<section class="page"><img src="${src}" alt="Página ${index + 1}" /></section>`).join("")
+      : `<section class="page report">${examViewer.reportHtml || "<p>Conteúdo do exame indisponível.</p>"}</section>`;
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${examViewer.title}</title><style>body{margin:0;background:#eee;font-family:Arial,sans-serif}.page{width:210mm;min-height:297mm;margin:12px auto;background:#fff;box-sizing:border-box;page-break-after:always}.page img{display:block;width:100%;height:auto}.report{padding:18mm}@media print{body{background:#fff}.page{margin:0;box-shadow:none}}</style></head><body>${pages}</body></html>`;
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${safeTitle}.html`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   }
 
   async function deleteClinicalRecord(event: TimelineEvent) {
@@ -527,7 +607,7 @@ export default function RecordsPage() {
               </p>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
               <label className="flex min-h-[44px] items-center gap-2.5 rounded-[14px] border border-hpsr-border bg-white px-3 shadow-sm focus-within:border-hpsr-wineLight focus-within:ring-2 focus-within:ring-hpsr-wineLight/20">
                 <Search size={18} className="shrink-0 text-hpsr-muted" />
                 <input
@@ -556,6 +636,17 @@ export default function RecordsPage() {
                   </button>
                 )}
               </label>
+
+              <button
+                type="button"
+                onClick={refreshRecords}
+                disabled={isLoadingPatients || sharedPatientsLoading}
+                className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-3.5 text-xs font-black text-hpsr-wine transition hover:border-hpsr-wineLight hover:bg-[#fff8f0] disabled:cursor-not-allowed disabled:opacity-60"
+                title="Atualizar prontuário"
+              >
+                <RefreshCw size={16} className={isLoadingPatients || sharedPatientsLoading ? "animate-spin" : ""} />
+                Atualizar
+              </button>
 
               <button
                 type="button"
@@ -746,7 +837,7 @@ export default function RecordsPage() {
                 )}
                 {activeTab === "timeline" && <TimelineTab events={patientEvents} />}
                 {activeTab === "consultas" && <FilteredEventsTab events={patientEvents} type="Consulta" empty="Nenhuma consulta registrada." />}
-                {activeTab === "exames" && <FilteredEventsTab events={patientEvents} type="Exame" empty="Nenhum exame vinculado." onDelete={deleteClinicalRecord} />}
+                {activeTab === "exames" && <FilteredEventsTab events={patientEvents} type="Exame" empty="Nenhum exame vinculado." onDelete={deleteClinicalRecord} onOpen={openSavedExam} />}
                 {activeTab === "documentos" && <FilteredEventsTab events={patientEvents} type="Documento" empty="Nenhum documento vinculado." onDelete={deleteClinicalRecord} />}
                 {activeTab === "prescricoes" && <FilteredEventsTab events={patientEvents} type="Prescrição" empty="Nenhuma prescrição registrada." />}
                 {activeTab === "procedimentos" && <FilteredEventsTab events={patientEvents} type="Procedimento" empty="Nenhum procedimento registrado." />}
@@ -782,6 +873,13 @@ export default function RecordsPage() {
           patient={selectedPatient}
           onClose={() => setIsClinicalRecordOpen(false)}
           onSave={handleAddClinicalRecord}
+        />
+      )}
+      {examViewer.open && (
+        <SavedExamViewer
+          exam={examViewer}
+          onClose={() => setExamViewer((current) => ({ ...current, open: false }))}
+          onDownload={downloadSavedExam}
         />
       )}
     </div>
@@ -1011,11 +1109,13 @@ function FilteredEventsTab({
   type,
   empty,
   onDelete,
+  onOpen,
 }: {
   events: TimelineEvent[];
   type: TimelineEvent["type"];
   empty: string;
   onDelete?: (event: TimelineEvent) => void;
+  onOpen?: (event: TimelineEvent) => void;
 }) {
   const filtered = events.filter((event) => event.type === type);
 
@@ -1024,13 +1124,13 @@ function FilteredEventsTab({
   return (
     <div className="grid gap-3">
       {filtered.map((event) => (
-        <EventCard key={event.id} event={event} onDelete={onDelete} />
+        <EventCard key={event.id} event={event} onDelete={onDelete} onOpen={onOpen} />
       ))}
     </div>
   );
 }
 
-function EventCard({ event, onDelete }: { event: TimelineEvent; onDelete?: (event: TimelineEvent) => void }) {
+function EventCard({ event, onDelete, onOpen }: { event: TimelineEvent; onDelete?: (event: TimelineEvent) => void; onOpen?: (event: TimelineEvent) => void }) {
   return (
     <article className="rounded-[16px] border border-hpsr-border bg-white p-3.5 transition hover:bg-[#fffdf9]">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
@@ -1054,10 +1154,50 @@ function EventCard({ event, onDelete }: { event: TimelineEvent; onDelete?: (even
           <p className="mt-1 font-black text-hpsr-text">{formatDate(event.date)}</p>
           <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{event.doctor}</p>
         </div>
+        {onOpen && event.type === "Exame" && <button type="button" onClick={() => onOpen(event)} className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-hpsr-wine/20 bg-[#fff3e8] px-3 py-2 text-xs font-black text-hpsr-wine transition hover:bg-[#ffead8]"><Eye size={14} /> Visualizar exame</button>}
         {onDelete && (event.type === "Exame" || event.type === "Documento") && <button type="button" onClick={() => onDelete(event)} className="rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">Excluir {event.type.toLowerCase()}</button>}
         </div>
       </div>
     </article>
+  );
+}
+
+function SavedExamViewer({
+  exam,
+  onClose,
+  onDownload,
+}: {
+  exam: { open: boolean; loading: boolean; title: string; reportHtml: string; previewImages: string[]; patientName: string; doctorName: string; savedAt: string };
+  onClose: () => void;
+  onDownload: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-[#210700]/70 p-3 sm:p-5" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="flex h-[94vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[24px] border border-white/70 bg-[#f5eee7] shadow-[0_30px_100px_rgba(24,5,0,.45)]">
+        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-hpsr-border bg-white px-4 py-3 sm:px-5">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Exame salvo no prontuário</p>
+            <h3 className="truncate text-lg font-black text-hpsr-text sm:text-xl">{exam.title}</h3>
+            <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{exam.patientName} · {exam.doctorName}{exam.savedAt ? ` · ${new Date(exam.savedAt).toLocaleString("pt-BR")}` : ""}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button type="button" disabled={exam.loading} onClick={onDownload} className="inline-flex h-10 items-center gap-2 rounded-[13px] border border-hpsr-border bg-[#fff8f0] px-3 text-xs font-black text-hpsr-wine disabled:opacity-50"><Download size={15} /> Baixar</button>
+            <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-hpsr-border bg-white text-hpsr-wine"><X size={18} /></button>
+          </div>
+        </header>
+        <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-5">
+          {exam.loading ? (
+            <div className="flex min-h-full items-center justify-center"><div className="text-center"><LoaderCircle className="mx-auto animate-spin text-hpsr-wine" size={30} /><p className="mt-3 text-sm font-black text-hpsr-text">Carregando exame...</p></div></div>
+          ) : exam.previewImages.length ? (
+            <div className="mx-auto grid max-w-[900px] gap-5">{exam.previewImages.map((src, index) => <figure key={`${src.slice(0, 40)}-${index}`} className="overflow-hidden rounded-[10px] bg-white shadow-[0_12px_40px_rgba(42,7,0,.18)]"><img src={src} alt={`Página ${index + 1} do exame`} className="block h-auto w-full" /><figcaption className="border-t border-hpsr-border px-3 py-2 text-center text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Página {index + 1}</figcaption></figure>)}</div>
+          ) : exam.reportHtml ? (
+            <div className="mx-auto min-h-[900px] max-w-[900px] overflow-hidden rounded-[10px] bg-white shadow-[0_12px_40px_rgba(42,7,0,.18)]"><iframe title={exam.title} srcDoc={exam.reportHtml} className="h-[1100px] w-full border-0 bg-white" /></div>
+          ) : (
+            <div className="flex min-h-full items-center justify-center"><EmptyState text="O conteúdo completo deste exame não está disponível." /></div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 

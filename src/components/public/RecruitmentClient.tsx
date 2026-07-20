@@ -430,7 +430,7 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
               <p className="mt-1 text-sm text-hpsr-muted">Preencha todos os campos obrigatórios (*)</p>
 
               <div className="mt-6 grid gap-3 md:grid-cols-2">
-                <FormField label="Nome completo do personagem *">
+                <FormField label="Nome completo *">
                   <input className={inputClass} name="name" placeholder="Ex: Dr. Emerson..." required />
                 </FormField>
 

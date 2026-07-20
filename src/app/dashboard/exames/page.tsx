@@ -24,6 +24,10 @@ import {
   Heart,
   HeartPulse,
   Highlighter,
+  ClipboardPaste,
+  Eraser,
+  CaseUpper,
+  CaseLower,
   Info,
   Italic,
   List,
@@ -1206,6 +1210,54 @@ export default function ExamesPage() {
   function insertHtml(html: string) {
     restoreSelection();
     document.execCommand("insertHTML", false, html);
+    rememberSelection();
+    syncEditorFromDom();
+  }
+
+  async function pasteWithoutFormatting() {
+    restoreSelection();
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) return;
+      document.execCommand("insertText", false, text);
+      rememberSelection();
+      syncEditorFromDom();
+    } catch {
+      setAppDialog({
+        title: "Não foi possível acessar a área de transferência",
+        message: "Use Ctrl + Shift + V para colar sem formatação neste campo.",
+        actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
+      });
+    }
+  }
+
+  function transformSelectionCase(mode: "upper" | "lower") {
+    restoreSelection();
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || !editorRef.current) return;
+    const range = selection.getRangeAt(0);
+    if (range.collapsed || !editorRef.current.contains(range.commonAncestorContainer)) return;
+
+    const walker = document.createTreeWalker(editorRef.current, NodeFilter.SHOW_TEXT);
+    const nodes: Text[] = [];
+    let current = walker.nextNode();
+    while (current) {
+      const textNode = current as Text;
+      try {
+        if (range.intersectsNode(textNode)) nodes.push(textNode);
+      } catch {}
+      current = walker.nextNode();
+    }
+
+    nodes.forEach((node) => {
+      const start = node === range.startContainer ? range.startOffset : 0;
+      const end = node === range.endContainer ? range.endOffset : node.data.length;
+      if (end <= start) return;
+      const selected = node.data.slice(start, end);
+      const converted = mode === "upper" ? selected.toLocaleUpperCase("pt-BR") : selected.toLocaleLowerCase("pt-BR");
+      node.data = `${node.data.slice(0, start)}${converted}${node.data.slice(end)}`;
+    });
+
     rememberSelection();
     syncEditorFromDom();
   }
@@ -2431,6 +2483,8 @@ export default function ExamesPage() {
             tableCols={tableCols}
             setTableCols={setTableCols}
             insertTable={insertTable}
+            pasteWithoutFormatting={pasteWithoutFormatting}
+            transformSelectionCase={transformSelectionCase}
           />
 
           <div className="min-h-0 flex-1 overflow-y-auto bg-[#f2eee9] p-4">
@@ -2815,6 +2869,8 @@ function Toolbar({
   tableCols,
   setTableCols,
   insertTable,
+  pasteWithoutFormatting,
+  transformSelectionCase,
 }: {
   exec: (command: string, value?: string) => void;
   insertHtml: (html: string) => void;
@@ -2826,9 +2882,15 @@ function Toolbar({
   tableCols: number;
   setTableCols: (value: number) => void;
   insertTable: (rows?: number, cols?: number) => void;
+  pasteWithoutFormatting: () => Promise<void>;
+  transformSelectionCase: (mode: "upper" | "lower") => void;
 }) {
   function color(event: ChangeEvent<HTMLInputElement>) {
     exec("foreColor", event.target.value);
+  }
+
+  function backgroundColor(event: ChangeEvent<HTMLInputElement>) {
+    exec("hiliteColor", event.target.value);
   }
 
   return (
@@ -2878,14 +2940,20 @@ function Toolbar({
         <Button onClick={() => exec("underline")}>
           <Underline size={15} />
         </Button>
-        <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[12px] border border-hpsr-border bg-white/85 px-3 text-xs font-black text-hpsr-text">
-          <Highlighter size={15} />
-          <input
-            type="color"
-            onChange={color}
-            className="h-5 w-7 cursor-pointer border-0 bg-transparent p-0"
-          />
+        <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[12px] border border-hpsr-border bg-white/85 px-3 text-xs font-black text-hpsr-text" title="Cor da fonte">
+          <Type size={15} />
+          <input type="color" onChange={color} className="h-5 w-7 cursor-pointer border-0 bg-transparent p-0" aria-label="Cor da fonte" />
         </label>
+        <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[12px] border border-hpsr-border bg-white/85 px-3 text-xs font-black text-hpsr-text" title="Cor de fundo do texto">
+          <Highlighter size={15} />
+          <input type="color" defaultValue="#fff2a8" onChange={backgroundColor} className="h-5 w-7 cursor-pointer border-0 bg-transparent p-0" aria-label="Cor de fundo do texto" />
+        </label>
+        <Button onClick={() => exec("removeFormat")} title="Remover formatação"><Eraser size={15} /></Button>
+      </div>
+      <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+        <Button onClick={() => void pasteWithoutFormatting()} title="Colar sem formatação"><ClipboardPaste size={15} /></Button>
+        <Button onClick={() => transformSelectionCase("upper")} title="Converter seleção para maiúsculas"><CaseUpper size={16} /></Button>
+        <Button onClick={() => transformSelectionCase("lower")} title="Converter seleção para minúsculas"><CaseLower size={16} /></Button>
       </div>
       <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
         <Button onClick={() => exec("justifyLeft")}>

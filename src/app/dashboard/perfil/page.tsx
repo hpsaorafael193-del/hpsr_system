@@ -130,7 +130,7 @@ export default function PerfilPage() {
 
   const profileItems = useMemo(
     () => [
-      { label: "Nome do personagem", value: profile.characterName, icon: UserRound },
+      { label: "Nome profissional", value: profile.characterName, icon: UserRound },
       { label: "Passaporte", value: profile.passport, icon: Hash },
       { label: "Cargo", value: currentUserProfile.role, icon: BadgeCheck },
       { label: "Especialidade", value: currentUserProfile.specialty, icon: Stethoscope },

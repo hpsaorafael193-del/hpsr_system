@@ -4,20 +4,25 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   CalendarDays,
   CalendarClock,
+  CalendarCheck2,
   ChevronLeft,
   ChevronRight,
   ClipboardPlus,
   Download,
   FileClock,
   HeartPulse,
+  LayoutDashboard,
   Plus,
   Stethoscope,
   UserRound,
+  UsersRound,
   UserPlus,
   Trash2,
   X,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { DoctorAvailabilityManager } from "@/components/dashboard/DoctorAvailabilityManager";
+import { ClinicalFollowupPlanner } from "@/components/dashboard/ClinicalFollowupPlanner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
@@ -241,10 +246,45 @@ export default function ClinicalSchedulePage() {
       <PageHeader
         eyebrow="Agendamentos"
         title="Agenda Clínica"
-        description="Gerencie consultas da sua especialidade, respeitando intervalo mínimo de 1 hora por especialidade e horários no padrão de Brasília."
+        description="Planeje acompanhamentos, publique horários e acompanhe as consultas do corpo clínico em uma única visão."
       />
 
-      <section className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-4 py-3 text-hpsr-text lg:px-5">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-[0_10px_30px_rgba(93,45,24,0.04)]">
+          <div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-muted">Consultas no mês</p><CalendarCheck2 size={18} className="text-hpsr-wine" /></div>
+          <p className="mt-3 text-3xl font-black tracking-tight text-hpsr-text">{monthlyAppointments.length}</p>
+          <p className="mt-1 text-xs font-semibold text-hpsr-muted">Registros visíveis em {monthLabel(currentMonth)}</p>
+        </div>
+        <div className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-[0_10px_30px_rgba(93,45,24,0.04)]">
+          <div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-muted">Hoje</p><CalendarClock size={18} className="text-hpsr-wine" /></div>
+          <p className="mt-3 text-3xl font-black tracking-tight text-hpsr-text">{doctorAppointments.filter((item) => item.date === toDateKey(brasiliaToday)).length}</p>
+          <p className="mt-1 text-xs font-semibold text-hpsr-muted">Consultas previstas para o dia atual</p>
+        </div>
+        <div className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-[0_10px_30px_rgba(93,45,24,0.04)]">
+          <div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-muted">Pacientes no mês</p><UsersRound size={18} className="text-hpsr-wine" /></div>
+          <p className="mt-3 text-3xl font-black tracking-tight text-hpsr-text">{new Set(monthlyAppointments.map((item) => item.passport)).size}</p>
+          <p className="mt-1 text-xs font-semibold text-hpsr-muted">Pacientes únicos na agenda mensal</p>
+        </div>
+        <div className="rounded-[18px] border border-hpsr-border bg-[#351007] p-4 text-white shadow-[0_10px_30px_rgba(53,16,7,0.14)]">
+          <div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-white/60">Data selecionada</p><LayoutDashboard size={18} className="text-[#f0cdbd]" /></div>
+          <p className="mt-3 text-3xl font-black tracking-tight">{appointmentsOnSelectedDay.length}</p>
+          <p className="mt-1 text-xs font-semibold capitalize text-white/65">{selectedDateLabel}</p>
+        </div>
+      </section>
+
+      <section className="rounded-[18px] border border-hpsr-border bg-[#fffaf4] px-4 py-3 lg:px-5">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-[13px] bg-white text-hpsr-wine"><Stethoscope size={18} /></div>
+          <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Configuração da agenda</p><p className="mt-0.5 text-sm font-semibold text-hpsr-muted">Primeiro planeje o acompanhamento; depois publique os horários disponíveis.</p></div>
+        </div>
+      </section>
+
+      <div className="grid gap-4">
+        <ClinicalFollowupPlanner doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} defaultSpecialty={currentUserProfile.specialty || "Clínico Geral"} />
+        <DoctorAvailabilityManager doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} defaultSpecialty={currentUserProfile.specialty || "Clínico Geral"} />
+      </div>
+
+      <section className="rounded-[20px] border border-hpsr-border bg-[#fffaf4] px-4 py-4 text-hpsr-text shadow-[0_12px_35px_rgba(93,45,24,0.04)] lg:px-5">
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-hpsr-border bg-white px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wine">
@@ -252,10 +292,10 @@ export default function ClinicalSchedulePage() {
               Agenda clínica
             </span>
             <h2 className="mt-2 max-w-4xl text-[clamp(1.25rem,2vw,1.75rem)] font-black leading-tight tracking-tight">
-              Calendário clínico com consultas, regras e atendimento
+              Visão diária das consultas e atendimentos
             </h2>
             <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-hpsr-muted">
-              Controle consultas da especialidade do médico logado, evitando conflitos com menos de 1 hora e mantendo horários no padrão de Brasília.
+              Navegue pelo calendário, consulte a distribuição do dia e acesse rapidamente cada atendimento.
             </p>
           </div>
 
@@ -272,14 +312,14 @@ export default function ClinicalSchedulePage() {
               className="inline-flex items-center justify-center gap-2 rounded-[16px] border border-hpsr-border bg-white px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:bg-[#fffdf9]"
             >
               <Download size={16} />
-              Importar relatório
+              Exportar relatório
             </button>
           </div>
         </div>
       </section>
 
       <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
+        <div className="rounded-[20px] border border-hpsr-border bg-white p-4 shadow-[0_12px_35px_rgba(93,45,24,0.04)]">
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">
             Regras de agendamento
           </p>
@@ -296,7 +336,7 @@ export default function ClinicalSchedulePage() {
       </section>
 
       <section className="grid gap-3 xl:grid-cols-[minmax(320px,430px)_minmax(0,1fr)]">
-        <article className="overflow-hidden rounded-[16px] border border-hpsr-border bg-white p-3.5">
+        <article className="overflow-hidden rounded-[20px] border border-hpsr-border bg-white p-4 shadow-[0_12px_35px_rgba(93,45,24,0.04)]">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">Calendário</p>
@@ -380,7 +420,7 @@ export default function ClinicalSchedulePage() {
           </div>
         </article>
 
-        <article className="overflow-hidden rounded-[16px] border border-hpsr-border bg-white p-3.5">
+        <article className="overflow-hidden rounded-[20px] border border-hpsr-border bg-white p-4 shadow-[0_12px_35px_rgba(93,45,24,0.04)]">
           <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">Próximas consultas</p>

@@ -2228,7 +2228,7 @@ function ManageMemberModal({
                   </div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  <ModalField label="Nome do personagem">
+                  <ModalField label="Nome profissional">
                     <select className={modalInputClass} value={selectedMemberId} onChange={(event) => selectDoctor(event.target.value)}>
                       <option value="">Selecione o médico</option>
                       {selectableDoctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name} — {doctor.crm || doctor.passport}</option>)}

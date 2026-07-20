@@ -115,7 +115,7 @@ export default function SchedulePage() {
                   <Info size={17} />
                 </div>
                 <p className="text-sm leading-relaxed text-hpsr-muted">
-                  Use informações corretas do personagem. O acompanhamento da solicitação será feito pelo <strong className="font-semibold text-hpsr-text">passaporte</strong>.
+                  Use as informações corretas do paciente. O acompanhamento da solicitação será feito pelo <strong className="font-semibold text-hpsr-text">passaporte</strong>.
                 </p>
               </div>
             </div>
@@ -126,7 +126,7 @@ export default function SchedulePage() {
                   <input name="passport" className={inputClass} placeholder="Ex: 12345" required />
                 </FormField>
 
-                <FormField label="Nome do paciente/personagem">
+                <FormField label="Nome do paciente">
                   <input name="patient" className={inputClass} placeholder="Ex: João Silva" required />
                 </FormField>
 

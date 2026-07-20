@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Clock3, KeyRound, Loader2, Mail, RefreshCcw, ShieldCheck, TriangleAlert } from "lucide-react";
 import { PatientRecordsPanel } from "@/components/public/PatientRecordsPanel";
 import { PatientAppointmentsPanel } from "@/components/public/PatientAppointmentsPanel";
@@ -34,6 +34,7 @@ export function PatientAccessPanel() {
   const [expiresAt, setExpiresAt] = useState<string | null>(null);
   const [passportHint, setPassportHint] = useState("");
   const [clock, setClock] = useState(Date.now());
+  const lastSessionCheckAtRef = useRef(0);
 
   const sessionRemaining = useMemo(
     () => expiresAt ? new Date(expiresAt).getTime() - clock : 0,
@@ -53,6 +54,7 @@ export function PatientAccessPanel() {
   const checkSession = useCallback(async (showLoading = false) => {
     if (showLoading) setStage("checking");
     try {
+      lastSessionCheckAtRef.current = Date.now();
       const response = await fetch("/api/paciente/sessao", { cache: "no-store" });
       const data = await response.json() as SessionResponse;
       if (data.authenticated) {
@@ -80,13 +82,16 @@ export function PatientAccessPanel() {
 
   useEffect(() => {
     if (stage !== "portal") return;
-    const timer = window.setInterval(() => setClock(Date.now()), 30000);
-    const sessionTimer = window.setInterval(() => void checkSession(false), 60000);
-    const onVisibility = () => { if (document.visibilityState === "visible") void checkSession(false); };
+    // O relógio é apenas visual. A sessão não consulta o servidor em intervalos fixos.
+    const timer = window.setInterval(() => setClock(Date.now()), 60000);
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      setClock(Date.now());
+      if (Date.now() - lastSessionCheckAtRef.current >= 5 * 60 * 1000) void checkSession(false);
+    };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       window.clearInterval(timer);
-      window.clearInterval(sessionTimer);
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [checkSession, stage]);
@@ -96,6 +101,11 @@ export function PatientAccessPanel() {
       resetToLogin("Sua sessão temporária expirou. Solicite um novo código para continuar.");
     }
   }, [expiresAt, resetToLogin, sessionRemaining, stage]);
+
+
+  const handleSessionExpired = useCallback(() => {
+    resetToLogin("Sua sessão expirou. Solicite um novo código para continuar.");
+  }, [resetToLogin]);
 
   async function requestCode() {
     setBusy(true); setError(""); setMessage("");
@@ -174,11 +184,11 @@ export function PatientAccessPanel() {
 
         <div className="rounded-[18px] border border-amber-300 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-950">
           <TriangleAlert className="mr-2 inline align-text-bottom" size={18} />
-          Ambiente fictício de roleplay. Nenhum exame, documento ou consulta possui validade médica real.
+          Acesso restrito às informações liberadas pelo Hospital São Rafael.
         </div>
 
-        <PatientRecordsPanel onSessionExpired={() => resetToLogin("Sua sessão expirou. Solicite um novo código para continuar.")} />
-        <PatientAppointmentsPanel onSessionExpired={() => resetToLogin("Sua sessão expirou. Solicite um novo código para continuar.")} />
+        <PatientRecordsPanel onSessionExpired={handleSessionExpired} />
+        <PatientAppointmentsPanel onSessionExpired={handleSessionExpired} />
       </div>
     );
   }

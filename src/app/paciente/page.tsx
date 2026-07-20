@@ -25,7 +25,7 @@ export default function PatientPortalPage() {
               <div>
                 <h2 className="font-black">Aviso obrigatório de Roleplay</h2>
                 <p className="mt-1 text-sm font-semibold leading-relaxed">
-                  Todos os exames, documentos, consultas e informações deste portal são fictícios e não possuem validade médica real.
+                  Este portal apresenta somente informações liberadas pelo Hospital São Rafael para o paciente identificado.
                 </p>
               </div>
             </div>
