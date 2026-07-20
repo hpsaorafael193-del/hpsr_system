@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { type SystemActivity } from "@/lib/administrative-storage";
 import { createClient } from "@/lib/supabase";
 import { exportAdministrativeReport, type AdministrativeMember } from "@/lib/export-administrative-report";
+import { TimeClockAdministrativeReport } from "@/components/dashboard/TimeClockAdministrativeReport";
 
 type GenericRecord = Record<string, any>;
 type SupabaseActivityRow = { id: string; module: string; action: string; description: string; actor?: string | null; reference?: string | null; created_at: string };
@@ -274,6 +275,8 @@ export default function DirectionPage() {
           <RankingPanel title="Exames mais realizados" icon={<FlaskConical size={17}/>} items={analytics.examRanking.slice(0, 5)} emptyLabel="Nenhum exame registrado."/>
           <RankingPanel title="Serviços mais realizados" icon={<Stethoscope size={17}/>} items={analytics.serviceRanking.slice(0, 5)} emptyLabel="Nenhum serviço registrado."/>
         </section>
+
+        <TimeClockAdministrativeReport />
 
         <section className="grid min-h-[560px] shrink-0 gap-3 xl:h-[560px] xl:grid-cols-[minmax(0,1fr)_350px]">
           <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] border border-white/80 bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.06)]">

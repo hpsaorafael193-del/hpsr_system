@@ -395,6 +395,7 @@ export default function RecordsPage() {
       .select("payload,created_at")
       .eq("id", event.id)
       .eq("record_type", "Exame")
+      .eq("patient_passport", event.patientPassport)
       .maybeSingle();
 
     if (error || !data) {
@@ -414,7 +415,7 @@ export default function RecordsPage() {
       open: true,
       loading: false,
       title: String(payload.examName || payload.title || event.title || "Exame"),
-      reportHtml: String(payload.reportHtml || ""),
+      reportHtml: String(payload.reportHtml || payload.finalHtml || payload.html || payload.editorHtml || ""),
       previewImages,
       patientName: String(payload.patient?.name || selectedPatient?.name || "Paciente"),
       doctorName: String(payload.doctor?.name || event.doctor || "Equipe médica"),
@@ -818,7 +819,7 @@ export default function RecordsPage() {
                 )}
                 {activeTab === "timeline" && <TimelineTab events={patientEvents} />}
                 {activeTab === "consultas" && <FilteredEventsTab events={patientEvents} type="Consulta" empty="Nenhuma consulta registrada." />}
-                {activeTab === "exames" && <FilteredEventsTab events={patientEvents} type="Exame" empty="Nenhum exame vinculado." onDelete={deleteClinicalRecord} onOpen={openSavedExam} />}
+                {activeTab === "exames" && <ExamsTab events={patientEvents} onDelete={deleteClinicalRecord} onOpen={openSavedExam} />}
                 {activeTab === "documentos" && <FilteredEventsTab events={patientEvents} type="Documento" empty="Nenhum documento vinculado." onDelete={deleteClinicalRecord} />}
                 {activeTab === "prescricoes" && <FilteredEventsTab events={patientEvents} type="Prescrição" empty="Nenhuma prescrição registrada." />}
                 {activeTab === "procedimentos" && <FilteredEventsTab events={patientEvents} type="Procedimento" empty="Nenhum procedimento registrado." />}
@@ -1082,6 +1083,36 @@ function TimelineTab({ events }: { events: TimelineEvent[] }) {
         </div>
       ))}
     </div>
+  );
+}
+
+
+function ExamsTab({
+  events,
+  onDelete,
+  onOpen,
+}: {
+  events: TimelineEvent[];
+  onDelete: (event: TimelineEvent) => void;
+  onOpen: (event: TimelineEvent) => void;
+}) {
+  const exams = events.filter((event) => event.type === "Exame");
+
+  if (exams.length === 0) return <EmptyState text="Nenhum exame vinculado." />;
+
+  return (
+    <section className="grid gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-hpsr-border bg-[#fff8f0] px-4 py-3">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Exames salvos</p>
+          <p className="mt-1 text-sm font-semibold text-hpsr-muted">Abra o exame completo sem sair do prontuário. O conteúdo é carregado somente ao abrir.</p>
+        </div>
+        <span className="rounded-full border border-hpsr-border bg-white px-3 py-1.5 text-xs font-black text-hpsr-wine">{exams.length} {exams.length === 1 ? "exame" : "exames"}</span>
+      </div>
+      {exams.map((event) => (
+        <EventCard key={event.id} event={event} onDelete={onDelete} onOpen={onOpen} />
+      ))}
+    </section>
   );
 }
 

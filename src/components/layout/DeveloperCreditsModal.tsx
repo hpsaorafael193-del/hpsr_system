@@ -78,7 +78,7 @@ export function DeveloperCreditsModal({ open, onClose }: { open: boolean; onClos
           <div className="rounded-[16px] border border-[#ead6c4] bg-[#f5e8dc] px-4 py-4 text-center">
             <p className="text-sm font-black text-hpsr-wine">Desenvolvido para o Hospital São Rafael - Eldorado</p>
             <p className="mt-2 text-xs font-semibold text-hpsr-muted">© 2026 Luidhy Conceição Dos Santos. Todos os direitos reservados.</p>
-            <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Versão do sistema: 0.4.71</p>
+            <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Versão do sistema: 0.4.74</p>
           </div>
 
           <button type="button" onClick={onClose} className="inline-flex min-h-[46px] w-full items-center justify-center rounded-[14px] bg-hpsr-wine px-5 text-sm font-black text-white transition hover:bg-hpsr-wineLight">

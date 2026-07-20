@@ -97,14 +97,6 @@ export default function PerfilPage() {
     });
   }, [currentUserProfile.systemName, currentUserProfile.characterName, currentUserProfile.passport]);
 
-  async function toggleServiceStatus() {
-    const next = serviceStatus === "Em serviço" ? "Fora de serviço" : "Em serviço";
-    const result = await persistProfile({ serviceStatus: next });
-    if (!result.ok) { setSaveMessage(result.error || "Não foi possível alterar o status."); return; }
-    setServiceStatus(next);
-    registerSystemActivity({ module: "Perfil", action: "Status alterado", description: `Status alterado para ${next}.`, actor: currentUserProfile.systemName, reference: currentUserProfile.passport });
-    setSaveMessage(`Status alterado para ${next}.`);
-  }
 
   async function changePassword() {
     setPasswordMessage("");
@@ -330,10 +322,9 @@ export default function PerfilPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" onClick={toggleServiceStatus} className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-white/20 bg-white px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:bg-[#fff8f0]">
-                    <Circle size={10} className={isInService ? "fill-orange-500 text-orange-500" : "fill-emerald-600 text-emerald-600"} />
-                    {isInService ? "Ficar fora de serviço" : "Entrar em serviço"}
-                  </button>
+                  <span className="inline-flex items-center justify-center rounded-[14px] border border-white/20 bg-white/10 px-4 py-2.5 text-xs font-bold text-white/85">
+                    Controle de ponto disponível no menu do usuário
+                  </span>
                   <button
                     type="button"
                     onClick={() => setEditing((value) => !value)}
