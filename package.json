@@ -1,6 +1,6 @@
 {
   "name": "hpsr-system",
-  "version": "0.4.68",
+  "version": "0.4.71",
   "private": true,
   "scripts": {
     "dev": "next dev",

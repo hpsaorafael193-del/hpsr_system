@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   Archive,
-  ChevronDown,
   ClipboardPlus,
   FileClock,
   FileText,
@@ -667,8 +666,8 @@ export default function RecordsPage() {
           </div>
         </div>
 
-        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden p-3 xl:grid-cols-[minmax(330px,0.38fr)_minmax(0,1fr)] xl:items-stretch">
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-[#fffaf5] xl:h-full">
+        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden p-3 xl:h-full xl:grid-cols-[minmax(330px,0.38fr)_minmax(0,1fr)] xl:items-stretch">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-[#fffaf5] xl:h-full xl:max-h-full">
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-hpsr-border bg-white/80 px-3.5 py-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Pacientes</p>
@@ -676,22 +675,20 @@ export default function RecordsPage() {
               </div>
             </div>
 
-            <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto p-2.5">
+            <div className="grid min-h-0 flex-1 auto-rows-max content-start gap-2 overflow-y-auto overscroll-contain p-2.5 pr-2 [scrollbar-gutter:stable]">
               {visiblePatients.map((patient) => {
                 const selected = selectedPatient?.passport === patient.passport;
-                const events = timelineEvents.filter((event) => event.patientPassport === patient.passport);
-
                 return (
                   <div
                     key={patient.passport}
-                    className={`group relative overflow-hidden rounded-[15px] border transition ${
+                    className={`group relative min-h-[68px] shrink-0 overflow-hidden rounded-[13px] border transition ${
                       selected
-                        ? "border-hpsr-wine bg-white shadow-[0_8px_22px_rgba(103,38,20,0.10)]"
+                        ? "border-hpsr-wine bg-white shadow-[0_6px_16px_rgba(103,38,20,0.09)]"
                         : "border-hpsr-border bg-white/90 hover:border-[#d6b9a4] hover:bg-white"
                     }`}
                   >
                     {selected && <span className="absolute inset-y-0 left-0 w-1 bg-hpsr-wine" />}
-                    <div className="flex items-start gap-2 p-3 pl-3.5">
+                    <div className="flex h-full items-center gap-2 px-3 py-2.5 pl-3.5">
                       <button
                         type="button"
                         onClick={() => {
@@ -701,40 +698,27 @@ export default function RecordsPage() {
                         }}
                         className="min-w-0 flex-1 text-left"
                       >
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex min-w-0 items-center gap-2">
                           <p className="truncate text-sm font-black text-hpsr-text">{patient.name}</p>
-                          <span className={`rounded-full border px-2 py-0.5 text-[9px] font-black ${statusClasses(patient.status)}`}>
+                          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-black ${statusClasses(patient.status)}`}>
                             {patient.status}
                           </span>
                         </div>
                         <p className="mt-1 truncate text-[11px] font-semibold text-hpsr-muted">
                           Passaporte {patient.passport} · {patient.age} anos · {patient.bloodType}
                         </p>
-                        <p className="mt-1 truncate text-[11px] text-hpsr-muted">{patient.followUp}</p>
-
-                        <div className="mt-2.5 grid grid-cols-3 gap-1.5 border-t border-hpsr-border pt-2.5">
-                          <MiniPatientStat label="Registros" value={String(events.length)} />
-                          <MiniPatientStat label="Alertas" value={String(patient.alerts.length)} />
-                          <MiniPatientStat label="Último" value={formatDate(patient.lastVisit)} />
-                        </div>
                       </button>
 
-                      <div className="flex shrink-0 flex-col items-center gap-1.5">
-                        <button
-                          type="button"
-                          aria-label={`Excluir ${patient.name}`}
-                          title="Excluir paciente"
-                          disabled={isDeletingPatient}
-                          onClick={() => void deletePatient(patient)}
-                          className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-red-100 bg-red-50 text-red-600 transition hover:border-red-200 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                        <ChevronDown
-                          size={17}
-                          className={`text-hpsr-wine transition ${selected ? "rotate-[-90deg]" : ""}`}
-                        />
-                      </div>
+                      <button
+                        type="button"
+                        aria-label={`Excluir ${patient.name}`}
+                        title="Excluir paciente"
+                        disabled={isDeletingPatient}
+                        onClick={() => void deletePatient(patient)}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-transparent text-red-500 transition hover:border-red-100 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
                 );
@@ -759,8 +743,8 @@ export default function RecordsPage() {
           </div>
 
           {selectedPatient ? (
-            <div className="min-w-0 overflow-hidden rounded-[16px] border border-hpsr-border bg-white xl:h-full xl:min-h-0 xl:overflow-y-auto">
-              <div className="sticky top-0 z-20 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffdf9_0%,#f4e7dc_100%)] p-3.5 shadow-[0_8px_18px_rgba(79,42,21,0.05)]">
+            <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-white xl:h-full xl:max-h-full">
+              <div className="z-20 shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffdf9_0%,#f4e7dc_100%)] p-3.5 shadow-[0_8px_18px_rgba(79,42,21,0.05)]">
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -821,7 +805,7 @@ export default function RecordsPage() {
                 </div>
               </div>
 
-              <div className="p-3.5">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3.5 [scrollbar-gutter:stable]">
                 {activeTab === "geral" && (
                   <OverviewTab
                     patient={selectedPatient}
@@ -1220,15 +1204,6 @@ function GeneralMetric({ label, value, icon }: { label: string; value: string; i
         </div>
         <span className="shrink-0 text-hpsr-wine">{icon}</span>
       </div>
-    </div>
-  );
-}
-
-function MiniPatientStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">{label}</p>
-      <p className="mt-0.5 truncate text-xs font-black text-hpsr-text">{value}</p>
     </div>
   );
 }
