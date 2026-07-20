@@ -674,9 +674,6 @@ export default function RecordsPage() {
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Pacientes</p>
                 <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{visiblePatients.length} resultado{visiblePatients.length === 1 ? "" : "s"}</p>
               </div>
-              <span className="rounded-full border border-hpsr-border bg-[#fff8f0] px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-hpsr-wine">
-                {visiblePatients.length}/{patients.length}
-              </span>
             </div>
 
             <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto p-2.5">
