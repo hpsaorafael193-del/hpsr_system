@@ -84,6 +84,9 @@ export function PatientAccessPanel() {
 
   async function createAccount() {
     clearFeedback();
+    if (register.password.length < 6) {
+      setError("A senha deve ter no mínimo 6 caracteres."); return;
+    }
     if (register.password !== register.confirmation) {
       setError("A senha e a confirmação não são iguais."); return;
     }
@@ -235,8 +238,8 @@ export function PatientAccessPanel() {
             <Field label="Tipo sanguíneo"><input value={register.bloodType} onChange={(e) => setRegister(v => ({...v, bloodType:e.target.value}))} className="portal-input" placeholder="Ex.: O+" /></Field>
             <Field label="Telefone"><input value={register.phone} onChange={(e) => setRegister(v => ({...v, phone:e.target.value}))} className="portal-input" /></Field>
             <Field label="E-mail" wide><input type="email" autoComplete="email" value={register.email} onChange={(e) => setRegister(v => ({...v, email:e.target.value}))} className="portal-input" /></Field>
-            <Field label="Senha"><input type="password" autoComplete="new-password" value={register.password} onChange={(e) => setRegister(v => ({...v, password:e.target.value}))} className="portal-input" placeholder="Mínimo de 8 caracteres" /></Field>
-            <Field label="Confirmar senha"><input type="password" autoComplete="new-password" value={register.confirmation} onChange={(e) => setRegister(v => ({...v, confirmation:e.target.value}))} className="portal-input" /></Field>
+            <Field label="Senha"><input type="password" autoComplete="new-password" value={register.password} onChange={(e) => setRegister(v => ({...v, password:e.target.value}))} className="portal-input" minLength={6} placeholder="Mínimo de 6 caracteres" /></Field>
+            <Field label="Confirmar senha"><input type="password" autoComplete="new-password" value={register.confirmation} minLength={6} onChange={(e) => setRegister(v => ({...v, confirmation:e.target.value}))} className="portal-input" /></Field>
           </div>
           <button onClick={createAccount} disabled={busy || !register.name || !register.passport || !register.email || !register.password || !register.confirmation} className="mt-5 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />} Criar conta</button>
         </div>

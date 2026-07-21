@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
     if (!/^\S+@\S+\.\S+$/.test(requestedEmail)) {
       return NextResponse.json({ error: "Informe um e-mail válido." }, { status: 400 });
     }
-    if (password.length < 8) {
-      return NextResponse.json({ error: "A senha deve ter pelo menos 8 caracteres." }, { status: 400 });
+    if (password.length < 6) {
+      return NextResponse.json({ error: "A senha deve ter pelo menos 6 caracteres." }, { status: 400 });
     }
 
     const supabase = getServiceClient();
