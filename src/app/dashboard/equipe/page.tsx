@@ -308,13 +308,15 @@ function memberFromProfile(row: any, supplemental?: Partial<TeamMember>): TeamMe
     cityPhone: String(row.city_phone || supplemental?.cityPhone || ""),
     email: String(row.email || supplemental?.email || ""),
     radio: String(row.discord || supplemental?.radio || ""),
-    joinedAt: String((row.created_at || supplemental?.joinedAt || new Date().toISOString()).slice(0, 10)),
+    joinedAt: String((supplemental?.joinedAt || row.created_at || new Date().toISOString()).slice(0, 10)),
     serviceStatus: (row.service_status || supplemental?.serviceStatus || "Fora de serviço") as ServiceStatus,
     permissions: Array.isArray(supplemental?.permissions) ? supplemental.permissions : getDefaultPermissions(role, systemRole),
     warnings: Number(supplemental?.warnings || 0),
     suspensions: Number(supplemental?.suspensions || 0),
     history: Array.isArray(supplemental?.history) ? supplemental.history : [],
     clinicalActivity: supplemental?.clinicalActivity,
+    contractStatus: supplemental?.contractStatus || "Ativo",
+    contractDurationDays: Number(supplemental?.contractDurationDays || (role === "Estagiário de Enfermagem" ? 7 : 15)),
   };
 }
 
@@ -545,26 +547,19 @@ export default function TeamPage() {
   async function persistMember(member: TeamMember) {
     const client = createClient();
     if (!client) return { ok: false, error: "Supabase não configurado." };
-    const { error: profileError } = await client.rpc("admin_update_profile", {
+
+    const { error } = await client.rpc("admin_update_team_member", {
       target_profile_id: member.id,
-      profile_patch: {
+      member_payload: {
+        ...member,
         role: member.hospitalRole,
         specialty: member.specialty,
         service_status: member.serviceStatus,
         department: member.department,
       },
     });
-    if (profileError) return { ok: false, error: profileError.message };
-    const sync = await mirrorRecord("team_members", {
-      id: member.id,
-      passport: member.passport,
-      name: member.name,
-      hospital_role: member.hospitalRole,
-      status: "Ativo",
-      payload: member,
-      updated_at: new Date().toISOString(),
-    });
-    return { ok: sync.synced, error: sync.error };
+
+    return { ok: !error, error: error?.message };
   }
 
   async function removeApplicationFromSupabase(application: PublicStaffApplication) {
@@ -649,7 +644,23 @@ export default function TeamPage() {
     }
 
     if (action === "Editar cargo" || action === "Promover") {
-      const updatedMember = { ...member, hospitalRole: trimmedValue, accessLevel: getAccessLevel(trimmedValue, member.systemRole), category: getCategory(trimmedValue, member.systemRole), permissions: getDefaultPermissions(trimmedValue, member.systemRole), history: [`Cargo alterado de ${member.hospitalRole} para ${trimmedValue} em ${timestamp}`, ...member.history] };
+      const startsResidentContract = member.hospitalRole === "Estagiário de Enfermagem" && trimmedValue === "Residente";
+      const updatedMember: TeamMember = {
+        ...member,
+        hospitalRole: trimmedValue,
+        accessLevel: getAccessLevel(trimmedValue, member.systemRole),
+        category: getCategory(trimmedValue, member.systemRole),
+        permissions: getDefaultPermissions(trimmedValue, member.systemRole),
+        joinedAt: startsResidentContract ? new Date().toISOString().slice(0, 10) : member.joinedAt,
+        contractDurationDays: startsResidentContract ? 15 : member.contractDurationDays,
+        contractStatus: startsResidentContract ? "Ativo" : member.contractStatus,
+        history: [
+          startsResidentContract
+            ? `Cargo alterado de ${member.hospitalRole} para ${trimmedValue} em ${timestamp}. Novo contrato de residência iniciado por 15 dias.`
+            : `Cargo alterado de ${member.hospitalRole} para ${trimmedValue} em ${timestamp}`,
+          ...member.history,
+        ],
+      };
       const result = await persistMember(updatedMember);
       if (!result.ok) {
         void hpsrAlert(result.error || "Não foi possível atualizar o cargo no Supabase.", "Erro ao salvar cargo");

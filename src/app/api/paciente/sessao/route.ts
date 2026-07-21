@@ -34,8 +34,9 @@ export async function GET(request: NextRequest) {
       await supabase.from("patient_portal_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", session.id);
     }
     const passport = String(access.patient_passport || "");
+    const { data: patient } = await supabase.from("patient_registry").select("name").eq("passport", passport).maybeSingle();
     const passportHint = passport.length > 4 ? `${passport.slice(0, 2)}•••${passport.slice(-2)}` : "••••";
-    return NextResponse.json({ authenticated: true, expiresAt: session.expires_at, passportHint });
+    return NextResponse.json({ authenticated: true, expiresAt: session.expires_at, passportHint, patientName: patient?.name || "Paciente" });
   } catch (error) {
     console.error("[patient-portal] session", error);
     return NextResponse.json({ authenticated: false });

@@ -8,7 +8,7 @@ import { currentUserProfile } from "@/data/current-user-profile";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase";
 import { LOCAL_AUTH_SESSION_KEY, STAFF_REGISTRATION_REQUESTS_KEY } from "@/lib/local-auth";
 import { registerSystemActivity } from "@/lib/administrative-storage";
-import { setLoginPersistence } from "@/lib/auth-persistence";
+import { setAuthContext, setLoginPersistence } from "@/lib/auth-persistence";
 
 type AccessMode = "login" | "register";
 
@@ -117,6 +117,8 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       return;
     }
 
+    await fetch("/api/paciente/sair", { method: "POST" }).catch(() => undefined);
+    setAuthContext("professional");
     setLoginPersistence(true);
     if (rememberEmail) localStorage.setItem("hpsr-saved-login-email", loginForm.email.trim());
     else localStorage.removeItem("hpsr-saved-login-email");

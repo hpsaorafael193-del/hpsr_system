@@ -6,7 +6,7 @@ import { PublicShell } from "@/components/public/PublicShell";
 import { FormField, inputClass } from "@/components/ui/FormField";
 import { registerSystemActivity } from "@/lib/administrative-storage";
 import { createClient } from "@/lib/supabase";
-import { setLoginPersistence } from "@/lib/auth-persistence";
+import { setAuthContext, setLoginPersistence } from "@/lib/auth-persistence";
 
 type Request = {
   id: string;
@@ -76,6 +76,8 @@ function LoginContent() {
       setBusy(false);
       return;
     }
+    await fetch("/api/paciente/sair", { method: "POST" }).catch(() => undefined);
+    setAuthContext("professional");
     setLoginPersistence(true);
     if (rememberEmail) localStorage.setItem("hpsr-saved-login-email", loginEmail.trim());
     else localStorage.removeItem("hpsr-saved-login-email");

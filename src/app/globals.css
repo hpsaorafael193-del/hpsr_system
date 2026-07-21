@@ -335,3 +335,17 @@ button:active {
     overflow: hidden;
   }
 }
+
+.portal-input {
+  min-height: 46px;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid #ead7c7;
+  background: white;
+  padding: 0 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: inherit;
+  outline: none;
+}
+.portal-input:focus { border-color: #7b2d1a; box-shadow: 0 0 0 3px rgba(123,45,26,.08); }

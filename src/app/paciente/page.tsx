@@ -1,4 +1,4 @@
-import { FileHeart, ShieldCheck, TriangleAlert } from "lucide-react";
+import { FileHeart, ShieldCheck } from "lucide-react";
 import { PublicShell } from "@/components/public/PublicShell";
 import { PatientAccessPanel } from "@/components/public/PatientAccessPanel";
 
@@ -15,21 +15,9 @@ export default function PatientPortalPage() {
               Portal do Paciente
             </h1>
             <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-relaxed text-hpsr-muted sm:text-base">
-              Consulte registros liberados, acompanhe suas consultas e solicite atendimentos usando um código temporário enviado por e-mail.
+              Entre com sua conta para acompanhar consultas, escolher horários e acessar exames e documentos liberados.
             </p>
           </header>
-
-          <section className="mx-auto mt-5 max-w-4xl rounded-[18px] border border-amber-300 bg-amber-50 p-3.5 text-amber-950 sm:p-4">
-            <div className="flex items-start gap-3">
-              <TriangleAlert className="mt-0.5 shrink-0" size={21} />
-              <div>
-                <h2 className="font-black">Aviso obrigatório de Roleplay</h2>
-                <p className="mt-1 text-sm font-semibold leading-relaxed">
-                  Este portal apresenta somente informações liberadas pelo Hospital São Rafael para o paciente identificado.
-                </p>
-              </div>
-            </div>
-          </section>
 
           <section className="mx-auto mt-5 max-w-4xl">
             <PatientAccessPanel />
@@ -37,9 +25,9 @@ export default function PatientPortalPage() {
 
           <section className="mx-auto mt-5 grid max-w-4xl gap-3 sm:grid-cols-3">
             {[
-              "Acesso temporário por código",
+              "Conta vinculada ao Prontuário",
               "Somente registros liberados",
-              "Sessão restrita ao paciente",
+              "Acesso protegido por senha",
             ].map((label) => (
               <div key={label} className="flex min-h-[76px] items-center justify-center gap-2 rounded-[16px] border border-hpsr-border bg-white/75 px-3 text-center text-xs font-black text-hpsr-wine sm:text-sm">
                 <ShieldCheck size={17} className="shrink-0" /> {label}

@@ -1,252 +1,252 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Clock3, KeyRound, Loader2, Mail, RefreshCcw, ShieldCheck, TriangleAlert } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import {
+  CalendarDays, FileHeart, FileText, Loader2, LockKeyhole, LogIn,
+  Mail, RefreshCcw, ShieldCheck, Stethoscope, UserPlus,
+} from "lucide-react";
 import { PatientRecordsPanel } from "@/components/public/PatientRecordsPanel";
 import { PatientAppointmentsPanel } from "@/components/public/PatientAppointmentsPanel";
+import { createClient } from "@/lib/supabase";
+import { clearAuthContext, clearLoginPersistence, setAuthContext } from "@/lib/auth-persistence";
 
-type PortalStage = "checking" | "passport" | "email" | "code" | "portal";
+type Stage = "checking" | "login" | "register" | "portal";
+type SessionResponse = { authenticated?: boolean; patientName?: string };
 
-type SessionResponse = {
-  authenticated?: boolean;
-  expiresAt?: string;
-  passportHint?: string;
+type RegisterForm = {
+  name: string;
+  passport: string;
+  age: string;
+  bloodType: string;
+  phone: string;
+  email: string;
+  password: string;
+  confirmation: string;
 };
 
-function formatRemaining(milliseconds: number) {
-  if (milliseconds <= 0) return "expirada";
-  const totalMinutes = Math.ceil(milliseconds / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours > 0) return `${hours}h ${minutes}min`;
-  return `${minutes} min`;
-}
+const EMPTY_REGISTER: RegisterForm = {
+  name: "", passport: "", age: "", bloodType: "", phone: "", email: "", password: "", confirmation: "",
+};
 
 export function PatientAccessPanel() {
-  const [passport, setPassport] = useState("");
-  const [code, setCode] = useState("");
+  const [stage, setStage] = useState<Stage>("checking");
   const [email, setEmail] = useState("");
-  const [stage, setStage] = useState<PortalStage>("checking");
+  const [password, setPassword] = useState("");
+  const [register, setRegister] = useState<RegisterForm>(EMPTY_REGISTER);
+  const [patientName, setPatientName] = useState("Paciente");
+  const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [resendIn, setResendIn] = useState(0);
-  const [expiresAt, setExpiresAt] = useState<string | null>(null);
-  const [passportHint, setPassportHint] = useState("");
-  const [clock, setClock] = useState(Date.now());
-  const lastSessionCheckAtRef = useRef(0);
 
-  const sessionRemaining = useMemo(
-    () => expiresAt ? new Date(expiresAt).getTime() - clock : 0,
-    [clock, expiresAt],
-  );
-
-  const resetToLogin = useCallback((reason?: string) => {
-    setStage("passport");
-    setCode("");
-    setEmail("");
-    setExpiresAt(null);
-    setPassportHint("");
-    setMessage("");
-    setError(reason || "");
-  }, []);
-
-  const checkSession = useCallback(async (showLoading = false) => {
-    if (showLoading) setStage("checking");
+  const checkSession = useCallback(async () => {
     try {
-      lastSessionCheckAtRef.current = Date.now();
       const response = await fetch("/api/paciente/sessao", { cache: "no-store" });
       const data = await response.json() as SessionResponse;
       if (data.authenticated) {
-        setExpiresAt(data.expiresAt || null);
-        setPassportHint(data.passportHint || "");
+        clearLoginPersistence();
+        setAuthContext("patient");
+        setPatientName(data.patientName || "Paciente");
         setStage("portal");
-        setError("");
         return true;
       }
-      resetToLogin();
-      return false;
-    } catch {
-      resetToLogin("Não foi possível verificar a sessão. Confira sua conexão e tente novamente.");
-      return false;
-    }
-  }, [resetToLogin]);
+    } catch {}
+    setStage("login");
+    return false;
+  }, []);
 
-  useEffect(() => { void checkSession(true); }, [checkSession]);
+  useEffect(() => { void checkSession(); }, [checkSession]);
 
-  useEffect(() => {
-    if (resendIn <= 0) return;
-    const timer = window.setInterval(() => setResendIn((value) => Math.max(0, value - 1)), 1000);
-    return () => window.clearInterval(timer);
-  }, [resendIn]);
+  function clearFeedback() { setMessage(""); setError(""); }
 
-  useEffect(() => {
-    if (stage !== "portal") return;
-    // O relógio é apenas visual. A sessão não consulta o servidor em intervalos fixos.
-    const timer = window.setInterval(() => setClock(Date.now()), 60000);
-    const onVisibility = () => {
-      if (document.visibilityState !== "visible") return;
-      setClock(Date.now());
-      if (Date.now() - lastSessionCheckAtRef.current >= 5 * 60 * 1000) void checkSession(false);
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => {
-      window.clearInterval(timer);
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [checkSession, stage]);
-
-  useEffect(() => {
-    if (stage === "portal" && expiresAt && sessionRemaining <= 0) {
-      resetToLogin("Sua sessão temporária expirou. Solicite um novo código para continuar.");
-    }
-  }, [expiresAt, resetToLogin, sessionRemaining, stage]);
-
-
-  const handleSessionExpired = useCallback(() => {
-    resetToLogin("Sua sessão expirou. Solicite um novo código para continuar.");
-  }, [resetToLogin]);
-
-  async function requestCode() {
-    setBusy(true); setError(""); setMessage("");
+  async function login() {
+    clearFeedback(); setBusy(true);
     try {
-      const response = await fetch("/api/paciente/solicitar-codigo", {
+      const supabase = createClient();
+      if (!supabase) throw new Error("O serviço de acesso não está configurado.");
+      const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+      if (authError || !data.session) throw new Error("E-mail ou senha inválidos.");
+      const response = await fetch("/api/paciente/estabelecer-sessao", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passport, email: stage === "email" ? email : undefined }),
+        headers: { Authorization: `Bearer ${data.session.access_token}` },
       });
-      const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível enviar o código.");
-      if (data.needsEmail) {
-        setStage("email");
-        setMessage(data.message || "Informe um e-mail para receber o código.");
-        return;
+      const result = await response.json();
+      if (!response.ok) {
+        await supabase.auth.signOut();
+        throw new Error(result.error || "Não foi possível abrir o portal.");
       }
-      setStage("code");
-      setCode("");
-      setMessage(data.message);
-      setResendIn(data.resendInSeconds || 60);
+      clearLoginPersistence();
+      setAuthContext("patient");
+      await checkSession();
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Não foi possível enviar o código.");
+      setError(requestError instanceof Error ? requestError.message : "Não foi possível entrar.");
     } finally { setBusy(false); }
   }
 
-  async function verifyCode() {
-    setBusy(true); setError("");
+  async function createAccount() {
+    clearFeedback();
+    if (register.password !== register.confirmation) {
+      setError("A senha e a confirmação não são iguais."); return;
+    }
+    setBusy(true);
     try {
-      const response = await fetch("/api/paciente/verificar-codigo", {
+      const supabase = createClient();
+      if (!supabase) throw new Error("O serviço de acesso não está configurado.");
+
+      // Uma conta profissional pode também ser vinculada como paciente. Quando o e-mail
+      // já pertence ao hospital, a mesma senha confirma a identidade sem criar outro usuário.
+      const existingLogin = await supabase.auth.signInWithPassword({
+        email: register.email.trim().toLowerCase(),
+        password: register.password,
+      });
+      const accessToken = existingLogin.data.session?.access_token || "";
+
+      const response = await fetch("/api/paciente/cadastrar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passport, code }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
+        body: JSON.stringify(register),
       });
       const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.error || "Código inválido.");
-      await checkSession(false);
+      if (!response.ok) {
+        if (accessToken) await supabase.auth.signOut();
+        throw new Error(data.error || "Não foi possível criar a conta.");
+      }
+
+      if (accessToken) {
+        const sessionResponse = await fetch("/api/paciente/estabelecer-sessao", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const sessionResult = await sessionResponse.json();
+        if (!sessionResponse.ok) throw new Error(sessionResult.error || "Não foi possível abrir o portal.");
+        clearLoginPersistence();
+        setAuthContext("patient");
+        setRegister(EMPTY_REGISTER);
+        setMessage(data.message || "Conta vinculada ao Portal do Paciente.");
+        await checkSession();
+        return;
+      }
+
+      setEmail(register.email);
+      setPassword("");
+      setRegister(EMPTY_REGISTER);
+      setStage("login");
+      setMessage(data.message || "Conta criada. Entre com seu e-mail e senha.");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Código inválido.");
+      setError(requestError instanceof Error ? requestError.message : "Não foi possível criar a conta.");
+    } finally { setBusy(false); }
+  }
+
+  async function recoverPassword() {
+    clearFeedback();
+    if (!email.trim()) { setError("Informe seu e-mail antes de solicitar a recuperação."); return; }
+    setBusy(true);
+    try {
+      const supabase = createClient();
+      if (!supabase) throw new Error("O serviço de acesso não está configurado.");
+      const redirectTo = `${window.location.origin}/redefinir-senha`;
+      const { error: recoverError } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo });
+      if (recoverError) throw recoverError;
+      setMessage("Enviamos as orientações de recuperação para o e-mail informado.");
+    } catch {
+      setError("Não foi possível enviar a recuperação de senha.");
     } finally { setBusy(false); }
   }
 
   async function logout() {
     setBusy(true);
-    try { await fetch("/api/paciente/sair", { method: "POST" }); }
-    finally { setBusy(false); resetToLogin(); }
+    try {
+      await fetch("/api/paciente/sair", { method: "POST" });
+      clearAuthContext();
+      const supabase = createClient();
+      if (supabase) await supabase.auth.signOut();
+    } finally {
+      setBusy(false); setStage("login"); setPassword(""); setPatientName("Paciente");
+    }
   }
 
+  const handleSessionExpired = useCallback(() => {
+    setStage("login");
+    setError("Sua sessão expirou. Entre novamente para continuar.");
+  }, []);
+
   if (stage === "checking") {
-    return (
-      <div className="rounded-[24px] border border-hpsr-border bg-white/85 p-8 text-center shadow-[0_18px_40px_rgba(82,48,27,0.08)]">
-        <Loader2 className="mx-auto animate-spin text-hpsr-wine" size={28} />
-        <p className="mt-3 text-sm font-bold text-hpsr-muted">Verificando acesso do paciente...</p>
-      </div>
-    );
+    return <div className="rounded-[24px] border border-hpsr-border bg-white/90 p-10 text-center"><Loader2 className="mx-auto animate-spin text-hpsr-wine" /><p className="mt-3 text-sm font-bold text-hpsr-muted">Preparando sua área...</p></div>;
   }
 
   if (stage === "portal") {
     return (
-      <div className="space-y-4">
-        <div className="sticky top-2 z-20 rounded-[20px] border border-emerald-200 bg-emerald-50/95 p-3 shadow-sm backdrop-blur sm:p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              <ShieldCheck className="mt-0.5 shrink-0 text-emerald-700" size={25} />
-              <div>
-                <h2 className="font-black text-emerald-950">Acesso temporário validado</h2>
-                <p className="mt-1 text-xs font-semibold text-emerald-800 sm:text-sm">
-                  {passportHint ? `Passaporte ${passportHint} · ` : ""}sessão restante: {formatRemaining(sessionRemaining)}.
-                </p>
-              </div>
+      <div className="space-y-5">
+        <section className="rounded-[24px] border border-hpsr-border bg-white/90 p-4 shadow-[0_18px_45px_rgba(82,48,27,.08)] sm:p-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[.14em] text-hpsr-wineLight">Central do paciente</p>
+              <h2 className="mt-1 text-2xl font-black text-hpsr-text">Olá, {patientName}</h2>
+              <p className="mt-1 text-sm font-semibold text-hpsr-muted">Consultas, agenda e registros liberados em um só lugar.</p>
             </div>
-            <button type="button" onClick={logout} disabled={busy} className="min-h-[42px] rounded-[13px] border border-emerald-300 bg-white px-4 text-sm font-black text-emerald-800 disabled:opacity-50">
-              Encerrar acesso
-            </button>
+            <button onClick={logout} disabled={busy} className="min-h-[42px] rounded-[13px] border border-hpsr-border bg-white px-4 text-sm font-black text-hpsr-wine disabled:opacity-50">Sair</button>
           </div>
-        </div>
-
-        <div className="rounded-[18px] border border-amber-300 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-950">
-          <TriangleAlert className="mr-2 inline align-text-bottom" size={18} />
-          Acesso restrito às informações liberadas pelo Hospital São Rafael.
-        </div>
-
-        <PatientRecordsPanel onSessionExpired={handleSessionExpired} />
-        <PatientAppointmentsPanel onSessionExpired={handleSessionExpired} />
+          <nav className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ["#agenda-paciente", CalendarDays, "Minha agenda", "Horários e consultas"],
+              ["#registros-paciente", FileHeart, "Meus exames", "Resultados liberados"],
+              ["#registros-paciente", FileText, "Documentos", "Arquivos disponíveis"],
+              ["#agenda-paciente", Stethoscope, "Atendimentos", "Solicitações e histórico"],
+            ].map(([href, Icon, title, subtitle]) => (
+              <a key={String(title)} href={String(href)} className="group rounded-[18px] border border-hpsr-border bg-hpsr-beige/35 p-4 transition hover:-translate-y-0.5 hover:border-hpsr-wine/30 hover:bg-white">
+                <Icon size={21} className="text-hpsr-wine" />
+                <p className="mt-3 font-black text-hpsr-text">{String(title)}</p>
+                <p className="mt-1 text-xs font-semibold text-hpsr-muted">{String(subtitle)}</p>
+              </a>
+            ))}
+          </nav>
+        </section>
+        <section id="agenda-paciente" className="scroll-mt-4"><PatientAppointmentsPanel onSessionExpired={handleSessionExpired} /></section>
+        <section id="registros-paciente" className="scroll-mt-4"><PatientRecordsPanel onSessionExpired={handleSessionExpired} /></section>
       </div>
     );
   }
 
   return (
-    <div className="rounded-[24px] border border-hpsr-border bg-white/85 p-4 shadow-[0_18px_40px_rgba(82,48,27,0.08)] sm:p-5">
-      <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><KeyRound size={20} /></div>
-        <div><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Acesso seguro</p><h2 className="text-lg font-black text-hpsr-text">Entrar no Portal do Paciente</h2></div>
+    <div className="mx-auto max-w-3xl rounded-[26px] border border-hpsr-border bg-white/90 p-4 shadow-[0_20px_55px_rgba(82,48,27,.10)] sm:p-6">
+      <div className="flex rounded-[15px] bg-hpsr-beige/60 p-1">
+        <button onClick={() => { setStage("login"); clearFeedback(); }} className={`min-h-[42px] flex-1 rounded-[12px] text-sm font-black ${stage === "login" ? "bg-white text-hpsr-wine shadow-sm" : "text-hpsr-muted"}`}>Entrar</button>
+        <button onClick={() => { setStage("register"); clearFeedback(); }} className={`min-h-[42px] flex-1 rounded-[12px] text-sm font-black ${stage === "register" ? "bg-white text-hpsr-wine shadow-sm" : "text-hpsr-muted"}`}>Criar minha conta</button>
       </div>
 
-      <label className="mt-5 block text-xs font-black uppercase tracking-[0.12em] text-hpsr-muted">Passaporte</label>
-      <input value={passport} onChange={(event) => setPassport(event.target.value)} disabled={stage === "code" || stage === "email"} placeholder="Informe seu passaporte" autoComplete="off" className="mt-2 min-h-[46px] w-full rounded-[14px] border border-hpsr-border bg-white px-4 text-base font-bold text-hpsr-text outline-none focus:border-hpsr-wine" />
-
-      {stage === "email" && (
-        <>
-          <label className="mt-4 block text-xs font-black uppercase tracking-[0.12em] text-hpsr-muted">E-mail para receber o código</label>
-          <input value={email} onChange={(event) => setEmail(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && email.trim() && !busy) void requestCode(); }} type="email" autoComplete="email" placeholder="paciente@exemplo.com" className="mt-2 min-h-[46px] w-full rounded-[14px] border border-hpsr-border bg-white px-4 text-base font-bold text-hpsr-text outline-none focus:border-hpsr-wine" />
-          <p className="mt-2 text-xs font-semibold leading-relaxed text-hpsr-muted">O e-mail será armazenado no cadastro do Portal do Paciente e usado para os próximos códigos de acesso.</p>
-        </>
-      )}
-
-      {stage === "code" && (
-        <>
-          <label className="mt-4 block text-xs font-black uppercase tracking-[0.12em] text-hpsr-muted">Código de seis dígitos</label>
-          <input value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} onKeyDown={(event) => { if (event.key === "Enter" && code.length === 6 && !busy) void verifyCode(); }} inputMode="numeric" autoComplete="one-time-code" placeholder="000000" className="mt-2 min-h-[52px] w-full rounded-[14px] border border-hpsr-border bg-white px-4 text-center text-2xl font-black tracking-[0.35em] text-hpsr-text outline-none focus:border-hpsr-wine" />
-        </>
-      )}
-
-      {message && <p className="mt-4 rounded-[12px] border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-semibold text-blue-900">{message}</p>}
-      {error && <p className="mt-4 rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">{error}</p>}
-
-      {stage === "passport" ? (
-        <button type="button" onClick={requestCode} disabled={busy || !passport.trim()} className="mt-5 inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">
-          {busy ? <Loader2 className="animate-spin" size={17} /> : <Mail size={17} />} Enviar código por e-mail
-        </button>
-      ) : stage === "email" ? (
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          <button type="button" onClick={requestCode} disabled={busy || !email.trim()} className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">
-            {busy ? <Loader2 className="animate-spin" size={17} /> : <Mail size={17} />} Salvar e enviar código
-          </button>
-          <button type="button" onClick={() => { setStage("passport"); setEmail(""); setMessage(""); setError(""); }} className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 text-sm font-black text-hpsr-wine">
-            <Clock3 size={15} /> Usar outro passaporte
-          </button>
+      {stage === "login" ? (
+        <div className="mt-6">
+          <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-hpsr-wine text-white"><LockKeyhole size={20} /></div><div><p className="text-xs font-black uppercase tracking-[.14em] text-hpsr-wineLight">Acesso seguro</p><h2 className="text-xl font-black text-hpsr-text">Entrar na área do paciente</h2></div></div>
+          <Field label="E-mail"><input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="portal-input" placeholder="seu@email.com" /></Field>
+          <Field label="Senha"><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !busy) void login(); }} className="portal-input" placeholder="Sua senha" /></Field>
+          <button onClick={login} disabled={busy || !email.trim() || !password} className="mt-5 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />} Entrar</button>
+          <button onClick={recoverPassword} disabled={busy} className="mt-3 w-full text-center text-sm font-black text-hpsr-wineLight">Esqueci minha senha</button>
         </div>
       ) : (
-        <div className="mt-5 grid gap-2 sm:grid-cols-2">
-          <button type="button" onClick={verifyCode} disabled={busy || code.length !== 6} className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">
-            {busy ? <Loader2 className="animate-spin" size={17} /> : <ShieldCheck size={17} />} Validar código
-          </button>
-          <button type="button" onClick={requestCode} disabled={busy || resendIn > 0} className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 text-sm font-black text-hpsr-wine disabled:opacity-50">
-            <RefreshCcw size={16} /> {resendIn > 0 ? `Reenviar em ${resendIn}s` : "Reenviar código"}
-          </button>
-          <button type="button" onClick={() => { setStage("passport"); setCode(""); setMessage(""); setError(""); }} className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] px-4 text-xs font-black text-hpsr-muted sm:col-span-2">
-            <Clock3 size={15} /> Usar outro passaporte
-          </button>
+        <div className="mt-6">
+          <div className="flex items-center gap-3"><div className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-hpsr-wine text-white"><UserPlus size={20} /></div><div><p className="text-xs font-black uppercase tracking-[.14em] text-hpsr-wineLight">Novo acesso</p><h2 className="text-xl font-black text-hpsr-text">Criar conta do paciente</h2></div></div>
+          <p className="mt-3 text-sm font-semibold leading-relaxed text-hpsr-muted">O passaporte vincula sua conta ao cadastro institucional e aos registros liberados para você.</p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <Field label="Nome completo" wide><input value={register.name} onChange={(e) => setRegister(v => ({...v, name:e.target.value}))} className="portal-input" /></Field>
+            <Field label="Passaporte"><input value={register.passport} onChange={(e) => setRegister(v => ({...v, passport:e.target.value}))} className="portal-input" /></Field>
+            <Field label="Idade"><input value={register.age} onChange={(e) => setRegister(v => ({...v, age:e.target.value}))} className="portal-input" /></Field>
+            <Field label="Tipo sanguíneo"><input value={register.bloodType} onChange={(e) => setRegister(v => ({...v, bloodType:e.target.value}))} className="portal-input" placeholder="Ex.: O+" /></Field>
+            <Field label="Telefone"><input value={register.phone} onChange={(e) => setRegister(v => ({...v, phone:e.target.value}))} className="portal-input" /></Field>
+            <Field label="E-mail" wide><input type="email" autoComplete="email" value={register.email} onChange={(e) => setRegister(v => ({...v, email:e.target.value}))} className="portal-input" /></Field>
+            <Field label="Senha"><input type="password" autoComplete="new-password" value={register.password} onChange={(e) => setRegister(v => ({...v, password:e.target.value}))} className="portal-input" placeholder="Mínimo de 8 caracteres" /></Field>
+            <Field label="Confirmar senha"><input type="password" autoComplete="new-password" value={register.confirmation} onChange={(e) => setRegister(v => ({...v, confirmation:e.target.value}))} className="portal-input" /></Field>
+          </div>
+          <button onClick={createAccount} disabled={busy || !register.name || !register.passport || !register.email || !register.password || !register.confirmation} className="mt-5 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />} Criar conta</button>
         </div>
       )}
+      {message && <p className="mt-4 rounded-[13px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900">{message}</p>}
+      {error && <p className="mt-4 rounded-[13px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-800">{error}</p>}
     </div>
   );
+}
+
+function Field({ label, wide, children }: { label: string; wide?: boolean; children: React.ReactNode }) {
+  return <label className={`block ${wide ? "sm:col-span-2" : ""}`}><span className="mb-2 block text-xs font-black uppercase tracking-[.12em] text-hpsr-muted">{label}</span>{children}</label>;
 }
