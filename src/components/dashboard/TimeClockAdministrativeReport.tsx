@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Clock3, Download, History, RefreshCw, ShieldCheck } from "lucide-react";
+import { Clock3, Download, History, RefreshCw, ShieldCheck, Square } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 
 type Entry = { id: string; user: string; openedAt: string; closedAt?: string | null; workedSeconds: number; status: string };
@@ -40,29 +40,23 @@ export function TimeClockAdministrativeReport() {
   useEffect(() => { void load(); }, []);
   const selectedReport = useMemo(() => data.reports.find((item) => item.monthStart === selectedMonth), [data.reports, selectedMonth]);
 
-  async function correctEntry(entry: Entry) {
-    if (!entry.closedAt) return;
-    const openedAt = window.prompt("Data e horário de entrada (ISO):", entry.openedAt);
-    if (!openedAt) return;
-    const closedAt = window.prompt("Data e horário de saída (ISO):", entry.closedAt);
-    if (!closedAt) return;
-    const minutes = window.prompt("Tempo efetivamente trabalhado, em minutos:", String(Math.round(entry.workedSeconds / 60)));
-    if (minutes === null) return;
-    const reason = window.prompt("Motivo obrigatório da correção:", "");
-    if (!reason?.trim()) return;
-    const workedSeconds = Math.max(0, Math.round(Number(minutes) * 60));
-    if (!Number.isFinite(workedSeconds)) { setError("Tempo trabalhado inválido."); return; }
+  async function setClosedAt(entry: Entry) {
+    const initial = toLocalDateTimeInput(entry.closedAt || new Date().toISOString());
+    const value = window.prompt(
+      entry.closedAt ? "Novo horário de encerramento (AAAA-MM-DDTHH:mm):" : "Horário em que o ponto deve ser encerrado (AAAA-MM-DDTHH:mm):",
+      initial,
+    );
+    if (!value) return;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) { setError("Horário de encerramento inválido."); return; }
     const client = createClient();
     if (!client) return;
     setLoading(true); setError("");
-    const result = await client.rpc("admin_correct_time_clock_entry", {
+    const result = await client.rpc("admin_set_time_clock_closed_at", {
       p_entry_id: entry.id,
-      p_opened_at: new Date(openedAt).toISOString(),
-      p_closed_at: new Date(closedAt).toISOString(),
-      p_worked_seconds: workedSeconds,
-      p_reason: reason.trim(),
+      p_closed_at: parsed.toISOString(),
     });
-    if (result.error) setError(result.error.message || "Não foi possível corrigir o ponto.");
+    if (result.error) setError(result.error.message || "Não foi possível atualizar o encerramento do ponto.");
     else await load();
     setLoading(false);
   }
@@ -77,7 +71,7 @@ export function TimeClockAdministrativeReport() {
 
   return <section className="rounded-[20px] border border-white/80 bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hpsr-border pb-3">
-      <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Clock3 size={19}/></span><div><h2 className="font-black text-hpsr-text">Relatório administrativo de ponto</h2><p className="text-xs text-hpsr-muted">Ranking atual, meses encerrados e auditoria de correções.</p></div></div>
+      <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Clock3 size={19}/></span><div><h2 className="font-black text-hpsr-text">Relatório administrativo de ponto</h2><p className="text-xs text-hpsr-muted">Ranking atual, meses encerrados e controle administrativo dos pontos.</p></div></div>
       <button type="button" onClick={() => void load()} disabled={loading} className="flex min-h-10 items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine disabled:opacity-60"><RefreshCw size={15} className={loading ? "animate-spin" : ""}/> Atualizar</button>
     </div>
     {error && <p className="mt-3 rounded-[13px] bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p>}
@@ -92,8 +86,8 @@ export function TimeClockAdministrativeReport() {
       </div>
     </div>
     <div className="mt-4 grid gap-4 xl:grid-cols-[1.25fr_.75fr]">
-      <div className="rounded-[17px] border border-hpsr-border p-3"><h3 className="mb-3 text-sm font-black text-hpsr-text">Registros recentes</h3><div className="max-h-64 space-y-2 overflow-y-auto pr-1">{data.entries.map((entry) => <div key={entry.id} className="grid gap-1 rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5 sm:grid-cols-[1fr_auto] sm:items-center"><div><p className="text-xs font-black text-hpsr-text">{entry.user}</p><p className="text-[11px] text-hpsr-muted">{formatDateTime(entry.openedAt)} · {entry.closedAt ? `encerrado ${formatDateTime(entry.closedAt)}` : entry.status}</p></div><div className="flex items-center gap-2"><span className="text-xs font-black tabular-nums text-hpsr-wine">{formatDuration(entry.workedSeconds)}</span>{entry.closedAt && <button type="button" onClick={() => void correctEntry(entry)} className="rounded-[9px] border border-hpsr-border bg-white px-2 py-1 text-[10px] font-black text-hpsr-wine hover:bg-[#fff4ea]">Corrigir</button>}</div></div>)}{!data.entries.length && <Empty text="Nenhum ponto registrado."/>}</div></div>
-      <div className="rounded-[17px] border border-hpsr-border p-3"><div className="mb-3 flex items-center gap-2"><ShieldCheck size={16} className="text-hpsr-wine"/><h3 className="text-sm font-black text-hpsr-text">Auditoria</h3></div><div className="max-h-64 space-y-2 overflow-y-auto pr-1">{data.audit.map((item) => <div key={item.id} className="rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5"><p className="text-xs font-black text-hpsr-text">{item.action}</p><p className="mt-1 text-[11px] text-hpsr-muted">{item.actor || "Administrador"} · {item.target || "Profissional"}</p><p className="mt-1 text-[11px] text-hpsr-muted">{item.reason}</p></div>)}{!data.audit.length && <Empty text="Nenhuma correção auditada."/>}</div></div>
+      <div className="rounded-[17px] border border-hpsr-border p-3"><h3 className="mb-3 text-sm font-black text-hpsr-text">Registros recentes</h3><div className="max-h-64 space-y-2 overflow-y-auto pr-1">{data.entries.map((entry) => <div key={entry.id} className="grid gap-1 rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5 sm:grid-cols-[1fr_auto] sm:items-center"><div><p className="text-xs font-black text-hpsr-text">{entry.user}</p><p className="text-[11px] text-hpsr-muted">{formatDateTime(entry.openedAt)} · {entry.closedAt ? `encerrado ${formatDateTime(entry.closedAt)}` : entry.status}</p></div><div className="flex items-center gap-2"><span className="text-xs font-black tabular-nums text-hpsr-wine">{formatDuration(entry.workedSeconds)}</span><button type="button" onClick={() => void setClosedAt(entry)} disabled={loading} className={`flex items-center gap-1 rounded-[9px] border px-2 py-1 text-[10px] font-black disabled:opacity-50 ${entry.closedAt ? "border-hpsr-border bg-white text-hpsr-wine hover:bg-[#fff4ea]" : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"}`}>{entry.closedAt ? "Editar encerramento" : <><Square size={11}/> Encerrar ponto</>}</button></div></div>)}{!data.entries.length && <Empty text="Nenhum ponto registrado."/>}</div></div>
+      <div className="rounded-[17px] border border-hpsr-border p-3"><div className="mb-3 flex items-center gap-2"><ShieldCheck size={16} className="text-hpsr-wine"/><h3 className="text-sm font-black text-hpsr-text">Auditoria</h3></div><div className="max-h-64 space-y-2 overflow-y-auto pr-1">{data.audit.map((item) => <div key={item.id} className="rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5"><p className="text-xs font-black text-hpsr-text">{item.action}</p><p className="mt-1 text-[11px] text-hpsr-muted">{item.actor || "Administrador"} · {item.target || "Profissional"}</p><p className="mt-1 text-[11px] text-hpsr-muted">{item.reason}</p></div>)}{!data.audit.length && <Empty text="Nenhuma intervenção administrativa registrada."/>}</div></div>
     </div>
   </section>;
 }
@@ -102,5 +96,11 @@ function RankingList({ ranking }: { ranking: Ranking[] }) { return <div classNam
 function Empty({ text }: { text: string }) { return <p className="rounded-[12px] border border-dashed border-hpsr-border px-3 py-5 text-center text-xs text-hpsr-muted">{text}</p>; }
 function normalizeNumbers(item: any) { return { ...item, position: Number(item.position || 0), workedSeconds: Number(item.workedSeconds || 0) }; }
 function formatDuration(seconds: number) { const safe = Math.max(0, Math.floor(seconds || 0)); const h = Math.floor(safe / 3600); const m = Math.floor((safe % 3600) / 60); return `${h}h ${String(m).padStart(2, "0")}min`; }
+function toLocalDateTimeInput(value: string) {
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
+}
 function formatDateTime(value?: string | null) { return value ? new Date(value).toLocaleString("pt-BR") : "—"; }
 function formatMonth(value: string) { const [year, month] = value.slice(0, 7).split("-").map(Number); return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1)); }
+
