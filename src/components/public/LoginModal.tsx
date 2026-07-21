@@ -1,4 +1,5 @@
 "use client";
+import { formatPhoneNumber } from "@/lib/phone";
 
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -406,9 +407,11 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                 <AccessField label="Celular (Opcional)" icon={<Phone size={16} className="text-hpsr-wine" />}>
                   <input
                     type="tel"
+                    inputMode="numeric"
+                    maxLength={13}
                     value={registerForm.cityPhone}
-                    onChange={(event) => setRegisterForm((current) => ({ ...current, cityPhone: event.target.value }))}
-                    placeholder="Telefone na cidade"
+                    onChange={(event) => setRegisterForm((current) => ({ ...current, cityPhone: formatPhoneNumber(event.target.value) }))}
+                    placeholder="(055) 626-323"
                     className="w-full bg-transparent text-[13px] font-semibold text-hpsr-text outline-none placeholder:text-zinc-400"
                   />
                 </AccessField>

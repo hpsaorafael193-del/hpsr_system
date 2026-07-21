@@ -1,5 +1,6 @@
 "use client";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import {
   readFinancialPlanEntries,
@@ -1119,7 +1120,7 @@ function RegisterPlanForm({
 
           <Field label="Plano">
             <div className="relative">
-              <select
+              <StyledSelect
                 className={`${inputClass} appearance-none pr-14 font-semibold`}
                 value={draft.selectedPlan}
                 onChange={(event) => handleSelectPlan(event.target.value as Plan["id"])}
@@ -1127,7 +1128,7 @@ function RegisterPlanForm({
                 {plans.map((plan) => (
                   <option key={plan.id} value={plan.id}>{plan.name}</option>
                 ))}
-              </select>
+              </StyledSelect>
               <span className="pointer-events-none absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-[14px] bg-[#f1e4d3]/80 text-hpsr-wine">
                 <ChevronDown size={16} />
               </span>
@@ -1645,7 +1646,7 @@ function EditPlanForm({
           <input className={inputClass} type="number" min="0" max="120" value={form.holderAge ?? ""} onChange={(event) => updateField("holderAge", event.target.value ? Number(event.target.value) : undefined)} />
         </Field>
         <Field label="Plano">
-          <select
+          <StyledSelect
             className={inputClass}
             disabled={isClosed}
             value={form.plan}
@@ -1654,11 +1655,11 @@ function EditPlanForm({
             {plans.map((plan) => (
               <option key={plan.id} value={plan.name}>{plan.name}</option>
             ))}
-          </select>
+          </StyledSelect>
         </Field>
 
         <Field label="Status">
-          <select
+          <StyledSelect
             className={inputClass}
             value={form.status}
             onChange={(event) => {
@@ -1677,7 +1678,7 @@ function EditPlanForm({
           >
             <option>Ativo</option>
             <option>Encerrado</option>
-          </select>
+          </StyledSelect>
         </Field>
 
         <Field label="Validade">

@@ -1,4 +1,5 @@
 "use client";
+import { formatPhoneDisplay } from "@/lib/phone";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { currentUserProfile as localDevProfile } from "@/data/current-user-profile";
@@ -25,7 +26,7 @@ function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage
   const specialty = String(row.specialty || "Clínico Geral");
   const passport = String(row.passport || "—");
   const crm = String(row.crm || "—");
-  const cityPhone = String(row.city_phone || "—");
+  const cityPhone = formatPhoneDisplay(String(row.city_phone || ""));
   const email = String(row.email || "");
   const serviceStatus = String(row.service_status || "Fora de serviço");
 

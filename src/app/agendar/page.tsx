@@ -1,5 +1,7 @@
 "use client";
+import { formatPhoneNumber } from "@/lib/phone";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { ArrowLeft, CalendarDays, CheckCircle2, Info } from "lucide-react";
@@ -131,16 +133,16 @@ export default function SchedulePage() {
                 </FormField>
 
                 <FormField label="Telefone na cidade">
-                  <input name="cityPhone" className={inputClass} placeholder="Ex: (055) 123-456" required />
+                  <input name="cityPhone" inputMode="numeric" maxLength={13} className={inputClass} placeholder="(055) 626-323" onChange={(event) => { event.currentTarget.value = formatPhoneNumber(event.currentTarget.value); }} required />
                 </FormField>
 
                 <FormField label="Tipo sanguíneo">
-                  <select name="bloodType" className={inputClass} defaultValue="" required>
+                  <StyledSelect name="bloodType" className={inputClass} defaultValue="" required>
                     <option value="" disabled>Selecione</option>
                     {bloodTypes.map((type) => (
                       <option key={type}>{type}</option>
                     ))}
-                  </select>
+                  </StyledSelect>
                 </FormField>
 
                 <div className="md:col-span-2">
@@ -163,12 +165,12 @@ export default function SchedulePage() {
                 </div>
 
                 <FormField label="Especialidade desejada">
-                  <select name="specialty" className={inputClass} defaultValue="" required>
+                  <StyledSelect name="specialty" className={inputClass} defaultValue="" required>
                     <option value="" disabled>Selecione a especialidade</option>
                     {specialties.map((specialty) => (
                       <option key={specialty}>{specialty}</option>
                     ))}
-                  </select>
+                  </StyledSelect>
                 </FormField>
 
                 <FormField label="Data preferencial">
@@ -176,13 +178,13 @@ export default function SchedulePage() {
                 </FormField>
 
                 <FormField label="Período preferencial">
-                  <select name="preferredPeriod" className={inputClass} defaultValue="" required>
+                  <StyledSelect name="preferredPeriod" className={inputClass} defaultValue="" required>
                     <option value="" disabled>Selecione o período</option>
                     <option>Manhã</option>
                     <option>Tarde</option>
                     <option>Noite</option>
                     <option>Indiferente</option>
-                  </select>
+                  </StyledSelect>
                 </FormField>
 
                 <div className="md:col-span-2">

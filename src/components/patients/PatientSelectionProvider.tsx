@@ -1,4 +1,5 @@
 "use client";
+import { formatPhoneDisplay } from "@/lib/phone";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase";
@@ -99,7 +100,7 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
         name: row.name,
         age: row.age,
         bloodType: row.blood_type,
-        cityPhone: row.city_phone,
+        cityPhone: formatPhoneDisplay(row.city_phone, ""),
         email: row.email,
       }))
       .filter(Boolean) as SharedPatient[];

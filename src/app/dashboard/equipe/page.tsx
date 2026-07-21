@@ -1,5 +1,7 @@
 "use client";
+import { formatPhoneDisplay } from "@/lib/phone";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -305,7 +307,7 @@ function memberFromProfile(row: any, supplemental?: Partial<TeamMember>): TeamMe
     category: categoryFromRole(role),
     department: String(row.department || supplemental?.department || "Hospital São Rafael"),
     specialty,
-    cityPhone: String(row.city_phone || supplemental?.cityPhone || ""),
+    cityPhone: formatPhoneDisplay(String(row.city_phone || supplemental?.cityPhone || ""), ""),
     email: String(row.email || supplemental?.email || ""),
     radio: String(row.discord || supplemental?.radio || ""),
     joinedAt: String((supplemental?.joinedAt || row.created_at || new Date().toISOString()).slice(0, 10)),
@@ -385,7 +387,7 @@ export default function TeamPage() {
             category: payload.category || "Formação",
             department: String(payload.department || "Hospital São Rafael"),
             specialty: String(payload.specialty || "Não informado"),
-            cityPhone: String(payload.cityPhone || ""),
+            cityPhone: formatPhoneDisplay(String(payload.cityPhone || ""), ""),
             email: String(payload.email || ""),
             radio: String(payload.radio || ""),
             joinedAt: String(payload.joinedAt || String(row.created_at || "").slice(0, 10)),
@@ -477,7 +479,7 @@ export default function TeamPage() {
         name: String(payload.name || row.name || "Não informado"),
         passport: String(payload.passport || row.passport || ""),
         email: String(payload.email || ""),
-        cityPhone: String(payload.cityPhone || payload.city_phone || ""),
+        cityPhone: formatPhoneDisplay(String(payload.cityPhone || payload.city_phone || ""), ""),
         discord: String(payload.discord || ""),
         crm: String(payload.crm || ""),
         specialty: String(payload.specialty || "Clínico Geral"),
@@ -499,7 +501,7 @@ export default function TeamPage() {
             name: String(profile.name || "Não informado"),
             passport: String(profile.passport || ""),
             email: String(profile.email || ""),
-            cityPhone: String(profile.city_phone || ""),
+            cityPhone: formatPhoneDisplay(String(profile.city_phone || ""), ""),
             discord: String(profile.discord || ""),
             crm: String(profile.crm || ""),
             specialty: String(profile.specialty || "Clínico Geral"),
@@ -1249,9 +1251,9 @@ function AdministrativeActionModal({
                 placeholder={action === "Ajustar permissões" ? "Ex.: prontuários; exames; documentos; financeiro" : "Descreva aqui..."}
               />
             ) : action === "Editar cargo" || action === "Promover" ? (
-              <select value={value} onChange={(event) => onChange(event.target.value)} className="h-12 w-full rounded-[18px] border border-hpsr-border bg-white px-4 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20">
+              <StyledSelect value={value} onChange={(event) => onChange(event.target.value)} className="h-12 w-full rounded-[18px] border border-hpsr-border bg-white px-4 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20">
                 {roles.map((role) => <option key={role} value={role}>{role}</option>)}
-              </select>
+              </StyledSelect>
             ) : (
               <input value={value} onChange={(event) => onChange(event.target.value)} className="h-12 w-full rounded-[18px] border border-hpsr-border bg-white px-4 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20" placeholder="Informe o valor" />
             )}
@@ -1574,7 +1576,7 @@ function ApplicationAnalysisModal({
                 <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                   <label className="text-xs font-black text-hpsr-text">
                     Situação
-                    <select
+                    <StyledSelect
                       className={modalInputClass}
                       value={draft.interviewStatus || "Não agendada"}
                       onChange={(e) => setDraft({ ...draft, interviewStatus: e.target.value as PublicStaffApplication["interviewStatus"] })}
@@ -1583,7 +1585,7 @@ function ApplicationAnalysisModal({
                       <option>Agendada</option>
                       <option>Realizada</option>
                       <option>Sem resposta</option>
-                    </select>
+                    </StyledSelect>
                   </label>
                   <label className="text-xs font-black text-hpsr-text">
                     Data e hora
@@ -1596,7 +1598,7 @@ function ApplicationAnalysisModal({
                   </label>
                   <label className="text-xs font-black text-hpsr-text sm:col-span-2 lg:col-span-1 xl:col-span-2">
                     Resultado
-                    <select
+                    <StyledSelect
                       className={modalInputClass}
                       value={draft.interviewResult || "Pendente"}
                       onChange={(e) => setDraft({ ...draft, interviewResult: e.target.value as PublicStaffApplication["interviewResult"] })}
@@ -1604,7 +1606,7 @@ function ApplicationAnalysisModal({
                       <option>Pendente</option>
                       <option>Contratado</option>
                       <option>Não contratado</option>
-                    </select>
+                    </StyledSelect>
                   </label>
                   <label className="text-xs font-black text-hpsr-text sm:col-span-2 lg:col-span-1 xl:col-span-2">
                     Observações
@@ -2240,10 +2242,10 @@ function ManageMemberModal({
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                   <ModalField label="Nome profissional">
-                    <select className={modalInputClass} value={selectedMemberId} onChange={(event) => selectDoctor(event.target.value)}>
+                    <StyledSelect className={modalInputClass} value={selectedMemberId} onChange={(event) => selectDoctor(event.target.value)}>
                       <option value="">Selecione o médico</option>
                       {selectableDoctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name} — {doctor.crm || doctor.passport}</option>)}
-                    </select>
+                    </StyledSelect>
                   </ModalField>
                   <ModalField label="Passaporte">
                     <input className={modalInputClass} value={form.passport} readOnly placeholder="Ex.: 0001" />
@@ -2252,15 +2254,15 @@ function ManageMemberModal({
                     <input className={modalInputClass} value={form.crm} readOnly placeholder="Ex.: CRM-RP 193-001" />
                   </ModalField>
                   <ModalField label="Cargo hospitalar">
-                    <select className={modalInputClass} value={form.hospitalRole} onChange={(event) => updateField("hospitalRole", event.target.value)}>
+                    <StyledSelect className={modalInputClass} value={form.hospitalRole} onChange={(event) => updateField("hospitalRole", event.target.value)}>
                       {roles.map((role) => <option key={role} value={role}>{role}</option>)}
-                    </select>
+                    </StyledSelect>
                   </ModalField>
                   <ModalField label="Cargo do sistema">
-                    <select className={modalInputClass} value={form.systemRole} onChange={(event) => updateField("systemRole", event.target.value)}>
+                    <StyledSelect className={modalInputClass} value={form.systemRole} onChange={(event) => updateField("systemRole", event.target.value)}>
                       <option value="">Sem cargo técnico</option>
                       <option value="Dev / Desenvolvedor do Sistema">Dev / Desenvolvedor do Sistema</option>
-                    </select>
+                    </StyledSelect>
                   </ModalField>
                   <ModalField label="Especialidades">
                     <div className="rounded-[12px] border border-hpsr-border bg-[#fffaf4] p-3">
@@ -2318,17 +2320,17 @@ function ManageMemberModal({
                     <input type="number" min="1" className={modalInputClass} value={form.contractDurationDays || 15} onChange={(event) => updateField("contractDurationDays", Math.max(1, Number(event.target.value) || 1))} />
                   </ModalField>
                   <ModalField label="Situação do contrato">
-                    <select className={modalInputClass} value={form.contractStatus || "Ativo"} onChange={(event) => updateField("contractStatus", event.target.value)}>
+                    <StyledSelect className={modalInputClass} value={form.contractStatus || "Ativo"} onChange={(event) => updateField("contractStatus", event.target.value)}>
                       {["Ativo", "Em avaliação", "Suspenso", "Encerrado"].map((status) => <option key={status} value={status}>{status}</option>)}
-                    </select>
+                    </StyledSelect>
                   </ModalField>
                   <ModalField label="Advertências">
                     <input type="number" min="0" className={modalInputClass} value={form.warnings} onChange={(event) => updateField("warnings", Math.max(0, Number(event.target.value) || 0))} />
                   </ModalField>
                   <ModalField label="Status inicial">
-                    <select className={modalInputClass} value={form.serviceStatus} onChange={(event) => updateField("serviceStatus", event.target.value)}>
+                    <StyledSelect className={modalInputClass} value={form.serviceStatus} onChange={(event) => updateField("serviceStatus", event.target.value)}>
                       {serviceStatuses.map((status) => <option key={status} value={status}>{status}</option>)}
-                    </select>
+                    </StyledSelect>
                   </ModalField>
                 </div>
               </section>

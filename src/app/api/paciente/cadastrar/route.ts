@@ -1,3 +1,4 @@
+import { formatPhoneNumber } from "@/lib/phone";
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient, normalizePassport } from "@/lib/patient-portal/server";
 
@@ -14,8 +15,9 @@ export async function POST(request: NextRequest) {
     const name = clean(body.name, 160);
     const passport = normalizePassport(body.passport);
     const age = clean(body.age, 30);
-    const bloodType = clean(body.bloodType, 12);
-    const phone = clean(body.phone, 60);
+    const requestedBloodType = clean(body.bloodType, 12);
+    const bloodType = ["A+", "A-", "B+", "B-"].includes(requestedBloodType) ? requestedBloodType : "";
+    const phone = formatPhoneNumber(clean(body.phone, 60));
     const requestedEmail = clean(body.email, 254).toLowerCase();
     const password = String(body.password ?? "");
 

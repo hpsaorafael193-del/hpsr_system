@@ -1,4 +1,5 @@
 "use client";
+import { formatPhoneNumber, formatPhoneDisplay } from "@/lib/phone";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -429,7 +430,7 @@ export default function BloodBankPage() {
                   <TextField label="Passaporte *" value={form.passaporte} onChange={(value) => updateField("passaporte", value)} />
                   <TextField label="Idade *" value={form.idade} onChange={(value) => updateField("idade", value)} inputMode="numeric" />
                   <TextField label="Peso atual *" value={form.peso} onChange={(value) => updateField("peso", value)} inputMode="decimal" placeholder="Ex.: 70" />
-                  <TextField label="Telefone para contato *" value={form.telefone} onChange={(value) => updateField("telefone", value)} />
+                  <TextField label="Telefone para contato *" value={form.telefone} onChange={(value) => updateField("telefone", formatPhoneNumber(value))} />
                   <TextField label="Data da triagem *" type="date" value={form.dataTriagem} onChange={(value) => updateField("dataTriagem", value)} />
                   <TextField label="Médico responsável *" value={form.medicoResponsavel} onChange={(value) => updateField("medicoResponsavel", value)} className="md:col-span-2" />
                 </div>
@@ -608,7 +609,7 @@ function FichaCard({ record }: { record: DonationRecord }) {
         <InfoLine label="Passaporte" value={record.form.passaporte || "—"} />
         <InfoLine label="Idade" value={record.form.idade || "—"} />
         <InfoLine label="Peso" value={record.form.peso ? `${record.form.peso} kg` : "—"} />
-        <InfoLine label="Telefone" value={record.form.telefone || "—"} />
+        <InfoLine label="Telefone" value={formatPhoneDisplay(record.form.telefone)} />
         <InfoLine label="Médico" value={record.form.medicoResponsavel || "—"} />
         <InfoLine label="Data" value={new Date(record.createdAt).toLocaleString("pt-BR")} />
       </div>

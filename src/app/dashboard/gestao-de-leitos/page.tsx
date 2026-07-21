@@ -1,5 +1,6 @@
 "use client";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { FormEvent, useState } from "react";
 import { hpsrAlert, hpsrPrompt } from "@/components/ui/HpsrDialogProvider";
 import {
@@ -385,12 +386,12 @@ function AdmissionModal({ bed, mode, onClose, onSave }: { bed: BedRecord; mode: 
 
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 <AdmissionField label="Paciente">
-                  <select name="patient" className={admissionInputClass} defaultValue={editing ? bed.patient ?? "" : ""}>
+                  <StyledSelect name="patient" className={admissionInputClass} defaultValue={editing ? bed.patient ?? "" : ""}>
                     <option value="">Selecione um paciente...</option>
                     {patientOptions.map((patient) => (
                       <option key={patient} value={patient}>{patient}</option>
                     ))}
-                  </select>
+                  </StyledSelect>
                 </AdmissionField>
 
                 <div className="flex items-end">
@@ -405,21 +406,21 @@ function AdmissionModal({ bed, mode, onClose, onSave }: { bed: BedRecord; mode: 
                 </div>
 
                 <AdmissionField label="Médico Responsável">
-                  <select name="doctor" className={admissionInputClass} defaultValue={editing ? bed.doctor ?? "" : ""}>
+                  <StyledSelect name="doctor" className={admissionInputClass} defaultValue={editing ? bed.doctor ?? "" : ""}>
                     <option value="">Selecione...</option>
                     {doctors.map((doctor) => (
                       <option key={doctor} value={doctor}>{doctor}</option>
                     ))}
-                  </select>
+                  </StyledSelect>
                 </AdmissionField>
 
                 <AdmissionField label="Especialidade">
-                  <select name="specialty" className={admissionInputClass} defaultValue={editing ? bed.specialty ?? "Clínico Geral" : "Clínico Geral"}>
+                  <StyledSelect name="specialty" className={admissionInputClass} defaultValue={editing ? bed.specialty ?? "Clínico Geral" : "Clínico Geral"}>
                     <option value="">Selecione...</option>
                     {specialties.map((specialty) => (
                       <option key={specialty} value={specialty}>{specialty}</option>
                     ))}
-                  </select>
+                  </StyledSelect>
                 </AdmissionField>
 
                 <AdmissionField label="Data de Entrada">
@@ -446,13 +447,13 @@ function AdmissionModal({ bed, mode, onClose, onSave }: { bed: BedRecord; mode: 
 
                 <div className="mt-4 grid gap-3">
                   <AdmissionField label="Estado Geral">
-                    <select name="generalState" className={admissionInputClass} defaultValue={editing ? bed.generalState ?? "Estável" : "Estável"}>
+                    <StyledSelect name="generalState" className={admissionInputClass} defaultValue={editing ? bed.generalState ?? "Estável" : "Estável"}>
                       <option value="">Selecione...</option>
                       <option>Estável</option>
                       <option>Observação</option>
                       <option>Grave</option>
                       <option>Crítico</option>
-                    </select>
+                    </StyledSelect>
                   </AdmissionField>
 
                   <div>

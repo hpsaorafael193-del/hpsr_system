@@ -1,5 +1,7 @@
 "use client";
+import { formatPhoneNumber, formatPhoneDisplay } from "@/lib/phone";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -206,7 +208,7 @@ export default function RecordsPage() {
           name: row.name || `Paciente ${row.passport}`,
           age: row.age || "—",
           bloodType: row.blood_type || "—",
-          cityPhone: row.city_phone || "Não informado",
+          cityPhone: formatPhoneDisplay(row.city_phone, "Não informado"),
           status: "Ativo",
           followUp: row.follow_up || "Rotina",
           lastVisit: String(row.updated_at || row.created_at || "").slice(0, 10),
@@ -758,7 +760,7 @@ export default function RecordsPage() {
                       <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-[11px] font-bold text-hpsr-muted">Passaporte {selectedPatient.passport}</span>
                       <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-[11px] font-bold text-hpsr-muted">{selectedPatient.age} anos</span>
                       <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-[11px] font-bold text-hpsr-muted">Tipo {selectedPatient.bloodType}</span>
-                      <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-[11px] font-bold text-hpsr-muted">{selectedPatient.cityPhone}</span>
+                      <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-[11px] font-bold text-hpsr-muted">{formatPhoneDisplay(selectedPatient.cityPhone, "Não informado")}</span>
                     </div>
                   </div>
 
@@ -887,7 +889,7 @@ function CreatePatientModal({
     name: "",
     passport: "",
     age: "",
-    bloodType: "+A",
+    bloodType: "A+",
     cityPhone: "",
     followUp: "Rotina",
   });
@@ -931,8 +933,8 @@ function CreatePatientModal({
                 <ModalField label="Idade"><input className={modalInputClass} value={form.age} onChange={(event) => updateField("age", event.target.value)} placeholder="Ex.: 22" /></ModalField>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <ModalField label="Tipo sanguíneo"><select className={modalInputClass} value={form.bloodType} onChange={(event) => updateField("bloodType", event.target.value)}><option value="+A">+A</option><option value="-A">-A</option><option value="+B">+B</option><option value="-B">-B</option></select></ModalField>
-                <ModalField label="Telefone na cidade"><input className={modalInputClass} value={form.cityPhone} onChange={(event) => updateField("cityPhone", event.target.value)} placeholder="Ex.: (055) 193-000" /></ModalField>
+                <ModalField label="Tipo sanguíneo"><StyledSelect className={modalInputClass} value={form.bloodType} onChange={(event) => updateField("bloodType", event.target.value)}><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></StyledSelect></ModalField>
+                <ModalField label="Telefone na cidade"><input className={modalInputClass} value={form.cityPhone} onChange={(event) => updateField("cityPhone", formatPhoneNumber(event.target.value))} inputMode="numeric" maxLength={13} placeholder="(055) 626-323" /></ModalField>
               </div>
               <ModalField label="Acompanhamento">
                 <div className="grid gap-2">
@@ -987,7 +989,7 @@ function AddClinicalRecordModal({
         <div className="bg-[linear-gradient(135deg,#2a0700_0%,#672614_52%,#9d6b4f_100%)] px-5 py-4 text-white">
           <div className="flex items-start justify-between gap-3"><div><span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]"><ClipboardPlus size={14} />Novo registro clínico</span><h2 className="mt-3 text-xl font-black">{patient.name}</h2><p className="mt-1 text-sm text-white/80">Passaporte {patient.passport}</p></div><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-white/25 bg-white/10"><X size={18} /></button></div>
         </div>
-        <div className="min-h-0 overflow-y-auto p-4 sm:p-5"><section className="rounded-[18px] border border-hpsr-border bg-white p-4"><div className="grid gap-3"><ModalField label="Tipo de registro"><select className={modalInputClass} value={form.recordType} onChange={(event) => setForm((current) => ({ ...current, recordType: event.target.value as TimelineEvent["type"] }))}><option value="Consulta">Consulta</option><option value="Exame">Exame</option><option value="Prescrição">Prescrição</option><option value="Procedimento">Procedimento</option><option value="Observação">Observação</option></select></ModalField><ModalField label="Título do registro" required><input required className={modalInputClass} value={form.recordTitle} onChange={(event) => setForm((current) => ({ ...current, recordTitle: event.target.value }))} placeholder="Ex.: Consulta obstétrica" /></ModalField><ModalField label="Registro / evolução médica" required><textarea required className={`${modalInputClass} min-h-[190px] resize-y leading-relaxed`} value={form.recordSummary} onChange={(event) => setForm((current) => ({ ...current, recordSummary: event.target.value }))} placeholder="Descreva queixa, achados relevantes, conduta, orientação ou retorno." /></ModalField><div className="rounded-[16px] border border-amber-200 bg-amber-50 p-3.5 text-sm leading-relaxed text-amber-800">O registro será assinado como <strong>{currentUserProfile.systemName}</strong> e entrará na linha do tempo do paciente.</div></div></section></div>
+        <div className="min-h-0 overflow-y-auto p-4 sm:p-5"><section className="rounded-[18px] border border-hpsr-border bg-white p-4"><div className="grid gap-3"><ModalField label="Tipo de registro"><StyledSelect className={modalInputClass} value={form.recordType} onChange={(event) => setForm((current) => ({ ...current, recordType: event.target.value as TimelineEvent["type"] }))}><option value="Consulta">Consulta</option><option value="Exame">Exame</option><option value="Prescrição">Prescrição</option><option value="Procedimento">Procedimento</option><option value="Observação">Observação</option></StyledSelect></ModalField><ModalField label="Título do registro" required><input required className={modalInputClass} value={form.recordTitle} onChange={(event) => setForm((current) => ({ ...current, recordTitle: event.target.value }))} placeholder="Ex.: Consulta obstétrica" /></ModalField><ModalField label="Registro / evolução médica" required><textarea required className={`${modalInputClass} min-h-[190px] resize-y leading-relaxed`} value={form.recordSummary} onChange={(event) => setForm((current) => ({ ...current, recordSummary: event.target.value }))} placeholder="Descreva queixa, achados relevantes, conduta, orientação ou retorno." /></ModalField><div className="rounded-[16px] border border-amber-200 bg-amber-50 p-3.5 text-sm leading-relaxed text-amber-800">O registro será assinado como <strong>{currentUserProfile.systemName}</strong> e entrará na linha do tempo do paciente.</div></div></section></div>
         <div className="flex justify-end gap-3 border-t border-hpsr-border bg-white/95 px-5 py-3.5"><button type="button" onClick={onClose} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-text">Cancelar</button><button type="submit" className="rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-5 py-3 text-sm font-black text-white">Salvar registro</button></div>
       </form>
     </div>

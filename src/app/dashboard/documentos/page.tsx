@@ -1,5 +1,6 @@
 "use client";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlignCenter,
@@ -463,13 +464,13 @@ function TextInput({ value, onChange, placeholder, type = "text" }: { value: str
 
 function SelectInput({ value, onChange, children }: { value: string; onChange: (value: string) => void; children: React.ReactNode }) {
   return (
-    <select
+    <StyledSelect
       className="h-10 w-full rounded-[13px] border border-[#d8c1ad] bg-white px-3 text-sm font-black text-hpsr-text outline-none transition focus:border-hpsr-wine/50 focus:ring-2 focus:ring-hpsr-wine/10"
       value={value}
       onChange={(event) => onChange(event.target.value)}
     >
       {children}
-    </select>
+    </StyledSelect>
   );
 }
 
@@ -518,7 +519,7 @@ function PatientQuickRegisterModal({
           </div>
           <div>
             <FieldLabel>Tipo sanguíneo</FieldLabel>
-            <TextInput value={draft.bloodType} onChange={(bloodType) => setDraft({ ...draft, bloodType })} placeholder="Ex.: B-" />
+            <SelectInput value={draft.bloodType} onChange={(bloodType) => setDraft({ ...draft, bloodType })}><option value="">Selecione</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></SelectInput>
           </div>
         </div>
         <div className="flex justify-end gap-2 border-t border-[#e1cbb8] bg-white px-5 py-4">
@@ -1305,7 +1306,7 @@ export default function DocumentsPage() {
                       </div>
                       <div>
                         <FieldLabel>Tipo sanguíneo</FieldLabel>
-                        <TextInput value={patient.bloodType} onChange={(bloodType) => setPatient({ ...patient, bloodType })} placeholder="Ex.: B-" />
+                        <SelectInput value={patient.bloodType} onChange={(bloodType) => setPatient({ ...patient, bloodType })}><option value="">Selecione</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></SelectInput>
                       </div>
                     </div>
                   </div>
@@ -1351,7 +1352,7 @@ export default function DocumentsPage() {
                       <div className="pointer-events-none flex h-full w-10 shrink-0 items-center justify-center border-r border-[#ead9ca] text-hpsr-wine">
                         <FileText size={15} strokeWidth={2.2} />
                       </div>
-                      <select
+                      <StyledSelect
                         value={catalogCategory}
                         onChange={(event) => setCatalogCategory(event.target.value as DocumentCategory | "todos")}
                         aria-label="Filtrar documentos por categoria"
@@ -1360,7 +1361,7 @@ export default function DocumentsPage() {
                         {(Object.keys(categoryLabels) as Array<DocumentCategory | "todos">).map((category) => (
                           <option key={category} value={category}>{categoryLabels[category]}</option>
                         ))}
-                      </select>
+                      </StyledSelect>
                       <ChevronDown size={16} className="pointer-events-none absolute right-3 text-hpsr-muted" />
                     </div>
                   </div>
@@ -1458,7 +1459,7 @@ export default function DocumentsPage() {
             <div className="flex flex-wrap items-center gap-2 border-b border-[#e3cdbd] bg-white px-5 py-2.5 no-print">
               <label className="inline-flex h-10 items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-text">
                 <Type size={15} />
-                <select
+                <StyledSelect
                   defaultValue="3"
                   onChange={(event) => exec("fontSize", event.target.value)}
                   className="min-w-[96px] bg-transparent text-xs font-black text-hpsr-text outline-none"
@@ -1472,7 +1473,7 @@ export default function DocumentsPage() {
                   <option value="5">18 px</option>
                   <option value="6">24 px</option>
                   <option value="7">32 px</option>
-                </select>
+                </StyledSelect>
               </label>
               <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("bold")}><Bold size={15} /></button>
               <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("italic")}><Italic size={15} /></button>

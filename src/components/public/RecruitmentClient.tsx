@@ -1,5 +1,7 @@
 "use client";
+import { formatPhoneNumber } from "@/lib/phone";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -443,7 +445,7 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
                 </FormField>
 
                 <FormField label="Mês de nascimento">
-                  <select name="birthMonth" className={inputClass} defaultValue="">
+                  <StyledSelect name="birthMonth" className={inputClass} defaultValue="">
                     <option value="">Não informar</option>
                     <option>Janeiro</option>
                     <option>Fevereiro</option>
@@ -457,11 +459,11 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
                     <option>Outubro</option>
                     <option>Novembro</option>
                     <option>Dezembro</option>
-                  </select>
+                  </StyledSelect>
                 </FormField>
 
                 <FormField label="Telefone na cidade">
-                  <input className={inputClass} name="cityPhone" placeholder="(055) 123-456 (opcional)" />
+                  <input className={inputClass} name="cityPhone" inputMode="numeric" maxLength={13} placeholder="(055) 626-323 (opcional)" onChange={(event) => { event.currentTarget.value = formatPhoneNumber(event.currentTarget.value); }} />
                 </FormField>
 
                 <div>
@@ -484,22 +486,22 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
                 </div>
 
                 <FormField label="Objetivo no hospital">
-                  <select name="objective" className={inputClass} defaultValue="">
+                  <StyledSelect name="objective" className={inputClass} defaultValue="">
                     <option value="">Não informar</option>
                     {objectiveOptions.map((option) => (
                       <option key={option}>{option}</option>
                     ))}
-                  </select>
+                  </StyledSelect>
                 </FormField>
 
                 <FormField label="Disponibilidade para dirigir e atender chamados externos *">
-                  <select name="externalAvailability" className={inputClass} required defaultValue="">
+                  <StyledSelect name="externalAvailability" className={inputClass} required defaultValue="">
                     <option value="" disabled>Selecione uma opção</option>
                     <option>Tenho disponibilidade total</option>
                     <option>Tenho disponibilidade parcial</option>
                     <option>Prefiro atuar internamente</option>
                     <option>Não possuo disponibilidade</option>
-                  </select>
+                  </StyledSelect>
                 </FormField>
 
                 <div className="md:col-span-2">

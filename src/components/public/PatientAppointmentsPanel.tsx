@@ -1,5 +1,6 @@
 "use client";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, RefreshCcw, Stethoscope, XCircle, CalendarClock } from "lucide-react";
 import { specialties } from "@/data/mock";
@@ -31,7 +32,9 @@ function formatDate(value: string) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("pt-BR");
 }
 
-export function PatientAppointmentsPanel({ onSessionExpired }: { onSessionExpired?: () => void }) {
+type PatientAppointmentsView = "scheduled" | "request" | "pending";
+
+export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled" }: { onSessionExpired?: () => void; view?: PatientAppointmentsView }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -42,6 +45,13 @@ export function PatientAppointmentsPanel({ onSessionExpired }: { onSessionExpire
   const requestInFlightRef = useRef<Promise<void> | null>(null);
   const lastLoadedAtRef = useRef(0);
   const onSessionExpiredRef = useRef(onSessionExpired);
+
+  const pendingStatuses = ["aguard", "solicit", "pend", "reagendamento", "justific", "atras"];
+  const visibleAppointments = appointments.filter((appointment) => {
+    const normalized = appointment.status.toLowerCase();
+    const isPending = pendingStatuses.some((status) => normalized.includes(status));
+    return view === "pending" ? isPending : !isPending;
+  });
 
   useEffect(() => {
     onSessionExpiredRef.current = onSessionExpired;
@@ -85,13 +95,17 @@ export function PatientAppointmentsPanel({ onSessionExpired }: { onSessionExpire
   }, [loadAppointments]);
 
   useEffect(() => {
+    if (view === "request") {
+      setLoading(false);
+      return;
+    }
     void loadAppointments({ force: true });
     const onVisibility = () => {
       if (document.visibilityState === "visible") void loadAppointments({ silent: true });
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [loadAppointments]);
+  }, [loadAppointments, view]);
 
 
   async function appointmentAction(id: string, action: string) {
@@ -130,21 +144,21 @@ export function PatientAppointmentsPanel({ onSessionExpired }: { onSessionExpire
 
   return (
     <div className="space-y-4">
-      <PatientBookingPanel onSessionExpired={onSessionExpired} onBooked={handleBooked} />
-      <section className="rounded-[22px] border border-hpsr-border bg-white/90 p-4 sm:p-5">
+      {view === "scheduled" && <PatientBookingPanel onSessionExpired={onSessionExpired} onBooked={handleBooked} />}
+      {view !== "request" && <section className="rounded-[22px] border border-hpsr-border bg-white/90 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><CalendarDays size={20} /></div>
-            <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Portal do paciente</p><h3 className="text-lg font-black text-hpsr-text">Minhas consultas</h3></div>
+            <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Portal do paciente</p><h3 className="text-lg font-black text-hpsr-text">{view === "pending" ? "Pendências" : "Consultas marcadas"}</h3></div>
           </div>
           <button type="button" onClick={() => void loadAppointments({ force: true })} className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine"><RefreshCcw size={14} /> Atualizar</button>
         </div>
 
-        {loading ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-hpsr-wine" /></div> : appointments.length === 0 ? (
-          <p className="mt-4 rounded-[14px] border border-dashed border-hpsr-border bg-[#fffaf4] p-4 text-center text-sm font-semibold text-hpsr-muted">Nenhuma consulta foi solicitada para este passaporte.</p>
+        {loading ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-hpsr-wine" /></div> : visibleAppointments.length === 0 ? (
+          <p className="mt-4 rounded-[14px] border border-dashed border-hpsr-border bg-[#fffaf4] p-4 text-center text-sm font-semibold text-hpsr-muted">{view === "pending" ? "Nenhuma pendência relacionada às suas consultas." : "Nenhuma consulta marcada no momento."}</p>
         ) : (
           <div className="mt-4 max-h-[420px] space-y-2 overflow-y-auto pr-1">
-            {appointments.map((appointment) => {
+            {visibleAppointments.map((appointment) => {
               const isExpanded = expanded === appointment.id;
               return (
                 <article key={appointment.id} className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3">
@@ -161,23 +175,23 @@ export function PatientAppointmentsPanel({ onSessionExpired }: { onSessionExpire
             })}
           </div>
         )}
-      </section>
+      </section>}
 
-      <section className="rounded-[22px] border border-hpsr-border bg-white/90 p-4 sm:p-5">
+      {view === "request" && <section className="rounded-[22px] border border-hpsr-border bg-white/90 p-4 sm:p-5">
         <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Stethoscope size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Novo atendimento</p><h3 className="text-lg font-black text-hpsr-text">Agendar consulta</h3></div></div>
         <p className="mt-3 text-sm font-semibold leading-relaxed text-hpsr-muted">A solicitação será analisada pela equipe. O envio não confirma automaticamente a consulta.</p>
         <form onSubmit={submitAppointment} className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="text-xs font-black text-hpsr-muted">Nome do paciente<input name="patient" required className={`${fieldClass} mt-1.5`} /></label>
-          <label className="text-xs font-black text-hpsr-muted">Especialidade<select name="specialty" required defaultValue="" className={`${fieldClass} mt-1.5`}><option value="" disabled>Selecione</option>{specialties.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label className="text-xs font-black text-hpsr-muted">Especialidade<StyledSelect name="specialty" required defaultValue="" className={`${fieldClass} mt-1.5`}><option value="" disabled>Selecione</option>{specialties.map((item) => <option key={item}>{item}</option>)}</StyledSelect></label>
           <label className="text-xs font-black text-hpsr-muted">Data preferencial<input name="preferredDate" type="date" required className={`${fieldClass} mt-1.5`} /></label>
-          <label className="text-xs font-black text-hpsr-muted">Período<select name="preferredPeriod" required defaultValue="" className={`${fieldClass} mt-1.5`}><option value="" disabled>Selecione</option><option>Manhã</option><option>Tarde</option><option>Noite</option><option>Indiferente</option></select></label>
+          <label className="text-xs font-black text-hpsr-muted">Período<StyledSelect name="preferredPeriod" required defaultValue="" className={`${fieldClass} mt-1.5`}><option value="" disabled>Selecione</option><option>Manhã</option><option>Tarde</option><option>Noite</option><option>Indiferente</option></StyledSelect></label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Motivo da consulta<textarea name="reason" required rows={4} className={`${fieldClass} mt-1.5 py-3`} /></label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Observações<textarea name="notes" rows={3} className={`${fieldClass} mt-1.5 py-3`} /></label>
           {message && <p className="sm:col-span-2 rounded-[12px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800"><CheckCircle2 className="mr-2 inline" size={16} />{message}</p>}
           {error && <p className="sm:col-span-2 rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-800">{error}</p>}
           <button disabled={saving} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50 sm:col-span-2">{saving ? <Loader2 className="animate-spin" size={17} /> : <Clock3 size={17} />} Enviar solicitação</button>
         </form>
-      </section>
+      </section>}
     </div>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
+import { formatPhoneNumber } from "@/lib/phone";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { FormEvent, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { PublicShell } from "@/components/public/PublicShell";
@@ -205,14 +207,14 @@ function LoginContent() {
               <FormField label="E-mail"><input className={inputClass} type="email" value={form.email} onChange={(e) => update("email", e.target.value)} /></FormField>
               {!authUserId && <FormField label="Senha"><div className="relative"><input className={`${inputClass} pr-20`} type={showRegisterPassword ? "text" : "password"} value={password} minLength={6} onChange={(e)=>setPassword(e.target.value)} /><button type="button" onClick={() => setShowRegisterPassword((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-hpsr-wine">{showRegisterPassword ? "Ocultar" : "Mostrar"}</button></div></FormField>}
               {!authUserId && <div className="sm:col-span-2 rounded-[14px] border-2 border-amber-400 bg-amber-50 px-4 py-3 text-sm font-black text-amber-900 shadow-sm">A senha deve ter no mínimo 6 caracteres.</div>}
-              <FormField label="Telefone"><input className={inputClass} value={form.cityPhone} onChange={(e) => update("cityPhone", e.target.value)} /></FormField>
+              <FormField label="Telefone"><input className={inputClass} value={form.cityPhone} onChange={(e) => update("cityPhone", formatPhoneNumber(e.target.value))} inputMode="numeric" maxLength={13} placeholder="(055) 626-323" /></FormField>
               <FormField label="Discord"><input className={inputClass} value={form.discord} onChange={(e) => update("discord", e.target.value)} /></FormField>
               <FormField label="CRM"><input className={inputClass} value={form.crm} onChange={(e) => update("crm", e.target.value)} /></FormField>
               <FormField label="Especialidade"><input className={inputClass} value={form.specialty} onChange={(e) => update("specialty", e.target.value)} /></FormField>
               <FormField label="Cargo solicitado">
-                <select className={inputClass} value={form.requestedRole} onChange={(e) => update("requestedRole", e.target.value)}>
+                <StyledSelect className={inputClass} value={form.requestedRole} onChange={(e) => update("requestedRole", e.target.value)}>
                   <option>Estagiário de Enfermagem</option>
-                </select>
+                </StyledSelect>
               </FormField>
             </div>
             {message && <p className="mt-4 rounded-[14px] border border-hpsr-border bg-[#fff8f0] px-3 py-2 text-sm font-semibold">{message}</p>}

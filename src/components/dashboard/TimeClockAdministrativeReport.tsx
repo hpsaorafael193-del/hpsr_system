@@ -1,5 +1,6 @@
 "use client";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState } from "react";
 import { Clock3, Download, History, RefreshCw, ShieldCheck, Square } from "lucide-react";
 import { createClient } from "@/lib/supabase";
@@ -81,7 +82,7 @@ export function TimeClockAdministrativeReport() {
         <RankingList ranking={data.currentRanking}/>
       </div>
       <div className="rounded-[17px] border border-hpsr-border bg-[#fffaf4] p-3">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><History size={16} className="text-hpsr-wine"/><h3 className="text-sm font-black text-hpsr-text">Rankings mensais arquivados</h3></div><div className="flex gap-2"><select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-bold text-hpsr-text outline-none"><option value="">Nenhum mês fechado</option>{data.reports.map((item) => <option key={item.monthStart} value={item.monthStart}>{formatMonth(item.monthStart)}</option>)}</select><button onClick={exportReport} disabled={!selectedReport} className="rounded-[11px] border border-hpsr-border bg-white p-2 text-hpsr-wine disabled:opacity-40" title="Exportar ranking"><Download size={16}/></button></div></div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><History size={16} className="text-hpsr-wine"/><h3 className="text-sm font-black text-hpsr-text">Rankings mensais arquivados</h3></div><div className="flex gap-2"><StyledSelect value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-bold text-hpsr-text outline-none"><option value="">Nenhum mês fechado</option>{data.reports.map((item) => <option key={item.monthStart} value={item.monthStart}>{formatMonth(item.monthStart)}</option>)}</StyledSelect><button onClick={exportReport} disabled={!selectedReport} className="rounded-[11px] border border-hpsr-border bg-white p-2 text-hpsr-wine disabled:opacity-40" title="Exportar ranking"><Download size={16}/></button></div></div>
         {selectedReport ? <RankingList ranking={selectedReport.ranking}/> : <Empty text="Nenhum ranking mensal arquivado."/>}
       </div>
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useMemo, useState } from "react";
 import {
   Bone,
@@ -450,7 +451,7 @@ export function PharmaGuideClient() {
           </label>
 
           <div className="relative">
-            <select
+            <StyledSelect
               value={selectedGroup}
               onChange={(event) => setSelectedGroup(event.target.value)}
               className="min-h-[44px] w-full appearance-none rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-4 pr-10 text-sm font-semibold text-hpsr-text outline-none focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20"
@@ -458,7 +459,7 @@ export function PharmaGuideClient() {
               {groupOptions.map((item) => (
                 <option key={item}>{item}</option>
               ))}
-            </select>
+            </StyledSelect>
             <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-hpsr-wine" />
           </div>
 

@@ -1,4 +1,5 @@
 "use client";
+import { formatPhoneNumber } from "@/lib/phone";
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import {
@@ -354,7 +355,7 @@ export default function PerfilPage() {
                 <ProfileInput label="Nome completo" value={profile.characterName} onChange={(value) => updateField("characterName", value)} />
                 <ProfileInput label="Passaporte" value={profile.passport} onChange={(value) => updateField("passport", value)} />
                 <ProfileInput label="CRM-RP" value={profile.crm} onChange={(value) => updateField("crm", value)} />
-                <ProfileInput label="Telefone na cidade" value={profile.cityPhone} onChange={(value) => updateField("cityPhone", value)} />
+                <ProfileInput label="Telefone na cidade" value={profile.cityPhone} onChange={(value) => updateField("cityPhone", formatPhoneNumber(value))} />
                 <ProfileInput label="E-mail" value={profile.email} onChange={(value) => updateField("email", value)} />
                 <ProfileInput label="Departamento" value={profile.department} onChange={(value) => updateField("department", value)} />
                 <ProfileInput label="Nome da assinatura" value={profile.signatureName} onChange={(value) => updateField("signatureName", value)} />

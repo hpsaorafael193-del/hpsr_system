@@ -1,9 +1,11 @@
 "use client";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   CalendarDays,
   CalendarClock,
+  CalendarPlus2,
   CalendarCheck2,
   ChevronLeft,
   ChevronRight,
@@ -11,12 +13,11 @@ import {
   Download,
   FileClock,
   HeartPulse,
-  LayoutDashboard,
   Plus,
   Stethoscope,
   UserRound,
-  UsersRound,
   UserPlus,
+  UsersRound,
   Trash2,
   X,
 } from "lucide-react";
@@ -31,7 +32,6 @@ import { usePatientSelection } from "@/components/patients/PatientSelectionProvi
 import { specialties } from "@/data/mock";
 import {
   doctorCanAccessSpecialty,
-  doctorVisibleSpecialties,
   findSpecialtyScheduleConflict,
 } from "@/data/appointment-rules";
 
@@ -249,89 +249,48 @@ export default function ClinicalSchedulePage() {
         description="Planeje acompanhamentos, publique horários e acompanhe as consultas do corpo clínico em uma única visão."
       />
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-[0_10px_30px_rgba(93,45,24,0.04)]">
-          <div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-muted">Consultas no mês</p><CalendarCheck2 size={18} className="text-hpsr-wine" /></div>
-          <p className="mt-3 text-3xl font-black tracking-tight text-hpsr-text">{monthlyAppointments.length}</p>
-          <p className="mt-1 text-xs font-semibold text-hpsr-muted">Registros visíveis em {monthLabel(currentMonth)}</p>
-        </div>
-        <div className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-[0_10px_30px_rgba(93,45,24,0.04)]">
-          <div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-muted">Hoje</p><CalendarClock size={18} className="text-hpsr-wine" /></div>
-          <p className="mt-3 text-3xl font-black tracking-tight text-hpsr-text">{doctorAppointments.filter((item) => item.date === toDateKey(brasiliaToday)).length}</p>
-          <p className="mt-1 text-xs font-semibold text-hpsr-muted">Consultas previstas para o dia atual</p>
-        </div>
-        <div className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-[0_10px_30px_rgba(93,45,24,0.04)]">
-          <div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-muted">Pacientes no mês</p><UsersRound size={18} className="text-hpsr-wine" /></div>
-          <p className="mt-3 text-3xl font-black tracking-tight text-hpsr-text">{new Set(monthlyAppointments.map((item) => item.passport)).size}</p>
-          <p className="mt-1 text-xs font-semibold text-hpsr-muted">Pacientes únicos na agenda mensal</p>
-        </div>
-        <div className="rounded-[18px] border border-hpsr-border bg-[#351007] p-4 text-white shadow-[0_10px_30px_rgba(53,16,7,0.14)]">
-          <div className="flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-white/60">Data selecionada</p><LayoutDashboard size={18} className="text-[#f0cdbd]" /></div>
-          <p className="mt-3 text-3xl font-black tracking-tight">{appointmentsOnSelectedDay.length}</p>
-          <p className="mt-1 text-xs font-semibold capitalize text-white/65">{selectedDateLabel}</p>
-        </div>
-      </section>
-
-      <section className="rounded-[18px] border border-hpsr-border bg-[#fffaf4] px-4 py-3 lg:px-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-[13px] bg-white text-hpsr-wine"><Stethoscope size={18} /></div>
-          <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Configuração da agenda</p><p className="mt-0.5 text-sm font-semibold text-hpsr-muted">Primeiro planeje o acompanhamento; depois publique os horários disponíveis.</p></div>
-        </div>
-      </section>
-
-      <div className="grid gap-4">
-        <ClinicalFollowupPlanner doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} defaultSpecialty={currentUserProfile.specialty || "Clínico Geral"} />
-        <DoctorAvailabilityManager doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} defaultSpecialty={currentUserProfile.specialty || "Clínico Geral"} />
-      </div>
-
-      <section className="rounded-[20px] border border-hpsr-border bg-[#fffaf4] px-4 py-4 text-hpsr-text shadow-[0_12px_35px_rgba(93,45,24,0.04)] lg:px-5">
-        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <section className="rounded-[20px] border border-hpsr-border bg-white px-4 py-4 shadow-[0_12px_35px_rgba(93,45,24,0.04)] lg:px-5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-hpsr-border bg-white px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wine">
-              <CalendarClock size={15} />
-              Agenda clínica
-            </span>
-            <h2 className="mt-2 max-w-4xl text-[clamp(1.25rem,2vw,1.75rem)] font-black leading-tight tracking-tight">
-              Visão diária das consultas e atendimentos
+            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Visão diária</p>
+            <h2 className="mt-1 text-[clamp(1.3rem,2vw,1.8rem)] font-black tracking-tight text-hpsr-text">
+              Consultas e atendimentos
             </h2>
-            <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-hpsr-muted">
-              Navegue pelo calendário, consulte a distribuição do dia e acesse rapidamente cada atendimento.
+            <p className="mt-1 max-w-2xl text-sm font-semibold leading-relaxed text-hpsr-muted">
+              Selecione uma data no calendário e acompanhe os atendimentos previstos para o dia.
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2 lg:justify-end">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setModal({ mode: "new" })}
-              className="inline-flex items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 py-2.5 text-sm font-black text-white transition"
+              className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 py-2.5 text-sm font-black text-white transition hover:opacity-95"
             >
               <Plus size={16} />
               Nova consulta
             </button>
+            <a
+              href="#planejar-consultas"
+              className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:bg-white"
+            >
+              <CalendarCheck2 size={16} />
+              Planejar consultas
+            </a>
+            <a
+              href="#publicar-horarios"
+              className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:bg-white"
+            >
+              <CalendarClock size={16} />
+              Publicar horários
+            </a>
             <button
               onClick={() => setModal({ mode: "export" })}
-              className="inline-flex items-center justify-center gap-2 rounded-[16px] border border-hpsr-border bg-white px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:bg-[#fffdf9]"
+              className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:bg-[#fffdf9]"
             >
               <Download size={16} />
-              Exportar relatório
+              Exportar
             </button>
           </div>
-        </div>
-      </section>
-
-      <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div className="rounded-[20px] border border-hpsr-border bg-white p-4 shadow-[0_12px_35px_rgba(93,45,24,0.04)]">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">
-            Regras de agendamento
-          </p>
-          <p className="mt-2 text-sm leading-relaxed text-hpsr-muted">
-            Não é permitido agendar consultas da mesma especialidade em horários com menos de 1 hora de intervalo.
-            Solicitações e consultas exibidas aqui respeitam a especialidade do médico logado.
-          </p>
-        </div>
-
-        <div className="rounded-[16px] border border-hpsr-border bg-[#fff8f0] px-4 py-3 lg:min-w-[360px]">
-          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Especialidades visíveis</p>
-          <p className="mt-1 text-sm font-black text-hpsr-text">{doctorVisibleSpecialties.join(" · ")}</p>
         </div>
       </section>
 
@@ -534,6 +493,20 @@ export default function ClinicalSchedulePage() {
         </article>
       </section>
 
+      <section className="space-y-4 pt-1">
+        <div className="rounded-[18px] border border-hpsr-border bg-[#fffaf4] px-4 py-3">
+          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Organização da agenda</p>
+          <p className="mt-1 text-sm font-semibold text-hpsr-muted">Planeje os acompanhamentos e publique os horários somente quando precisar.</p>
+        </div>
+
+        <div id="planejar-consultas" className="scroll-mt-24">
+          <ClinicalFollowupPlanner doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} defaultSpecialty={currentUserProfile.specialty || "Clínico Geral"} />
+        </div>
+        <div id="publicar-horarios" className="scroll-mt-24">
+          <DoctorAvailabilityManager doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} defaultSpecialty={currentUserProfile.specialty || "Clínico Geral"} />
+        </div>
+      </section>
+
       <AgendaModal modal={modal} onClose={() => setModal(null)} selectedDate={dateKey} appointments={doctorAppointments} />
     </div>
   );
@@ -579,24 +552,29 @@ function AgendaModal({
         className="hpsr-modal-backdrop"
       />
 
-      <div className="hpsr-modal-shell max-w-2xl">
-        <div className="hpsr-modal-header flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">Agenda Clínica</p>
-            <h2 className="mt-1 text-lg font-semibold text-hpsr-text">{titleMap[modal.mode]}</h2>
-            <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">{descriptionMap[modal.mode]}</p>
+      <div className="hpsr-modal-shell max-w-3xl overflow-visible">
+        <div className="hpsr-modal-header flex items-start justify-between gap-4 px-5 py-4 sm:px-6">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-hpsr-wine text-white shadow-[0_8px_20px_rgba(92,31,15,.18)]">
+              <CalendarPlus2 size={20} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Agenda clínica</p>
+              <h2 className="mt-0.5 text-xl font-black tracking-tight text-hpsr-text">{titleMap[modal.mode]}</h2>
+              <p className="mt-1 text-sm font-medium leading-relaxed text-hpsr-muted">{descriptionMap[modal.mode]}</p>
+            </div>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-muted transition hover:bg-[#fffdf9] hover:text-hpsr-wine"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-muted transition hover:border-hpsr-wineLight hover:bg-[#fff8f0] hover:text-hpsr-wine"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="bg-[#fff8f1] p-3.5">
+        <div className="overflow-visible bg-[#fffaf5] p-4 sm:p-5">
           {modal.mode === "new" && <NewAppointmentForm selectedDate={selectedDate} onClose={onClose} appointments={appointments} />}
           {modal.mode === "export" && <ExportReportForm onClose={onClose} />}
           {modal.mode === "open" && appointment && <OpenAttendanceForm appointment={appointment} onClose={onClose} />}
@@ -718,43 +696,46 @@ function NewAppointmentForm({
 
   return (
     <div className="grid gap-3">
-      <div className="rounded-2xl border border-hpsr-border bg-[#fcf6ee] p-3.5 text-sm leading-relaxed text-hpsr-muted">
-        Selecione paciente e médico. O cadastro rápido usa o mesmo registro compartilhado do Prontuário.
+      <div className="flex items-start gap-3 rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm leading-relaxed text-hpsr-muted">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] bg-[#f7ede3] text-hpsr-wine"><UsersRound size={16} /></div>
+        <p><strong className="text-hpsr-text">Selecione paciente e médico.</strong> O cadastro rápido utiliza o mesmo registro compartilhado do Prontuário.</p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-4 rounded-[18px] border border-hpsr-border bg-white p-4 sm:grid-cols-2 sm:p-5">
         <Field label="Paciente">
           <div className="flex gap-2">
-            <select className={inputClass} value={patientPassport} onChange={(event) => { const passport = event.target.value; const found = patients.find((item) => item.passport === passport); setPatientPassport(passport); setPatientName(found?.name || ""); if (found) selectPatient(found); }}>
+            <StyledSelect className={inputClass} value={patientPassport} onChange={(event) => { const passport = event.target.value; const found = patients.find((item) => item.passport === passport); setPatientPassport(passport); setPatientName(found?.name || ""); if (found) selectPatient(found); }}>
               <option value="">Selecione o paciente</option>
               {patients.map((item) => <option key={item.passport} value={item.passport}>{item.name} · {item.passport}</option>)}
-            </select>
+            </StyledSelect>
             <button type="button" onClick={() => setQuickOpen(true)} title="Registro rápido de paciente" aria-label="Registro rápido de paciente" className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-wine hover:bg-[#fff8f0]"><UserPlus size={18}/></button>
           </div>
         </Field>
         <Field label="Médico responsável">
-          <select className={inputClass} value={physician} onChange={(event) => setPhysician(event.target.value)}>
+          <StyledSelect className={inputClass} value={physician} onChange={(event) => setPhysician(event.target.value)}>
             <option value="">Selecione o médico</option>
             {doctors.map((doctor) => <option key={doctor.id} value={doctor.name}>{doctor.name}</option>)}
-          </select>
+          </StyledSelect>
         </Field>
         <Field label="Especialidade">
-          <select className={inputClass} value={specialty} onChange={(event) => setSpecialty(event.target.value)}>
+          <StyledSelect className={inputClass} value={specialty} onChange={(event) => setSpecialty(event.target.value)}>
             {specialties.map((item) => <option key={item}>{item}</option>)}
-          </select>
+          </StyledSelect>
         </Field>
         <Field label="Data"><input className={inputClass} type="date" value={date} onChange={(event) => setDate(event.target.value)} /></Field>
         <Field label="Horário de Brasília"><input className={inputClass} type="time" value={time} onChange={(event) => setTime(event.target.value)} /></Field>
+        <div className="hidden sm:block" />
+        <div className="sm:col-span-2">
+          <Field label="Observações"><textarea className={`${inputClass} min-h-[105px] resize-y py-3 leading-relaxed`} rows={3} placeholder="Motivo da consulta, orientação interna ou observações." /></Field>
+        </div>
       </div>
-
-      <Field label="Observações"><textarea className={inputClass} rows={4} placeholder="Motivo da consulta, orientação interna ou observações." /></Field>
       {message && <ValidationMessage type={message.type} text={message.text} />}
       <ModalActions onClose={onClose} actionLabel="Validar e salvar" onConfirm={handleSave} />
 
       {quickOpen && <div className="fixed inset-0 z-[1000] grid place-items-center bg-[#1f0805]/60 p-4 backdrop-blur-sm">
         <div className="w-full max-w-[520px] overflow-hidden rounded-[22px] border border-hpsr-border bg-[#fffaf4] shadow-2xl">
           <div className="flex items-start justify-between border-b border-hpsr-border bg-white px-5 py-4"><div className="flex gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-hpsr-border text-hpsr-wine"><UserPlus size={19}/></div><div><h3 className="font-black text-hpsr-text">Registro rápido de paciente</h3><p className="text-xs font-semibold text-hpsr-muted">Preencha apenas os dados necessários para esta consulta.</p></div></div><button type="button" onClick={() => setQuickOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><X size={18}/></button></div>
-          <div className="grid gap-3 p-5 sm:grid-cols-2"><label className="sm:col-span-2 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Nome completo<input className={`${inputClass} mt-1.5`} value={quickPatient.name} onChange={(e)=>setQuickPatient((c)=>({...c,name:e.target.value}))}/></label><label className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Documento / Passaporte<input className={`${inputClass} mt-1.5`} value={quickPatient.passport} onChange={(e)=>setQuickPatient((c)=>({...c,passport:e.target.value}))}/></label><label className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Idade<input className={`${inputClass} mt-1.5`} value={quickPatient.age} onChange={(e)=>setQuickPatient((c)=>({...c,age:e.target.value}))}/></label><label className="sm:col-span-2 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Tipo sanguíneo<input className={`${inputClass} mt-1.5`} placeholder="Ex.: B-" value={quickPatient.bloodType} onChange={(e)=>setQuickPatient((c)=>({...c,bloodType:e.target.value}))}/></label></div>
+          <div className="grid gap-3 p-5 sm:grid-cols-2"><label className="sm:col-span-2 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Nome completo<input className={`${inputClass} mt-1.5`} value={quickPatient.name} onChange={(e)=>setQuickPatient((c)=>({...c,name:e.target.value}))}/></label><label className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Documento / Passaporte<input className={`${inputClass} mt-1.5`} value={quickPatient.passport} onChange={(e)=>setQuickPatient((c)=>({...c,passport:e.target.value}))}/></label><label className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Idade<input className={`${inputClass} mt-1.5`} value={quickPatient.age} onChange={(e)=>setQuickPatient((c)=>({...c,age:e.target.value}))}/></label><label className="sm:col-span-2 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Tipo sanguíneo<StyledSelect className={`${inputClass} mt-1.5`} value={quickPatient.bloodType} onChange={(e)=>setQuickPatient((c)=>({...c,bloodType:e.target.value}))}><option value="">Selecione</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></StyledSelect></label></div>
           <div className="flex justify-end gap-2 border-t border-hpsr-border bg-white px-5 py-4"><button type="button" onClick={() => setQuickOpen(false)} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-xs font-black text-hpsr-text">Cancelar</button><button type="button" onClick={() => void saveQuickPatient()} className="rounded-[14px] bg-hpsr-wine px-4 py-3 text-xs font-black text-white">Salvar paciente</button></div>
         </div>
       </div>}
@@ -773,20 +754,20 @@ function ExportReportForm({ onClose }: { onClose: () => void }) {
           <input className={inputClass} type="date" />
         </Field>
         <Field label="Status">
-          <select className={inputClass} defaultValue="todos">
+          <StyledSelect className={inputClass} defaultValue="todos">
             <option value="todos">Todos</option>
             <option>Agendada</option>
             <option>Concluída</option>
             <option>Cancelada</option>
             <option>Não compareceu</option>
-          </select>
+          </StyledSelect>
         </Field>
         <Field label="Formato">
-          <select className={inputClass} defaultValue="pdf">
+          <StyledSelect className={inputClass} defaultValue="pdf">
             <option value="pdf">PDF</option>
             <option value="csv">CSV</option>
             <option value="xlsx">Planilha</option>
-          </select>
+          </StyledSelect>
         </Field>
       </div>
 
@@ -806,18 +787,18 @@ function OpenAttendanceForm({ appointment, onClose }: { appointment: Appointment
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Status do atendimento">
-          <select className={inputClass} defaultValue="em_atendimento">
+          <StyledSelect className={inputClass} defaultValue="em_atendimento">
             <option value="em_atendimento">Em atendimento</option>
             <option value="concluida">Concluir consulta</option>
             <option value="ausente">Paciente não compareceu</option>
-          </select>
+          </StyledSelect>
         </Field>
         <Field label="Tipo de registro">
-          <select className={inputClass} defaultValue="consulta">
+          <StyledSelect className={inputClass} defaultValue="consulta">
             <option value="consulta">Consulta clínica</option>
             <option value="retorno">Retorno</option>
             <option value="triagem">Triagem</option>
-          </select>
+          </StyledSelect>
         </Field>
       </div>
 
@@ -909,19 +890,19 @@ function RescheduleForm({
           <input className={inputClass} type="time" value={time} onChange={(event) => setTime(event.target.value)} />
         </Field>
         <Field label="Motivo do reagendamento">
-          <select className={inputClass} value={reason} onChange={(event) => setReason(event.target.value)}>
+          <StyledSelect className={inputClass} value={reason} onChange={(event) => setReason(event.target.value)}>
             <option value="" disabled>Selecione</option>
             <option>Pedido do paciente</option>
             <option>Indisponibilidade médica</option>
             <option>Reorganização da agenda</option>
             <option>Outro</option>
-          </select>
+          </StyledSelect>
         </Field>
         <Field label="Comunicação">
-          <select className={inputClass} defaultValue="pendente">
+          <StyledSelect className={inputClass} defaultValue="pendente">
             <option value="pendente">Aviso pendente</option>
             <option value="avisado">Paciente avisado</option>
-          </select>
+          </StyledSelect>
         </Field>
       </div>
 

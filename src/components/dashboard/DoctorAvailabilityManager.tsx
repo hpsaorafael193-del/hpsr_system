@@ -1,5 +1,6 @@
 "use client";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarPlus2,
@@ -155,7 +156,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <label className={label}>Data inicial<input type="date" min={today} value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value, endDate: form.endDate < event.target.value ? event.target.value : form.endDate })} className={field} /></label>
             <label className={label}>Repetir até<input type="date" min={form.startDate} value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} className={field} /></label>
-            <label className={`${label} md:col-span-2`}>Especialidade<select value={form.specialty} onChange={(event) => setForm({ ...form, specialty: event.target.value })} className={field}>{specialties.map((specialty) => <option key={specialty}>{specialty}</option>)}</select></label>
+            <label className={`${label} md:col-span-2`}>Especialidade<StyledSelect value={form.specialty} onChange={(event) => setForm({ ...form, specialty: event.target.value })} className={field}>{specialties.map((specialty) => <option key={specialty}>{specialty}</option>)}</StyledSelect></label>
           </div>
 
           <div className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3.5">
@@ -163,7 +164,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <label className={label}>Início<input type="time" value={form.startTime} onChange={(event) => setForm({ ...form, startTime: event.target.value })} className={field} /></label>
               <label className={label}>Término<input type="time" value={form.endTime} onChange={(event) => setForm({ ...form, endTime: event.target.value })} className={field} /></label>
-              <label className={label}>Duração<select value={form.duration} onChange={(event) => setForm({ ...form, duration: event.target.value })} className={field}><option value="30">30 min</option><option value="45">45 min</option><option value="60">1 hora</option><option value="90">1h30</option><option value="120">2 horas</option></select></label>
+              <label className={label}>Duração<StyledSelect value={form.duration} onChange={(event) => setForm({ ...form, duration: event.target.value })} className={field}><option value="30">30 min</option><option value="45">45 min</option><option value="60">1 hora</option><option value="90">1h30</option><option value="120">2 horas</option></StyledSelect></label>
               <label className={`${label} sm:col-span-2 xl:col-span-2`}>Limite diário opcional<input type="number" min="1" max="100" placeholder="Sem limite institucional" value={form.dailyLimit} onChange={(event) => setForm({ ...form, dailyLimit: event.target.value })} className={field} /></label>
             </div>
           </div>

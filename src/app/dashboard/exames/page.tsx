@@ -1,5 +1,6 @@
 "use client";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   Activity,
@@ -527,13 +528,13 @@ function SelectInput({
 }) {
   return (
     <div className="relative">
-      <select
+      <StyledSelect
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="h-10 w-full appearance-none rounded-[13px] border border-[#d8bfa9] bg-[linear-gradient(180deg,#ffffff_0%,#fffaf5_100%)] px-3 pr-10 text-sm font-black text-hpsr-text outline-none transition shadow-[inset_0_1px_2px_rgba(42,7,0,0.03),0_4px_12px_rgba(42,7,0,0.04)] hover:border-[#b98f75] focus:border-hpsr-wine/55 focus:ring-2 focus:ring-hpsr-wine/10"
       >
         {children}
-      </select>
+      </StyledSelect>
       <ChevronDown
         size={16}
         className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-hpsr-wine/70"
@@ -604,11 +605,9 @@ function PatientQuickRegisterModal({
           </div>
           <div>
             <FieldLabel>Tipo sanguíneo</FieldLabel>
-            <TextInput
-              value={draft.bloodType}
-              onChange={(bloodType) => setDraft({ ...draft, bloodType })}
-              placeholder="Ex.: B-"
-            />
+            <SelectInput value={draft.bloodType} onChange={(bloodType) => setDraft({ ...draft, bloodType })}>
+              <option value="">Selecione</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option>
+            </SelectInput>
           </div>
         </div>
 
@@ -2105,13 +2104,9 @@ export default function ExamesPage() {
                   </div>
                   <div>
                     <FieldLabel>Tipo sanguíneo</FieldLabel>
-                    <TextInput
-                      value={patient.bloodType}
-                      onChange={(bloodType) =>
-                        setPatient((current) => ({ ...current, bloodType }))
-                      }
-                      placeholder="Ex.: B-"
-                    />
+                    <SelectInput value={patient.bloodType} onChange={(bloodType) => setPatient((current) => ({ ...current, bloodType }))}>
+                      <option value="">Selecione</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option>
+                    </SelectInput>
                   </div>
                 </div>
               </div>
@@ -2188,7 +2183,7 @@ export default function ExamesPage() {
                       <div className="pointer-events-none flex h-full w-10 shrink-0 items-center justify-center border-r border-[#ead9ca] text-hpsr-wine">
                         <Table2 size={15} strokeWidth={2.2} />
                       </div>
-                      <select
+                      <StyledSelect
                         value={catalogCategory}
                         onChange={(event) => setCatalogCategory(event.target.value)}
                         aria-label="Filtrar catálogo por categoria"
@@ -2200,7 +2195,7 @@ export default function ExamesPage() {
                             {categoryLabels[category] || category}
                           </option>
                         ))}
-                      </select>
+                      </StyledSelect>
                       <ChevronDown size={16} className="pointer-events-none absolute right-3 text-hpsr-muted" />
                     </div>
                   </div>
@@ -2913,7 +2908,7 @@ function Toolbar({
       <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
         <label className="inline-flex h-9 items-center gap-2 rounded-[12px] border border-hpsr-border bg-white/85 px-2 text-xs font-black text-hpsr-text">
           <Type size={15} />
-          <select
+          <StyledSelect
             defaultValue="3"
             onChange={(event) => exec("fontSize", event.target.value)}
             className="h-7 min-w-[96px] bg-transparent text-xs font-black text-hpsr-text outline-none"
@@ -2927,7 +2922,7 @@ function Toolbar({
             <option value="5">18 px</option>
             <option value="6">24 px</option>
             <option value="7">32 px</option>
-          </select>
+          </StyledSelect>
         </label>
       </div>
       <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">

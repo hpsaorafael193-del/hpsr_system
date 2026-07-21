@@ -1,5 +1,6 @@
 "use client";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { FormEvent, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -614,7 +615,7 @@ function ScheduleProcedureModal({
 
               <label className="block">
                 <span className="text-xs font-black uppercase tracking-[0.1em] text-hpsr-wineLight">Tipo de procedimento *</span>
-                <select
+                <StyledSelect
                   required
                   value={form.procedureType}
                   onChange={(event) => updateField("procedureType", event.target.value as ProcedureType)}
@@ -623,12 +624,12 @@ function ScheduleProcedureModal({
                   {procedureOptions.map((option) => (
                     <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
-                </select>
+                </StyledSelect>
               </label>
 
               <label className="block">
                 <span className="text-xs font-black uppercase tracking-[0.1em] text-hpsr-wineLight">Sala *</span>
-                <select
+                <StyledSelect
                   required
                   value={form.room}
                   onChange={(event) => updateField("room", event.target.value)}
@@ -637,7 +638,7 @@ function ScheduleProcedureModal({
                   {roomOptions.map((room) => (
                     <option key={room}>{room}</option>
                   ))}
-                </select>
+                </StyledSelect>
               </label>
 
               <FormInput

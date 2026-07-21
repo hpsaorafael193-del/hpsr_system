@@ -1,5 +1,6 @@
 "use client";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState } from "react";
 import { Activity, BarChart3, CalendarDays, ClipboardCheck, Database, Download, FileSpreadsheet, FlaskConical, Search, ShieldCheck, Sparkles, Stethoscope, UserPlus, Users, WalletCards } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
@@ -234,9 +235,9 @@ export default function DirectionPage() {
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <label className="flex min-h-[40px] min-w-[165px] items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine">
             <CalendarDays size={15}/>
-            <select value={reportPeriod} onChange={(event)=>setReportPeriod(event.target.value)} className="min-w-0 flex-1 bg-transparent text-xs font-bold text-hpsr-text outline-none">
+            <StyledSelect value={reportPeriod} onChange={(event)=>setReportPeriod(event.target.value)} className="min-w-0 flex-1 bg-transparent text-xs font-bold text-hpsr-text outline-none">
               <option value="all">Todo o histórico</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option>
-            </select>
+            </StyledSelect>
           </label>
           <button type="button" onClick={handleExportReport} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 text-xs font-black text-white transition hover:opacity-90"><Download size={15}/> Exportar relatório</button>
           <ExportMenu onActivities={handleExportActivities} onTeam={handleExportTeam} onApplications={handleExportApplications}/>

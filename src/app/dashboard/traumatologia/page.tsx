@@ -1,5 +1,7 @@
 "use client";
+import { formatPhoneNumber, formatPhoneDisplay } from "@/lib/phone";
 
+import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
@@ -143,7 +145,7 @@ export default function TraumaPage() {
           passport: String(row.passport || ""),
           age: String(row.age || ""),
           bloodType: String(row.blood_type || ""),
-          cityPhone: String(row.city_phone || ""),
+          cityPhone: formatPhoneDisplay(String(row.city_phone || ""), ""),
           email: String(row.email || ""),
           followUp: String(row.follow_up || "Clínico"),
         })));
@@ -389,7 +391,7 @@ export default function TraumaPage() {
                 </div>
 
                 <div className="flex gap-2">
-                  <select
+                  <StyledSelect
                     className={inputClass}
                     value={selectedPatientPassport}
                     onChange={(event) => selectPatient(event.target.value)}
@@ -399,7 +401,7 @@ export default function TraumaPage() {
                     {patients.map((patient) => (
                       <option key={patient.passport} value={patient.passport}>{patient.name} · {patient.passport}</option>
                     ))}
-                  </select>
+                  </StyledSelect>
                   <button
                     type="button"
                     onClick={() => setQuickOpen(true)}
@@ -798,10 +800,10 @@ function QuickPatientModal({ patient, setPatient, saving, onClose, onSave }: {
           <TraumaField label="Nome completo"><input className={inputClass} value={patient.name} onChange={(e)=>field("name",e.target.value)} /></TraumaField>
           <TraumaField label="Passaporte"><input className={inputClass} value={patient.passport} onChange={(e)=>field("passport",e.target.value)} /></TraumaField>
           <TraumaField label="Idade"><input className={inputClass} value={patient.age} onChange={(e)=>field("age",e.target.value)} /></TraumaField>
-          <TraumaField label="Tipo sanguíneo"><input className={inputClass} placeholder="Ex.: B-" value={patient.bloodType} onChange={(e)=>field("bloodType",e.target.value)} /></TraumaField>
-          <TraumaField label="Telefone"><input className={inputClass} value={patient.cityPhone} onChange={(e)=>field("cityPhone",e.target.value)} /></TraumaField>
+          <TraumaField label="Tipo sanguíneo"><StyledSelect className={inputClass} value={patient.bloodType} onChange={(e)=>field("bloodType",e.target.value)}><option value="">Selecione</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></StyledSelect></TraumaField>
+          <TraumaField label="Telefone"><input className={inputClass} value={patient.cityPhone} onChange={(e)=>field("cityPhone",formatPhoneNumber(e.target.value))} inputMode="numeric" maxLength={13} placeholder="(055) 626-323" /></TraumaField>
           <TraumaField label="E-mail"><input type="email" className={inputClass} value={patient.email} onChange={(e)=>field("email",e.target.value)} /></TraumaField>
-          <div className="sm:col-span-2"><TraumaField label="Acompanhamento"><select className={inputClass} value={patient.followUp} onChange={(e)=>field("followUp",e.target.value)}><option>Clínico</option><option>Especializado</option><option>Rotina</option></select></TraumaField></div>
+          <div className="sm:col-span-2"><TraumaField label="Acompanhamento"><StyledSelect className={inputClass} value={patient.followUp} onChange={(e)=>field("followUp",e.target.value)}><option>Clínico</option><option>Especializado</option><option>Rotina</option></StyledSelect></TraumaField></div>
         </div>
         <div className="flex justify-end gap-2 border-t border-hpsr-border bg-white px-5 py-4"><button type="button" onClick={onClose} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-xs font-black text-hpsr-text">Cancelar</button><button type="button" disabled={saving} onClick={onSave} className="rounded-[14px] bg-hpsr-wine px-4 py-3 text-xs font-black text-white disabled:opacity-60">{saving ? "Salvando..." : "Salvar e selecionar"}</button></div>
       </section>
