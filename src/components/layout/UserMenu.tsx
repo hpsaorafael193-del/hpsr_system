@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Circle, LogOut, Pause, Play, RotateCcw, Square, UserRound } from "lucide-react";
+import { CheckCircle2, ChevronDown, Circle, LogOut, Pause, Play, RotateCcw, Square, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { createClient } from "@/lib/supabase";
@@ -147,7 +147,16 @@ export function UserMenu() {
 
           <div className="space-y-3 p-3">
             <div className={cn("rounded-[14px] px-3 py-2.5 text-xs font-bold", statusClass)}>
-              <div className="flex items-center justify-between"><span>{clock.status}</span>{clock.status !== "Fora de serviço" && <span className="font-black tabular-nums">{formatDuration(displaySeconds)}</span>}</div>
+              <div className="flex items-center justify-between gap-3">
+                <span>{clock.status}</span>
+                {clock.status !== "Fora de serviço" && <span className="font-black tabular-nums">{formatDuration(displaySeconds)}</span>}
+              </div>
+              {clock.status !== "Fora de serviço" && (
+                <div className="mt-2 flex items-center gap-1.5 border-t border-current/10 pt-2 text-[10px] font-semibold opacity-80">
+                  <CheckCircle2 size={12} />
+                  Tempo efetivo vinculado ao ponto atual
+                </div>
+              )}
             </div>
 
             {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-700">{error}</p>}
