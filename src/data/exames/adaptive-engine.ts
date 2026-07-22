@@ -606,34 +606,15 @@ function cleanTechnicalSentence(value: string) {
   return value.trim().replace(/[.;:,]+$/g, "");
 }
 
-function examDomainLabel(model: IntelligentExamModel) {
-  const labels: Record<string, string> = {
-    laboratorio: "análise laboratorial",
-    imagem: "avaliação por imagem",
-    cardiologia: "avaliação cardiovascular",
-    neurologia: "avaliação neurológica",
-    ginecologia: "avaliação ginecológica",
-    obstetricia: "avaliação obstétrica",
-    pediatria: "avaliação pediátrica",
-    neonatal: "avaliação neonatal",
-    oftalmologia: "avaliação oftalmológica",
-    dermatologia: "avaliação dermatológica",
-    hormonal: "avaliação hormonal",
-    genetico: "avaliação genética",
-    genetica: "avaliação genética",
-    funcional: "avaliação funcional",
-    geral: "avaliação clínica",
-  };
-  return labels[model.categoria] || "avaliação clínica especializada";
-}
-
 function technicalMethodNarrative(resolved: AdaptiveResolvedExam) {
   const { model } = resolved;
-  const parts = [cleanTechnicalSentence(model.technique), cleanTechnicalSentence(model.method)].filter(Boolean);
-  const scope = resolved.adapterValue ? `Abrangência técnica: ${resolved.adapterValue}` : "";
-  const context = resolved.clinicalContext ? `Indicação informada: ${resolved.clinicalContext}` : "";
-  const closing = `Registro estruturado para ${examDomainLabel(model)}, com análise dos parâmetros definidos no protocolo institucional e revisão médica antes da liberação.`;
-  return [...parts, scope, context, closing].filter(Boolean).join(". ") + ".";
+  const primary = cleanTechnicalSentence(model.technique || model.method);
+  const secondary = model.method && cleanTechnicalSentence(model.method) !== primary
+    ? cleanTechnicalSentence(model.method)
+    : "";
+  const scope = resolved.adapterValue ? `Abrangência: ${resolved.adapterValue}` : "";
+  const parts = [primary, secondary, scope].filter(Boolean);
+  return parts.slice(0, 3).join(". ") + ".";
 }
 
 function parameterFindingSentence(label: string, result: string, reference: string) {
@@ -656,16 +637,16 @@ function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][
   });
 
   if (profile.status === "normal" || profile.id === "normal") {
-    return `Conjunto de resultados tecnicamente coerente, sem desvios relevantes nos parâmetros avaliados. A interpretação permanece condicionada à indicação clínica, à qualidade da amostra ou aquisição e aos dados disponíveis no prontuário.`;
+    return `Parâmetros avaliados sem desvios relevantes, dentro dos limites técnicos do método.`;
   }
 
   if (profile.status === "indefinido") {
     const names = altered.slice(0, 3).map((row) => row[0]).join(", ");
-    return `Foram identificadas variações discretas${names ? ` em ${names}` : ""}, sem especificidade suficiente para definição isolada. Recomenda-se correlação com sintomas, evolução, antecedentes e, quando indicado, controle seriado ou método complementar.`;
+    return `Variações discretas${names ? ` em ${names}` : ""}, sem especificidade isolada. Correlacionar com o quadro clínico e considerar controle conforme avaliação médica.`;
   }
 
   const names = altered.slice(0, 4).map((row) => row[0]).join(", ");
-  return `O padrão observado demonstra alteração objetiva${names ? ` envolvendo ${names}` : " nos parâmetros principais"}. A relevância clínica depende da integração com exame físico, hipótese diagnóstica, tratamentos em curso e comparação com registros anteriores.`;
+  return `Alteração objetiva${names ? ` envolvendo ${names}` : " nos parâmetros principais"}. Correlacionar com o quadro clínico e exames anteriores.`;
 }
 
 function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
@@ -708,17 +689,34 @@ function resultSummaryFromRows(resolved: AdaptiveResolvedExam, rows: string[][])
 
 function findingsFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
   const { model, profile } = resolved;
-  const findings = rows
-    .filter((row) => row[0] && row[1] && !isGenericResult(row[1]))
-    .map((row) => parameterFindingSentence(row[0], row[1], row[2] || "conforme método"));
-
+  const informative = rows.filter((row) => row[0] && row[1] && !isGenericResult(row[1]));
+  const altered = informative.filter((row) => {
+    const parameter = model.parameters.find((item) => item.label === row[0]);
+    return parameter ? shouldUseAlteredResult(model, parameter, profile) : false;
+  });
+  const normal = informative.filter((row) => !altered.includes(row));
   const opening = resolved.adapterValue
-    ? `${model.nome}, protocolo direcionado para ${resolved.adapterValue.toLowerCase()}.`
-    : `${model.nome}, realizado segundo protocolo institucional.`;
-  const context = resolved.clinicalContext ? ` Indicação clínica informada: ${resolved.clinicalContext}.` : "";
+    ? `${model.nome} direcionado para ${resolved.adapterValue.toLowerCase()}.`
+    : `${model.nome} realizado conforme protocolo institucional.`;
+  const context = resolved.clinicalContext ? ` Indicação: ${resolved.clinicalContext}.` : "";
 
-  if (!findings.length) return `${opening}${context} ${profile.resultSummary}`;
-  return [opening + context, ...findings].join("\n");
+  if (!informative.length) return `${opening}${context} ${profile.resultSummary}`;
+
+  const lines: string[] = [opening + context];
+  const detailedRows = profile.status === "normal" || profile.id === "normal"
+    ? informative.slice(0, Math.min(informative.length, 6))
+    : altered.slice(0, Math.min(altered.length, 6));
+  detailedRows.forEach((row) => lines.push(parameterFindingSentence(row[0], row[1], row[2] || "conforme método")));
+
+  if (profile.status === "normal" || profile.id === "normal") {
+    if (informative.length > detailedRows.length) {
+      lines.push(`Demais estruturas e parâmetros avaliados sem alterações significativas.`);
+    }
+  } else if (normal.length) {
+    lines.push(`Demais parâmetros avaliados sem alterações relevantes.`);
+  }
+
+  return lines.join("\n");
 }
 
 export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
@@ -732,10 +730,6 @@ export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
   const contrastText = contrastField?.value ? `<p><strong>Contraste:</strong> ${htmlEscape(String(contrastField.value))}</p>` : "";
   const technique = paragraphs(technicalMethodNarrative(resolved));
   const table = isLaboratory && rows.length ? tableHtml(["Parâmetro", "Resultado", "Valores de referência"], rows) : "";
-  const measures = !isLaboratory && rows.length
-    ? paragraphs(rows.map((row) => `${row[0]}: ${row[1]} (${row[2]})`).join("\n"))
-    : "";
-
   if (model.id === "geral_exame_toxicologico") {
     const substanceIds = new Set(["canabinoides", "cocaina", "anfetaminas", "metanfetaminas", "opiaceos", "benzodiazepinicos", "barbituricos", "metadona", "fenciclidina", "outras_substancias"]);
     const substanceRows = resolved.parameters.filter((parameter) => substanceIds.has(parameter.id)).map((parameter) => [
@@ -768,18 +762,16 @@ export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
     return [
       section("tecnica", "1. Técnica / Método", technique + adapterText + contrastText + contextText),
       section("achados", "2. Achados", paragraphs(findingsFromRows(resolved, rows))),
-      section("medidas", "3. Medidas", measures),
-      section("interpretacao", "4. Interpretação", paragraphs(technicalInterpretation(resolved, rows))),
-      section("conclusao", "5. Conclusão", paragraphs(technicalConclusion(resolved, rows))),
+      section("interpretacao", "3. Interpretação", paragraphs(technicalInterpretation(resolved, rows))),
+      section("conclusao", "4. Conclusão", paragraphs(technicalConclusion(resolved, rows))),
     ].join("");
   }
 
   return [
     section("tecnica", "1. Técnica / Método", technique + adapterText + contrastText + contextText),
-    section(isLaboratory ? "resultados" : "achados", isLaboratory ? "2. Resultados" : "2. Achados ou Resultados", paragraphs(isLaboratory ? resultSummaryFromRows(resolved, rows) : findingsFromRows(resolved, rows))),
-    section("tabelas", isLaboratory ? "3. Tabela Técnica" : "3. Tabelas Técnicas", table),
-    section("interpretacao", "4. Interpretação", paragraphs(technicalInterpretation(resolved, rows))),
-    section("conclusao", "5. Conclusão", paragraphs(technicalConclusion(resolved, rows))),
+    section(isLaboratory ? "resultados" : "achados", "2. Resultados", isLaboratory ? (table || paragraphs(resultSummaryFromRows(resolved, rows))) : paragraphs(findingsFromRows(resolved, rows))),
+    section("interpretacao", "3. Interpretação", paragraphs(technicalInterpretation(resolved, rows))),
+    section("conclusao", "4. Conclusão", paragraphs(technicalConclusion(resolved, rows))),
   ].join("");
 }
 

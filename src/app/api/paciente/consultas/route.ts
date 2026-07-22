@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await valid.supabase
       .from("appointments")
-      .select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,date:payload->>date,preferred_period:payload->>preferredPeriod,time:payload->>time,physician:payload->>physician,doctor:payload->>doctor,reason:payload->>reason,notes:payload->>notes,proposed_date:payload->>proposedDate,proposed_time:payload->>proposedTime,reschedule_reason:payload->>rescheduleReason,patient_availability:payload->>patientAvailability")
+      .select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,date:payload->>date,preferred_period:payload->>preferredPeriod,time:payload->>time,physician:payload->>physician,doctor:payload->>doctor,reason:payload->>reason,notes:payload->>notes,proposed_date:payload->>proposedDate,proposed_time:payload->>proposedTime,reschedule_reason:payload->>rescheduleReason,patient_availability:payload->>patientAvailability,answer:payload->>answer")
       .eq("passport", valid.access.patient_passport)
       .order("created_at", { ascending: false })
       .limit(100);
@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
         proposedTime: String(row.proposed_time || ""),
         rescheduleReason: String(row.reschedule_reason || ""),
         patientAvailability: String(row.patient_availability || ""),
+        answer: String(row.answer || ""),
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };

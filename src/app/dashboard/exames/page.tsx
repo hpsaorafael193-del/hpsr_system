@@ -2790,6 +2790,28 @@ export default function ExamesPage() {
           padding: 0.45rem 0.55rem;
           vertical-align: top;
         }
+        .hpsr-continuous-editor section[data-hpsr-auto-block="true"] {
+          break-inside: avoid;
+          margin: 0 0 0.72rem;
+        }
+        .hpsr-continuous-editor section[data-hpsr-auto-block="true"] h2 {
+          margin-top: 0.72rem;
+          margin-bottom: 0.32rem;
+          padding-bottom: 0.18rem;
+        }
+        .hpsr-continuous-editor section[data-hpsr-auto-block="true"] p {
+          margin: 0.28rem 0;
+          line-height: 1.52;
+        }
+        .hpsr-continuous-editor section[data-hpsr-auto-block="true"] table {
+          margin: 0.48rem 0 0.62rem;
+          font-size: 13px;
+        }
+        .hpsr-continuous-editor section[data-hpsr-auto-block="true"] td,
+        .hpsr-continuous-editor section[data-hpsr-auto-block="true"] th {
+          padding: 0.30rem 0.42rem;
+          line-height: 1.35;
+        }
         .hpsr-continuous-editor blockquote {
           border-left: 4px solid rgba(103, 38, 20, 0.35);
           background: #fff8f0;
