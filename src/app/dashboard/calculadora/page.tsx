@@ -155,14 +155,14 @@ const procedimentos: Product[] = [
     id: "p6",
     nome: "CONSULTA COM ESPECIALISTA",
     descricao: "Consulta médica especializada.",
-    preco: 5000,
+    preco: 500000,
     imagem: "Icones/procedimentos/Consultas.png",
   },
   {
     id: "p7",
     nome: "CONSULTA COM PSICÓLOGO",
     descricao: "Consulta e acompanhamento psicológico e psiquiátrico.",
-    preco: 3000,
+    preco: 300000,
     imagem: "Icones/procedimentos/Consultas.png",
   },
   {
