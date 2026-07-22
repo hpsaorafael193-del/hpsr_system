@@ -344,8 +344,7 @@ export default function TeamPage() {
   const [registrationDecisionId, setRegistrationDecisionId] = useState("");
   const [pendingAdministrativeAction, setPendingAdministrativeAction] = useState<PendingAdministrativeAction | null>(null);
 
-  useEffect(() => {
-    async function loadAdministrativeData() {
+  async function loadAdministrativeData() {
       const client = createClient();
       if (!client) {
         setPublicApplications([]);
@@ -420,28 +419,34 @@ export default function TeamPage() {
       }
 
       await loadRegistrationRequestsFromSupabase();
-    }
+  }
 
+  useEffect(() => {
     void loadAdministrativeData();
   }, []);
 
   useEffect(() => {
     const client = createClient();
     if (!client) return;
-    let reloadTimer: ReturnType<typeof setTimeout> | null = null;
-    const scheduleReload = () => {
-      if (reloadTimer) clearTimeout(reloadTimer);
-      reloadTimer = setTimeout(() => window.location.reload(), 350);
+
+    let syncTimer: ReturnType<typeof setTimeout> | null = null;
+    const scheduleSilentSync = () => {
+      if (syncTimer) clearTimeout(syncTimer);
+      syncTimer = setTimeout(() => {
+        void loadAdministrativeData();
+      }, 250);
     };
+
     const channel = client
       .channel("hpsr-team-live-sync")
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "team_members" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "staff_applications" }, scheduleReload)
-      .on("postgres_changes", { event: "*", schema: "public", table: "staff_registration_requests" }, scheduleReload)
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, scheduleSilentSync)
+      .on("postgres_changes", { event: "*", schema: "public", table: "team_members" }, scheduleSilentSync)
+      .on("postgres_changes", { event: "*", schema: "public", table: "staff_applications" }, scheduleSilentSync)
+      .on("postgres_changes", { event: "*", schema: "public", table: "staff_registration_requests" }, scheduleSilentSync)
       .subscribe();
+
     return () => {
-      if (reloadTimer) clearTimeout(reloadTimer);
+      if (syncTimer) clearTimeout(syncTimer);
       void client.removeChannel(channel);
     };
   }, []);
@@ -462,6 +467,10 @@ export default function TeamPage() {
         .from("profiles")
         .select("id,name,email,passport,crm,role,specialty,city_phone,discord,access_status,created_at")
         .neq("access_status", "Aprovado")
+        .not("passport", "is", null)
+        .neq("passport", "")
+        .not("crm", "is", null)
+        .neq("crm", "")
         .order("created_at", { ascending: false }),
     ]);
 

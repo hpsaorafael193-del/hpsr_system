@@ -72,6 +72,7 @@ export default function PatientPortalPage() {
                   </div>
                   <InfoCard title="Falta de confirmação" text="Quando o horário não é confirmado dentro do período disponível, o atendimento daquele dia não acontece e poderá haver cobrança." />
                   <InfoCard title="Atrasos e ausências" text="A tolerância é de até 15 minutos. Atrasos não tolerados e faltas sem justificativa aceita podem gerar cobrança." />
+                  <InfoCard title="Exames cobrados separadamente" text="Cada exame solicitado possui cobrança adicional própria. O valor da consulta não inclui exames, procedimentos ou outros serviços realizados pelo hospital." />
                   <div className="rounded-[16px] border border-hpsr-border bg-[#351007] px-4 py-3 text-white">
                     <p className="text-sm font-black">Valores conforme a calculadora institucional</p>
                     <p className="mt-1 text-sm font-semibold leading-relaxed text-white/78">

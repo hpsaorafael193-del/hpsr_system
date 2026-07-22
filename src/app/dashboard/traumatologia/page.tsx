@@ -377,8 +377,8 @@ export default function TraumaPage() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col p-3">
-            <div className="space-y-2">
+          <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
               <div className="rounded-[18px] border border-hpsr-border bg-[#fffaf4] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
                 <div className="mb-2 flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-white text-hpsr-wine">
@@ -467,7 +467,7 @@ export default function TraumaPage() {
               </div>
             </div>
 
-            <div className="mt-2 shrink-0 bg-white/[0.94] pt-2">
+            <div className="shrink-0 border-t border-hpsr-border bg-white/[0.96] pt-2">
               <button
                 type="submit"
                 disabled={savingRecord}

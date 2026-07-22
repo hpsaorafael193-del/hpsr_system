@@ -29,6 +29,7 @@ import {
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
+import { notifyPatientRegistryUpdated } from "@/lib/patient-sync";
 import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 import { createClient } from "@/lib/supabase";
 import { ClinicalRecordsPortalPanel } from "@/components/dashboard/ClinicalRecordsPortalPanel";
@@ -115,7 +116,7 @@ function eventIcon(type: TimelineEvent["type"]) {
 
 export default function RecordsPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
-  const { patients: sharedPatients, loading: sharedPatientsLoading, selectedPassport: sharedSelectedPassport, selectPatient: selectSharedPatient } = usePatientSelection();
+  const { patients: sharedPatients, loading: sharedPatientsLoading, selectedPassport: sharedSelectedPassport, selectPatient: selectSharedPatient, refreshPatients: refreshSharedPatients } = usePatientSelection();
   const [patients, setPatients] = useState<PatientRecord[]>(initialPatients);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>(initialTimelineEvents);
   const [searchTerm, setSearchTerm] = useState("");
@@ -499,6 +500,9 @@ export default function RecordsPage() {
       await hpsrAlert(error.message, "Não foi possível cadastrar o paciente");
       return;
     }
+
+    await refreshSharedPatients();
+    notifyPatientRegistryUpdated();
 
     setPatients((currentPatients) => {
       const withoutCurrent = currentPatients.filter((patient) => patient.passport.trim().toUpperCase() !== normalizedPassport);

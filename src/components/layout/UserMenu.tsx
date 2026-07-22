@@ -55,11 +55,24 @@ export function UserMenu() {
 
   useEffect(() => {
     if (clock.status === "Fora de serviço") return;
-    const interval = window.setInterval(() => setTick(Date.now()), 1000);
-    return () => window.clearInterval(interval);
+    let interval: number | null = null;
+    const syncTimer = () => {
+      if (interval !== null) window.clearInterval(interval);
+      interval = null;
+      if (document.visibilityState !== "visible") return;
+      setTick(Date.now());
+      interval = window.setInterval(() => setTick(Date.now()), 1000);
+    };
+    syncTimer();
+    document.addEventListener("visibilitychange", syncTimer);
+    return () => {
+      document.removeEventListener("visibilitychange", syncTimer);
+      if (interval !== null) window.clearInterval(interval);
+    };
   }, [clock.status]);
 
   useEffect(() => {
+    if (!open) return;
     function handleClickOutside(event: MouseEvent) {
       if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
     }
@@ -74,7 +87,7 @@ export function UserMenu() {
       document.removeEventListener("mousedown", handleClickOutside);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [open]);
 
   async function handleAction(action: "enter" | "pause" | "return" | "finish") {
     if (actionLoading) return;

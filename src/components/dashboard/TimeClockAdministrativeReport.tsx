@@ -2,7 +2,7 @@
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState } from "react";
-import { Clock3, Download, History, RefreshCw, ShieldCheck, Square } from "lucide-react";
+import { Activity, Clock3, Download, History, RefreshCw, ShieldCheck, Square, UsersRound } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 
 type Entry = { id: string; user: string; openedAt: string; closedAt?: string | null; workedSeconds: number; status: string };
@@ -40,6 +40,8 @@ export function TimeClockAdministrativeReport() {
 
   useEffect(() => { void load(); }, []);
   const selectedReport = useMemo(() => data.reports.find((item) => item.monthStart === selectedMonth), [data.reports, selectedMonth]);
+  const openEntries = useMemo(() => data.entries.filter((entry) => !entry.closedAt), [data.entries]);
+  const closedEntries = useMemo(() => data.entries.filter((entry) => Boolean(entry.closedAt)), [data.entries]);
 
   async function setClosedAt(entry: Entry) {
     const initial = toLocalDateTimeInput(entry.closedAt || new Date().toISOString());
@@ -70,25 +72,46 @@ export function TimeClockAdministrativeReport() {
     const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `ranking-ponto-${selectedReport.monthStart}.csv`; a.click(); URL.revokeObjectURL(url);
   }
 
-  return <section className="rounded-[20px] border border-white/80 bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hpsr-border pb-3">
-      <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Clock3 size={19}/></span><div><h2 className="font-black text-hpsr-text">Relatório administrativo de ponto</h2><p className="text-xs text-hpsr-muted">Ranking atual, meses encerrados e controle administrativo dos pontos.</p></div></div>
-      <button type="button" onClick={() => void load()} disabled={loading} className="flex min-h-10 items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine disabled:opacity-60"><RefreshCw size={15} className={loading ? "animate-spin" : ""}/> Atualizar</button>
+  return <section className="space-y-4">
+    <div className="rounded-[22px] border border-white/80 bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.06)] sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-hpsr-wine text-white"><Clock3 size={20}/></span>
+          <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Controle de jornada</p><h2 className="font-black text-hpsr-text">Relatórios de ponto</h2><p className="text-xs text-hpsr-muted">Acompanhe pontos ativos, ranking mensal e registros encerrados.</p></div>
+        </div>
+        <button type="button" onClick={() => void load()} disabled={loading} className="flex min-h-10 items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine disabled:opacity-60"><RefreshCw size={15} className={loading ? "animate-spin" : ""}/> Atualizar</button>
+      </div>
+      {error && <p className="mt-3 rounded-[13px] bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p>}
     </div>
-    {error && <p className="mt-3 rounded-[13px] bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p>}
-    <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1fr]">
-      <div className="rounded-[17px] border border-hpsr-border bg-[#fffaf4] p-3">
-        <div className="mb-3 flex items-center justify-between"><div className="flex items-center gap-2"><Clock3 size={16} className="text-hpsr-wine"/><h3 className="text-sm font-black text-hpsr-text">Ranking do mês atual</h3></div><span className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Somente pontos encerrados</span></div>
+
+    <div className="rounded-[22px] border border-red-100 bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.05)] sm:p-5">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-red-50 text-red-700"><Activity size={18}/></span><div><h3 className="text-sm font-black text-hpsr-text">Pontos em aberto</h3><p className="text-xs text-hpsr-muted">Profissionais que ainda estão em serviço ou com jornada não finalizada.</p></div></div>
+        <span className="rounded-full bg-red-50 px-3 py-1.5 text-xs font-black text-red-700">{openEntries.length} em aberto</span>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        {openEntries.map((entry) => <div key={entry.id} className="rounded-[16px] border border-red-100 bg-[#fffafa] p-4">
+          <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-hpsr-text">{entry.user}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">Entrada: {formatDateTime(entry.openedAt)}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">Situação: {entry.status}</p></div><span className="rounded-[11px] bg-white px-3 py-2 text-sm font-black tabular-nums text-hpsr-wine shadow-sm">{formatDuration(entry.workedSeconds)}</span></div>
+          <button type="button" onClick={() => void setClosedAt(entry)} disabled={loading} className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-[12px] bg-red-700 px-3 text-xs font-black text-white disabled:opacity-50"><Square size={13}/> Encerrar ponto</button>
+        </div>)}
+        {!openEntries.length && <div className="lg:col-span-2"><Empty text="Nenhum ponto aberto no momento."/></div>}
+      </div>
+    </div>
+
+    <div className="grid gap-4 xl:grid-cols-[1.1fr_.9fr]">
+      <div className="rounded-[22px] border border-hpsr-border bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.05)] sm:p-5">
+        <div className="mb-4 flex items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#fff2e8] text-hpsr-wine"><UsersRound size={18}/></span><div><h3 className="text-sm font-black text-hpsr-text">Ranking do mês atual</h3><p className="text-xs text-hpsr-muted">Todos os profissionais aprovados aparecem, inclusive com 0h.</p></div></div><span className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Pontos encerrados</span></div>
         <RankingList ranking={data.currentRanking}/>
       </div>
-      <div className="rounded-[17px] border border-hpsr-border bg-[#fffaf4] p-3">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><History size={16} className="text-hpsr-wine"/><h3 className="text-sm font-black text-hpsr-text">Rankings mensais arquivados</h3></div><div className="flex gap-2"><StyledSelect value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-bold text-hpsr-text outline-none"><option value="">Nenhum mês fechado</option>{data.reports.map((item) => <option key={item.monthStart} value={item.monthStart}>{formatMonth(item.monthStart)}</option>)}</StyledSelect><button onClick={exportReport} disabled={!selectedReport} className="rounded-[11px] border border-hpsr-border bg-white p-2 text-hpsr-wine disabled:opacity-40" title="Exportar ranking"><Download size={16}/></button></div></div>
+      <div className="rounded-[22px] border border-hpsr-border bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.05)] sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><History size={17} className="text-hpsr-wine"/><div><h3 className="text-sm font-black text-hpsr-text">Rankings arquivados</h3><p className="text-xs text-hpsr-muted">Meses já encerrados.</p></div></div><div className="flex min-w-[220px] gap-2"><StyledSelect value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}><option value="">Nenhum mês fechado</option>{data.reports.map((item) => <option key={item.monthStart} value={item.monthStart}>{formatMonth(item.monthStart)}</option>)}</StyledSelect><button onClick={exportReport} disabled={!selectedReport} className="rounded-[12px] border border-hpsr-border bg-white p-2.5 text-hpsr-wine disabled:opacity-40" title="Exportar ranking"><Download size={16}/></button></div></div>
         {selectedReport ? <RankingList ranking={selectedReport.ranking}/> : <Empty text="Nenhum ranking mensal arquivado."/>}
       </div>
     </div>
-    <div className="mt-4 grid gap-4 xl:grid-cols-[1.25fr_.75fr]">
-      <div className="rounded-[17px] border border-hpsr-border p-3"><h3 className="mb-3 text-sm font-black text-hpsr-text">Registros recentes</h3><div className="max-h-64 space-y-2 overflow-y-auto pr-1">{data.entries.map((entry) => <div key={entry.id} className="grid gap-1 rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5 sm:grid-cols-[1fr_auto] sm:items-center"><div><p className="text-xs font-black text-hpsr-text">{entry.user}</p><p className="text-[11px] text-hpsr-muted">{formatDateTime(entry.openedAt)} · {entry.closedAt ? `encerrado ${formatDateTime(entry.closedAt)}` : entry.status}</p></div><div className="flex items-center gap-2"><span className="text-xs font-black tabular-nums text-hpsr-wine">{formatDuration(entry.workedSeconds)}</span><button type="button" onClick={() => void setClosedAt(entry)} disabled={loading} className={`flex items-center gap-1 rounded-[9px] border px-2 py-1 text-[10px] font-black disabled:opacity-50 ${entry.closedAt ? "border-hpsr-border bg-white text-hpsr-wine hover:bg-[#fff4ea]" : "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"}`}>{entry.closedAt ? "Editar encerramento" : <><Square size={11}/> Encerrar ponto</>}</button></div></div>)}{!data.entries.length && <Empty text="Nenhum ponto registrado."/>}</div></div>
-      <div className="rounded-[17px] border border-hpsr-border p-3"><div className="mb-3 flex items-center gap-2"><ShieldCheck size={16} className="text-hpsr-wine"/><h3 className="text-sm font-black text-hpsr-text">Auditoria</h3></div><div className="max-h-64 space-y-2 overflow-y-auto pr-1">{data.audit.map((item) => <div key={item.id} className="rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5"><p className="text-xs font-black text-hpsr-text">{item.action}</p><p className="mt-1 text-[11px] text-hpsr-muted">{item.actor || "Administrador"} · {item.target || "Profissional"}</p><p className="mt-1 text-[11px] text-hpsr-muted">{item.reason}</p></div>)}{!data.audit.length && <Empty text="Nenhuma intervenção administrativa registrada."/>}</div></div>
+
+    <div className="grid gap-4 xl:grid-cols-[1.25fr_.75fr]">
+      <div className="rounded-[22px] border border-hpsr-border bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.05)] sm:p-5"><h3 className="mb-3 text-sm font-black text-hpsr-text">Pontos encerrados recentemente</h3><div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">{closedEntries.map((entry) => <div key={entry.id} className="grid gap-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3 sm:grid-cols-[1fr_auto] sm:items-center"><div><p className="text-xs font-black text-hpsr-text">{entry.user}</p><p className="mt-1 text-[11px] text-hpsr-muted">Entrada {formatDateTime(entry.openedAt)} · encerramento {formatDateTime(entry.closedAt)}</p></div><div className="flex items-center gap-2"><span className="text-xs font-black tabular-nums text-hpsr-wine">{formatDuration(entry.workedSeconds)}</span><button type="button" onClick={() => void setClosedAt(entry)} disabled={loading} className="rounded-[9px] border border-hpsr-border bg-white px-2 py-1.5 text-[10px] font-black text-hpsr-wine disabled:opacity-50">Editar encerramento</button></div></div>)}{!closedEntries.length && <Empty text="Nenhum ponto encerrado."/>}</div></div>
+      <div className="rounded-[22px] border border-hpsr-border bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.05)] sm:p-5"><div className="mb-3 flex items-center gap-2"><ShieldCheck size={16} className="text-hpsr-wine"/><h3 className="text-sm font-black text-hpsr-text">Auditoria administrativa</h3></div><div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">{data.audit.map((item) => <div key={item.id} className="rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5"><p className="text-xs font-black text-hpsr-text">{item.action}</p><p className="mt-1 text-[11px] text-hpsr-muted">{item.actor || "Administrador"} · {item.target || "Profissional"}</p>{item.reason && <p className="mt-1 text-[11px] text-hpsr-muted">{item.reason}</p>}</div>)}{!data.audit.length && <Empty text="Nenhuma intervenção administrativa registrada."/>}</div></div>
     </div>
   </section>;
 }

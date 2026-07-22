@@ -30,6 +30,7 @@ import {
   Search,
   Send,
   Stethoscope,
+  Table2,
   Type,
   Underline,
   UserPlus,
@@ -576,6 +577,9 @@ export default function DocumentsPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isConfidential, setIsConfidential] = useState(true);
+  const [tablePickerOpen, setTablePickerOpen] = useState(false);
+  const [tableRows, setTableRows] = useState(3);
+  const [tableCols, setTableCols] = useState(3);
 
   const today = useMemo(() => new Date().toLocaleDateString("pt-BR"), []);
   const selectedModel = useMemo(
@@ -826,6 +830,27 @@ export default function DocumentsPage() {
 
   function insertList(ordered = false) {
     exec(ordered ? "insertOrderedList" : "insertUnorderedList");
+  }
+
+  function applyFormatBlock(tag: string) {
+    editorRef.current?.focus();
+    document.execCommand("formatBlock", false, tag);
+    syncEditor();
+  }
+
+  function insertHtml(html: string) {
+    editorRef.current?.focus();
+    document.execCommand("insertHTML", false, html);
+    syncEditor();
+  }
+
+  function insertTable(rows = tableRows, cols = tableCols) {
+    const safeRows = Math.max(1, Math.min(30, rows));
+    const safeCols = Math.max(1, Math.min(8, cols));
+    const cells = Array.from({ length: safeCols }, () => "<td><br></td>").join("");
+    const body = Array.from({ length: safeRows }, () => `<tr>${cells}</tr>`).join("");
+    insertHtml(`<table><tbody>${body}</tbody></table><p><br></p>`);
+    setTablePickerOpen(false);
   }
 
   async function pasteWithoutFormatting() {
@@ -1456,45 +1481,66 @@ export default function DocumentsPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 border-b border-[#e3cdbd] bg-white px-5 py-2.5 no-print">
-              <label className="inline-flex h-10 items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-text">
-                <Type size={15} />
-                <StyledSelect
-                  defaultValue="3"
-                  onChange={(event) => exec("fontSize", event.target.value)}
-                  className="min-w-[96px] bg-transparent text-xs font-black text-hpsr-text outline-none"
-                  aria-label="Tamanho da fonte"
-                  title="Tamanho da fonte"
-                >
-                  <option value="1">10 px</option>
-                  <option value="2">12 px</option>
-                  <option value="3">14 px</option>
-                  <option value="4">16 px</option>
-                  <option value="5">18 px</option>
-                  <option value="6">24 px</option>
-                  <option value="7">32 px</option>
-                </StyledSelect>
-              </label>
-              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("bold")}><Bold size={15} /></button>
-              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("italic")}><Italic size={15} /></button>
-              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("underline")}><Underline size={15} /></button>
-              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => insertList(false)}><List size={15} /></button>
-              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => insertList(true)}><ListOrdered size={15} /></button>
-              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("justifyLeft")}><AlignLeft size={15} /></button>
-              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("justifyCenter")}><AlignCenter size={15} /></button>
-              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("justifyRight")} title="Alinhar à direita"><AlignRight size={15} /></button>
-              <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-text" title="Cor da fonte">
-                <Type size={15} />
-                <input type="color" onChange={(event) => exec("foreColor", event.target.value)} className="h-5 w-7 cursor-pointer border-0 bg-transparent p-0" aria-label="Cor da fonte" />
-              </label>
-              <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-text" title="Cor de fundo do texto">
-                <Highlighter size={15} />
-                <input type="color" defaultValue="#fff2a8" onChange={(event) => exec("hiliteColor", event.target.value)} className="h-5 w-7 cursor-pointer border-0 bg-transparent p-0" aria-label="Cor de fundo do texto" />
-              </label>
-              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => exec("removeFormat")} title="Remover formatação"><Eraser size={15} /></button>
-              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => void pasteWithoutFormatting()} title="Colar sem formatação"><ClipboardPaste size={15} /></button>
-              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => transformSelectionCase("upper")} title="Converter seleção para maiúsculas"><CaseUpper size={16} /></button>
-              <button type="button" className="hpsr-button-soft gap-2 !py-2" onClick={() => transformSelectionCase("lower")} title="Converter seleção para minúsculas"><CaseLower size={16} /></button>
+            <div className="flex flex-wrap items-center gap-2 border-b border-[#d8c1ad] bg-[linear-gradient(180deg,#fffdf9_0%,#fff7ef_100%)] px-3 py-2.5 no-print">
+              <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-xs font-black text-hpsr-text" onClick={() => exec("undo")} title="Desfazer">↶</button>
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-xs font-black text-hpsr-text" onClick={() => exec("redo")} title="Refazer">↷</button>
+              </div>
+
+              <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+                <button type="button" className="inline-flex h-9 items-center gap-1.5 rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => applyFormatBlock("h1")}><Type size={14} /> Título</button>
+                <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => applyFormatBlock("h2")}>Seção</button>
+                <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => applyFormatBlock("p")}>Texto</button>
+              </div>
+
+              <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+                <label className="inline-flex h-9 items-center gap-2 rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-xs font-black text-hpsr-text">
+                  <Type size={15} />
+                  <StyledSelect defaultValue="3" onChange={(event) => exec("fontSize", event.target.value)} className="h-7 min-w-[88px] bg-transparent text-xs font-black text-hpsr-text outline-none" aria-label="Tamanho da fonte" title="Tamanho da fonte">
+                    <option value="1">10 px</option><option value="2">12 px</option><option value="3">14 px</option><option value="4">16 px</option><option value="5">18 px</option><option value="6">24 px</option><option value="7">32 px</option>
+                  </StyledSelect>
+                </label>
+              </div>
+
+              <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("bold")}><Bold size={15} /></button>
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("italic")}><Italic size={15} /></button>
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("underline")}><Underline size={15} /></button>
+                <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" title="Cor da fonte"><Type size={15} /><input type="color" onChange={(event) => exec("foreColor", event.target.value)} className="h-5 w-7 cursor-pointer border-0 bg-transparent p-0" aria-label="Cor da fonte" /></label>
+                <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" title="Cor de fundo do texto"><Highlighter size={15} /><input type="color" defaultValue="#fff2a8" onChange={(event) => exec("hiliteColor", event.target.value)} className="h-5 w-7 cursor-pointer border-0 bg-transparent p-0" aria-label="Cor de fundo do texto" /></label>
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("removeFormat")} title="Remover formatação"><Eraser size={15} /></button>
+              </div>
+
+              <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => void pasteWithoutFormatting()} title="Colar sem formatação"><ClipboardPaste size={15} /></button>
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => transformSelectionCase("upper")} title="Converter seleção para maiúsculas"><CaseUpper size={16} /></button>
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => transformSelectionCase("lower")} title="Converter seleção para minúsculas"><CaseLower size={16} /></button>
+              </div>
+
+              <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("justifyLeft")}><AlignLeft size={15} /></button>
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("justifyCenter")}><AlignCenter size={15} /></button>
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("justifyRight")}><AlignRight size={15} /></button>
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => insertList(false)}><List size={15} /></button>
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => insertList(true)}><ListOrdered size={15} /></button>
+              </div>
+
+              <div className="relative flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+                <button type="button" className="inline-flex h-9 items-center gap-2 rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => setTablePickerOpen(!tablePickerOpen)}><Table2 size={15} /> Tabela <ChevronDown size={13} /></button>
+                {tablePickerOpen && <div className="absolute left-0 top-12 z-30 w-64 rounded-[16px] border border-[#d8bfa9] bg-white p-3 shadow-[0_18px_45px_rgba(42,7,0,0.16)]">
+                  <p className="mb-3 text-xs font-black uppercase tracking-[0.04em] text-hpsr-text">Inserir tabela</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="text-xs font-bold text-hpsr-muted">Linhas<input type="number" min={1} max={30} value={tableRows} onChange={(event) => setTableRows(Number(event.target.value) || 1)} className="mt-1 h-9 w-full rounded-[10px] border border-[#d8bfa9] px-2 font-black text-hpsr-text" /></label>
+                    <label className="text-xs font-bold text-hpsr-muted">Colunas<input type="number" min={1} max={8} value={tableCols} onChange={(event) => setTableCols(Number(event.target.value) || 1)} className="mt-1 h-9 w-full rounded-[10px] border border-[#d8bfa9] px-2 font-black text-hpsr-text" /></label>
+                  </div>
+                  <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => insertTable()} className="mt-3 h-10 w-full rounded-[12px] bg-hpsr-wine text-xs font-black text-white">Inserir</button>
+                </div>}
+              </div>
+
+              <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+                <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => insertHtml("<blockquote>Observação: </blockquote><p><br></p>")}>Observação</button>
+                <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => insertHtml("<p><strong>Conclusão:</strong> </p>")}>Conclusão</button>
+              </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto bg-[#f2eee9] p-4">

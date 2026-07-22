@@ -308,7 +308,7 @@ function alteredNumericFromReference(parameter: IntelligentExamParameter, profil
     return formatPtNumber(base * randomBetween(0.45, 0.9), reference, parameter.unidade);
   }
 
-  return "Alterado";
+  return contextualQualitativeResult(parameter, profile, "alterado");
 }
 
 function borderlineNumericFromReference(parameter: IntelligentExamParameter, profile: IntelligentExamProfile) {
@@ -337,7 +337,7 @@ function borderlineNumericFromReference(parameter: IntelligentExamParameter, pro
     return formatPtNumber(base * randomBetween(0.9, 0.98), reference, parameter.unidade);
   }
 
-  return "Limítrofe";
+  return contextualQualitativeResult(parameter, profile, "limítrofe");
 }
 
 function qualitativeResultFromReference(parameter: IntelligentExamParameter, profile: IntelligentExamProfile) {
@@ -360,8 +360,77 @@ function qualitativeResultFromReference(parameter: IntelligentExamParameter, pro
 
   if (reference.includes("ausente")) return "Presente";
   if (reference.includes("negativo")) return "Positivo";
-  if (reference.includes("normal")) return "Alterado";
+  if (reference.includes("normal")) return contextualQualitativeResult(parameter, profile, "alterado");
   return null;
+}
+
+
+function grammaticalForm(parameter: IntelligentExamParameter, masculine: string, feminine: string, pluralMasculine?: string, pluralFeminine?: string) {
+  const label = lowerText(parameter.label, parameter.id);
+  const isPlural = /s$/.test(label.trim()) || hasAny(label, ["hemácias", "células", "estruturas", "paredes", "vias", "artérias", "veias"]);
+  const isFeminine = hasAny(label, ["função", "resposta", "qualidade", "estrutura", "medida", "imagem", "pressão", "frequência", "espessura", "densidade", "atividade", "mobilidade", "morfologia", "vascularização", "perfusão", "saturação", "amplitude"]);
+  if (isPlural && isFeminine) return pluralFeminine || feminine;
+  if (isPlural) return pluralMasculine || masculine;
+  return isFeminine ? feminine : masculine;
+}
+
+function contextualQualitativeResult(
+  parameter: IntelligentExamParameter,
+  profile: IntelligentExamProfile,
+  state: "normal" | "alterado" | "limítrofe",
+) {
+  const text = lowerText(parameter.id, parameter.label, parameter.resultPlaceholder, parameter.referencia);
+  const profileText = lowerText(profile.id, profile.name, profile.description);
+
+  if (state === "normal") {
+    if (hasAny(text, ["hemorrag", "lesão", "lesao", "massa", "nódulo", "nodulo", "cisto", "estenose", "trombo", "derrame", "edema", "calcifica", "vegetação", "vegetacao", "isquemia", "parasita", "bactér", "bacter", "fungo", "secreção", "secrecao"])) return "Ausente";
+    if (hasAny(text, ["fluxo", "perfusão", "permeabilidade", "mobilidade", "função", "funcao", "contratilidade", "vitalidade", "resposta", "reflexo", "acuidade"])) return grammaticalForm(parameter, "Preservado", "Preservada", "Preservados", "Preservadas");
+    if (hasAny(text, ["contorno", "morfologia", "arquitetura", "estrutura", "parede", "superfície", "superficie", "aspecto", "posição", "posicao", "implantação", "implantacao"])) return grammaticalForm(parameter, "Regular", "Regular", "Regulares", "Regulares");
+    if (hasAny(text, ["qualidade", "adequação", "adequacao", "janela", "amostra"])) return grammaticalForm(parameter, "Adequado", "Adequada", "Adequados", "Adequadas");
+    return grammaticalForm(parameter, "Preservado", "Preservada", "Preservados", "Preservadas");
+  }
+
+  if (state === "limítrofe") {
+    if (hasAny(text, ["medida", "espessura", "volume", "diâmetro", "diametro", "índice", "indice", "velocidade", "pressão", "pressao", "frequência", "frequencia"])) return "Valor discretamente fora da faixa de referência";
+    if (hasAny(text, ["fluxo", "perfusão", "mobilidade", "função", "funcao", "resposta", "acuidade"])) return grammaticalForm(parameter, "Discretamente reduzido", "Discretamente reduzida", "Discretamente reduzidos", "Discretamente reduzidas");
+    return "Alteração discreta, sem critério conclusivo isolado";
+  }
+
+  if (hasAny(text, ["hemorrag"])) return "Pequeno foco hemorrágico identificado";
+  if (hasAny(text, ["estenose"])) return "Estenose moderada";
+  if (hasAny(text, ["nódulo", "nodulo", "massa", "lesão", "lesao"])) return "Formação focal de contornos definidos, medindo cerca de 1,2 cm";
+  if (hasAny(text, ["cisto"])) return "Imagem cística simples, medindo cerca de 1,1 cm";
+  if (hasAny(text, ["derrame", "líquido", "liquido"])) return "Pequena quantidade de líquido livre";
+  if (hasAny(text, ["edema"])) return "Edema de grau leve a moderado";
+  if (hasAny(text, ["calcifica"])) return "Calcificações puntiformes esparsas";
+  if (hasAny(text, ["fluxo", "perfusão"])) return grammaticalForm(parameter, "Reduzido", "Reduzida", "Reduzidos", "Reduzidas");
+  if (hasAny(text, ["função", "funcao", "contratilidade", "mobilidade", "resposta", "reflexo", "acuidade"])) return grammaticalForm(parameter, "Reduzido", "Reduzida", "Reduzidos", "Reduzidas");
+  if (hasAny(text, ["espessura", "volume", "diâmetro", "diametro", "medida", "índice", "indice"])) return hasAny(profileText, ["reduz", "hipo", "atrofia"]) ? "Reduzido em relação à referência" : "Aumentado em relação à referência";
+  if (hasAny(text, ["bactér", "bacter", "fungo", "parasita"])) return "Presente na amostra analisada";
+  if (hasAny(text, ["qualidade", "adequação", "adequacao", "amostra"])) return "Adequada para análise, com alteração técnica descrita";
+  return `Alteração compatível com o perfil clínico ${profile.name.toLowerCase()}`;
+}
+
+function isGenericResult(value: string) {
+  return /^(alterado|alterada|alterados|alteradas|achado|achados|resultado alterado|exame alterado|a preencher)$/i.test(value.trim());
+}
+
+function profileMatchesParameter(parameter: IntelligentExamParameter, profile: IntelligentExamProfile) {
+  const parameterText = lowerText(parameter.id, parameter.label);
+  const profileTerms = lowerText(profile.id, profile.name, profile.description)
+    .replace(/[^a-zà-ÿ0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((term) => term.length >= 5 && !hasAny(term, ["exame", "alterado", "alteração", "resultado", "parâmetro", "perfil", "clínico", "clinico"]));
+  return profileTerms.some((term) => parameterText.includes(term.slice(0, Math.min(term.length, 7))));
+}
+
+function shouldUseAlteredResult(model: IntelligentExamModel, parameter: IntelligentExamParameter, profile: IntelligentExamProfile) {
+  if (profile.status === "normal" || profile.id === "normal") return false;
+  if (profile.status === "indefinido") return true;
+  if (profileMatchesParameter(parameter, profile)) return true;
+  const meaningful = model.parameters.filter((item) => !hasAny(lowerText(item.id, item.label), ["impressão", "impressao", "interpretação", "interpretacao", "conclusão", "conclusao", "observação", "observacao"]));
+  const index = meaningful.findIndex((item) => item.id === parameter.id);
+  return index >= 0 && index < Math.max(1, Math.ceil(meaningful.length * 0.28));
 }
 
 function laboratoryPatternResult(model: IntelligentExamModel, parameter: IntelligentExamParameter, profile: IntelligentExamProfile) {
@@ -473,7 +542,7 @@ function laboratoryPatternResult(model: IntelligentExamModel, parameter: Intelli
 
   if (profile.status === "normal" || profile.id === "normal") return formatResult(randomNormalResultFromReference(parameter), parameter);
   if (profile.status === "indefinido" || /lim|indef|inconclus/i.test(profile.id + profile.name)) return formatResult(borderlineNumericFromReference(parameter, profile), parameter);
-  if (profile.status === "personalizado") return "A preencher";
+  if (profile.status === "personalizado") return contextualQualitativeResult(parameter, profile, "normal");
 
   return formatResult(alteredNumericFromReference(parameter, profile), parameter);
 }
@@ -481,16 +550,25 @@ function laboratoryPatternResult(model: IntelligentExamModel, parameter: Intelli
 function resultForParameter(model: IntelligentExamModel, parameter: IntelligentExamParameter, profile: IntelligentExamProfile) {
   const explicitResult = profile.results?.[parameter.id];
 
-  if (explicitResult && profile.status !== "normal") return adaptiveExplicitResult(explicitResult, parameter);
-
-  // Perfis normais continuam dinâmicos: ao atualizar achados, os valores numéricos
-  // são recalculados dentro da faixa de referência, mantendo coerência com o perfil.
-  if (profile.status === "normal" || profile.id === "normal") {
-    return laboratoryPatternResult(model, parameter, profile);
+  if (explicitResult) {
+    const result = adaptiveExplicitResult(explicitResult, parameter);
+    if (!isGenericResult(result)) return formatResult(result, parameter);
   }
 
-  if (explicitResult) return adaptiveExplicitResult(explicitResult, parameter);
-  return laboratoryPatternResult(model, parameter, profile);
+  // Um perfil alterado não torna todos os parâmetros artificialmente anormais.
+  // Apenas os parâmetros coerentes com o perfil (ou um pequeno grupo principal)
+  // recebem valores alterados; os demais permanecem dentro da referência.
+  if (!shouldUseAlteredResult(model, parameter, profile)) {
+    const normalProfile = model.profiles.find((item) => item.id === "normal") || { ...profile, id: "normal", status: "normal" as const, name: "Normal" };
+    return laboratoryPatternResult(model, parameter, normalProfile);
+  }
+
+  const result = laboratoryPatternResult(model, parameter, profile);
+  if (isGenericResult(result)) {
+    const state = profile.status === "indefinido" ? "limítrofe" : "alterado";
+    return formatResult(contextualQualitativeResult(parameter, profile, state), parameter);
+  }
+  return result;
 }
 
 function tableHtml(headers: string[], rows: string[][]) {
@@ -522,6 +600,127 @@ function paragraphs(value: string) {
     .join("");
 }
 
+
+
+function cleanTechnicalSentence(value: string) {
+  return value.trim().replace(/[.;:,]+$/g, "");
+}
+
+function examDomainLabel(model: IntelligentExamModel) {
+  const labels: Record<string, string> = {
+    laboratorio: "análise laboratorial",
+    imagem: "avaliação por imagem",
+    cardiologia: "avaliação cardiovascular",
+    neurologia: "avaliação neurológica",
+    ginecologia: "avaliação ginecológica",
+    obstetricia: "avaliação obstétrica",
+    pediatria: "avaliação pediátrica",
+    neonatal: "avaliação neonatal",
+    oftalmologia: "avaliação oftalmológica",
+    dermatologia: "avaliação dermatológica",
+    hormonal: "avaliação hormonal",
+    genetico: "avaliação genética",
+    genetica: "avaliação genética",
+    funcional: "avaliação funcional",
+    geral: "avaliação clínica",
+  };
+  return labels[model.categoria] || "avaliação clínica especializada";
+}
+
+function technicalMethodNarrative(resolved: AdaptiveResolvedExam) {
+  const { model } = resolved;
+  const parts = [cleanTechnicalSentence(model.technique), cleanTechnicalSentence(model.method)].filter(Boolean);
+  const scope = resolved.adapterValue ? `Abrangência técnica: ${resolved.adapterValue}` : "";
+  const context = resolved.clinicalContext ? `Indicação informada: ${resolved.clinicalContext}` : "";
+  const closing = `Registro estruturado para ${examDomainLabel(model)}, com análise dos parâmetros definidos no protocolo institucional e revisão médica antes da liberação.`;
+  return [...parts, scope, context, closing].filter(Boolean).join(". ") + ".";
+}
+
+function parameterFindingSentence(label: string, result: string, reference: string) {
+  const cleanLabel = cleanTechnicalSentence(label);
+  const cleanResult = cleanTechnicalSentence(result);
+  const cleanReference = cleanTechnicalSentence(reference);
+  const numeric = /\d/.test(cleanResult);
+  const qualitative = /ausente|presente|preservad|regular|reduzid|aumentad|positivo|negativo|limítrofe|estenose|edema|cístic|focal|calcifica/i.test(cleanResult);
+
+  if (numeric) return `${cleanLabel} mensurado em ${cleanResult}, com referência técnica de ${cleanReference}.`;
+  if (qualitative) return `${cleanLabel}: ${cleanResult}.`;
+  return `${cleanLabel} apresentou ${cleanResult.toLowerCase()}, conforme avaliação técnica do método.`;
+}
+
+function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  const { model, profile } = resolved;
+  const altered = rows.filter((row) => {
+    const parameter = model.parameters.find((item) => item.label === row[0]);
+    return parameter ? shouldUseAlteredResult(model, parameter, profile) : false;
+  });
+
+  if (profile.status === "normal" || profile.id === "normal") {
+    return `Conjunto de resultados tecnicamente coerente, sem desvios relevantes nos parâmetros avaliados. A interpretação permanece condicionada à indicação clínica, à qualidade da amostra ou aquisição e aos dados disponíveis no prontuário.`;
+  }
+
+  if (profile.status === "indefinido") {
+    const names = altered.slice(0, 3).map((row) => row[0]).join(", ");
+    return `Foram identificadas variações discretas${names ? ` em ${names}` : ""}, sem especificidade suficiente para definição isolada. Recomenda-se correlação com sintomas, evolução, antecedentes e, quando indicado, controle seriado ou método complementar.`;
+  }
+
+  const names = altered.slice(0, 4).map((row) => row[0]).join(", ");
+  return `O padrão observado demonstra alteração objetiva${names ? ` envolvendo ${names}` : " nos parâmetros principais"}. A relevância clínica depende da integração com exame físico, hipótese diagnóstica, tratamentos em curso e comparação com registros anteriores.`;
+}
+
+function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  const { model, profile } = resolved;
+  const altered = rows.filter((row) => {
+    const parameter = model.parameters.find((item) => item.label === row[0]);
+    return parameter ? shouldUseAlteredResult(model, parameter, profile) : false;
+  });
+
+  if (profile.status === "normal" || profile.id === "normal") {
+    return `${model.nome} sem evidência de alteração significativa nos itens analisados, dentro dos limites técnicos do método.`;
+  }
+  if (profile.status === "indefinido") {
+    return `${model.nome} com achados discretos ou limítrofes, de significado inespecífico isoladamente. Considerar acompanhamento conforme avaliação médica.`;
+  }
+  const summary = altered.slice(0, 3).map((row) => `${row[0]} (${row[1]})`).join("; ");
+  return `${model.nome} com alterações tecnicamente demonstradas${summary ? `: ${summary}` : ""}. Correlacionar com o contexto clínico para definição de conduta.`;
+}
+
+function resultSummaryFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  const { model, profile } = resolved;
+  const informative = rows.filter((row) => row[0] && row[1] && !isGenericResult(row[1]));
+  if (!informative.length) return profile.resultSummary;
+
+  if (profile.status === "normal" || profile.id === "normal") {
+    return `${model.nome}: parâmetros avaliados dentro dos padrões esperados para o método e o contexto ${resolved.clinicalContext.toLowerCase() || "informado"}.`;
+  }
+
+  const highlighted = informative
+    .filter((row) => {
+      const parameter = model.parameters.find((item) => item.label === row[0]);
+      return parameter ? shouldUseAlteredResult(model, parameter, profile) : false;
+    })
+    .slice(0, 4)
+    .map((row) => `${row[0]}: ${row[1]}`);
+
+  if (!highlighted.length) return `${model.nome}: resultado compatível com o perfil ${profile.name.toLowerCase()}, conforme parâmetros descritos.`;
+  return `${model.nome}: ${highlighted.join("; ")}.`;
+}
+
+function findingsFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  const { model, profile } = resolved;
+  const findings = rows
+    .filter((row) => row[0] && row[1] && !isGenericResult(row[1]))
+    .map((row) => parameterFindingSentence(row[0], row[1], row[2] || "conforme método"));
+
+  const opening = resolved.adapterValue
+    ? `${model.nome}, protocolo direcionado para ${resolved.adapterValue.toLowerCase()}.`
+    : `${model.nome}, realizado segundo protocolo institucional.`;
+  const context = resolved.clinicalContext ? ` Indicação clínica informada: ${resolved.clinicalContext}.` : "";
+
+  if (!findings.length) return `${opening}${context} ${profile.resultSummary}`;
+  return [opening + context, ...findings].join("\n");
+}
+
 export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
   const { model, profile } = resolved;
   const rows = parameterRows(resolved);
@@ -531,7 +730,7 @@ export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
   const contextText = resolved.clinicalContext ? `<p><strong>Contexto clínico:</strong> ${htmlEscape(resolved.clinicalContext)}</p>` : "";
   const contrastField = resolved.dynamicFields.find((field) => field.id === "contraste");
   const contrastText = contrastField?.value ? `<p><strong>Contraste:</strong> ${htmlEscape(String(contrastField.value))}</p>` : "";
-  const technique = paragraphs([model.technique, model.method].filter(Boolean).join("\n"));
+  const technique = paragraphs(technicalMethodNarrative(resolved));
   const table = isLaboratory && rows.length ? tableHtml(["Parâmetro", "Resultado", "Valores de referência"], rows) : "";
   const measures = !isLaboratory && rows.length
     ? paragraphs(rows.map((row) => `${row[0]}: ${row[1]} (${row[2]})`).join("\n"))
@@ -559,7 +758,7 @@ export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
       section("tecnica_metodo", "3. Técnica e Método Utilizado", method),
       section("substancias_pesquisadas", "4. Substâncias Pesquisadas", tableHtml(["Substância ou classe", "Resultado", "Valor de corte"], substanceRows)),
       section("controle_qualidade", "5. Controle de Qualidade da Amostra", tableHtml(["Parâmetro", "Resultado", "Referência"], qualityRows)),
-      section("resultado_laboratorial", "6. Resultado Laboratorial", paragraphs(profile.resultSummary)),
+      section("resultado_laboratorial", "6. Resultado Laboratorial", paragraphs(resultSummaryFromRows(resolved, [...substanceRows, ...qualityRows]))),
       section("interpretacao", "7. Interpretação", paragraphs(profile.interpretation)),
       section("conclusao", "8. Conclusão", paragraphs(`Perfil do resultado: ${profile.name}.\n${profile.conclusion}\nOs achados devem ser interpretados em conjunto com os dados clínicos, ocupacionais e administrativos disponíveis. Este exame não determina, isoladamente, o grau de comprometimento funcional, o momento exato do uso ou a frequência de exposição à substância pesquisada.`)),
     ].join("");
@@ -568,19 +767,19 @@ export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
   if (isImage) {
     return [
       section("tecnica", "1. Técnica / Método", technique + adapterText + contrastText + contextText),
-      section("achados", "2. Achados", paragraphs(profile.resultSummary || "Descrever achados objetivos do exame.")),
+      section("achados", "2. Achados", paragraphs(findingsFromRows(resolved, rows))),
       section("medidas", "3. Medidas", measures),
-      section("interpretacao", "4. Interpretação", paragraphs(profile.interpretation || model.interpretation.normal)),
-      section("conclusao", "5. Conclusão", paragraphs(profile.conclusion || model.conclusion.normal)),
+      section("interpretacao", "4. Interpretação", paragraphs(technicalInterpretation(resolved, rows))),
+      section("conclusao", "5. Conclusão", paragraphs(technicalConclusion(resolved, rows))),
     ].join("");
   }
 
   return [
     section("tecnica", "1. Técnica / Método", technique + adapterText + contrastText + contextText),
-    section(isLaboratory ? "resultados" : "achados", isLaboratory ? "2. Resultados" : "2. Achados ou Resultados", paragraphs(profile.resultSummary || "A preencher.")),
+    section(isLaboratory ? "resultados" : "achados", isLaboratory ? "2. Resultados" : "2. Achados ou Resultados", paragraphs(isLaboratory ? resultSummaryFromRows(resolved, rows) : findingsFromRows(resolved, rows))),
     section("tabelas", isLaboratory ? "3. Tabela Técnica" : "3. Tabelas Técnicas", table),
-    section("interpretacao", "4. Interpretação", paragraphs(profile.interpretation || model.interpretation.normal)),
-    section("conclusao", "5. Conclusão", paragraphs(profile.conclusion || model.conclusion.normal)),
+    section("interpretacao", "4. Interpretação", paragraphs(technicalInterpretation(resolved, rows))),
+    section("conclusao", "5. Conclusão", paragraphs(technicalConclusion(resolved, rows))),
   ].join("");
 }
 

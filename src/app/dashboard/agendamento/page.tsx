@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   BadgeDollarSign,
@@ -141,31 +141,59 @@ export default function AppointmentsPage() {
   const [publicRequests, setPublicRequests] = useState<PublicAppointmentRequest[]>([]);
   const [requestsModalOpen, setRequestsModalOpen] = useState(false);
 
-  useEffect(() => {
-    async function loadAppointments() {
-      const client = createClient();
-      if (!client) {
-        setPublicRequests([]);
-        return;
-      }
-      const { data, error } = await client
-        .from("appointments")
-        .select("id, passport, patient, status, payload, created_at, updated_at")
-        .order("created_at", { ascending: false });
-      if (error) return;
-      setPublicRequests((data || []).map((row: any) => ({
-        ...((row.payload || {}) as PublicAppointmentRequest),
-        id: String(row.id),
-        passport: String(row.passport || ""),
-        patient: String(row.patient || "Não informado"),
-        status: String(row.status || "Solicitação enviada"),
-        createdAt: String(((row.payload || {}) as Partial<PublicAppointmentRequest>).createdAt || row.created_at),
-        updatedAt: String(((row.payload || {}) as Partial<PublicAppointmentRequest>).updatedAt || row.updated_at),
-        specialty: String(((row.payload || {}) as Partial<PublicAppointmentRequest>).specialty || "Clínico Geral"),
-      })));
+  const loadAppointments = useCallback(async () => {
+    const client = createClient();
+    if (!client) {
+      setPublicRequests([]);
+      return;
     }
-    void loadAppointments();
+
+    const { data, error } = await client
+      .from("appointments")
+      .select("id, passport, patient, status, payload, created_at, updated_at")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("[HPSR][Agendamento] Falha ao carregar solicitações:", error);
+      return;
+    }
+
+    setPublicRequests((data || []).map((row: any) => ({
+      ...((row.payload || {}) as PublicAppointmentRequest),
+      id: String(row.id),
+      passport: String(row.passport || ""),
+      patient: String(row.patient || "Não informado"),
+      status: String(row.status || "Solicitação enviada"),
+      createdAt: String(((row.payload || {}) as Partial<PublicAppointmentRequest>).createdAt || row.created_at),
+      updatedAt: String(((row.payload || {}) as Partial<PublicAppointmentRequest>).updatedAt || row.updated_at),
+      specialty: String(((row.payload || {}) as Partial<PublicAppointmentRequest>).specialty || "Clínico Geral"),
+    })));
   }, []);
+
+  useEffect(() => {
+    const client = createClient();
+    void loadAppointments();
+    if (!client) return;
+
+    const channel = client
+      .channel("appointment-requests-sync")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "appointments" },
+        () => void loadAppointments()
+      )
+      .subscribe();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") void loadAppointments();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      void client.removeChannel(channel);
+    };
+  }, [loadAppointments]);
 
   async function updatePublicRequestStatus(request: PublicAppointmentRequest, status: string) {
     const updatedRequest: PublicAppointmentRequest = {
@@ -203,12 +231,17 @@ export default function AppointmentsPage() {
   }
 
   const pendingRequests = useMemo(() => {
-    const storedRequests = publicRequests.filter((item) =>
-      ["Solicitação enviada", "Em análise pelo médico", "Aguardando ajuste", "solicitado", "em análise", "pendente"].includes(item.status) &&
-      doctorCanAccessSpecialty(item.specialty)
-    );
+    const pendingMarkers = ["solicit", "em analise", "aguardando ajuste", "pendente"];
 
-    return storedRequests;
+    return publicRequests.filter((item) => {
+      const normalizedStatus = item.status
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+      return pendingMarkers.some((marker) => normalizedStatus.includes(marker));
+    });
   }, [publicRequests]);
 
   const publicAcceptedAppointments = useMemo(() => {

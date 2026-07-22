@@ -2,7 +2,7 @@
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState } from "react";
-import { Activity, BarChart3, CalendarDays, ClipboardCheck, Database, Download, FileSpreadsheet, FlaskConical, Search, ShieldCheck, Sparkles, Stethoscope, UserPlus, Users, WalletCards } from "lucide-react";
+import { Activity, CalendarDays, ClipboardCheck, Database, Download, FileSpreadsheet, FlaskConical, PieChart, Search, ShieldCheck, Stethoscope, UserPlus, Users, WalletCards } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { type SystemActivity } from "@/lib/administrative-storage";
 import { createClient } from "@/lib/supabase";
@@ -23,6 +23,7 @@ export default function DirectionPage() {
   const [teamMembers, setTeamMembers] = useState<AdministrativeMember[]>([]);
   const [search, setSearch] = useState("");
   const [reportPeriod, setReportPeriod] = useState("all");
+  const [activityChartFilter, setActivityChartFilter] = useState<"modules" | "plans" | "exams" | "services">("modules");
 
   useEffect(() => {
     async function loadDirectionData() {
@@ -256,26 +257,16 @@ export default function DirectionPage() {
           <Stat icon={<WalletCards size={18}/>} label="Receita registrada" value={formatMoney(periodRevenue)}/>
         </section>
 
-        <section className="grid shrink-0 gap-3 xl:grid-cols-[1.15fr_.85fr]">
-          <div className="overflow-hidden rounded-[18px] border border-white/80 bg-white shadow-[0_10px_24px_rgba(79,42,21,0.05)]">
-            <div className="flex items-center gap-3 border-b border-hpsr-border px-4 py-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-[13px] bg-hpsr-wine text-white"><Sparkles size={17}/></span>
-              <div><h2 className="font-black text-hpsr-text">Destaques operacionais</h2><p className="text-xs text-hpsr-muted">Principais resultados identificados automaticamente.</p></div>
-            </div>
-            <div className="grid gap-px bg-hpsr-border sm:grid-cols-3">
-              <InsightCard icon={<WalletCards size={16}/>} label="Plano mais feito" value={analytics.topPlan?.[0] || "Sem dados"} helper={analytics.topPlan ? `${analytics.topPlan[1]} registro(s)` : "Sem movimentações"}/>
-              <InsightCard icon={<FlaskConical size={16}/>} label="Exame mais realizado" value={analytics.topExam?.[0] || "Sem dados"} helper={analytics.topExam ? `${analytics.topExam[1]} registro(s)` : "Sem lançamentos"}/>
-              <InsightCard icon={<Stethoscope size={16}/>} label="Serviço mais realizado" value={analytics.topService?.[0] || "Sem dados"} helper={analytics.topService ? `${analytics.topService[1]} ocorrência(s)` : "Sem lançamentos"}/>
-            </div>
-          </div>
-          <ChartPanel title="Distribuição operacional" subtitle="Módulos com maior volume no período" items={analytics.moduleRanking.slice(0, 6)} emptyLabel="Nenhuma atividade registrada."/>
-        </section>
-
-        <section className="grid shrink-0 gap-3 lg:grid-cols-3">
-          <RankingPanel title="Planos mais utilizados" icon={<WalletCards size={17}/>} items={analytics.planRanking.slice(0, 5)} emptyLabel="Nenhum plano registrado."/>
-          <RankingPanel title="Exames mais realizados" icon={<FlaskConical size={17}/>} items={analytics.examRanking.slice(0, 5)} emptyLabel="Nenhum exame registrado."/>
-          <RankingPanel title="Serviços mais realizados" icon={<Stethoscope size={17}/>} items={analytics.serviceRanking.slice(0, 5)} emptyLabel="Nenhum serviço registrado."/>
-        </section>
+        <ActivityPiePanel
+          filter={activityChartFilter}
+          onFilterChange={setActivityChartFilter}
+          datasets={{
+            modules: analytics.moduleRanking,
+            plans: analytics.planRanking,
+            exams: analytics.examRanking,
+            services: analytics.serviceRanking,
+          }}
+        />
 
         <TimeClockAdministrativeReport />
 
@@ -343,34 +334,80 @@ function Stat({icon,label,value}:{icon:React.ReactNode;label:string;value:string
   </div>;
 }
 
-function InsightCard({ icon, label, value, helper }: { icon: React.ReactNode; label: string; value: string; helper: string }) {
-  return <div className="min-h-[112px] bg-white p-4">
-    <div className="flex items-center gap-2 text-hpsr-wine">{icon}<p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{label}</p></div>
-    <p className="mt-3 line-clamp-2 text-base font-black leading-tight text-hpsr-text" title={value}>{value}</p>
-    <p className="mt-1 text-xs font-semibold text-hpsr-muted">{helper}</p>
-  </div>;
-}
+type ActivityChartFilter = "modules" | "plans" | "exams" | "services";
 
-function MiniBarChart({ items, emptyLabel }: { items: Array<[string, number]>; emptyLabel: string }) {
-  const max = items.length ? Math.max(...items.map(([, value]) => value), 1) : 1;
-  if (!items.length) return <div className="rounded-[14px] border border-dashed border-hpsr-border p-5 text-center text-xs text-hpsr-muted">{emptyLabel}</div>;
-  return <div className="grid gap-2.5">{items.map(([label, value], index) => <div key={`${label}-${index}`} className="grid gap-1">
-    <div className="flex items-center justify-between gap-3 text-[11px]"><span className="min-w-0 truncate font-bold text-hpsr-text" title={label}>{label}</span><span className="shrink-0 rounded-full bg-[#fff1e5] px-2 py-0.5 font-black text-hpsr-wine">{value}</span></div>
-    <div className="h-2 overflow-hidden rounded-full bg-[#f1e4d6]"><div className="h-full rounded-full bg-[linear-gradient(90deg,#6f2412,#9a4a2e)]" style={{ width: `${Math.max((value / max) * 100, 8)}%` }} /></div>
-  </div>)}</div>;
-}
+function ActivityPiePanel({
+  filter,
+  onFilterChange,
+  datasets,
+}: {
+  filter: ActivityChartFilter;
+  onFilterChange: (value: ActivityChartFilter) => void;
+  datasets: Record<ActivityChartFilter, Array<[string, number]>>;
+}) {
+  const filterMeta: Record<ActivityChartFilter, { label: string; title: string; description: string; icon: React.ReactNode }> = {
+    modules: { label: "Atividades", title: "Atividades por módulo", description: "Distribuição das movimentações registradas no período.", icon: <Activity size={16}/> },
+    plans: { label: "Planos", title: "Planos utilizados", description: "Participação dos planos nos registros financeiros do período.", icon: <WalletCards size={16}/> },
+    exams: { label: "Exames", title: "Exames realizados", description: "Distribuição dos exames registrados no período.", icon: <FlaskConical size={16}/> },
+    services: { label: "Serviços", title: "Serviços realizados", description: "Participação dos serviços lançados nos atendimentos.", icon: <Stethoscope size={16}/> },
+  };
+  const rawItems = datasets[filter] || [];
+  const primary = rawItems.slice(0, 7);
+  const remainder = rawItems.slice(7).reduce((sum, [, value]) => sum + value, 0);
+  const items = remainder > 0 ? [...primary, ["Outros", remainder] as [string, number]] : primary;
+  const total = items.reduce((sum, [, value]) => sum + value, 0);
+  const colors = ["#6f2412", "#8f3e25", "#b25f3f", "#d58a68", "#e9b79b", "#8f6f5d", "#c8a894", "#ead7c7"];
+  let cursor = 0;
+  const gradient = total > 0
+    ? `conic-gradient(${items.map(([, value], index) => {
+        const start = cursor;
+        cursor += (value / total) * 100;
+        return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+      }).join(", ")})`
+    : "conic-gradient(#ead7c7 0 100%)";
+  const selected = filterMeta[filter];
 
-function ChartPanel({ title, subtitle, items, emptyLabel }: { title: string; subtitle: string; items: Array<[string, number]>; emptyLabel: string }) {
-  return <section className="rounded-[20px] border border-white/80 bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
-    <div className="mb-3 flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-[13px] bg-hpsr-wine text-white"><BarChart3 size={17}/></span><div><h3 className="font-black text-hpsr-text">{title}</h3><p className="text-xs text-hpsr-muted">{subtitle}</p></div></div>
-    <MiniBarChart items={items} emptyLabel={emptyLabel}/>
-  </section>;
-}
+  return <section className="shrink-0 overflow-hidden rounded-[22px] border border-white/80 bg-white shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
+    <div className="flex flex-col gap-3 border-b border-hpsr-border px-4 py-4 xl:flex-row xl:items-center xl:justify-between">
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><PieChart size={19}/></span>
+        <div><h2 className="font-black text-hpsr-text">Painel de atividades</h2><p className="text-xs text-hpsr-muted">Um único gráfico para analisar os principais grupos do relatório.</p></div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {(Object.keys(filterMeta) as ActivityChartFilter[]).map((key) => {
+          const item = filterMeta[key];
+          const active = filter === key;
+          return <button key={key} type="button" onClick={() => onFilterChange(key)} className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[12px] border px-3 text-xs font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white shadow-sm" : "border-hpsr-border bg-[#fffaf4] text-hpsr-text hover:border-hpsr-wine/40"}`}>{item.icon}{item.label}</button>;
+        })}
+      </div>
+    </div>
 
-function RankingPanel({ title, icon, items, emptyLabel }: { title: string; icon: React.ReactNode; items: Array<[string, number]>; emptyLabel: string }) {
-  return <section className="rounded-[20px] border border-white/80 bg-white p-4 shadow-[0_10px_26px_rgba(79,42,21,0.05)]">
-    <div className="mb-3 flex items-center justify-between gap-2"><div className="flex items-center gap-2 text-hpsr-wine">{icon}<h3 className="text-sm font-black text-hpsr-text">{title}</h3></div><span className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Top 5</span></div>
-    <MiniBarChart items={items} emptyLabel={emptyLabel}/>
+    <div className="grid gap-5 p-5 lg:grid-cols-[minmax(280px,.8fr)_minmax(0,1.2fr)] lg:items-center">
+      <div className="flex flex-col items-center justify-center">
+        <div className="relative grid h-[250px] w-[250px] place-items-center rounded-full shadow-[0_18px_36px_rgba(79,42,21,0.10)]" style={{ background: gradient }}>
+          <div className="grid h-[132px] w-[132px] place-items-center rounded-full border border-hpsr-border bg-white text-center shadow-inner">
+            <div><p className="text-3xl font-black text-hpsr-text">{total}</p><p className="mt-1 text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Registros</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="min-w-0">
+        <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Visualização atual</p>
+        <h3 className="mt-1 text-xl font-black text-hpsr-text">{selected.title}</h3>
+        <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">{selected.description}</p>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          {items.map(([label, value], index) => {
+            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+            return <div key={`${label}-${index}`} className="flex min-w-0 items-center gap-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5">
+              <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }}/>
+              <div className="min-w-0 flex-1"><p className="truncate text-xs font-black text-hpsr-text" title={label}>{label}</p><p className="text-[10px] font-semibold text-hpsr-muted">{value} registro(s)</p></div>
+              <span className="shrink-0 text-sm font-black text-hpsr-wine">{percentage}%</span>
+            </div>;
+          })}
+          {!items.length && <div className="sm:col-span-2 rounded-[15px] border border-dashed border-hpsr-border p-8 text-center text-sm font-semibold text-hpsr-muted">Nenhum dado disponível para este filtro.</div>}
+        </div>
+      </div>
+    </div>
   </section>;
 }
 

@@ -18,11 +18,13 @@ import {
 } from "lucide-react";
 
 type BedStatus = "ocupado" | "vago";
+type BedType = "normal" | "gestante" | "infantil";
 
 type BedRecord = {
   id: string;
   label: string;
   status: BedStatus;
+  type: BedType;
   patient?: string;
   admittedAt?: string;
   expectedDischarge?: string;
@@ -44,13 +46,18 @@ type BedRecord = {
 };
 
 const initialBeds: BedRecord[] = [
-  { id: "leito-01", label: "Leito 01", status: "vago" },
-  { id: "leito-02", label: "Leito 02", status: "vago" },
-  { id: "leito-03", label: "Leito 03", status: "vago" },
-  { id: "leito-04", label: "Leito 04", status: "vago" },
-  { id: "leito-05", label: "Leito 05", status: "vago" },
-  { id: "leito-06", label: "Leito 06", status: "vago" },
+  { id: "leito-normal-01", label: "Leito Normal 01", type: "normal", status: "vago" },
+  { id: "leito-normal-02", label: "Leito Normal 02", type: "normal", status: "vago" },
+  { id: "leito-gestante-01", label: "Leito Gestante", type: "gestante", status: "vago" },
+  { id: "leito-infantil-01", label: "Leito Infantil 01", type: "infantil", status: "vago" },
+  { id: "leito-infantil-02", label: "Leito Infantil 02", type: "infantil", status: "vago" },
 ];
+
+const bedTypeLabels: Record<BedType, string> = {
+  normal: "Normal",
+  gestante: "Gestante",
+  infantil: "Infantil",
+};
 
 const doctors: string[] = [];
 const specialties = ["Clínico Geral", "Obstetra", "Pediatra", "Psicóloga", "Psiquiatra", "Neurologia", "Oftalmologia", "Cardiologia", "Dermatologia", "Nutricionista", "Cirurgião", "Ginecologia"];
@@ -90,7 +97,7 @@ export default function BedsPage() {
     setBeds((currentBeds) =>
       currentBeds.map((bed) =>
         bed.id === dischargeBed.id
-          ? { id: bed.id, label: bed.label, status: "vago" }
+          ? { id: bed.id, label: bed.label, type: bed.type, status: "vago" }
           : bed
       )
     );
@@ -140,16 +147,18 @@ export default function BedsPage() {
           </div>
         </div>
 
-        <div className="grid gap-3 px-4 py-3 sm:grid-cols-3">
+        <div className="grid gap-3 px-4 py-3 sm:grid-cols-2 xl:grid-cols-5">
           <BedMetric label="Total de leitos" value={String(beds.length)} tone="neutral" />
-          <BedMetric label="Ocupados" value={String(occupiedCount)} tone="occupied" />
+          <BedMetric label="Normais" value="2" tone="neutral" />
+          <BedMetric label="Gestante" value="1" tone="neutral" />
+          <BedMetric label="Infantis" value="2" tone="neutral" />
           <BedMetric label="Vagos" value={String(freeCount)} tone="free" />
         </div>
       </section>
 
       <section className="min-h-0 flex-1 overflow-hidden rounded-[18px] border border-hpsr-border bg-white/[0.86] p-3">
-        <div className="grid h-full gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
-          {beds.map((bed) => {
+        <div className="grid h-full auto-rows-fr gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-6">
+          {beds.map((bed, index) => {
             const occupied = bed.status === "ocupado";
             const menuOpen = openMenu === bed.id;
 
@@ -157,7 +166,11 @@ export default function BedsPage() {
               <article
                 key={bed.id}
                 onClick={() => openAdmissionForm(bed)}
-                className={`relative flex min-h-[260px] flex-col overflow-visible rounded-[18px] border p-3.5 text-center transition ${
+                className={`relative flex min-h-[240px] flex-col overflow-visible rounded-[18px] border p-3.5 text-center transition ${
+                  bed.type === "normal" ? "xl:col-span-3" : "xl:col-span-2"
+                } ${
+                  index === beds.length - 1 ? "sm:col-span-2 xl:col-span-2" : "sm:col-span-1"
+                } ${
                   occupied
                     ? "border-rose-200 bg-[linear-gradient(180deg,#fff3f0_0%,#fffafa_100%)]"
                     : "cursor-pointer border-emerald-200 bg-[linear-gradient(180deg,#f1fff6_0%,#fbfffd_100%)] hover:border-emerald-300 hover:shadow-[0_14px_34px_rgba(24,120,70,0.10)]"
@@ -211,6 +224,9 @@ export default function BedsPage() {
                     <span className={`h-2.5 w-2.5 rounded-full ${occupied ? "bg-red-500" : "bg-emerald-500"}`} />
                     <h2 className="text-base font-black text-hpsr-text">{bed.label}</h2>
                   </div>
+                  <span className="mt-2 rounded-full border border-hpsr-border bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">
+                    {bedTypeLabels[bed.type]}
+                  </span>
 
                   <div className={`mt-5 flex h-8 w-8 items-center justify-center rounded-[18px] ${
                     occupied ? "bg-rose-100 text-red-600" : "bg-emerald-100 text-emerald-700"

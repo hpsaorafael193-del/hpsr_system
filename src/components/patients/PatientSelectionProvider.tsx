@@ -1,8 +1,9 @@
 "use client";
 import { formatPhoneDisplay } from "@/lib/phone";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase";
+import { notifyPatientRegistryUpdated, subscribePatientRegistryUpdated } from "@/lib/patient-sync";
 
 export type SharedPatient = {
   name: string;
@@ -60,6 +61,7 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
   const [patients, setPatients] = useState<SharedPatient[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPassport, setSelectedPassport] = useState("");
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     try {
@@ -74,55 +76,65 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
   }, []);
 
   const refreshPatients = useCallback(async () => {
-    const client = createClient();
-    if (!client) {
+    if (refreshInFlightRef.current) return refreshInFlightRef.current;
+
+    const request = (async () => {
+      const client = createClient();
+      if (!client) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      const { data, error } = await client
+        .from("patient_registry")
+        .select("passport,name,age,blood_type,city_phone,email,created_at")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("[HPSR] Falha ao sincronizar pacientes:", error.message);
+        setLoading(false);
+        return;
+      }
+
+      const authoritative = (data || [])
+        .map((row) => normalizePatient({
+          passport: row.passport,
+          name: row.name,
+          age: row.age,
+          bloodType: row.blood_type,
+          cityPhone: formatPhoneDisplay(row.city_phone, ""),
+          email: row.email,
+        }))
+        .filter(Boolean) as SharedPatient[];
+
+      authoritative.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+      setPatients(authoritative);
+      writePatientCache(authoritative);
       setLoading(false);
-      return;
+    })();
+
+    refreshInFlightRef.current = request;
+    try {
+      await request;
+    } finally {
+      refreshInFlightRef.current = null;
     }
-
-    setLoading(true);
-    const { data, error } = await client
-      .from("patient_registry")
-      .select("passport,name,age,blood_type,city_phone,email,created_at")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      // Em falha de rede, o cache pode continuar visível como cópia temporária,
-      // mas nunca é enviado ao Supabase nem tratado como fonte de verdade.
-      console.error("[HPSR] Falha ao sincronizar pacientes:", error.message);
-      setLoading(false);
-      return;
-    }
-
-    const authoritative = (data || [])
-      .map((row) => normalizePatient({
-        passport: row.passport,
-        name: row.name,
-        age: row.age,
-        bloodType: row.blood_type,
-        cityPhone: formatPhoneDisplay(row.city_phone, ""),
-        email: row.email,
-      }))
-      .filter(Boolean) as SharedPatient[];
-
-    authoritative.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-
-    // Um retorno vazio válido do Supabase também substitui o cache local.
-    // Isso impede que pacientes excluídos reapareçam como dados fantasmas.
-    setPatients(authoritative);
-    writePatientCache(authoritative);
-    setLoading(false);
   }, []);
 
   useEffect(() => {
     void refreshPatients();
+    const unsubscribeLocal = subscribePatientRegistryUpdated(() => void refreshPatients());
     const client = createClient();
-    if (!client) return;
+    if (!client) return unsubscribeLocal;
     const channel = client
       .channel("shared-patient-selection")
       .on("postgres_changes", { event: "*", schema: "public", table: "patient_registry" }, () => void refreshPatients())
       .subscribe();
-    return () => { void client.removeChannel(channel); };
+    return () => {
+      unsubscribeLocal();
+      void client.removeChannel(channel);
+    };
   }, [refreshPatients]);
 
   const upsertPatient = useCallback(async (patient: SharedPatient) => {
@@ -148,6 +160,7 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
     }
 
     await refreshPatients();
+    notifyPatientRegistryUpdated();
     return true;
   }, [refreshPatients]);
 
