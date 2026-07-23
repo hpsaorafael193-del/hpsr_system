@@ -32,7 +32,7 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { roles, specialties as systemSpecialties } from "@/data/mock";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
-import { mirrorRecord, removeRecord } from "@/lib/data-bridge";
+import { mirrorRecord } from "@/lib/data-bridge";
 import { createClient } from "@/lib/supabase";
 import { registerSystemActivity } from "@/lib/administrative-storage";
 import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
@@ -573,6 +573,19 @@ export default function TeamPage() {
     return { ok: !error, error: error?.message };
   }
 
+
+  async function deactivateMember(member: TeamMember, reason: string) {
+    const client = createClient();
+    if (!client) return { ok: false, error: "Supabase não configurado." };
+
+    const { error } = await client.rpc("admin_deactivate_team_member", {
+      target_profile_id: member.id,
+      deactivation_reason: reason || "Desligamento administrativo",
+    });
+
+    return { ok: !error, error: error?.message };
+  }
+
   async function removeApplicationFromSupabase(application: PublicStaffApplication) {
     const client = createClient();
     if (!client) return { ok: false, error: "Supabase não configurado." };
@@ -584,8 +597,12 @@ export default function TeamPage() {
     if (!(await hpsrConfirm(`Confirmar a ação "${action}" para ${member.name}?`, "Ação contratual"))) return;
     const timestamp = new Date().toLocaleString("pt-BR");
     if (action.includes("Desligar")) {
+      const result = await deactivateMember(member, action);
+      if (!result.ok) {
+        void hpsrAlert(result.error || "Não foi possível persistir o desligamento no Supabase.", "Erro ao desligar membro");
+        return;
+      }
       setMembers((current) => current.filter((item) => item.id !== member.id));
-      void removeRecord("team_members", member.id);
       setSelectedId("");
       return;
     }
@@ -647,7 +664,11 @@ export default function TeamPage() {
         return [{ ...item, warnings, suspensions, history }];
       }));
       if (member.suspensions + (member.warnings + 1 >= 3 ? 1 : 0) >= 3) {
-        void removeRecord("team_members", member.id);
+        const result = await deactivateMember(member, "Desligamento automático após 3 suspensões");
+        if (!result.ok) {
+          void hpsrAlert(result.error || "Não foi possível persistir o desligamento automático no Supabase.", "Erro ao desligar membro");
+          return;
+        }
         setSelectedId("");
       }
       setPendingAdministrativeAction(null);
@@ -690,8 +711,12 @@ export default function TeamPage() {
     }
 
     if (action === "Desligar") {
+      const result = await deactivateMember(member, trimmedValue);
+      if (!result.ok) {
+        void hpsrAlert(result.error || "Não foi possível persistir o desligamento no Supabase.", "Erro ao desligar membro");
+        return;
+      }
       setMembers((current) => current.filter((item) => item.id !== member.id));
-      void removeRecord("team_members", member.id);
       setSelectedId("");
       setPendingAdministrativeAction(null);
     }
