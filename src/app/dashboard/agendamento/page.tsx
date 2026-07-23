@@ -516,13 +516,22 @@ function RequestsCenterModal({
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-3.5">
             <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-center">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">
-                  Especialidades visíveis
-                </p>
-                <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">
-                  {doctorVisibleSpecialties.join(" · ")}
-                </p>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`inline-flex shrink-0 items-center gap-2 rounded-[16px] border px-4 py-2.5 text-xs font-black transition ${
+                      activeTab === tab.id
+                        ? "border-hpsr-wine bg-[linear-gradient(135deg,#672614,#74321e)] text-white"
+                        : "border-hpsr-border bg-white text-hpsr-wine hover:bg-[#fffdf9]"
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </button>
+                ))}
               </div>
 
               <div className="relative">
@@ -534,24 +543,6 @@ function RequestsCenterModal({
                   placeholder="Buscar nome, passaporte ou especialidade"
                 />
               </div>
-            </div>
-
-            <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`inline-flex shrink-0 items-center gap-2 rounded-[16px] border px-4 py-2.5 text-xs font-black transition ${
-                    activeTab === tab.id
-                      ? "border-hpsr-wine bg-[linear-gradient(135deg,#672614,#74321e)] text-white"
-                      : "border-hpsr-border bg-white text-hpsr-wine hover:bg-[#fffdf9]"
-                  }`}
-                >
-                  {tab.icon}
-                  {tab.label}
-                </button>
-              ))}
             </div>
           </div>
 
