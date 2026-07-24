@@ -176,6 +176,17 @@ function daysSince(value: string) {
   return Math.max(0, Math.floor((current.getTime() - start.getTime()) / 86400000));
 }
 
+function saoPauloCalendarDate() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
 function getContractInfo(member: TeamMember) {
   if (member.systemRole || ["Diretora", "Vice Diretor", "Diretor Clínico"].includes(member.hospitalRole)) {
     return null;
@@ -595,7 +606,7 @@ export default function TeamPage() {
 
   async function handleContractAction(member: TeamMember, action: string) {
     if (!(await hpsrConfirm(`Confirmar a ação "${action}" para ${member.name}?`, "Ação contratual"))) return;
-    const timestamp = new Date().toLocaleString("pt-BR");
+    const timestamp = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
     if (action.includes("Desligar")) {
       const result = await deactivateMember(member, action);
       if (!result.ok) {
@@ -606,24 +617,42 @@ export default function TeamPage() {
       setSelectedId("");
       return;
     }
-    setMembers((current) => current.map((item) => {
-      if (item.id !== member.id) return item;
-      let hospitalRole = item.hospitalRole;
-      if (action.includes("Especialização")) hospitalRole = "Médico Especialista";
-      else if (action.includes("Promover") || action.toLowerCase().includes("clínico")) {
-        if (item.hospitalRole === "Estagiário de Enfermagem") hospitalRole = "Residente";
-        else if (item.hospitalRole === "Residente") hospitalRole = "Médico Clínico";
-        else hospitalRole = "Médico Especialista";
-      }
-      return {
-        ...item,
-        hospitalRole,
-        accessLevel: getAccessLevel(hospitalRole, item.systemRole),
-        category: getCategory(hospitalRole, item.systemRole),
-        permissions: getDefaultPermissions(hospitalRole, item.systemRole),
-        history: [`${action} registrado em ${timestamp}`, ...item.history],
-      };
-    }));
+
+    let hospitalRole = member.hospitalRole;
+    if (action.includes("Especialização")) hospitalRole = "Médico Especialista";
+    else if (action.includes("Promover") || action.toLowerCase().includes("clínico")) {
+      if (member.hospitalRole === "Estagiário de Enfermagem") hospitalRole = "Residente";
+      else if (member.hospitalRole === "Residente") hospitalRole = "Médico Clínico";
+      else hospitalRole = "Médico Especialista";
+    }
+
+    if (hospitalRole === member.hospitalRole) return;
+
+    const startsResidentContract = member.hospitalRole === "Estagiário de Enfermagem" && hospitalRole === "Residente";
+    const updatedMember: TeamMember = {
+      ...member,
+      hospitalRole,
+      accessLevel: getAccessLevel(hospitalRole, member.systemRole),
+      category: getCategory(hospitalRole, member.systemRole),
+      permissions: getDefaultPermissions(hospitalRole, member.systemRole),
+      joinedAt: startsResidentContract ? saoPauloCalendarDate() : member.joinedAt,
+      contractDurationDays: startsResidentContract ? 15 : member.contractDurationDays,
+      contractStatus: startsResidentContract ? "Ativo" : member.contractStatus,
+      history: [
+        startsResidentContract
+          ? `${action} registrado em ${timestamp}. Novo contrato de Residente iniciado por 15 dias.`
+          : `${action} registrado em ${timestamp}`,
+        ...member.history,
+      ],
+    };
+
+    const result = await persistMember(updatedMember);
+    if (!result.ok) {
+      void hpsrAlert(result.error || "Não foi possível persistir a promoção no Supabase.", "Erro ao salvar cargo");
+      return;
+    }
+
+    setMembers((current) => current.map((item) => item.id === member.id ? updatedMember : item));
   }
 
   function handleAdministrativeAction(member: TeamMember, action: string) {
@@ -683,7 +712,7 @@ export default function TeamPage() {
         accessLevel: getAccessLevel(trimmedValue, member.systemRole),
         category: getCategory(trimmedValue, member.systemRole),
         permissions: getDefaultPermissions(trimmedValue, member.systemRole),
-        joinedAt: startsResidentContract ? new Date().toISOString().slice(0, 10) : member.joinedAt,
+        joinedAt: startsResidentContract ? saoPauloCalendarDate() : member.joinedAt,
         contractDurationDays: startsResidentContract ? 15 : member.contractDurationDays,
         contractStatus: startsResidentContract ? "Ativo" : member.contractStatus,
         history: [
