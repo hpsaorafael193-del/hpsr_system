@@ -972,7 +972,7 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="hpsr-page gap-3">
+    <div className="hpsr-page gap-3 lg:h-[calc(100dvh-2.4rem)] lg:min-h-0 lg:overflow-hidden">
       <PageHeader
         eyebrow="Administração"
         title="Direção"
@@ -1053,14 +1053,14 @@ export default function TeamPage() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden p-3 md:p-4">
-          <div className="grid h-full content-start gap-3 overflow-y-auto pr-1">
+          <div className="grid h-full min-h-0 content-start gap-3 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarGutter: "stable" }}>
             {categoryOrder.map((category) => {
               const categoryMembers = visibleMembers.filter((member) => member.category === category);
               if (categoryMembers.length === 0) return null;
 
               return (
-                <div key={category} className="grid gap-3">
-                  <div className="sticky top-0 z-[1] flex items-center justify-between gap-3 rounded-[16px] border border-hpsr-border bg-[#fff8f0]/95 px-3 py-2.5 backdrop-blur md:rounded-[16px] md:px-4 md:py-3">
+                <div key={category} className="grid gap-2.5">
+                  <div className="sticky top-0 z-[1] col-span-full flex items-center justify-between gap-3 rounded-[14px] border border-hpsr-border bg-[#fff8f0]/95 px-3 py-2 backdrop-blur md:px-4 md:py-2.5">
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">{category}</p>
                     <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-wine">
                       {categoryMembers.length} item{categoryMembers.length === 1 ? "" : "s"}
@@ -1074,7 +1074,7 @@ export default function TeamPage() {
                     return (
                       <article
                         key={member.id}
-                        className={`overflow-hidden rounded-[16px] border transition ${
+                        className={`min-w-0 overflow-hidden rounded-[16px] border transition ${
                           selected
                             ? "border-hpsr-wine bg-white shadow-[0_12px_34px_rgba(42,7,0,0.08)]"
                             : "border-hpsr-border bg-[#fffaf4]"
@@ -1083,12 +1083,12 @@ export default function TeamPage() {
                         <button
                           type="button"
                           onClick={() => setSelectedId(selected ? "" : member.id)}
-                          className="flex w-full flex-col gap-3 px-3 py-3 text-left md:px-4 md:py-4"
+                          className={`w-full text-left ${selected ? "px-4 py-4" : "px-3.5 py-3"}`}
                         >
-                          <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className={`grid items-start gap-3 ${selected ? "grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto]" : "grid-cols-[minmax(0,1fr)_auto]"}`}>
                             <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
-                                <p className="max-w-full truncate text-sm font-black text-hpsr-text md:text-base">{member.name}</p>
+                              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                <p className={`max-w-full truncate font-black text-hpsr-text ${selected ? "text-base" : "text-sm"}`}>{member.name}</p>
                                 <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${categoryClasses(member.category)}`}>
                                   {member.systemRole ? "Dev" : member.hospitalRole}
                                 </span>
@@ -1101,21 +1101,21 @@ export default function TeamPage() {
                                   </span>
                                 )}
                               </div>
-                              <p className="mt-1 text-sm font-semibold text-hpsr-muted">{member.name} | {member.crm}</p>
-                              <p className="mt-1 text-xs font-semibold text-hpsr-muted">{member.department} · {member.specialty} · Passaporte {member.passport}</p>
+                              <p className={`mt-1 truncate font-semibold text-hpsr-muted ${selected ? "text-sm" : "text-xs"}`}>{member.crm || "CRM não informado"}</p>
+                              <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-relaxed text-hpsr-muted">{member.department} · {member.specialty} · Passaporte {member.passport}</p>
                             </div>
-                            <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
-                              <span className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2 text-[11px] font-black text-hpsr-wine">
+                            <div className="flex shrink-0 items-center justify-end gap-1.5">
+                              <span className="max-w-[120px] truncate rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-[10px] font-black text-hpsr-wine">
                                 {member.accessLevel}
                               </span>
-                              <span className="inline-flex items-center gap-1 rounded-[14px] bg-[#fff2e4] px-2.5 py-2 text-[11px] font-black text-hpsr-wine">
+                              <span className="inline-flex items-center gap-1 rounded-[12px] bg-[#fff2e4] px-2.5 py-2 text-[10px] font-black text-hpsr-wine">
                                 {selected ? "Recolher" : "Abrir"}
                                 <ChevronDown size={15} className={`shrink-0 transition ${selected ? "rotate-180" : ""}`} />
                               </span>
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-2 gap-2 border-t border-hpsr-border pt-3 sm:grid-cols-4">
+                          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-hpsr-border pt-2.5 sm:grid-cols-4">
                             <MiniStat label="Status" value={member.serviceStatus} />
                             <MiniStat label="Advertências" value={String(member.warnings)} />
                             <MiniStat label="Suspensões" value={String(member.suspensions)} />
@@ -1128,7 +1128,7 @@ export default function TeamPage() {
                                 <p className="text-[11px] font-black uppercase tracking-[0.14em]">{contract.kind}</p>
                                 <span className="text-[11px] font-black">{contract.workedDays}/{contract.limit} dias</span>
                               </div>
-                              <p className="mt-1 text-xs font-semibold leading-relaxed">{contract.message}</p>
+                              <p className={`${selected ? "mt-1 text-xs leading-relaxed" : "mt-1 line-clamp-2 text-[11px] leading-snug"} font-semibold`}>{contract.message}</p>
                             </div>
                           )}
                         </button>

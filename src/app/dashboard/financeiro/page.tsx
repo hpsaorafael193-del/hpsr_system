@@ -204,54 +204,60 @@ export default function FinancePage() {
           </div>
           <span className="rounded-full border border-hpsr-border bg-[#fffaf4] px-3 py-1 text-xs font-black text-hpsr-wine">20% de desconto padrão</span>
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {insurancePlans.map((plan) => {
             const Icon = plan.icon;
             return (
-              <article key={plan.id} className="relative overflow-hidden rounded-[17px] border border-hpsr-border bg-[linear-gradient(135deg,#fffdf9_0%,#fff7ef_100%)] p-4">
+              <article key={plan.id} className="relative min-w-0 overflow-hidden rounded-[17px] border border-hpsr-border bg-[linear-gradient(135deg,#fffdf9_0%,#fff7ef_100%)] p-3.5">
                 <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[#ead7c4]/55" />
                 <div className="relative flex items-start justify-between gap-3">
                   <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Icon size={18}/></span>
                   <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[.1em] text-hpsr-wineLight">30 dias</span>
                 </div>
-                <h3 className="relative mt-4 font-black text-hpsr-text">{plan.name}</h3>
-                <p className="relative mt-1 text-sm text-hpsr-muted">{plan.description}</p>
-                <div className="relative mt-4 border-t border-hpsr-border pt-3">
+                <h3 className="relative mt-3 min-h-[40px] text-sm font-black leading-tight text-hpsr-text">{plan.name}</h3>
+                <p className="relative mt-1 min-h-[40px] text-xs leading-relaxed text-hpsr-muted">{plan.description}</p>
+                <div className="relative mt-3 border-t border-hpsr-border pt-3">
                   <p className="text-[10px] font-black uppercase tracking-[.13em] text-hpsr-wineLight">Valor cadastrado</p>
-                  <p className="mt-1 text-2xl font-black text-hpsr-text">{planMoney(plan.price)}</p>
+                  <p className="mt-1 text-xl font-black text-hpsr-text">{planMoney(plan.price)}</p>
                 </div>
               </article>
             );
           })}
         </div>
       </section>
-      <section className="rounded-[18px] border border-white/70 bg-white p-4 shadow-sm">
+      <div className="grid min-h-0 gap-3 xl:grid-cols-2 xl:items-start">
+      <section className="min-w-0 rounded-[18px] border border-white/70 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hpsr-border pb-4">
           <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[15px] bg-hpsr-wine text-white"><Handshake size={20}/></span><div><h2 className="font-black text-hpsr-text">Histórico de convênios</h2><p className="text-sm text-hpsr-muted">Planos adicionados automaticamente ao Financeiro no momento do cadastro.</p></div></div>
           <label className="flex min-h-[42px] min-w-[280px] items-center gap-3 rounded-[15px] border border-hpsr-border bg-[#fffaf4] px-3"><Search size={17} className="text-hpsr-muted"/><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar no histórico" className="w-full bg-transparent text-sm font-semibold outline-none"/></label>
         </div>
-        <div className="mt-4 grid gap-3">
+        <div className="mt-4 max-h-[520px] overflow-y-auto pr-1">
+          <div className="grid gap-3">
           {filteredPlans.map((entry) => <article key={entry.id} className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-4">
             <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">{entry.planName}</p><h3 className="mt-1 text-lg font-black text-hpsr-text">{entry.holderName}</h3><p className="mt-1 text-xs text-hpsr-muted">Passaporte {entry.holderPassport} · Cadastrado em {new Date(entry.createdAt).toLocaleString("pt-BR")}</p></div><div className="text-right"><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">Plano cadastrado</span><p className="mt-3 text-xl font-black text-hpsr-text">{planMoney(entry.value)}</p></div></div>
             <div className="mt-3 grid gap-2 sm:grid-cols-4"><Mini label="Ativação" value={new Date(`${entry.activatedAt}T12:00:00`).toLocaleDateString("pt-BR")}/><Mini label="Validade" value={new Date(`${entry.expiresAt}T12:00:00`).toLocaleDateString("pt-BR")}/><Mini label="Dependentes" value={String(entry.dependentsCount)}/><Mini label="Registrado por" value={entry.registeredBy}/></div>
           </article>)}
           {!filteredPlans.length && <div className="rounded-[16px] border border-dashed border-hpsr-border p-8 text-center"><Handshake className="mx-auto text-hpsr-wineLight"/><p className="mt-3 font-black text-hpsr-text">Nenhum convênio registrado.</p><p className="mt-1 text-sm text-hpsr-muted">Os próximos planos cadastrados aparecerão aqui automaticamente com o valor da modalidade.</p></div>}
+          </div>
         </div>
       </section>
-      <section className="rounded-[18px] border border-white/70 bg-white p-4 shadow-sm">
+      <section className="min-w-0 rounded-[18px] border border-white/70 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hpsr-border pb-4">
           <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[15px] bg-hpsr-wine text-white"><WalletCards size={20}/></span><div><h2 className="font-black text-hpsr-text">Histórico de recibos</h2><p className="text-sm text-hpsr-muted">Recibos salvos automaticamente ao serem gerados.</p></div></div>
           <span className="rounded-full border border-hpsr-border bg-[#fffaf4] px-3 py-1 text-xs font-black text-hpsr-wine">Descontos: {money(discounts)}</span>
         </div>
-        <div className="mt-4 grid gap-3">
+        <div className="mt-4 max-h-[520px] overflow-y-auto pr-1">
+          <div className="grid gap-3">
           {filtered.map((receipt) => <article key={receipt.id} className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-4">
             <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">{receipt.number}</p><h3 className="mt-1 text-lg font-black text-hpsr-text">{money(receipt.total)}</h3><p className="mt-1 text-xs text-hpsr-muted">{new Date(receipt.createdAt).toLocaleString("pt-BR")} · {receipt.issuedBy} · {receipt.convenio}</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">Salvo</span></div>
             <div className="mt-3 grid gap-2 sm:grid-cols-3"><Mini label="Itens" value={String(receipt.items.length)}/><Mini label="Unidades" value={String(receipt.totalUnits)}/><Mini label="Desconto" value={`${receipt.discountPercent}%`}/></div>
             <div className="mt-3 flex flex-wrap gap-2"><button onClick={()=>downloadReceipt(receipt)} className="inline-flex items-center gap-2 rounded-xl bg-hpsr-wine px-3 py-2 text-xs font-black text-white"><Download size={14}/>Baixar recibo</button><button onClick={()=>removeReceipt(receipt)} className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-700"><Trash2 size={14}/>Excluir</button></div>
           </article>)}
           {!filtered.length && <div className="rounded-[16px] border border-dashed border-hpsr-border p-8 text-center"><ReceiptText className="mx-auto text-hpsr-wineLight"/><p className="mt-3 font-black text-hpsr-text">Nenhum recibo encontrado.</p><p className="mt-1 text-sm text-hpsr-muted">Gere um recibo na Calculadora para iniciar o histórico.</p></div>}
+          </div>
         </div>
       </section>
+      </div>
     </div>
   </div>;
 }

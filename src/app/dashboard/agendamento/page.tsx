@@ -47,6 +47,9 @@ type PublicAppointmentRequest = {
   updatedAt?: string;
   doctor?: string;
   answer?: string;
+  proposedDate?: string;
+  proposedTime?: string;
+  rescheduleReason?: string;
   source?: string;
 };
 
@@ -56,13 +59,23 @@ function publicRequestPreferred(item: PublicAppointmentRequest) {
   return item.preferred || `${date} · ${period}`;
 }
 
-function buildPublicAnswer(status: string, doctorName: string) {
+function buildPublicAnswer(
+  status: string,
+  doctorName: string,
+  details?: { proposedDate?: string; proposedTime?: string; reason?: string }
+) {
   if (status === "Aceita") {
     return `Consulta aceita por ${doctorName}. Compareça ao hospital no período informado ou aguarde contato interno no RP.`;
   }
 
   if (status === "Recusada") {
     return `Solicitação analisada por ${doctorName} e recusada. Procure a equipe do Hospital São Rafael para nova orientação.`;
+  }
+
+  if (status === "Reagendamento solicitado") {
+    const date = details?.proposedDate ? formatDate(details.proposedDate) : "data a definir";
+    const time = details?.proposedTime || "horário a definir";
+    return `Reagendamento sugerido por ${doctorName} para ${date} às ${time}.${details?.reason ? ` Motivo: ${details.reason}` : ""}`;
   }
 
   if (status === "Aguardando ajuste") {
@@ -99,6 +112,15 @@ function formatDate(value: string) {
   if (!value || !value.includes("-")) return value || "A definir";
   const [year, month, day] = value.split("-");
   return `${day}/${month}/${year}`;
+}
+
+function todayInSaoPaulo() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 function preferredPeriodToTime(period?: string) {
@@ -195,12 +217,19 @@ export default function AppointmentsPage() {
     };
   }, [loadAppointments]);
 
-  async function updatePublicRequestStatus(request: PublicAppointmentRequest, status: string) {
+  async function updatePublicRequestStatus(
+    request: PublicAppointmentRequest,
+    status: string,
+    details?: { proposedDate?: string; proposedTime?: string; reason?: string }
+  ) {
     const updatedRequest: PublicAppointmentRequest = {
       ...request,
       status,
       doctor: currentUserProfile.systemName,
-      answer: buildPublicAnswer(status, currentUserProfile.systemName),
+      answer: buildPublicAnswer(status, currentUserProfile.systemName, details),
+      proposedDate: details?.proposedDate || request.proposedDate,
+      proposedTime: details?.proposedTime || request.proposedTime,
+      rescheduleReason: details?.reason || request.rescheduleReason,
       updatedAt: new Date().toISOString(),
     };
 
@@ -209,7 +238,10 @@ export default function AppointmentsPage() {
       const payload = {
         ...request,
         ...updatedRequest,
-        physician: status === "Aceita" ? currentUserProfile.systemName : request.doctor || "A definir",
+        physician:
+          status === "Aceita" || status === "Reagendamento solicitado"
+            ? currentUserProfile.systemName
+            : request.doctor || "A definir",
         source: request.source || "patient_portal",
       };
       const { error } = await client
@@ -464,7 +496,11 @@ function RequestsCenterModal({
   setSearchTerm: (value: string) => void;
   filteredRequests: PublicAppointmentRequest[];
   visibleAppointments: typeof scheduledAppointments;
-  onUpdateStatus: (request: PublicAppointmentRequest, status: string) => void;
+  onUpdateStatus: (
+    request: PublicAppointmentRequest,
+    status: string,
+    details?: { proposedDate?: string; proposedTime?: string; reason?: string }
+  ) => void;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -559,7 +595,39 @@ function RequestsCenterModal({
   );
 }
 
-function RequestsTab({ requests, onUpdateStatus }: { requests: PublicAppointmentRequest[]; onUpdateStatus: (request: PublicAppointmentRequest, status: string) => void }) {
+function RequestsTab({
+  requests,
+  onUpdateStatus,
+}: {
+  requests: PublicAppointmentRequest[];
+  onUpdateStatus: (
+    request: PublicAppointmentRequest,
+    status: string,
+    details?: { proposedDate?: string; proposedTime?: string; reason?: string }
+  ) => void;
+}) {
+  const [rescheduleRequest, setRescheduleRequest] = useState<PublicAppointmentRequest | null>(null);
+  const [proposedDate, setProposedDate] = useState("");
+  const [proposedTime, setProposedTime] = useState("");
+  const [rescheduleReason, setRescheduleReason] = useState("");
+
+  function openReschedule(request: PublicAppointmentRequest) {
+    setRescheduleRequest(request);
+    setProposedDate(request.proposedDate || request.preferredDate || "");
+    setProposedTime(request.proposedTime || "");
+    setRescheduleReason(request.rescheduleReason || "");
+  }
+
+  function confirmReschedule() {
+    if (!rescheduleRequest || !proposedDate || !proposedTime) return;
+    onUpdateStatus(rescheduleRequest, "Reagendamento solicitado", {
+      proposedDate,
+      proposedTime,
+      reason: rescheduleReason.trim(),
+    });
+    setRescheduleRequest(null);
+  }
+
   return (
     <div className="grid gap-3">
       <SectionTitle
@@ -584,7 +652,7 @@ function RequestsTab({ requests, onUpdateStatus }: { requests: PublicAppointment
                 actions={
                   <>
                     <ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Aceita")}>Aceitar</ActionButton>
-                    <ActionButton onClick={() => onUpdateStatus(item, "Aguardando ajuste")}>Reagendar</ActionButton>
+                    <ActionButton onClick={() => openReschedule(item)}>Reagendar</ActionButton>
                     <ActionButton variant="danger" onClick={() => onUpdateStatus(item, "Recusada")}>Recusar</ActionButton>
                   </>
                 }
@@ -594,6 +662,73 @@ function RequestsTab({ requests, onUpdateStatus }: { requests: PublicAppointment
         </div>
       ) : (
         <EmptyState title="Nenhuma solicitação encontrada" description="Ajuste a busca ou aguarde novos pedidos do Portal do Paciente." />
+      )}
+
+      {rescheduleRequest && (
+        <div className="fixed inset-0 z-[100000] grid place-items-center px-4 py-6">
+          <button
+            type="button"
+            aria-label="Fechar reagendamento"
+            onClick={() => setRescheduleRequest(null)}
+            className="fixed inset-0 bg-[#1f0805]/65 backdrop-blur-sm"
+          />
+          <section className="relative z-10 w-full max-w-lg overflow-hidden rounded-[18px] border border-hpsr-border bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Sugestão médica</p>
+                <h3 className="mt-1 text-lg font-black text-hpsr-text">Sugerir nova data e horário</h3>
+                <p className="mt-1 text-sm font-semibold text-hpsr-muted">{rescheduleRequest.patient} · {rescheduleRequest.specialty}</p>
+              </div>
+              <button type="button" onClick={() => setRescheduleRequest(null)} className="rounded-[14px] border border-hpsr-border bg-white p-2.5 text-hpsr-wine">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="grid gap-4 p-4 sm:grid-cols-2">
+              <label className="text-xs font-black text-hpsr-muted">
+                Nova data
+                <input
+                  type="date"
+                  value={proposedDate}
+                  min={todayInSaoPaulo()}
+                  onChange={(event) => setProposedDate(event.target.value)}
+                  className={`${inputClass} mt-1.5`}
+                />
+              </label>
+              <label className="text-xs font-black text-hpsr-muted">
+                Novo horário
+                <input
+                  type="time"
+                  value={proposedTime}
+                  onChange={(event) => setProposedTime(event.target.value)}
+                  className={`${inputClass} mt-1.5`}
+                />
+              </label>
+              <label className="text-xs font-black text-hpsr-muted sm:col-span-2">
+                Motivo ou orientação (opcional)
+                <textarea
+                  rows={3}
+                  value={rescheduleReason}
+                  onChange={(event) => setRescheduleReason(event.target.value)}
+                  placeholder="Informe uma orientação breve para o paciente."
+                  className={`${inputClass} mt-1.5 resize-none`}
+                />
+              </label>
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 border-t border-hpsr-border bg-[#fffaf4] p-4 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setRescheduleRequest(null)} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-2.5 text-xs font-black text-hpsr-wine">Cancelar</button>
+              <button
+                type="button"
+                disabled={!proposedDate || !proposedTime}
+                onClick={confirmReschedule}
+                className="rounded-[14px] bg-hpsr-wine px-4 py-2.5 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Enviar sugestão
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </div>
   );
