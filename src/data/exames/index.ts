@@ -83,7 +83,6 @@ import { genetico_sexagem_fetalModel } from "./models/genetico_sexagem_fetal";
 import { lab_teste_dnaModel } from "./models/lab_teste_dna";
 import { psiquiatria_psicotecnicoModel } from "./models/psiquiatria_psicotecnico";
 import { geral_exame_toxicologicoModel } from "./models/geral_exame_toxicologico";
-import { exame_genericoModel } from "./models/exame_generico";
 import { img_raio_x_unicoModel } from "./models/img_raio_x_unico";
 
 export type { IntelligentExamModel } from "./types";
@@ -189,7 +188,6 @@ const baseExamModels: IntelligentExamModel[] = [
   lab_teste_dnaModel,
   psiquiatria_psicotecnicoModel,
   geral_exame_toxicologicoModel,
-  exame_genericoModel,
   img_raio_x_unicoModel
 ];
 

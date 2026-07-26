@@ -85,7 +85,7 @@ export type IntelligentExamTable = {
 };
 
 export type IntelligentExamSection = {
-  id: "titulo" | "tecnica" | "achados" | "resultados" | "tabelas" | "medidas" | "interpretacao" | "conclusao" | "assinatura";
+  id: "titulo" | "tecnica" | "achados" | "resultados" | "tabelas" | "medidas" | "impressao_psicologica" | "avaliacao_fisica" | "avaliacao_cardiaca" | "avaliacao_respiratoria" | "interpretacao" | "conclusao" | "assinatura";
   title: string;
   required: boolean;
   visibleByDefault: boolean;

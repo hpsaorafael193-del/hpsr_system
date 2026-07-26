@@ -11,7 +11,7 @@ export default function HomePage() {
         className="relative flex min-h-screen items-center justify-center overflow-hidden px-[clamp(0.75rem,3vw,1.5rem)] py-[clamp(1rem,3vw,2rem)]"
         style={{
           backgroundImage:
-            "linear-gradient(180deg, rgba(252,246,238,0.08) 0%, rgba(252,246,238,0.12) 100%), url('/home-background.png')",
+            "linear-gradient(180deg, rgba(252,246,238,0.08) 0%, rgba(252,246,238,0.12) 100%), url('/home-background.webp')",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}

@@ -87,7 +87,7 @@ export default function DashboardHomePage() {
 
       <section className="relative overflow-hidden rounded-[clamp(22px,3vw,30px)] border border-white/10">
         <Image
-          src="/dashboard-banner.png"
+          src="/dashboard-banner.webp"
           alt="Hospital São Rafael"
           fill
           priority

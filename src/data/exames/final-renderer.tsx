@@ -63,10 +63,23 @@ type ClinicalBlock = {
   weight: number;
 };
 
-const FIRST_PAGE_CAPACITY = 680;
-const CONTINUATION_PAGE_CAPACITY = 850;
+const FIRST_PAGE_CAPACITY = 694;
+const CONTINUATION_PAGE_CAPACITY = 867;
 
 const REPORT_MEASURE_CLASS = "hpsr-document-body [&_blockquote]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-[#5b1809]/35 [&_blockquote]:bg-[#fffaf4] [&_blockquote]:px-2 [&_blockquote]:py-1.5 [&_h1]:mb-2 [&_h1]:text-center [&_h1]:text-base [&_h1]:font-black [&_h1]:uppercase [&_h1]:tracking-[0.06em] [&_h1]:text-[#5b1809] [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:break-after-avoid [&_h2]:border-b [&_h2]:border-[#5b1809]/20 [&_h2]:pb-1 [&_h2]:text-sm [&_h2]:font-black [&_h2]:uppercase [&_h2]:tracking-[0.04em] [&_h2]:text-[#5b1809] [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:break-after-avoid [&_h3]:text-xs [&_h3]:font-black [&_h3]:text-[#5b1809] [&_li]:ml-5 [&_ol]:my-1.5 [&_p]:my-1.5 [&_table]:my-2 [&_table]:w-full [&_table]:break-inside-avoid [&_table]:border-collapse [&_td]:border [&_td]:border-[#5b1809]/20 [&_td]:px-2 [&_td]:py-1.5 [&_td]:align-top [&_th]:border [&_th]:border-[#5b1809]/25 [&_th]:bg-[#5b1809]/10 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-black [&_th]:text-[#5b1809] [&_ul]:my-1.5";
+
+const EDITOR_PAGE_BREAK_TOKEN = "__HPSR_EDITOR_PAGE_BREAK__";
+
+function splitByEditorPageBreaks(html: string) {
+  const normalized = (html || "")
+    .replace(/<!--\s*HPSR_PAGE_BREAK\s*-->/gi, EDITOR_PAGE_BREAK_TOKEN)
+    .replace(/<hr[^>]*data-hpsr-page-break(?:=["'][^"']*["'])?[^>]*>/gi, EDITOR_PAGE_BREAK_TOKEN)
+    .replace(/<div[^>]*data-hpsr-editor-page-placeholder=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi, EDITOR_PAGE_BREAK_TOKEN);
+  return normalized
+    .split(EDITOR_PAGE_BREAK_TOKEN)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+}
 
 function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity: number) {
   const wrapper = document.createElement("div");
@@ -108,6 +121,7 @@ function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity
     for (const word of words) {
       const candidate = [...current, word];
       measure.innerHTML = `${opening}${candidate.join(" ")}${closing}`;
+      applyCanvasEquivalentMeasurementStyles(measure);
       if (current.length && measure.scrollHeight > capacity) {
         fragments.push(`${opening}${current.join(" ")}${closing}`);
         current = [word];
@@ -120,6 +134,62 @@ function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity
   }
 
   return [html];
+}
+
+function applyCanvasEquivalentMeasurementStyles(root: HTMLDivElement) {
+  root.style.fontSize = "11.4px";
+  root.style.lineHeight = "15.5px";
+  root.style.fontFamily = "Georgia, 'Times New Roman', serif";
+  root.style.color = "#3f231c";
+
+  root.querySelectorAll<HTMLElement>("h1,h2,h3").forEach((heading) => {
+    heading.style.boxSizing = "border-box";
+    heading.style.height = heading.tagName.toLowerCase() === "h1" ? "40px" : "37px";
+    heading.style.margin = "6px 0 0";
+    heading.style.padding = "8px 12px 0";
+    heading.style.fontFamily = "Arial, sans-serif";
+    heading.style.fontSize = heading.tagName.toLowerCase() === "h1" ? "13px" : "11.5px";
+    heading.style.fontWeight = "700";
+    heading.style.lineHeight = "16px";
+  });
+
+  root.querySelectorAll<HTMLElement>("p").forEach((paragraph) => {
+    paragraph.style.margin = "0 0 5px";
+    paragraph.style.fontSize = "11.4px";
+    paragraph.style.lineHeight = "15.5px";
+  });
+
+  root.querySelectorAll<HTMLElement>("table").forEach((table) => {
+    table.style.width = "500px";
+    table.style.maxWidth = "78%";
+    table.style.margin = "0 auto 10px";
+    table.style.borderCollapse = "collapse";
+    table.style.tableLayout = "fixed";
+    table.style.fontSize = "10px";
+    table.style.lineHeight = "11px";
+  });
+  root.querySelectorAll<HTMLElement>("th,td").forEach((cell) => {
+    cell.style.padding = "4px 6px";
+    cell.style.fontSize = "10px";
+    cell.style.lineHeight = "11px";
+    cell.style.textAlign = "center";
+    cell.style.verticalAlign = "middle";
+    cell.style.boxSizing = "border-box";
+  });
+  root.querySelectorAll<HTMLElement>("ul,ol").forEach((list) => {
+    list.style.margin = "0 0 6px 18px";
+    list.style.fontSize = "11.2px";
+    list.style.lineHeight = "15px";
+  });
+  root.querySelectorAll<HTMLElement>("li").forEach((item) => {
+    item.style.margin = "0";
+    item.style.fontSize = "11.2px";
+    item.style.lineHeight = "15px";
+  });
+  root.querySelectorAll<HTMLElement>("section[data-hpsr-auto-block='true']").forEach((section) => {
+    section.style.margin = "0";
+    section.style.padding = "0";
+  });
 }
 
 function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[]) {
@@ -152,6 +222,7 @@ function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[]) {
   const currentCapacity = () => capacities[Math.min(pageIndex, 1)];
   const renderedHeight = (html: string) => {
     measure.innerHTML = html;
+    applyCanvasEquivalentMeasurementStyles(measure);
     return measure.scrollHeight;
   };
   const fitsCurrentPage = (html: string) => renderedHeight(html) <= currentCapacity() + 1;
@@ -262,7 +333,7 @@ function resolveXrayAttachmentAsset(region: string, profileId: string) {
     joelho: { normal: "joelho_normal.jpg", trauma: "joelho_trauma.jpg", fratura: "joelho_fratura_plato_tibial.jpg", luxacao: "joelho_luxacao_patelar.jpg" },
     ombro: { normal: "ombro_normal.jpg", trauma: "ombro_trauma.jpg", fratura: "ombro_fratura_umero_proximal.jpg", luxacao: "ombro_luxacao_glenoumeral.jpg" },
     pe: { normal: "pe_normal.jpg", trauma: "pe_trauma.jpg", fratura: "pe_fratura_metatarsos.jpg", luxacao: "pe_luxacao_desalinhamento.jpg" },
-    perna_coxa_canela: { normal: "perna_normal.jpg", trauma: "perna_trauma.jpg", fratura: "perna_fratura_tibia_fibula.png" },
+    perna_coxa_canela: { normal: "perna_normal.jpg", trauma: "perna_trauma.jpg", fratura: "perna_fratura_tibia_fibula.webp" },
     torax: { normal: "torax_normal.jpg", trauma: "torax_trauma.jpg", fratura: "torax_fratura_multiplas_costelas.jpg" },
   };
 
@@ -282,10 +353,7 @@ function resolveXrayAttachmentAsset(region: string, profileId: string) {
 
 
 function normalizeClinicalHtml(value: string) {
-  return (value || "")
-    .replace(/<!--\s*HPSR_PAGE_BREAK\s*-->/g, "")
-    .replace(/<div[^>]*data-hpsr-editor-page-placeholder=["'][^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "")
-    .trim();
+  return (value || "").trim();
 }
 
 function stripInstitutionalShell(html: string, signatureImage?: string | null) {
@@ -407,34 +475,48 @@ function mergeConclusionWithText(blocks: ClinicalBlock[]) {
 
 export function splitClinicalReportHtmlIntoPages(html: string, signatureImage?: string | null) {
   const body = stripInstitutionalShell(html, signatureImage);
-  const blocks = parseClinicalBlocks(body);
-  if (!blocks.length) return [""];
+  const segments = splitByEditorPageBreaks(body);
+  const sourceSegments = segments.length ? segments : [body];
+  const allPages: string[] = [];
 
-  const renderedPages = splitClinicalBlocksByRenderedHeight(blocks);
-  if (renderedPages) return renderedPages.map((page) => page.join(""));
+  sourceSegments.forEach((segment, segmentIndex) => {
+    const blocks = mergeConclusionWithText(parseClinicalBlocks(segment));
+    if (!blocks.length) {
+      allPages.push("");
+      return;
+    }
 
-  // Fallback para renderização sem DOM (SSR). No navegador, a divisão acima
-  // mede a altura real com a mesma largura, fonte e estilos do preview A4.
-  const pages: string[][] = [];
-  let current: string[] = [];
-  let used = 0;
-  let capacity = FIRST_PAGE_CAPACITY;
+    const renderedPages = splitClinicalBlocksByRenderedHeight(blocks);
+    if (renderedPages) {
+      allPages.push(...renderedPages.map((page) => page.join("")));
+      return;
+    }
 
-  const commit = () => {
-    pages.push(current);
-    current = [];
-    used = 0;
-    capacity = CONTINUATION_PAGE_CAPACITY;
-  };
+    // Fallback para renderização sem DOM (SSR). No navegador, a divisão acima
+    // mede a altura real com a mesma largura, fonte e estilos do preview A4.
+    const pages: string[][] = [];
+    let current: string[] = [];
+    let used = 0;
+    let capacity = allPages.length === 0 && segmentIndex === 0 ? FIRST_PAGE_CAPACITY : CONTINUATION_PAGE_CAPACITY;
 
-  for (const block of blocks) {
-    const oversized = block.weight > capacity;
-    if (current.length && !oversized && used + block.weight > capacity) commit();
-    current.push(block.html);
-    used += block.weight;
-  }
-  if (current.length || !pages.length) commit();
-  return pages.map((page) => page.join(""));
+    const commit = () => {
+      pages.push(current);
+      current = [];
+      used = 0;
+      capacity = CONTINUATION_PAGE_CAPACITY;
+    };
+
+    for (const block of blocks) {
+      const oversized = block.weight > capacity;
+      if (current.length && !oversized && used + block.weight > capacity) commit();
+      current.push(block.html);
+      used += block.weight;
+    }
+    if (current.length || !pages.length) commit();
+    allPages.push(...pages.map((page) => page.join("")));
+  });
+
+  return allPages.length ? allPages : [""];
 }
 
 function automaticAttachmentFor(resolved?: AdaptiveResolvedExam | null): AutomaticAttachment[] {
@@ -684,7 +766,8 @@ export function RenderedExamPageView({
 
   return (
     <div ref={refNode} data-page-index={pageIndex} className="hpsr-render-page relative h-[1123px] w-[794px] overflow-hidden bg-white shadow-[0_20px_48px_rgba(42,7,0,0.18)] ring-1 ring-black/5" style={{ position: "relative", width: 794, height: 1123, overflow: "hidden", background: "#fff" }}>
-      <img src="/modelo-documento-hpsr.png" alt="Modelo institucional" className="pointer-events-none absolute inset-0 h-full w-full select-none object-fill" draggable={false} style={{ zIndex: 0 }} />
+      <div className="pointer-events-none absolute inset-0 bg-[#fffdfb]" style={{ zIndex: 0 }} />
+      <img src="/logo-hpsr.png" alt="Marca d’água do Hospital São Rafael" className="pointer-events-none absolute left-1/2 top-[42%] h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 select-none object-contain opacity-[0.045]" draggable={false} style={{ zIndex: 0 }} />
       {isFirstPage && <FullHeader metadata={metadata} />}
       <div className="absolute overflow-hidden" style={contentStyle}>
         {page.type === "report" && <ReportHtml html={page.reportHtml || ""} />}

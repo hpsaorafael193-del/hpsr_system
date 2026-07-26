@@ -43,6 +43,7 @@ import { ClinicalHistoryButton } from "@/components/dashboard/ClinicalHistoryBut
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { createClient } from "@/lib/supabase";
+import { splitClinicalReportHtmlIntoPages } from "@/data/exames/final-renderer";
 
 type PatientDraft = {
   name: string;
@@ -575,7 +576,12 @@ export default function DocumentsPage() {
   const [saveStatus, setSaveStatus] = useState("Rascunho local");
   const [appDialog, setAppDialog] = useState<AppDialog>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewPageHtmls, setPreviewPageHtmls] = useState<string[]>([]);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [previewPageIndex, setPreviewPageIndex] = useState(0);
+  const [previewRendering, setPreviewRendering] = useState(false);
+  const previewRenderingIndexesRef = useRef<Set<number>>(new Set());
+  const [editorPageGuideTops, setEditorPageGuideTops] = useState<number[]>([]);
   const [isConfidential, setIsConfidential] = useState(true);
   const [tablePickerOpen, setTablePickerOpen] = useState(false);
   const [tableRows, setTableRows] = useState(3);
@@ -612,6 +618,11 @@ export default function DocumentsPage() {
       today,
     });
   }, [selectedModel, patient, doctor, guidedValues, today]);
+
+  useEffect(() => {
+    window.requestAnimationFrame(updateEditorPageGuides);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorHtml, generatedHtml, selectedModelId]);
 
   useEffect(() => {
     try {
@@ -778,6 +789,7 @@ export default function DocumentsPage() {
     const html = normalizeEditorHtml(editorRef.current?.innerHTML || "");
     setEditorHtml(html);
     setSaveStatus("Salvando...");
+    window.requestAnimationFrame(updateEditorPageGuides);
   }
 
   function applyModel() {
@@ -934,18 +946,21 @@ export default function DocumentsPage() {
   function loadImage(src: string) {
     return new Promise<HTMLImageElement | null>((resolve) => {
       const image = new Image();
+      const isRemote = /^https?:\/\//i.test(src);
+      if (isRemote) image.crossOrigin = "anonymous";
       image.onload = () => resolve(image);
       image.onerror = () => resolve(null);
       image.src = src;
     });
   }
 
-  function normalizeSignatureImage(image: HTMLImageElement) {
+  function normalizeSignatureImage(image: HTMLImageElement): HTMLCanvasElement | null {
+    try {
       const sourceCanvas = document.createElement("canvas");
       sourceCanvas.width = image.naturalWidth || image.width;
       sourceCanvas.height = image.naturalHeight || image.height;
       const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
-      if (!sourceContext) return image;
+      if (!sourceContext) return null;
       sourceContext.drawImage(image, 0, 0);
       const pixels = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
       const data = pixels.data;
@@ -990,6 +1005,14 @@ export default function DocumentsPage() {
       if (!croppedContext) return sourceCanvas;
       croppedContext.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
       return croppedCanvas;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "SecurityError") {
+        console.warn("[HPSR][Documentos] Assinatura externa ignorada por restrição CORS.");
+        return null;
+      }
+      console.warn("[HPSR][Documentos] Não foi possível preparar a assinatura para o documento.", error);
+      return null;
+    }
   }
 
 
@@ -1038,6 +1061,162 @@ export default function DocumentsPage() {
     return y;
   }
 
+  function wrapCanvasText(context: CanvasRenderingContext2D, value: string, maxWidth: number) {
+    const words = value.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+    const lines: string[] = [];
+    let line = "";
+    for (const word of words) {
+      const test = line ? `${line} ${word}` : word;
+      if (context.measureText(test).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function drawInfoCard(
+    context: CanvasRenderingContext2D,
+    label: string,
+    value: string,
+    x: number,
+    y: number,
+    width: number,
+    height = 40,
+  ) {
+    context.fillStyle = "rgba(255,250,244,0.98)";
+    context.strokeStyle = "rgba(91,24,9,0.16)";
+    context.lineWidth = 1;
+    context.beginPath();
+    context.roundRect(x, y, width, height, 10);
+    context.fill();
+    context.stroke();
+    context.fillStyle = "#8d5f54";
+    context.font = "700 8px Arial";
+    context.fillText(label.toUpperCase(), x + 10, y + 8);
+    context.fillStyle = "#421910";
+    context.font = height <= 32 ? "700 10.5px Georgia" : "700 11px Georgia";
+    const lines = wrapCanvasText(context, value || "-", width - 20);
+    const maxLines = height <= 32 ? 1 : height <= 40 ? 2 : 3;
+    lines.slice(0, maxLines).forEach((line, index) => context.fillText(line, x + 10, y + 18 + index * 11));
+  }
+
+  function drawTechnicalRibbon(
+    context: CanvasRenderingContext2D,
+    label: string,
+    x: number,
+    y: number,
+    width: number,
+  ) {
+    context.fillStyle = "rgba(91,24,9,0.07)";
+    context.beginPath();
+    context.roundRect(x, y, width, 20, 10);
+    context.fill();
+    context.fillStyle = "#5b1809";
+    context.font = "700 9px Arial";
+    context.textAlign = "center";
+    context.fillText(label.toUpperCase(), x + width / 2, y + 6);
+    context.textAlign = "left";
+  }
+
+  function drawDocumentHtml(
+    context: CanvasRenderingContext2D,
+    html: string,
+    x: number,
+    y: number,
+    width: number,
+    maxY: number,
+  ) {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = html || "";
+    const blocks = Array.from(wrapper.children);
+    context.textBaseline = "top";
+    for (const block of blocks) {
+      if (y > maxY - 24) break;
+      const tag = block.tagName.toLowerCase();
+      const htmlText = (block.textContent || "").replace(/\s+/g, " ").trim();
+
+      if (/^h[1-3]$/.test(tag)) {
+        y += 6;
+        context.fillStyle = "rgba(91,24,9,0.06)";
+        context.beginPath();
+        context.roundRect(x, y - 2, width, 21, 11);
+        context.fill();
+        context.strokeStyle = "rgba(91,24,9,0.18)";
+        context.beginPath();
+        context.moveTo(x + 12, y + 23);
+        context.lineTo(x + width - 12, y + 23);
+        context.stroke();
+        context.fillStyle = "#5b1809";
+        context.font = tag === "h1" ? "700 13px Arial" : "700 11.5px Arial";
+        context.fillText(htmlText.toUpperCase(), x + 12, y + 4);
+        y += 31;
+        continue;
+      }
+
+      if (tag === "table") {
+        const rows = Array.from(block.querySelectorAll("tr"));
+        if (!rows.length) continue;
+        const firstCells = Array.from(rows[0].querySelectorAll("th,td"));
+        const colCount = Math.max(firstCells.length, 1);
+        const tableWidth = Math.min(width * 0.78, 500);
+        const tableX = x + (width - tableWidth) / 2;
+        const colWidth = tableWidth / colCount;
+        context.lineWidth = 0.9;
+        for (const [rowIndex, row] of rows.entries()) {
+          const cells = Array.from(row.querySelectorAll("th,td"));
+          context.font = rowIndex === 0 ? "700 10.2px Arial" : "10.2px Georgia";
+          const rowHeight = Math.max(20, ...cells.map((cell) => wrapCanvasText(context, (cell.textContent || "").replace(/\s+/g, " ").trim(), colWidth - 12).length * 11 + 8));
+          if (y + rowHeight > maxY) return y;
+          cells.forEach((cell, cellIndex) => {
+            const cx = tableX + cellIndex * colWidth;
+            context.fillStyle = rowIndex === 0 ? "rgba(91,24,9,0.11)" : rowIndex % 2 === 0 ? "rgba(255,250,244,0.92)" : "rgba(255,255,255,0.98)";
+            context.fillRect(cx, y, colWidth, rowHeight);
+            context.strokeStyle = "rgba(91,24,9,0.22)";
+            context.strokeRect(cx, y, colWidth, rowHeight);
+            context.fillStyle = "#412017";
+            context.font = rowIndex === 0 ? "700 10px Arial" : "10px Georgia";
+            context.textAlign = "center";
+            const lines = wrapCanvasText(context, (cell.textContent || "").replace(/\s+/g, " ").trim(), colWidth - 12);
+            const lineHeight = 11;
+            const contentHeight = lines.length * lineHeight;
+            const startY = y + Math.max(4, (rowHeight - contentHeight) / 2 + 0.5);
+            lines.forEach((line, lineIndex) => context.fillText(line, cx + colWidth / 2, startY + lineIndex * lineHeight));
+            context.textAlign = "left";
+          });
+          y += rowHeight;
+        }
+        y += 10;
+        continue;
+      }
+
+      if (tag === "ul" || tag === "ol") {
+        const items = Array.from(block.querySelectorAll("li"));
+        context.fillStyle = "#4b2118";
+        context.font = "11.2px Georgia";
+        items.forEach((item, index) => {
+          if (y > maxY - 18) return;
+          context.fillText(tag === "ol" ? `${index + 1}.` : "•", x + 2, y);
+          y = drawWrappedText(context, (item.textContent || "").replace(/\s+/g, " ").trim(), x + 18, y, width - 18, 15, maxY);
+        });
+        y += 6;
+        continue;
+      }
+
+      if (!htmlText) {
+        y += 8;
+        continue;
+      }
+      context.fillStyle = "#3f231c";
+      context.font = "11.4px Georgia";
+      y = drawWrappedText(context, htmlText, x, y, width, 15.5, maxY) + 5;
+    }
+    return y;
+  }
+
   function htmlToPlainBlocks(html: string) {
     const wrapper = document.createElement("div");
     wrapper.innerHTML = html;
@@ -1049,86 +1228,151 @@ export default function DocumentsPage() {
       .filter((block) => block.text);
   }
 
-  async function renderDocumentCanvas() {
-    const html = normalizeEditorHtml(
-      editorRef.current?.innerHTML || editorHtml || generatedHtml,
-    );
+  function buildDocumentPages() {
+    const html = normalizeEditorHtml(editorRef.current?.innerHTML || editorHtml || generatedHtml);
+    return splitClinicalReportHtmlIntoPages(html, doctor.signatureImage || null);
+  }
+
+  function updateEditorPageGuides() {
+    const editor = editorRef.current;
+    if (!editor) {
+      setEditorPageGuideTops([]);
+      return;
+    }
+    try {
+      const pages = buildDocumentPages();
+      if (pages.length <= 1) {
+        setEditorPageGuideTops([]);
+        return;
+      }
+      const countNonWhitespace = (value: string) => (value.match(/\S/g) || []).length;
+      const targets: number[] = [];
+      let cumulative = 0;
+      pages.slice(0, -1).forEach((pageHtml) => {
+        const holder = window.document.createElement("div");
+        holder.innerHTML = pageHtml;
+        cumulative += countNonWhitespace(holder.textContent || "");
+        targets.push(cumulative);
+      });
+      const walker = window.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+      const positions: number[] = [];
+      let targetIndex = 0;
+      let consumed = 0;
+      let node = walker.nextNode();
+      const editorRect = editor.getBoundingClientRect();
+      while (node && targetIndex < targets.length) {
+        const value = node.textContent || "";
+        let localCount = 0;
+        for (let offset = 0; offset <= value.length; offset += 1) {
+          if (offset > 0 && /\S/.test(value[offset - 1])) localCount += 1;
+          if (consumed + localCount < targets[targetIndex]) continue;
+          const range = window.document.createRange();
+          range.setStart(node, Math.min(offset, value.length));
+          range.setEnd(node, Math.min(offset, value.length));
+          const rect = range.getBoundingClientRect();
+          positions.push(Math.max(0, editor.offsetTop + rect.top - editorRect.top));
+          targetIndex += 1;
+          if (targetIndex >= targets.length) break;
+        }
+        consumed += localCount;
+        node = walker.nextNode();
+      }
+      setEditorPageGuideTops(positions);
+    } catch {
+      setEditorPageGuideTops([]);
+    }
+  }
+
+  async function renderDocumentCanvas(pageHtml: string, pageIndex: number, totalPages: number) {
+    const html = pageHtml;
     const canvas = document.createElement("canvas");
     canvas.width = 794;
     canvas.height = 1123;
     const context = canvas.getContext("2d");
     if (!context) return null;
 
-    context.fillStyle = "#ffffff";
+    context.fillStyle = "#fffdfb";
     context.fillRect(0, 0, canvas.width, canvas.height);
-    const background = await loadImage("/modelo-documento-hpsr.png");
-    if (background)
-      context.drawImage(background, 0, 0, canvas.width, canvas.height);
+    const logo = await loadImage("/logo-hpsr.png");
+    if (logo) {
+      context.save();
+      context.globalAlpha = 0.045;
+      const ratio = Math.min(300 / logo.width, 300 / logo.height);
+      const drawWidth = logo.width * ratio;
+      const drawHeight = logo.height * ratio;
+      context.drawImage(logo, (canvas.width - drawWidth) / 2, 365 + (300 - drawHeight) / 2, drawWidth, drawHeight);
+      context.restore();
+    }
 
     context.textBaseline = "top";
-    context.fillStyle = "#5b1809";
-    context.font = "12px Georgia";
-    context.textAlign = "right";
-    context.fillText(`Data da Emissão: ${today}`, 766, 39);
-    context.fillStyle = "#b1adac";
-    context.font = "11px Georgia";
-    context.fillText("Formato principal: PNG", 766, 59);
+    if (pageIndex === 0) {
+      context.fillStyle = "rgba(255,255,255,0.96)";
+      context.strokeStyle = "rgba(91,24,9,0.18)";
+      context.beginPath();
+      context.roundRect(24, 24, 742, 74, 18);
+      context.fill();
+      context.stroke();
 
-    context.textAlign = "center";
-    context.fillStyle = "#5b1809";
-    context.font = "700 14px Georgia";
-    context.beginPath();
-    context.roundRect(238, 113, 318, 25, 12);
-    context.strokeStyle = "#5b1809";
-    context.stroke();
-    context.fillText(
-      selectedModel?.title.toUpperCase() || "DOCUMENTO MÉDICO",
-      397,
-      118,
-    );
-
-    context.beginPath();
-    context.roundRect(28, 158, 738, 90, 16);
-    context.stroke();
-    context.font = "14px Georgia";
-    context.fillText("IDENTIFICAÇÃO DO PACIENTE", 397, 169);
-    context.textAlign = "left";
-    context.font = "12px Georgia";
-    context.fillText(`Nome: ${patient.name || "-"}`, 42, 200);
-    context.fillText(`Passaporte: ${patient.passport || "-"}`, 361, 200);
-    context.fillText(`Tipo Sanguíneo: ${patient.bloodType || "-"}`, 635, 200);
-    context.fillText(`Idade: ${patient.age || "-"}`, 42, 224);
-
-    let y = 286;
-    const blocks = htmlToPlainBlocks(html);
-    for (const block of blocks) {
-      if (y > 950) break;
-      if (/^h[1-3]$/.test(block.tag)) {
-        context.fillStyle = "#5b1809";
-        context.font =
-          block.tag === "h1" ? "700 16px Georgia" : "700 13px Georgia";
-        y += 6;
-        y = drawWrappedText(
-          context,
-          block.text.toUpperCase(),
-          42,
-          y,
-          710,
-          block.tag === "h1" ? 20 : 17,
-          960,
-        );
-        context.strokeStyle = "rgba(91,24,9,0.22)";
-        context.beginPath();
-        context.moveTo(42, y + 2);
-        context.lineTo(752, y + 2);
-        context.stroke();
-        y += 12;
-      } else {
-        context.fillStyle = "#4b2118";
-        context.font = "12px Georgia";
-        y = drawWrappedText(context, block.text, 42, y, 710, 17, 960) + 8;
+      if (logo) {
+        const ratio = Math.min(48 / logo.width, 48 / logo.height);
+        context.drawImage(logo, 38, 36, logo.width * ratio, logo.height * ratio);
       }
+      drawTechnicalRibbon(context, "Documento técnico · folha institucional", 96, 34, 250);
+      context.fillStyle = "#5b1809";
+      context.font = "700 18px Arial";
+      context.fillText("HOSPITAL SÃO RAFAEL", 96, 58);
+      context.fillStyle = "#8d5f54";
+      context.font = "11px Georgia";
+      context.fillText("Documento clínico padronizado do sistema", 96, 78);
+
+      drawInfoCard(context, "Data da emissão", today, 574, 32, 178, 26);
+      drawInfoCard(context, "Formato", "PNG", 574, 64, 178, 26);
+
+      context.fillStyle = "rgba(91,24,9,0.08)";
+      context.beginPath();
+      context.roundRect(210, 110, 374, 32, 16);
+      context.fill();
+      context.strokeStyle = "rgba(91,24,9,0.22)";
+      context.stroke();
+      context.textAlign = "center";
+      context.fillStyle = "#5b1809";
+      context.font = "700 14px Arial";
+      context.fillText((selectedModel?.title || "DOCUMENTO MÉDICO").toUpperCase(), 397, 119);
+
+      context.fillStyle = "rgba(255,255,255,0.95)";
+      context.strokeStyle = "rgba(91,24,9,0.18)";
+      context.beginPath();
+      context.roundRect(28, 156, 738, 122, 18);
+      context.fill();
+      context.stroke();
+      context.textAlign = "left";
+      context.fillStyle = "#5b1809";
+      context.font = "700 10px Arial";
+      context.fillText("IDENTIFICAÇÃO DO PACIENTE", 44, 168);
+      drawInfoCard(context, "Paciente", patient.name || "-", 42, 182, 404, 40);
+      drawInfoCard(context, "Passaporte", patient.passport || "-", 458, 182, 140, 40);
+      drawInfoCard(context, "Tipo sanguíneo", patient.bloodType || "-", 610, 182, 142, 40);
+      drawInfoCard(context, "Idade", patient.age ? `${patient.age}` : "-", 42, 228, 80, 36);
+      drawInfoCard(context, "Profissional emitente", doctor.name || "Não informado", 134, 228, 332, 36);
+      drawInfoCard(context, "CRM", doctor.crm || "000000", 478, 228, 118, 36);
+      drawInfoCard(context, "Hospital", "Hospital São Rafael", 608, 228, 144, 36);
+    } else {
+      context.strokeStyle = "rgba(91,24,9,0.16)";
+      context.beginPath();
+      context.moveTo(28, 72);
+      context.lineTo(766, 72);
+      context.stroke();
+      context.fillStyle = "#5b1809";
+      context.font = "700 12px Arial";
+      context.fillText((selectedModel?.title || "DOCUMENTO MÉDICO").toUpperCase(), 42, 42);
+      context.textAlign = "right";
+      context.font = "10px Georgia";
+      context.fillText(`Continuação · página ${pageIndex + 1}`, 752, 44);
+      context.textAlign = "left";
     }
+
+    let y = pageIndex === 0 ? 300 : 96;
+    y = drawDocumentHtml(context, html, 42, y, 710, 960);
 
     context.fillStyle = "rgba(255,250,244,0.98)";
     context.fillRect(42, 985, 710, 126);
@@ -1143,7 +1387,9 @@ export default function DocumentsPage() {
       const signature = await loadImage(signatureSource);
       if (signature) {
         const normalizedSignature = normalizeSignatureImage(signature);
-        drawSignatureContain(context, normalizedSignature, 237, 990, 320, 64);
+        if (normalizedSignature) {
+          drawSignatureContain(context, normalizedSignature, 237, 990, 320, 64);
+        }
       }
     }
 
@@ -1166,37 +1412,65 @@ export default function DocumentsPage() {
     );
     context.fillStyle = "#7a5148";
     context.font = "8.5px Georgia";
-    context.fillText(
-      "Hospital São Rafael · Documento médico institucional",
-      397,
-      1101,
-    );
+    context.textAlign = "left";
+    context.fillText("Hospital São Rafael", 42, 1101);
+    context.textAlign = "center";
+    context.fillText("Documento médico institucional", 397, 1101);
+    context.textAlign = "right";
+    context.fillText(`Página ${pageIndex + 1}/${totalPages}`, 752, 1101);
+    context.textAlign = "left";
 
     return canvas;
   }
 
-  async function downloadPng() {
-    const canvas = await renderDocumentCanvas();
-    if (!canvas) return;
+  async function ensurePreviewPageRendered(pages: string[], index: number) {
+    if (!pages[index]) return;
+    if (previewImages[index]) return;
+    if (previewRenderingIndexesRef.current.has(index)) return;
+    previewRenderingIndexesRef.current.add(index);
+    setPreviewRendering(true);
+    try {
+      const canvas = await renderDocumentCanvas(pages[index], index, pages.length);
+      const image = canvas?.toDataURL("image/png") || "";
+      setPreviewImages((current) => {
+        const next = current.length === pages.length ? [...current] : Array.from({ length: pages.length }, (_, pageIndex) => current[pageIndex] || "");
+        next[index] = image;
+        return next;
+      });
+    } catch (error) {
+      console.error("[HPSR][Documentos] Falha ao gerar a pré-visualização da página.", error);
+      setAppDialog({
+        title: "Não foi possível gerar a pré-visualização",
+        message: "Uma imagem externa do documento ou da assinatura foi bloqueada pelo navegador. A assinatura incompatível será ignorada; tente abrir a pré-visualização novamente.",
+        actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
+      });
+    } finally {
+      previewRenderingIndexesRef.current.delete(index);
+      setPreviewRendering(previewRenderingIndexesRef.current.size > 0);
+    }
+  }
 
+  async function initializePreviewPages(pages: string[]) {
+    setPreviewPageHtmls(pages);
+    setPreviewImages(Array.from({ length: pages.length }, () => ""));
+    setPreviewPageIndex(0);
+    setPreviewOpen(true);
+    await ensurePreviewPageRendered(pages, 0);
+  }
+
+  async function downloadPng() {
+    const pages = buildDocumentPages();
+    const pageHtml = pages[previewPageIndex] || pages[0] || "";
+    const canvas = await renderDocumentCanvas(pageHtml, previewPageIndex, pages.length);
+    if (!canvas) return;
     canvas.toBlob((blob) => {
       if (!blob) {
-        setAppDialog({
-          title: "Exportação PNG",
-          message: "Não foi possível gerar o PNG. Tente novamente.",
-          actions: [
-            {
-              label: "Entendi",
-              variant: "primary",
-              onClick: () => setAppDialog(null),
-            },
-          ],
-        });
+        setAppDialog({ title: "Exportação PNG", message: "Não foi possível gerar o PNG. Tente novamente.", actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
         return;
       }
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `${safeFileName(selectedModel?.title || "documento-medico")}_${safeFileName(patient.name || "paciente")}.png`;
+      link.download = `${safeFileName(selectedModel?.title || "documento-medico")}_${safeFileName(patient.name || "paciente")}_pagina_${previewPageIndex + 1}.png`;
       link.click();
       setTimeout(() => URL.revokeObjectURL(link.href), 500);
     }, "image/png");
@@ -1207,10 +1481,8 @@ export default function DocumentsPage() {
     const html = normalizeEditorHtml(editorRef.current?.innerHTML || editorHtml || generatedHtml);
     if (editorRef.current) editorRef.current.innerHTML = html;
     setEditorHtml(html);
-    const canvas = await renderDocumentCanvas();
-    if (!canvas) return;
-    setPreviewImage(canvas.toDataURL("image/png"));
-    setPreviewOpen(true);
+    const pages = buildDocumentPages();
+    await initializePreviewPages(pages);
   }
 
   async function saveDocument() {
@@ -1252,10 +1524,8 @@ export default function DocumentsPage() {
       }
     }
 
-    const canvas = await renderDocumentCanvas();
-    if (!canvas) return;
-    setPreviewImage(canvas.toDataURL("image/png"));
-    setPreviewOpen(true);
+    const pages = buildDocumentPages();
+    await initializePreviewPages(pages);
   }
 
   function printDocument() {
@@ -1263,6 +1533,12 @@ export default function DocumentsPage() {
   }
 
   const previewHtml = editorHtml || generatedHtml;
+
+  useEffect(() => {
+    if (!previewOpen) return;
+    if (!previewPageHtmls.length) return;
+    void ensurePreviewPageRendered(previewPageHtmls, previewPageIndex);
+  }, [previewOpen, previewPageIndex, previewPageHtmls]);
 
   return (
     <>
@@ -1545,6 +1821,16 @@ export default function DocumentsPage() {
 
             <div className="min-h-0 flex-1 overflow-y-auto bg-[#f2eee9] p-4">
               <div className="mx-auto min-h-full max-w-[1040px] rounded-[18px] border border-[#ddd3ca] bg-white p-8 shadow-[0_12px_30px_rgba(42,7,0,0.07)]">
+                <div className="relative">
+                  {editorPageGuideTops.map((top, index) => (
+                    <div key={index} className="pointer-events-none absolute left-0 right-0 z-10" style={{ top }}>
+                      <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wine/60">
+                        <span className="h-px flex-1 border-t border-dashed border-hpsr-wine/25" />
+                        <span className="rounded-full border border-hpsr-wine/20 bg-[#fff7ed]/95 px-3 py-1">Conteúdo continua na página {index + 2}</span>
+                        <span className="h-px flex-1 border-t border-dashed border-hpsr-wine/25" />
+                      </div>
+                    </div>
+                  ))}
                 <div
                   ref={editorRef}
                   contentEditable
@@ -1553,6 +1839,7 @@ export default function DocumentsPage() {
                   className="hpsr-continuous-editor min-h-[740px] outline-none"
                   dangerouslySetInnerHTML={{ __html: editorHtml || generatedHtml }}
                 />
+                </div>
               </div>
             </div>
 
@@ -1601,10 +1888,11 @@ export default function DocumentsPage() {
               ref={previewRef}
               className="relative h-[1123px] w-[794px] overflow-hidden bg-white"
             >
+              <div className="pointer-events-none absolute inset-0 bg-[#fffdfb]" />
               <img
-                src="/modelo-documento-hpsr.png"
-                alt="Modelo institucional"
-                className="pointer-events-none absolute inset-0 h-full w-full select-none object-fill"
+                src="/logo-hpsr.png"
+                alt="Marca d’água do Hospital São Rafael"
+                className="pointer-events-none absolute left-1/2 top-[42%] h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 select-none object-contain opacity-[0.045]"
                 draggable={false}
               />
               <div className="relative z-10 flex h-full flex-col px-[5.3%] pb-[3.5%] pt-[3.2%] font-serif text-[6.3px] leading-[1.45] text-[#4b2118]">
@@ -1675,7 +1963,7 @@ export default function DocumentsPage() {
                   {selectedModel?.title || "Documento médico"}
                 </h3>
                 <p className="text-xs font-bold text-hpsr-muted">
-                  Pré-visualização institucional · Página 1 de 1
+                  Pré-visualização institucional · Página {previewPageIndex + 1} de {Math.max(previewPageHtmls.length, 1)}
                 </p>
               </div>
               <button
@@ -1690,22 +1978,33 @@ export default function DocumentsPage() {
             <div className="min-h-0 flex-1 overflow-auto bg-[url('/exames-preview-bg.png')] bg-repeat p-6">
               <div className="mx-auto w-fit origin-top scale-[0.72] sm:scale-[0.78] md:scale-[0.86] xl:scale-100">
                 <section className="h-[1123px] w-[794px] overflow-hidden bg-white shadow-[0_18px_52px_rgba(42,7,0,0.22)]">
-                  {previewImage ? (
+                  {previewImages[previewPageIndex] ? (
                     <img
-                      src={previewImage}
+                      src={previewImages[previewPageIndex]}
                       alt="Pré-visualização fiel do documento"
                       className="block h-[1123px] w-[794px] object-contain"
                       draggable={false}
                     />
-                  ) : null}
+                  ) : (
+                    <div className="flex h-[1123px] w-[794px] items-center justify-center bg-white text-center">
+                      <div>
+                        <div className="mx-auto mb-3 h-9 w-9 animate-spin rounded-full border-2 border-hpsr-border border-t-hpsr-wine" />
+                        <p className="text-sm font-black text-hpsr-text">Gerando página {previewPageIndex + 1}...</p>
+                        <p className="mt-1 text-xs font-semibold text-hpsr-muted">A pré-visualização agora carrega uma página por vez para reduzir o uso de memória.</p>
+                      </div>
+                    </div>
+                  )}
                 </section>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hpsr-border bg-white px-4 py-3">
-              <p className="text-xs font-bold text-hpsr-muted">
-                Confira o documento antes de baixar ou imprimir.
-              </p>
+              <div className="flex items-center gap-2">
+                <button type="button" disabled={previewPageIndex === 0 || previewRendering} onClick={() => setPreviewPageIndex((current) => Math.max(0, current - 1))} className="h-9 rounded-[11px] border border-hpsr-border bg-white px-3 text-xs font-black disabled:opacity-40">Anterior</button>
+                <span className="text-xs font-black text-hpsr-muted">{previewPageIndex + 1}/{Math.max(previewPageHtmls.length, 1)}</span>
+                <button type="button" disabled={previewPageIndex >= previewPageHtmls.length - 1 || previewRendering} onClick={() => setPreviewPageIndex((current) => Math.min(previewPageHtmls.length - 1, current + 1))} className="h-9 rounded-[11px] border border-hpsr-border bg-white px-3 text-xs font-black disabled:opacity-40">Próxima</button>
+                {previewRendering ? <span className="text-[11px] font-black uppercase tracking-[0.12em] text-hpsr-wine">Gerando página...</span> : null}
+              </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"

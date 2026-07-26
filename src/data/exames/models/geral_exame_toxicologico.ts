@@ -4,7 +4,7 @@ export const geral_exame_toxicologicoModel: IntelligentExamModel = {
   id: "geral_exame_toxicologico",
   nome: "Exame Toxicológico",
   descricao: "Pesquisa laboratorial de substâncias psicoativas, metabólitos e compostos relacionados.",
-  categoria: "geral",
+  categoria: "toxicologia",
   icone: "fa-flask-vial",
   campos: [
     { id: "material", tipo: "select", label: "Material biológico", opcoes: [

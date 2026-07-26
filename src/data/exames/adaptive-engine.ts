@@ -165,7 +165,7 @@ function htmlEscape(value: string) {
 function withUnit(value: string, unit?: string | null) {
   const normalizedUnit = unit && unit !== "—" ? unit.trim() : "";
   const normalizedValue = value || "A preencher";
-  if (!normalizedUnit) return normalizedValue;
+  if (!normalizedUnit || !/\d/.test(normalizedValue)) return normalizedValue;
   return normalizedValue.includes(normalizedUnit) ? normalizedValue : `${normalizedValue} ${normalizedUnit}`;
 }
 
@@ -215,7 +215,17 @@ function randomNormalResultFromReference(parameter: IntelligentExamParameter) {
   if (/ausente/i.test(reference)) return "Ausente";
   if (/negativo/i.test(reference)) return "Negativo";
   if (/não\s+aplic[aá]vel/i.test(reference)) return "Não aplicável";
-  if (/normal/i.test(reference)) return "Normal";
+  if (/normal/i.test(reference)) {
+    return contextualQualitativeResult(parameter, {
+      id: "normal",
+      name: "Normal",
+      description: "Padrão esperado",
+      status: "normal",
+      resultSummary: "",
+      interpretation: "",
+      conclusion: "",
+    }, "normal");
+  }
 
   if (numbers.length >= 2) {
     const lower = Math.min(numbers[0], numbers[1]);
@@ -237,7 +247,15 @@ function randomNormalResultFromReference(parameter: IntelligentExamParameter) {
     return formatPtNumber(base * randomBetween(1.05, 1.25), reference, parameter.unidade);
   }
 
-  return "Dentro da referência";
+  return contextualQualitativeResult(parameter, {
+    id: "normal",
+    name: "Normal",
+    description: "Padrão esperado",
+    status: "normal",
+    resultSummary: "",
+    interpretation: "",
+    conclusion: "",
+  }, "normal");
 }
 
 
@@ -349,7 +367,7 @@ function qualitativeResultFromReference(parameter: IntelligentExamParameter, pro
   if (isNormal) {
     if (reference.includes("ausente")) return "Ausente";
     if (reference.includes("negativo")) return "Negativo";
-    if (reference.includes("normal")) return "Normal";
+    if (reference.includes("normal")) return contextualQualitativeResult(parameter, profile, "normal");
     if (reference.includes("não aplicável")) return "Não aplicável";
   }
 
@@ -386,14 +404,23 @@ function contextualQualitativeResult(
     if (hasAny(text, ["hemorrag", "lesão", "lesao", "massa", "nódulo", "nodulo", "cisto", "estenose", "trombo", "derrame", "edema", "calcifica", "vegetação", "vegetacao", "isquemia", "parasita", "bactér", "bacter", "fungo", "secreção", "secrecao"])) return "Ausente";
     if (hasAny(text, ["fluxo", "perfusão", "permeabilidade", "mobilidade", "função", "funcao", "contratilidade", "vitalidade", "resposta", "reflexo", "acuidade"])) return grammaticalForm(parameter, "Preservado", "Preservada", "Preservados", "Preservadas");
     if (hasAny(text, ["contorno", "morfologia", "arquitetura", "estrutura", "parede", "superfície", "superficie", "aspecto", "posição", "posicao", "implantação", "implantacao"])) return grammaticalForm(parameter, "Regular", "Regular", "Regulares", "Regulares");
-    if (hasAny(text, ["qualidade", "adequação", "adequacao", "janela", "amostra"])) return grammaticalForm(parameter, "Adequado", "Adequada", "Adequados", "Adequadas");
-    return grammaticalForm(parameter, "Preservado", "Preservada", "Preservados", "Preservadas");
+    if (hasAny(text, ["qualidade", "adequação", "adequacao", "janela", "amostra"])) return "Amostra tecnicamente adequada, sem interferentes identificáveis";
+    if (hasAny(text, ["ritmo", "frequência", "frequencia"])) return "Ritmo regular, sem irregularidades detectáveis no registro";
+    if (hasAny(text, ["força", "forca", "tônus", "tonus"])) return "Força e tônus mantidos, sem assimetrias detectáveis";
+    if (hasAny(text, ["atenção", "atencao", "concentração", "concentracao"])) return "Atenção sustentada e concentração mantidas durante a avaliação";
+    if (hasAny(text, ["memória", "memoria"])) return "Evocação imediata e tardia mantidas no protocolo aplicado";
+    if (hasAny(text, ["orientação", "orientacao"])) return "Orientação temporal, espacial e pessoal mantida";
+    if (hasAny(text, ["coordenação", "coordenacao", "equilíbrio", "equilibrio"])) return "Coordenação e equilíbrio sem desvios observáveis nas manobras executadas";
+    return "Sem alteração objetiva detectável no parâmetro avaliado";
   }
 
   if (state === "limítrofe") {
-    if (hasAny(text, ["medida", "espessura", "volume", "diâmetro", "diametro", "índice", "indice", "velocidade", "pressão", "pressao", "frequência", "frequencia"])) return "Valor discretamente fora da faixa de referência";
+    if (hasAny(text, ["medida", "espessura", "volume", "diâmetro", "diametro", "índice", "indice", "velocidade", "pressão", "pressao", "frequência", "frequencia"])) return "Desvio discreto em relação ao limite técnico mais próximo";
     if (hasAny(text, ["fluxo", "perfusão", "mobilidade", "função", "funcao", "resposta", "acuidade"])) return grammaticalForm(parameter, "Discretamente reduzido", "Discretamente reduzida", "Discretamente reduzidos", "Discretamente reduzidas");
-    return "Alteração discreta, sem critério conclusivo isolado";
+    if (hasAny(text, ["atenção", "atencao", "concentração", "concentracao"])) return "Oscilação discreta de atenção, com duas perdas de foco durante o protocolo";
+    if (hasAny(text, ["memória", "memoria"])) return "Evocação tardia discretamente reduzida, com recuperação parcial mediante pista";
+    if (hasAny(text, ["coordenação", "coordenacao", "equilíbrio", "equilibrio"])) return "Instabilidade discreta em manobra dinâmica, sem queda ou interrupção do teste";
+    return "Heterogeneidade discreta do padrão avaliado, sem repercussão funcional definida";
   }
 
   if (hasAny(text, ["hemorrag"])) return "Pequeno foco hemorrágico identificado";
@@ -408,11 +435,17 @@ function contextualQualitativeResult(
   if (hasAny(text, ["espessura", "volume", "diâmetro", "diametro", "medida", "índice", "indice"])) return hasAny(profileText, ["reduz", "hipo", "atrofia"]) ? "Reduzido em relação à referência" : "Aumentado em relação à referência";
   if (hasAny(text, ["bactér", "bacter", "fungo", "parasita"])) return "Presente na amostra analisada";
   if (hasAny(text, ["qualidade", "adequação", "adequacao", "amostra"])) return "Adequada para análise, com alteração técnica descrita";
-  return `Alteração compatível com o perfil clínico ${profile.name.toLowerCase()}`;
+  if (hasAny(text, ["atenção", "atencao", "concentração", "concentracao"])) return "Quatro perdas de foco e aumento do tempo de resposta durante o protocolo";
+  if (hasAny(text, ["memória", "memoria"])) return "Evocação tardia reduzida, com recuperação incompleta mesmo após pistas";
+  if (hasAny(text, ["orientação", "orientacao"])) return "Desorientação temporal parcial, com orientação pessoal e espacial mantidas";
+  if (hasAny(text, ["coordenação", "coordenacao", "equilíbrio", "equilibrio"])) return "Instabilidade em manobra dinâmica, com correção postural tardia";
+  if (hasAny(text, ["respirat", "ventila", "expansão", "expansao"])) return "Expansibilidade torácica reduzida bilateralmente, sem uso de musculatura acessória";
+  if (hasAny(text, ["cardíac", "cardiac", "ritmo", "pulso"])) return "Ritmo irregular detectado durante o registro, com variação intermitente dos intervalos";
+  return `Padrão objetivo alterado em ${parameter.label.toLowerCase()}, com intensidade moderada no protocolo aplicado`;
 }
 
 function isGenericResult(value: string) {
-  return /^(alterado|alterada|alterados|alteradas|achado|achados|resultado alterado|exame alterado|a preencher)$/i.test(value.trim());
+  return /^(alterado|alterada|alterados|alteradas|achado|achados|resultado alterado|exame alterado|a preencher|normal|dentro da refer[eê]ncia|dentro dos limites|sem altera[cç][aã]o|preservado|preservada|adequado|adequada|lim[ií]trofe|indeterminado)$/i.test(value.trim());
 }
 
 function profileMatchesParameter(parameter: IntelligentExamParameter, profile: IntelligentExamProfile) {
@@ -637,7 +670,10 @@ function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][
   });
 
   if (profile.status === "normal" || profile.id === "normal") {
-    return `Parâmetros avaliados sem desvios relevantes, dentro dos limites técnicos do método.`;
+    const samples = rows.slice(0, 4).map((row) => `${row[0]}: ${row[1]}`).join("; ");
+    return samples
+      ? `Os resultados objetivos demonstram ${samples}. Não foram identificadas discordâncias entre esses parâmetros e as referências informadas.`
+      : `Não foi possível compor a interpretação sem resultados objetivos preenchidos.`;
   }
 
   if (profile.status === "indefinido") {
@@ -657,7 +693,8 @@ function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
   });
 
   if (profile.status === "normal" || profile.id === "normal") {
-    return `${model.nome} sem evidência de alteração significativa nos itens analisados, dentro dos limites técnicos do método.`;
+    const summary = rows.slice(0, 3).map((row) => `${row[0]} (${row[1]})`).join("; ");
+    return `${model.nome} com resultados objetivos compatíveis com o perfil selecionado${summary ? `: ${summary}` : ""}.`;
   }
   if (profile.status === "indefinido") {
     return `${model.nome} com achados discretos ou limítrofes, de significado inespecífico isoladamente. Considerar acompanhamento conforme avaliação médica.`;
@@ -672,7 +709,8 @@ function resultSummaryFromRows(resolved: AdaptiveResolvedExam, rows: string[][])
   if (!informative.length) return profile.resultSummary;
 
   if (profile.status === "normal" || profile.id === "normal") {
-    return `${model.nome}: parâmetros avaliados dentro dos padrões esperados para o método e o contexto ${resolved.clinicalContext.toLowerCase() || "informado"}.`;
+    const highlighted = informative.slice(0, 5).map((row) => `${row[0]}: ${row[1]}`);
+    return `${model.nome}: ${highlighted.join("; ")}.`;
   }
 
   const highlighted = informative
@@ -709,11 +747,10 @@ function findingsFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
   detailedRows.forEach((row) => lines.push(parameterFindingSentence(row[0], row[1], row[2] || "conforme método")));
 
   if (profile.status === "normal" || profile.id === "normal") {
-    if (informative.length > detailedRows.length) {
-      lines.push(`Demais estruturas e parâmetros avaliados sem alterações significativas.`);
-    }
+    const remaining = informative.slice(detailedRows.length, detailedRows.length + 4);
+    remaining.forEach((row) => lines.push(parameterFindingSentence(row[0], row[1], row[2] || "conforme método")));
   } else if (normal.length) {
-    lines.push(`Demais parâmetros avaliados sem alterações relevantes.`);
+    normal.slice(0, 4).forEach((row) => lines.push(parameterFindingSentence(row[0], row[1], row[2] || "conforme método")));
   }
 
   return lines.join("\n");
@@ -730,6 +767,33 @@ export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
   const contrastText = contrastField?.value ? `<p><strong>Contraste:</strong> ${htmlEscape(String(contrastField.value))}</p>` : "";
   const technique = paragraphs(technicalMethodNarrative(resolved));
   const table = isLaboratory && rows.length ? tableHtml(["Parâmetro", "Resultado", "Valores de referência"], rows) : "";
+  if (model.id === "psiquiatria_psicotecnico") {
+    const rowById = new Map(model.parameters.map((parameter, index) => [parameter.id, rows[index]]));
+    const selectRows = (ids: string[]) => ids.map((id) => rowById.get(id)).filter(Boolean) as string[][];
+    const psychologicalRows = selectRows(["estado_mental", "nivel_atencao", "tempo_reacao", "controle_emocional", "impulsividade", "capacidade_decisao", "perfil_comportamental"]);
+    const physicalRows = selectRows(["condicao_fisica_geral", "coordenacao_equilibrio", "forca_mobilidade"]);
+    const cardiacRows = selectRows(["frequencia_cardiaca", "pressao_arterial_sistolica", "pressao_arterial_diastolica", "ritmo_cardiaco"]);
+    const respiratoryRows = selectRows(["frequencia_respiratoria", "saturacao_oxigenio", "ausculta_respiratoria", "expansibilidade_toracica"]);
+    const impressionRow = rowById.get("impressao");
+    const aptitudeRow = rowById.get("aptidao");
+    const psychologicalSummary = psychologicalRows.slice(0, 5).map((row) => `${row[0]}: ${row[1]}`).join("; ");
+    const impressionText = impressionRow?.[1] && !isGenericResult(impressionRow[1])
+      ? impressionRow[1]
+      : `Durante o protocolo, observou-se ${psychologicalSummary.toLowerCase()}. O comportamento apresentado foi considerado em conjunto com o desempenho atencional, emocional e psicomotor.`;
+    const integratedRows = [...psychologicalRows, ...physicalRows, ...cardiacRows, ...respiratoryRows];
+    const aptitude = aptitudeRow?.[1] || profile.name;
+    return [
+      section("tecnica", "1. Técnica / Método", technique + contextText),
+      section("resultados", "2. Resultados", tableHtml(["Domínio avaliado", "Resultado", "Referência técnica"], psychologicalRows)),
+      section("impressao_psicologica", "3. Impressão psicológica", paragraphs(impressionText)),
+      section("avaliacao_fisica", "4. Avaliação física", tableHtml(["Parâmetro", "Resultado", "Referência"], physicalRows)),
+      section("avaliacao_cardiaca", "5. Avaliação cardíaca", tableHtml(["Parâmetro", "Resultado", "Referência"], cardiacRows)),
+      section("avaliacao_respiratoria", "6. Avaliação respiratória", tableHtml(["Parâmetro", "Resultado", "Referência"], respiratoryRows)),
+      section("interpretacao", "7. Interpretação", paragraphs(technicalInterpretation(resolved, integratedRows))),
+      section("conclusao", "8. Conclusão", paragraphs(`Resultado de aptidão: ${aptitude}.
+${technicalConclusion(resolved, integratedRows)}`)),
+    ].join("");
+  }
   if (model.id === "geral_exame_toxicologico") {
     const substanceIds = new Set(["canabinoides", "cocaina", "anfetaminas", "metanfetaminas", "opiaceos", "benzodiazepinicos", "barbituricos", "metadona", "fenciclidina", "outras_substancias"]);
     const substanceRows = resolved.parameters.filter((parameter) => substanceIds.has(parameter.id)).map((parameter) => [

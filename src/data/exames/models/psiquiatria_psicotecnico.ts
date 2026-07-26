@@ -3,8 +3,8 @@ import type { IntelligentExamModel } from "../types";
 export const psiquiatria_psicotecnicoModel: IntelligentExamModel = {
   "id": "psiquiatria_psicotecnico",
   "nome": "Avaliação Psicotécnica",
-  "descricao": "Avaliação psicológica destinada à análise de aptidão emocional, comportamental e atencional.",
-  "categoria": "geral",
+  "descricao": "Avaliação psicotécnica integrada, com análise psicológica, física, cardíaca e respiratória antes da conclusão de aptidão.",
+  "categoria": "psicologia_psiquiatria",
   "icone": "fa-brain",
   "campos": [
     {
@@ -293,20 +293,38 @@ export const psiquiatria_psicotecnicoModel: IntelligentExamModel = {
         "visibleByDefault": true
       },
       {
-        "id": "tabelas",
-        "title": "3. Tabela técnica",
-        "required": false,
+        "id": "impressao_psicologica",
+        "title": "3. Impressão psicológica",
+        "required": true,
+        "visibleByDefault": true
+      },
+      {
+        "id": "avaliacao_fisica",
+        "title": "4. Avaliação física",
+        "required": true,
+        "visibleByDefault": true
+      },
+      {
+        "id": "avaliacao_cardiaca",
+        "title": "5. Avaliação cardíaca",
+        "required": true,
+        "visibleByDefault": true
+      },
+      {
+        "id": "avaliacao_respiratoria",
+        "title": "6. Avaliação respiratória",
+        "required": true,
         "visibleByDefault": true
       },
       {
         "id": "interpretacao",
-        "title": "4. Interpretação",
+        "title": "7. Interpretação",
         "required": true,
         "visibleByDefault": true
       },
       {
         "id": "conclusao",
-        "title": "5. Conclusão",
+        "title": "8. Conclusão",
         "required": true,
         "visibleByDefault": true
       },
@@ -325,7 +343,10 @@ export const psiquiatria_psicotecnicoModel: IntelligentExamModel = {
       "titulo",
       "tecnica",
       "resultados",
-      "tabelas",
+      "impressao_psicologica",
+      "avaliacao_fisica",
+      "avaliacao_cardiaca",
+      "avaliacao_respiratoria",
       "interpretacao",
       "conclusao",
       "assinatura"
@@ -337,7 +358,10 @@ export const psiquiatria_psicotecnicoModel: IntelligentExamModel = {
       "titulo",
       "tecnica",
       "resultados",
-      "tabelas",
+      "impressao_psicologica",
+      "avaliacao_fisica",
+      "avaliacao_cardiaca",
+      "avaliacao_respiratoria",
       "interpretacao",
       "conclusao",
       "assinatura"
@@ -365,20 +389,38 @@ export const psiquiatria_psicotecnicoModel: IntelligentExamModel = {
         "visibleByDefault": true
       },
       {
-        "id": "tabelas",
-        "title": "3. Tabela técnica",
-        "required": false,
+        "id": "impressao_psicologica",
+        "title": "3. Impressão psicológica",
+        "required": true,
+        "visibleByDefault": true
+      },
+      {
+        "id": "avaliacao_fisica",
+        "title": "4. Avaliação física",
+        "required": true,
+        "visibleByDefault": true
+      },
+      {
+        "id": "avaliacao_cardiaca",
+        "title": "5. Avaliação cardíaca",
+        "required": true,
+        "visibleByDefault": true
+      },
+      {
+        "id": "avaliacao_respiratoria",
+        "title": "6. Avaliação respiratória",
+        "required": true,
         "visibleByDefault": true
       },
       {
         "id": "interpretacao",
-        "title": "4. Interpretação",
+        "title": "7. Interpretação",
         "required": true,
         "visibleByDefault": true
       },
       {
         "id": "conclusao",
-        "title": "5. Conclusão",
+        "title": "8. Conclusão",
         "required": true,
         "visibleByDefault": true
       },
@@ -390,8 +432,8 @@ export const psiquiatria_psicotecnicoModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Avaliação presencial estruturada, composta por entrevista dirigida, observação comportamental, tarefas de atenção e resposta psicomotora, exame físico funcional e verificação de parâmetros cardiovasculares e respiratórios.",
+  "method": "Os resultados são registrados de forma integrada, considerando desempenho durante o protocolo, sinais vitais aferidos e resposta funcional observada no momento da avaliação.",
   "parameters": [
     {
       "id": "estado_mental",
@@ -461,15 +503,103 @@ export const psiquiatria_psicotecnicoModel: IntelligentExamModel = {
       "id": "impressao",
       "label": "Impressão Psicológica",
       "unidade": null,
-      "referencia": "Descrever comportamento observado, estabilidade emocional e desempenho cognitivo.",
-      "resultPlaceholder": "A preencher",
-      "interpretationHint": "Interpretar Impressão Psicológica conforme referência, contexto clínico e método utilizado."
+      "referencia": "Síntese do comportamento, estabilidade emocional e desempenho cognitivo observados.",
+      "resultPlaceholder": "Descrição técnica específica",
+      "interpretationHint": "Sintetizar os dados psicológicos observados durante o protocolo."
+    },
+    {
+      "id": "condicao_fisica_geral",
+      "label": "Condição física geral",
+      "unidade": null,
+      "referencia": "Mobilidade funcional, postura e tolerância ao protocolo",
+      "resultPlaceholder": "Descrição funcional específica",
+      "interpretationHint": "Descrever condição física e limitações observadas."
+    },
+    {
+      "id": "coordenacao_equilibrio",
+      "label": "Coordenação e equilíbrio",
+      "unidade": null,
+      "referencia": "Execução estável das manobras funcionais",
+      "resultPlaceholder": "Descrição objetiva das manobras",
+      "interpretationHint": "Registrar estabilidade, coordenação e eventuais desvios."
+    },
+    {
+      "id": "forca_mobilidade",
+      "label": "Força e mobilidade",
+      "unidade": null,
+      "referencia": "Força global e amplitude funcional compatíveis com o protocolo",
+      "resultPlaceholder": "Descrição funcional específica",
+      "interpretationHint": "Registrar força, mobilidade e assimetrias."
+    },
+    {
+      "id": "frequencia_cardiaca",
+      "label": "Frequência cardíaca",
+      "unidade": "bpm",
+      "referencia": "60 a 100 bpm",
+      "resultPlaceholder": "Valor aferido",
+      "interpretationHint": "Interpretar a frequência cardíaca aferida."
+    },
+    {
+      "id": "pressao_arterial_sistolica",
+      "label": "Pressão arterial sistólica",
+      "unidade": "mmHg",
+      "referencia": "90 a 139 mmHg",
+      "resultPlaceholder": "Valor aferido",
+      "interpretationHint": "Interpretar a pressão arterial sistólica aferida."
+    },
+    {
+      "id": "pressao_arterial_diastolica",
+      "label": "Pressão arterial diastólica",
+      "unidade": "mmHg",
+      "referencia": "60 a 89 mmHg",
+      "resultPlaceholder": "Valor aferido",
+      "interpretationHint": "Interpretar a pressão arterial diastólica aferida."
+    },
+    {
+      "id": "ritmo_cardiaco",
+      "label": "Ritmo cardíaco",
+      "unidade": null,
+      "referencia": "Ritmo regular à avaliação clínica",
+      "resultPlaceholder": "Descrição técnica específica",
+      "interpretationHint": "Registrar regularidade e intercorrências observadas."
+    },
+    {
+      "id": "frequencia_respiratoria",
+      "label": "Frequência respiratória",
+      "unidade": "irpm",
+      "referencia": "12 a 20 irpm",
+      "resultPlaceholder": "Valor aferido",
+      "interpretationHint": "Interpretar a frequência respiratória aferida."
+    },
+    {
+      "id": "saturacao_oxigenio",
+      "label": "Saturação periférica de oxigênio",
+      "unidade": "%",
+      "referencia": "95 a 100%",
+      "resultPlaceholder": "Valor aferido",
+      "interpretationHint": "Interpretar a saturação periférica aferida."
+    },
+    {
+      "id": "ausculta_respiratoria",
+      "label": "Ausculta respiratória",
+      "unidade": null,
+      "referencia": "Murmúrio vesicular bilateral, sem ruídos adventícios",
+      "resultPlaceholder": "Descrição auscultatória específica",
+      "interpretationHint": "Registrar distribuição do murmúrio vesicular e ruídos adventícios."
+    },
+    {
+      "id": "expansibilidade_toracica",
+      "label": "Expansibilidade torácica",
+      "unidade": null,
+      "referencia": "Expansão bilateral e simétrica",
+      "resultPlaceholder": "Descrição objetiva",
+      "interpretationHint": "Registrar simetria e padrão de expansão torácica."
     }
   ],
   "tables": [
     {
       "id": "tabela_tecnica",
-      "title": "Tabela técnica laboratorial",
+      "title": "Resultados objetivos",
       "headers": [
         "Parâmetro",
         "Resultado",
@@ -479,12 +609,12 @@ export const psiquiatria_psicotecnicoModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
+    "normal": "Desempenho psicológico, condição funcional e parâmetros cardiorrespiratórios compatíveis com o protocolo aplicado.",
     "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
     "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
+    "normal": "Avaliação integrada compatível com aptidão, conforme os resultados descritos.",
     "altered": "Exame alterado, recomendando correlação clínica.",
     "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
   },

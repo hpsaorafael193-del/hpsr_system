@@ -35,7 +35,6 @@ import {
   ListOrdered,
   Microscope,
   Paperclip,
-  Printer,
   RefreshCw,
   RotateCcw,
   Save,
@@ -142,7 +141,6 @@ type AppDialogState = {
 } | null;
 
 const DRAFT_KEY = "hpsr-exames-continuous-editor-draft-v283";
-const EDITOR_PAGE_GUIDE_HEIGHT = 920;
 
 const emptyPatient: PatientDraft = {
   name: "",
@@ -168,7 +166,8 @@ const categoryLabels: Record<string, string> = {
   genetico: "Genético",
   genetica: "Genética",
   funcional: "Funcional",
-  geral: "Geral",
+  psicologia_psiquiatria: "Psicologia e Psiquiatria",
+  toxicologia: "Toxicologia",
 };
 
 const examIconMap: Record<string, LucideIcon> = {
@@ -423,7 +422,7 @@ function resolveXrayAttachmentAsset(region: string, profileId: string) {
     joelho: { normal: "joelho_normal.jpg", trauma: "joelho_trauma.jpg", fratura: "joelho_fratura_plato_tibial.jpg", luxacao: "joelho_luxacao_patelar.jpg" },
     ombro: { normal: "ombro_normal.jpg", trauma: "ombro_trauma.jpg", fratura: "ombro_fratura_umero_proximal.jpg", luxacao: "ombro_luxacao_glenoumeral.jpg" },
     pe: { normal: "pe_normal.jpg", trauma: "pe_trauma.jpg", fratura: "pe_fratura_metatarsos.jpg", luxacao: "pe_luxacao_desalinhamento.jpg" },
-    perna_coxa_canela: { normal: "perna_normal.jpg", trauma: "perna_trauma.jpg", fratura: "perna_fratura_tibia_fibula.png" },
+    perna_coxa_canela: { normal: "perna_normal.jpg", trauma: "perna_trauma.jpg", fratura: "perna_fratura_tibia_fibula.webp" },
     torax: { normal: "torax_normal.jpg", trauma: "torax_trauma.jpg", fratura: "torax_fratura_multiplas_costelas.jpg" },
   };
 
@@ -451,15 +450,15 @@ function resolvePsychotechnicalAttachmentAsset(profileId: string, profileName: s
   // A ordem é importante: "não apto" e "apto com ressalvas" também contêm
   // a palavra "apto". Os perfis específicos devem ser resolvidos primeiro.
   if (profile.includes("ressalv") || profile.includes("restric")) {
-    return "/anexos/psicotecnico/apto-com-ressalvas.png";
+    return "/anexos/psicotecnico/apto-com-ressalvas.webp";
   }
   if (profile.includes("inconclus") || profile.includes("indefin") || profile.includes("limitrof")) {
-    return "/anexos/psicotecnico/inconclusivo.png";
+    return "/anexos/psicotecnico/inconclusivo.webp";
   }
   if (profile.includes("nao_apto") || profile.includes("inapto") || profile.includes("alterado")) {
-    return "/anexos/psicotecnico/nao-apto.png";
+    return "/anexos/psicotecnico/nao-apto.webp";
   }
-  return "/anexos/psicotecnico/apto.png";
+  return "/anexos/psicotecnico/apto.webp";
 }
 
 function Button({
@@ -784,7 +783,7 @@ export default function ExamesPage() {
   const [tablePickerOpen, setTablePickerOpen] = useState(false);
   const [tableRows, setTableRows] = useState(4);
   const [tableCols, setTableCols] = useState(3);
-  const [editorPageCount, setEditorPageCount] = useState(1);
+  const [editorPageGuideTops, setEditorPageGuideTops] = useState<number[]>([]);
 
   const categories = useMemo(() => {
     const set = new Set(intelligentExamModels.map((model) => model.categoria));
@@ -817,17 +816,27 @@ export default function ExamesPage() {
   }, [selectedExam, adaptiveConfig]);
 
   const filteredCatalog = useMemo(() => {
-    const query = examSearch.trim().toLowerCase();
+    const normalizeSearch = (value: string) => value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase("pt-BR")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+    const query = normalizeSearch(examSearch);
     return [...intelligentExamModels]
-      .sort((a, b) => a.nome.localeCompare(b.nome))
+      .sort((a, b) => {
+        const categoryCompare = (categoryLabels[a.categoria] || a.categoria).localeCompare(categoryLabels[b.categoria] || b.categoria, "pt-BR");
+        return categoryCompare || a.nome.localeCompare(b.nome, "pt-BR");
+      })
       .filter((exam) => {
-        const matchesCategory =
-          catalogCategory === "all" ? true : exam.categoria === catalogCategory;
+        const matchesCategory = catalogCategory === "all" || exam.categoria === catalogCategory;
         if (!matchesCategory) return false;
         if (!query) return true;
-        return `${exam.nome} ${exam.descricao} ${exam.categoria} ${categoryLabels[exam.categoria] || ""}`
-          .toLowerCase()
-          .includes(query);
+        const aliases = exam.id === "psiquiatria_psicotecnico"
+          ? "psicotecnico psicotecnica avaliacao psicologica aptidao"
+          : "";
+        const searchable = normalizeSearch(`${exam.nome} ${exam.descricao} ${exam.categoria} ${categoryLabels[exam.categoria] || ""} ${aliases}`);
+        return query.split(/\s+/).every((term) => searchable.includes(term));
       });
   }, [catalogCategory, examSearch]);
 
@@ -1007,16 +1016,64 @@ export default function ExamesPage() {
   }, [selectedExam]);
 
   function updateEditorPageGuides() {
-    if (!editorRef.current) {
-      setEditorPageCount(1);
+    const editor = editorRef.current;
+    if (!editor) {
+      setEditorPageGuideTops([]);
       return;
     }
-    const measuredHeight = Math.max(
-      editorRef.current.scrollHeight,
-      editorRef.current.getBoundingClientRect().height,
-    );
-    const nextCount = Math.max(1, Math.ceil(measuredHeight / EDITOR_PAGE_GUIDE_HEIGHT));
-    setEditorPageCount((current) => (current === nextCount ? current : nextCount));
+
+    try {
+      const document = buildPreviewDocument();
+      const reportPages = document.pages.filter((page) => page.type === "report");
+      if (reportPages.length <= 1) {
+        setEditorPageGuideTops([]);
+        return;
+      }
+
+      const countNonWhitespace = (value: string) => (value.match(/\S/g) || []).length;
+      const cumulativeTargets: number[] = [];
+      let cumulative = 0;
+      reportPages.slice(0, -1).forEach((page) => {
+        const holder = window.document.createElement("div");
+        holder.innerHTML = page.reportHtml || "";
+        cumulative += countNonWhitespace(holder.textContent || "");
+        cumulativeTargets.push(cumulative);
+      });
+
+      const walker = window.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+      const positions: number[] = [];
+      let targetIndex = 0;
+      let consumed = 0;
+      let node = walker.nextNode();
+      const editorRect = editor.getBoundingClientRect();
+
+      while (node && targetIndex < cumulativeTargets.length) {
+        const value = node.textContent || "";
+        let localCount = 0;
+        for (let offset = 0; offset <= value.length; offset += 1) {
+          if (offset > 0 && /\S/.test(value[offset - 1])) localCount += 1;
+          if (consumed + localCount < cumulativeTargets[targetIndex]) continue;
+
+          const range = window.document.createRange();
+          range.setStart(node, Math.min(offset, value.length));
+          range.setEnd(node, Math.min(offset, value.length));
+          const rect = range.getBoundingClientRect();
+          const top = Math.max(0, editor.offsetTop + (rect.top - editorRect.top));
+          positions.push(top);
+          targetIndex += 1;
+          if (targetIndex >= cumulativeTargets.length) break;
+        }
+        consumed += localCount;
+        node = walker.nextNode();
+      }
+
+      setEditorPageGuideTops((current) => {
+        if (current.length === positions.length && current.every((value, index) => Math.abs(value - positions[index]) < 1)) return current;
+        return positions;
+      });
+    } catch {
+      setEditorPageGuideTops([]);
+    }
   }
 
   function setEditorContent(
@@ -1500,7 +1557,7 @@ export default function ExamesPage() {
       .catch(() => {
         setAppDialog({
           title: "Não foi possível anexar",
-          message: "Um dos arquivos não pôde ser lido. Tente novamente com imagem ou PDF em tamanho menor.",
+          message: "Um dos arquivos não pôde ser lido. Tente novamente com uma imagem em tamanho menor.",
           tone: "warning",
           actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
         });
@@ -1778,6 +1835,79 @@ export default function ExamesPage() {
       return y;
     };
 
+    const wrapCanvasText = (targetContext: CanvasRenderingContext2D, value: string, maxWidth: number) => {
+      const words = value.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+      const lines: string[] = [];
+      let line = "";
+      for (const word of words) {
+        const candidate = line ? `${line} ${word}` : word;
+        if (targetContext.measureText(candidate).width > maxWidth && line) {
+          lines.push(line);
+          line = word;
+        } else {
+          line = candidate;
+        }
+      }
+      if (line) lines.push(line);
+      return lines;
+    };
+
+    const drawInfoCard = (label: string, value: string, x: number, y: number, width: number, height = 42) => {
+      context.fillStyle = "rgba(255,250,244,0.98)";
+      context.strokeStyle = "rgba(91,24,9,0.16)";
+      context.lineWidth = 1;
+      context.beginPath();
+      context.roundRect(x, y, width, height, 10);
+      context.fill();
+      context.stroke();
+      context.fillStyle = "#8d5f54";
+      context.font = "700 8px Arial";
+      context.fillText(label.toUpperCase(), x + 10, y + 8);
+      context.fillStyle = "#421910";
+      context.font = height <= 32 ? "700 10.5px Georgia" : "700 11px Georgia";
+      const lines = wrapCanvasText(context, value || "-", width - 20);
+      const maxLines = height <= 32 ? 1 : height <= 40 ? 2 : 3;
+      lines.slice(0, maxLines).forEach((line, index) => context.fillText(line, x + 10, y + 18 + index * 11));
+    };
+
+    const drawTechnicalRibbon = (label: string, x: number, y: number, width: number) => {
+      context.fillStyle = "rgba(91,24,9,0.07)";
+      context.beginPath();
+      context.roundRect(x, y, width, 20, 10);
+      context.fill();
+      context.fillStyle = "#5b1809";
+      context.font = "700 9px Arial";
+      context.textAlign = "center";
+      context.fillText(label.toUpperCase(), x + width / 2, y + 6);
+      context.textAlign = "left";
+    };
+
+    const drawInstitutionalPageBase = async () => {
+      context.fillStyle = "#fffdfb";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      const watermark = await loadImage("/logo-hpsr.png");
+      if (watermark) {
+        context.save();
+        context.globalAlpha = 0.045;
+        drawImageContain(watermark, 247, 365, 300, 300);
+        context.restore();
+      }
+
+      context.strokeStyle = "rgba(91,24,9,0.28)";
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(28, 100);
+      context.lineTo(766, 100);
+      context.stroke();
+
+      context.strokeStyle = "rgba(91,24,9,0.12)";
+      context.beginPath();
+      context.moveTo(42, 984);
+      context.lineTo(752, 984);
+      context.stroke();
+    };
+
     const htmlText = (node: Element) =>
       (node.textContent || "").replace(/\s+/g, " ").trim();
 
@@ -1790,17 +1920,22 @@ export default function ExamesPage() {
         if (y > maxY - 24) break;
         const tag = block.tagName.toLowerCase();
         if (/^h[1-3]$/.test(tag)) {
-          context.fillStyle = "#5b1809";
-          context.font = tag === "h1" ? "700 15px Georgia" : "700 13px Georgia";
           const text = htmlText(block).toUpperCase();
+          const bandHeight = tag === "h1" ? 24 : 21;
           y += 6;
-          y = drawWrappedText(text, x, y, width, tag === "h1" ? 19 : 17, maxY);
-          context.strokeStyle = "rgba(91,24,9,0.22)";
+          context.fillStyle = "rgba(91,24,9,0.06)";
           context.beginPath();
-          context.moveTo(x, y + 2);
-          context.lineTo(x + width, y + 2);
+          context.roundRect(x, y - 2, width, bandHeight, 11);
+          context.fill();
+          context.strokeStyle = "rgba(91,24,9,0.18)";
+          context.beginPath();
+          context.moveTo(x + 12, y + bandHeight + 2);
+          context.lineTo(x + width - 12, y + bandHeight + 2);
           context.stroke();
-          y += 10;
+          context.fillStyle = "#5b1809";
+          context.font = tag === "h1" ? "700 13px Arial" : "700 11.5px Arial";
+          context.fillText(text, x + 12, y + 4);
+          y += bandHeight + 10;
           continue;
         }
 
@@ -1809,37 +1944,45 @@ export default function ExamesPage() {
           if (!rows.length) continue;
           const firstCells = Array.from(rows[0].querySelectorAll("th,td"));
           const colCount = Math.max(firstCells.length, 1);
-          const colWidth = width / colCount;
-          context.font = "12px Georgia";
-          context.lineWidth = 1;
+          const tableWidth = Math.min(width * 0.78, 500);
+          const tableX = x + (width - tableWidth) / 2;
+          const colWidth = tableWidth / colCount;
+          context.lineWidth = 0.9;
           for (const [rowIndex, row] of rows.entries()) {
             const cells = Array.from(row.querySelectorAll("th,td"));
-            const rowHeight = Math.max(26, ...cells.map((cell) => Math.ceil(htmlText(cell).length / 22) * 14 + 12));
+            context.font = rowIndex === 0 ? "700 10.2px Arial" : "10.2px Georgia";
+            const rowHeight = Math.max(20, ...cells.map((cell) => wrapCanvasText(context, htmlText(cell), colWidth - 12).length * 11 + 8));
             if (y + rowHeight > maxY) return y;
             cells.forEach((cell, cellIndex) => {
-              const cx = x + cellIndex * colWidth;
-              context.fillStyle = rowIndex === 0 ? "rgba(91,24,9,0.10)" : "rgba(255,255,255,0.70)";
+              const cx = tableX + cellIndex * colWidth;
+              context.fillStyle = rowIndex === 0 ? "rgba(91,24,9,0.11)" : rowIndex % 2 === 0 ? "rgba(255,250,244,0.92)" : "rgba(255,255,255,0.98)";
               context.fillRect(cx, y, colWidth, rowHeight);
               context.strokeStyle = "rgba(91,24,9,0.22)";
               context.strokeRect(cx, y, colWidth, rowHeight);
-              context.fillStyle = "#4b2118";
-              context.font = rowIndex === 0 ? "700 12px Georgia" : "12px Georgia";
-              drawWrappedText(htmlText(cell), cx + 6, y + 7, colWidth - 12, 14, y + rowHeight - 2);
+              context.fillStyle = "#412017";
+              context.font = rowIndex === 0 ? "700 10px Arial" : "10px Georgia";
+              context.textAlign = "center";
+              const lines = wrapCanvasText(context, htmlText(cell), colWidth - 12);
+              const lineHeight = 11;
+              const contentHeight = lines.length * lineHeight;
+              const startY = y + Math.max(4, (rowHeight - contentHeight) / 2 + 0.5);
+              lines.forEach((line, lineIndex) => context.fillText(line, cx + colWidth / 2, startY + lineIndex * lineHeight));
+              context.textAlign = "left";
             });
             y += rowHeight;
           }
-          y += 12;
+          y += 10;
           continue;
         }
 
         if (tag === "ul" || tag === "ol") {
           const items = Array.from(block.querySelectorAll("li"));
           context.fillStyle = "#4b2118";
-          context.font = "12px Georgia";
+          context.font = "11.2px Georgia";
           items.forEach((item, index) => {
             if (y > maxY - 18) return;
-            context.fillText(tag === "ol" ? `${index + 1}.` : "•", x, y);
-            y = drawWrappedText(htmlText(item), x + 18, y, width - 18, 16, maxY);
+            context.fillText(tag === "ol" ? `${index + 1}.` : "•", x + 2, y);
+            y = drawWrappedText(htmlText(item), x + 18, y, width - 18, 15, maxY);
           });
           y += 6;
           continue;
@@ -1847,12 +1990,12 @@ export default function ExamesPage() {
 
         const text = htmlText(block);
         if (!text) {
-          y += 10;
+          y += 8;
           continue;
         }
-        context.fillStyle = "#4b2118";
-        context.font = "12px Georgia";
-        y = drawWrappedText(text, x, y, width, 16, maxY) + 4;
+        context.fillStyle = "#3f231c";
+        context.font = "11.4px Georgia";
+        y = drawWrappedText(text, x, y, width, 15.5, maxY) + 5;
       }
       return y;
     };
@@ -1906,42 +2049,53 @@ export default function ExamesPage() {
     };
 
     try {
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      const background = await loadImage("/modelo-documento-hpsr.png");
-      if (background) context.drawImage(background, 0, 0, canvas.width, canvas.height);
+      await drawInstitutionalPageBase();
 
       context.textBaseline = "top";
       context.fillStyle = "#5b1809";
       context.font = "12px Georgia";
 
       if (pageIndex === 0) {
-        context.textAlign = "right";
-        context.fillText(`Data da Emissão: ${formatDateBR(finalDocument.metadata.date)}`, 766, 39);
-        context.fillStyle = "#b1adac";
-        context.font = "11px Georgia";
-        context.fillText(`Protocolo: ${finalDocument.metadata.protocol || "-"}`, 766, 59);
+        context.fillStyle = "#5b1809";
+        context.font = "700 19px Arial";
+        context.fillText("HOSPITAL SÃO RAFAEL", 42, 34);
+        context.fillStyle = "#8d5f54";
+        context.font = "10px Arial";
+        context.fillText("SISTEMA CLÍNICO E ADMINISTRATIVO", 42, 58);
+        drawTechnicalRibbon("Laudo técnico institucional", 42, 72, 210);
+
+        drawInfoCard("Data da emissão", formatDateBR(finalDocument.metadata.date), 574, 28, 178, 30);
+        drawInfoCard("Protocolo", finalDocument.metadata.protocol || "-", 574, 64, 178, 30);
+
+        context.fillStyle = "rgba(91,24,9,0.08)";
+        context.beginPath();
+        context.roundRect(210, 112, 374, 32, 16);
+        context.fill();
+        context.strokeStyle = "rgba(91,24,9,0.22)";
+        context.stroke();
         context.textAlign = "center";
         context.fillStyle = "#5b1809";
-        context.font = "700 14px Georgia";
-        context.strokeStyle = "#5b1809";
+        context.font = "700 14px Arial";
+        context.fillText((finalDocument.metadata.examName || "EXAME").toUpperCase(), 397, 121);
+
+        context.fillStyle = "rgba(255,255,255,0.95)";
+        context.strokeStyle = "rgba(91,24,9,0.18)";
         context.beginPath();
-        context.roundRect(266, 113, 262, 23, 12);
+        context.roundRect(28, 156, 738, 122, 18);
+        context.fill();
         context.stroke();
-        context.fillText(finalDocument.metadata.examName || "EXAME", 397, 117);
-        context.strokeStyle = "#5b1809";
-        context.beginPath();
-        context.roundRect(28, 158, 738, 90, 16);
-        context.stroke();
-        context.font = "14px Georgia";
-        context.fillText("IDENTIFICAÇÃO DO PACIENTE", 397, 169);
         context.textAlign = "left";
-        context.font = "12px Georgia";
-        context.fillText(`Nome: ${finalDocument.metadata.patient.name || "-"}`, 42, 200);
-        context.fillText(`Passaporte: ${finalDocument.metadata.patient.passport || "-"}`, 361, 200);
-        context.fillText(`Tipo Sanguíneo: ${finalDocument.metadata.patient.bloodType || "-"}`, 635, 200);
-        context.fillText(`Idade: ${finalDocument.metadata.patient.age || "-"}`, 42, 224);
-        drawReportHtml(page.reportHtml || "", 42, 283, 710, 975);
+        context.fillStyle = "#5b1809";
+        context.font = "700 10px Arial";
+        context.fillText("IDENTIFICAÇÃO DO PACIENTE", 44, 168);
+        drawInfoCard("Paciente", finalDocument.metadata.patient.name || "-", 42, 182, 404, 40);
+        drawInfoCard("Passaporte", finalDocument.metadata.patient.passport || "-", 458, 182, 140, 40);
+        drawInfoCard("Tipo sanguíneo", finalDocument.metadata.patient.bloodType || "-", 610, 182, 142, 40);
+        drawInfoCard("Idade", finalDocument.metadata.patient.age ? `${finalDocument.metadata.patient.age}` : "-", 42, 228, 80, 36);
+        drawInfoCard("Profissional emitente", finalDocument.metadata.doctor.name || "Não informado", 134, 228, 332, 36);
+        drawInfoCard("CRM", finalDocument.metadata.doctor.crm || "000000", 478, 228, 118, 36);
+        drawInfoCard("Hospital", "Hospital São Rafael", 608, 228, 144, 36);
+        drawReportHtml(page.reportHtml || "", 42, 300, 710, 975);
       } else if (page.type === "report") {
         drawReportHtml(page.reportHtml || "", 42, 107, 710, 975);
       } else if (page.type === "auto-attachment" && page.automaticAttachment) {
@@ -1988,7 +2142,7 @@ export default function ExamesPage() {
         return dataUrl;
       }
       const link = window.document.createElement("a");
-      link.download = `${safeFileName(finalDocument.metadata.examName)}_pagina_${pageIndex + 1}.png`;
+      link.download = `${safeFileName(finalDocument.metadata.examName)}_${safeFileName(finalDocument.metadata.patient.name || "paciente")}_pagina_${pageIndex + 1}.png`;
       link.href = dataUrl;
       link.click();
       return dataUrl;
@@ -2018,14 +2172,10 @@ export default function ExamesPage() {
     const technicalMessage = error instanceof Error ? ` Detalhe: ${error.message}` : "";
     setAppDialog({
       title: "Exportação PNG",
-      message: `Não foi possível gerar o PNG desta página. Tente novamente ou use Imprimir para salvar em PDF.${technicalMessage}`,
+      message: `Não foi possível gerar o PNG desta página. Tente novamente.${technicalMessage}`,
       tone: "warning",
       actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
     });
-  }
-
-  function printPreview() {
-    window.print();
   }
 
   return (
@@ -2372,7 +2522,7 @@ export default function ExamesPage() {
                   ref={attachmentInputRef}
                   type="file"
                   multiple
-                  accept="image/*,.pdf"
+                  accept="image/png,image/jpeg,image/webp"
                   className="hidden"
                   onChange={(event) => {
                     addAttachmentFiles(event.target.files);
@@ -2485,10 +2635,8 @@ export default function ExamesPage() {
           <div className="min-h-0 flex-1 overflow-y-auto bg-[#f2eee9] p-4">
             <div className="mx-auto min-h-full max-w-[1040px] rounded-[18px] border border-[#ddd3ca] bg-white p-8 shadow-[0_12px_30px_rgba(42,7,0,0.07)]">
               <div className="relative">
-                {editorPageCount > 1 &&
-                  Array.from({ length: editorPageCount - 1 }).map((_, index) => {
+                {editorPageGuideTops.map((top, index) => {
                     const pageNumber = index + 2;
-                    const top = (index + 1) * EDITOR_PAGE_GUIDE_HEIGHT;
                     return (
                       <div
                         key={pageNumber}
@@ -2771,24 +2919,27 @@ export default function ExamesPage() {
           margin: 0.55rem 0 0.55rem 1.25rem;
         }
         .hpsr-continuous-editor table {
-          width: 100%;
+          width: min(86%, 680px);
+          max-width: 100%;
           border-collapse: collapse;
-          margin: 1rem 0;
-          font-size: 14px;
-          border-radius: 12px;
+          margin: 0.85rem auto;
+          font-size: 12.5px;
+          border-radius: 10px;
           overflow: hidden;
+          table-layout: auto;
         }
         .hpsr-continuous-editor th {
           background: rgba(103, 38, 20, 0.1);
           color: #672614;
           font-weight: 900;
-          text-align: left;
+          text-align: center;
         }
         .hpsr-continuous-editor td,
         .hpsr-continuous-editor th {
           border: 1px solid rgba(103, 38, 20, 0.22);
-          padding: 0.45rem 0.55rem;
-          vertical-align: top;
+          padding: 0.30rem 0.40rem;
+          vertical-align: middle;
+          text-align: center;
         }
         .hpsr-continuous-editor section[data-hpsr-auto-block="true"] {
           break-inside: avoid;
@@ -2804,13 +2955,15 @@ export default function ExamesPage() {
           line-height: 1.52;
         }
         .hpsr-continuous-editor section[data-hpsr-auto-block="true"] table {
-          margin: 0.48rem 0 0.62rem;
-          font-size: 13px;
+          width: min(82%, 640px);
+          margin: 0.42rem auto 0.58rem;
+          font-size: 12px;
         }
         .hpsr-continuous-editor section[data-hpsr-auto-block="true"] td,
         .hpsr-continuous-editor section[data-hpsr-auto-block="true"] th {
-          padding: 0.30rem 0.42rem;
-          line-height: 1.35;
+          padding: 0.24rem 0.34rem;
+          line-height: 1.28;
+          text-align: center;
         }
         .hpsr-continuous-editor blockquote {
           border-left: 4px solid rgba(103, 38, 20, 0.35);
@@ -2818,20 +2971,6 @@ export default function ExamesPage() {
           margin: 0.8rem 0;
           padding: 0.55rem 0.8rem;
           color: #5d4038;
-        }
-        @media print {
-          body * {
-            visibility: hidden;
-          }
-          .hpsr-render-page,
-          .hpsr-render-page * {
-            visibility: visible;
-          }
-          .hpsr-render-page {
-            position: fixed !important;
-            inset: 0 !important;
-            box-shadow: none !important;
-          }
         }
       `}</style>
     </div>
