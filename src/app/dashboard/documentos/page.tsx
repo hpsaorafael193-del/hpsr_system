@@ -23,7 +23,6 @@ import {
   Italic,
   List,
   ListOrdered,
-  Printer,
   ReceiptText,
   RefreshCw,
   Save,
@@ -182,7 +181,6 @@ const documentModels: DocumentModel[] = [
         type: "number",
       },
       { key: "inicio", label: "Início do afastamento", type: "date" },
-      { key: "cid", label: "CID opcional", placeholder: "Ex.: J06.9" },
       {
         key: "motivo",
         label: "Motivo / observação",
@@ -194,7 +192,6 @@ const documentModels: DocumentModel[] = [
       <h1>ATESTADO MÉDICO</h1>
       <p>Atesto, para os devidos fins, que <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, foi avaliado(a) nesta unidade em ${today}.</p>
       <p>Recomenda-se afastamento de suas atividades por <strong>${escapeHtml(field(values, "dias", "___"))} dia(s)</strong>, a partir de <strong>${brDate(field(values, "inicio"))}</strong>, conforme avaliação médica.</p>
-      ${field(values, "cid") ? `<p><strong>CID:</strong> ${escapeHtml(field(values, "cid"))}</p>` : ""}
       ${field(values, "motivo") ? `<p><strong>Observações:</strong><br />${paragraph(field(values, "motivo"))}</p>` : ""}
     `,
   },
@@ -580,9 +577,10 @@ export default function DocumentsPage() {
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [previewPageIndex, setPreviewPageIndex] = useState(0);
   const [previewRendering, setPreviewRendering] = useState(false);
+  const [savingDocument, setSavingDocument] = useState(false);
   const previewRenderingIndexesRef = useRef<Set<number>>(new Set());
   const [editorPageGuideTops, setEditorPageGuideTops] = useState<number[]>([]);
-  const [isConfidential, setIsConfidential] = useState(true);
+  const [isConfidential, setIsConfidential] = useState(false);
   const [tablePickerOpen, setTablePickerOpen] = useState(false);
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
@@ -1486,6 +1484,7 @@ export default function DocumentsPage() {
   }
 
   async function saveDocument() {
+    if (savingDocument) return;
     if (!patient.passport?.trim() || !patient.name?.trim()) {
       setAppDialog({ title: "Paciente obrigatório", message: "Selecione ou cadastre o paciente antes de salvar.", actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
       return;
@@ -1494,43 +1493,70 @@ export default function DocumentsPage() {
       setAppDialog({ title: "Dados inválidos", message: "Paciente e médico responsável não podem ser o mesmo registro.", actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
       return;
     }
-    const html = normalizeEditorHtml(
-      editorRef.current?.innerHTML || editorHtml || generatedHtml,
-    );
-    if (editorRef.current) editorRef.current.innerHTML = html;
-    setEditorHtml(html);
-    saveDraft(true);
 
-    const client = createClient();
-    if (client && patient.passport?.trim()) {
+    setSavingDocument(true);
+    try {
+      const html = normalizeEditorHtml(
+        editorRef.current?.innerHTML || editorHtml || generatedHtml,
+      );
+      if (editorRef.current) editorRef.current.innerHTML = html;
+      setEditorHtml(html);
+      saveDraft(true);
+
+      const pages = buildDocumentPages();
+      const savedAt = new Date().toISOString();
+      const renderedImages: string[] = [];
+      for (let index = 0; index < pages.length; index += 1) {
+        const canvas = await renderDocumentCanvas(pages[index], index, pages.length);
+        const image = canvas?.toDataURL("image/png") || "";
+        if (image.startsWith("data:image/")) renderedImages.push(image);
+      }
+
+      const client = createClient();
+      if (!client) throw new Error("Não foi possível conectar ao banco de dados.");
+
       const recordId = `document-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const { error } = await client.from("clinical_records").insert({
         id: recordId,
         patient_passport: patient.passport.trim(),
         record_type: "Documento",
         is_confidential: isConfidential,
-        released_at: isConfidential ? null : new Date().toISOString(),
+        released_at: isConfidential ? null : savedAt,
         payload: {
           documentTitle: selectedModel?.title || "Documento médico",
           documentHtml: html,
+          previewImage: renderedImages[0] || null,
+          previewImages: renderedImages,
           patient,
           doctor,
-          savedAt: new Date().toISOString(),
+          savedAt,
         },
       });
-      if (error) {
-        setAppDialog({ title: "Não foi possível salvar o documento", message: error.message, actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
-        return;
-      }
+      if (error) throw error;
+
+      const savedTime = new Date(savedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      setLastSavedAt(savedTime);
+      setSaveStatus(`Salvo às ${savedTime}`);
+      setPreviewPageHtmls(pages);
+      setPreviewImages(Array.from({ length: pages.length }, (_, index) => renderedImages[index] || ""));
+      setPreviewPageIndex(0);
+      setPreviewOpen(true);
+      setAppDialog({
+        title: "Documento salvo no sistema",
+        message: `O documento foi vinculado ao prontuário de ${patient.name} e já pode ser consultado conforme a configuração de sigilo.`,
+        actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
+      });
+    } catch (error) {
+      setAppDialog({
+        title: "Não foi possível salvar o documento",
+        message: error instanceof Error ? error.message : "Ocorreu um erro inesperado durante o salvamento.",
+        actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
+      });
+    } finally {
+      setSavingDocument(false);
     }
-
-    const pages = buildDocumentPages();
-    await initializePreviewPages(pages);
   }
 
-  function printDocument() {
-    window.print();
-  }
 
   const previewHtml = editorHtml || generatedHtml;
 
@@ -1542,11 +1568,11 @@ export default function DocumentsPage() {
 
   return (
     <>
-      <div className="hpsr-page gap-3 text-hpsr-text xl:h-[calc(100dvh-2.4rem)] xl:min-h-0 xl:overflow-hidden">
+      <div className="hpsr-page gap-3 text-hpsr-text 2xl:h-[calc(100dvh-2.4rem)] 2xl:min-h-0 2xl:overflow-hidden">
         <div className="hpsr-topbar" />
 
-        <section className="min-h-0 grid flex-1 gap-4 overflow-hidden xl:grid-cols-[360px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]">
-          <aside className="min-h-0 overflow-y-auto pr-1 xl:pr-2 no-print">
+        <section className="grid min-h-0 flex-1 gap-4 overflow-visible xl:grid-cols-[360px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)] 2xl:overflow-hidden">
+          <aside className="min-h-0 overflow-visible pr-0 xl:pr-2 2xl:overflow-y-auto no-print">
             <div className="rounded-[22px] border border-[#dfd1c5] bg-white p-3.5 shadow-[0_14px_34px_rgba(42,7,0,0.055)]">
               <PageHeader
                 eyebrow="Documentos"
@@ -1732,7 +1758,7 @@ export default function DocumentsPage() {
             </div>
           </aside>
 
-          <main className="hpsr-light-editor-shell flex min-h-0 flex-col overflow-hidden rounded-[22px] border border-[#ded0c4] bg-white shadow-[0_18px_46px_rgba(42,7,0,0.08)]">
+          <main className="hpsr-light-editor-shell flex min-h-0 flex-col overflow-visible rounded-[22px] 2xl:overflow-hidden border border-[#ded0c4] bg-white shadow-[0_18px_46px_rgba(42,7,0,0.08)]">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#ddc6b4] bg-white px-5 py-4 no-print">
               <div>
                 <h2 className="text-xl font-black tracking-[-0.01em] text-hpsr-text">
@@ -2022,10 +2048,11 @@ export default function DocumentsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={printDocument}
-                  className="inline-flex h-10 items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-4 text-xs font-black text-hpsr-text hover:border-hpsr-wine/40"
+                  onClick={() => void saveDocument()}
+                  disabled={savingDocument || previewRendering}
+                  className="inline-flex h-10 items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-4 text-xs font-black text-hpsr-text transition hover:border-hpsr-wine/40 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Printer size={15} /> Imprimir
+                  <Save size={15} /> {savingDocument ? "Salvando..." : "Salvar no sistema"}
                 </button>
               </div>
             </div>

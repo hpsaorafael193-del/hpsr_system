@@ -2,7 +2,7 @@
 import { formatPhoneNumber, formatPhoneDisplay } from "@/lib/phone";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   Archive,
@@ -127,6 +127,9 @@ export default function RecordsPage() {
   const [isLoadingPatients, setIsLoadingPatients] = useState(true);
   const [isDeletingPatient, setIsDeletingPatient] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const patientsSnapshotRef = useRef<PatientRecord[]>([]);
+  const timelineSnapshotRef = useRef<TimelineEvent[]>([]);
+  const loadRequestRef = useRef(0);
   const [examViewer, setExamViewer] = useState<{
     open: boolean;
     loading: boolean;
@@ -166,6 +169,14 @@ export default function RecordsPage() {
   }, [sharedPatients]);
 
   useEffect(() => {
+    patientsSnapshotRef.current = patients;
+  }, [patients]);
+
+  useEffect(() => {
+    timelineSnapshotRef.current = timelineEvents;
+  }, [timelineEvents]);
+
+  useEffect(() => {
     const client = createClient();
     if (!client) return;
     const supabase = client;
@@ -173,6 +184,8 @@ export default function RecordsPage() {
     let active = true;
 
     async function loadPatients() {
+      if (typeof document !== "undefined" && document.hidden) return;
+      const requestId = ++loadRequestRef.current;
       setIsLoadingPatients(true);
       const [registryResult, recordsResult, appointmentsResult, portalResult] = await Promise.all([
         supabase.from("patient_registry").select("passport,name,age,blood_type,city_phone,email,follow_up,created_at,updated_at").order("created_at", { ascending: false }),
@@ -181,7 +194,17 @@ export default function RecordsPage() {
         supabase.from("patient_portal_access").select("id,patient_passport,email,access_enabled,created_at").order("created_at", { ascending: false }),
       ]);
 
-      if (!active) return;
+      if (!active || requestId !== loadRequestRef.current) return;
+
+      const criticalError = registryResult.error || recordsResult.error;
+      if (criticalError) {
+        console.warn("[HPSR][Prontuários] Sincronização incompleta; mantendo o último estado válido.", {
+          registry: registryResult.error?.message,
+          records: recordsResult.error?.message,
+        });
+        setIsLoadingPatients(false);
+        return;
+      }
 
       const patientMap = new Map<string, PatientRecord>();
       const events: TimelineEvent[] = [];
@@ -216,7 +239,7 @@ export default function RecordsPage() {
         });
       }
 
-      for (const row of (portalResult.data || []) as any[]) {
+      for (const row of (portalResult.error ? [] : (portalResult.data || [])) as any[]) {
         const passport = String(row.patient_passport || "").trim();
         const current = patientMap.get(passport);
         if (!current) continue;
@@ -228,7 +251,7 @@ export default function RecordsPage() {
         });
       }
 
-      for (const row of (appointmentsResult.data || []) as any[]) {
+      for (const row of (appointmentsResult.error ? [] : (appointmentsResult.data || [])) as any[]) {
         const passport = String(row.passport || "").trim();
         if (!passport) continue;
         const registeredPatient = patientMap.get(passport);
@@ -284,12 +307,28 @@ export default function RecordsPage() {
         });
       }
 
-      setPatients(Array.from(patientMap.values()).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+      const nextPatients = Array.from(patientMap.values()).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+      const registryWasUnexpectedlyEmpty = nextPatients.length === 0 && patientsSnapshotRef.current.length > 0;
+      if (registryWasUnexpectedlyEmpty) {
+        console.warn("[HPSR][Prontuários] Resposta vazia inesperada; mantendo pacientes e registros carregados.");
+        setIsLoadingPatients(false);
+        return;
+      }
+
+      setPatients(nextPatients);
       setTimelineEvents(events);
       setIsLoadingPatients(false);
     }
 
     void loadPatients();
+
+    const handleVisibilityOrFocus = () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      void loadPatients();
+      void refreshSharedPatients();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+    window.addEventListener("focus", handleVisibilityOrFocus);
 
     const channel = client
       .channel("prontuarios-sync")
@@ -301,9 +340,11 @@ export default function RecordsPage() {
 
     return () => {
       active = false;
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
       void client.removeChannel(channel);
     };
-  }, [refreshKey]);
+  }, [refreshKey, refreshSharedPatients]);
 
   function refreshRecords() {
     if (isLoadingPatients || sharedPatientsLoading) return;
@@ -385,10 +426,11 @@ export default function RecordsPage() {
   }
 
   async function openSavedExam(event: TimelineEvent) {
-    if (event.type !== "Exame") return;
+    if (event.type !== "Exame" && event.type !== "Documento") return;
     const client = createClient();
+    const recordLabel = event.type === "Documento" ? "documento" : "exame";
     if (!client) {
-      await hpsrAlert("Não foi possível conectar ao Supabase.", "Exame indisponível");
+      await hpsrAlert("Não foi possível conectar ao Supabase.", `${event.type} indisponível`);
       return;
     }
 
@@ -397,13 +439,13 @@ export default function RecordsPage() {
       .from("clinical_records")
       .select("payload,created_at")
       .eq("id", event.id)
-      .eq("record_type", "Exame")
+      .eq("record_type", event.type)
       .eq("patient_passport", event.patientPassport)
       .maybeSingle();
 
     if (error || !data) {
       setExamViewer((current) => ({ ...current, loading: false }));
-      await hpsrAlert(error?.message || "O exame não foi encontrado no banco.", "Não foi possível abrir o exame");
+      await hpsrAlert(error?.message || `O ${recordLabel} não foi encontrado no banco.`, `Não foi possível abrir o ${recordLabel}`);
       return;
     }
 
@@ -417,8 +459,8 @@ export default function RecordsPage() {
     setExamViewer({
       open: true,
       loading: false,
-      title: String(payload.examName || payload.title || event.title || "Exame"),
-      reportHtml: String(payload.reportHtml || payload.finalHtml || payload.html || payload.editorHtml || ""),
+      title: String(payload.examName || payload.documentTitle || payload.title || event.title || event.type),
+      reportHtml: String(payload.reportHtml || payload.documentHtml || payload.finalHtml || payload.html || payload.editorHtml || ""),
       previewImages,
       patientName: String(payload.patient?.name || selectedPatient?.name || "Paciente"),
       doctorName: String(payload.doctor?.name || event.doctor || "Equipe médica"),
@@ -826,7 +868,7 @@ export default function RecordsPage() {
                 {activeTab === "timeline" && <TimelineTab events={patientEvents} />}
                 {activeTab === "consultas" && <FilteredEventsTab events={patientEvents} type="Consulta" empty="Nenhuma consulta registrada." />}
                 {activeTab === "exames" && <ExamsTab events={patientEvents} onDelete={deleteClinicalRecord} onOpen={openSavedExam} />}
-                {activeTab === "documentos" && <FilteredEventsTab events={patientEvents} type="Documento" empty="Nenhum documento vinculado." onDelete={deleteClinicalRecord} />}
+                {activeTab === "documentos" && <FilteredEventsTab events={patientEvents} type="Documento" empty="Nenhum documento vinculado." onDelete={deleteClinicalRecord} onOpen={openSavedExam} />}
                 {activeTab === "prescricoes" && <FilteredEventsTab events={patientEvents} type="Prescrição" empty="Nenhuma prescrição registrada." />}
                 {activeTab === "procedimentos" && <FilteredEventsTab events={patientEvents} type="Procedimento" empty="Nenhum procedimento registrado." />}
                 {activeTab === "observacoes" && <FilteredEventsTab events={patientEvents} type="Observação" empty="Nenhuma observação interna." />}
@@ -1172,7 +1214,7 @@ function EventCard({ event, onDelete, onOpen }: { event: TimelineEvent; onDelete
           <p className="mt-1 font-black text-hpsr-text">{formatDate(event.date)}</p>
           <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{event.doctor}</p>
         </div>
-        {onOpen && event.type === "Exame" && <button type="button" onClick={() => onOpen(event)} className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-hpsr-wine/20 bg-[#fff3e8] px-3 py-2 text-xs font-black text-hpsr-wine transition hover:bg-[#ffead8]"><Eye size={14} /> Visualizar exame</button>}
+        {onOpen && (event.type === "Exame" || event.type === "Documento") && <button type="button" onClick={() => onOpen(event)} className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-hpsr-wine/20 bg-[#fff3e8] px-3 py-2 text-xs font-black text-hpsr-wine transition hover:bg-[#ffead8]"><Eye size={14} /> Visualizar {event.type.toLowerCase()}</button>}
         {onDelete && (event.type === "Exame" || event.type === "Documento") && <button type="button" onClick={() => onDelete(event)} className="rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">Excluir {event.type.toLowerCase()}</button>}
         </div>
       </div>
@@ -1194,7 +1236,7 @@ function SavedExamViewer({
       <div className="flex h-[94vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[24px] border border-white/70 bg-[#f5eee7] shadow-[0_30px_100px_rgba(24,5,0,.45)]">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-hpsr-border bg-white px-4 py-3 sm:px-5">
           <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Exame salvo no prontuário</p>
+            <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Registro salvo no prontuário</p>
             <h3 className="truncate text-lg font-black text-hpsr-text sm:text-xl">{exam.title}</h3>
             <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{exam.patientName} · {exam.doctorName}{exam.savedAt ? ` · ${new Date(exam.savedAt).toLocaleString("pt-BR")}` : ""}</p>
           </div>
@@ -1205,13 +1247,13 @@ function SavedExamViewer({
         </header>
         <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-5">
           {exam.loading ? (
-            <div className="flex min-h-full items-center justify-center"><div className="text-center"><LoaderCircle className="mx-auto animate-spin text-hpsr-wine" size={30} /><p className="mt-3 text-sm font-black text-hpsr-text">Carregando exame...</p></div></div>
+            <div className="flex min-h-full items-center justify-center"><div className="text-center"><LoaderCircle className="mx-auto animate-spin text-hpsr-wine" size={30} /><p className="mt-3 text-sm font-black text-hpsr-text">Carregando registro...</p></div></div>
           ) : exam.previewImages.length ? (
-            <div className="mx-auto grid max-w-[900px] gap-5">{exam.previewImages.map((src, index) => <figure key={`${src.slice(0, 40)}-${index}`} className="overflow-hidden rounded-[10px] bg-white shadow-[0_12px_40px_rgba(42,7,0,.18)]"><img src={src} alt={`Página ${index + 1} do exame`} className="block h-auto w-full" /><figcaption className="border-t border-hpsr-border px-3 py-2 text-center text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Página {index + 1}</figcaption></figure>)}</div>
+            <div className="mx-auto grid max-w-[900px] gap-5">{exam.previewImages.map((src, index) => <figure key={`${src.slice(0, 40)}-${index}`} className="overflow-hidden rounded-[10px] bg-white shadow-[0_12px_40px_rgba(42,7,0,.18)]"><img src={src} alt={`Página ${index + 1} do registro`} className="block h-auto w-full" /><figcaption className="border-t border-hpsr-border px-3 py-2 text-center text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Página {index + 1}</figcaption></figure>)}</div>
           ) : exam.reportHtml ? (
             <div className="mx-auto min-h-[900px] max-w-[900px] overflow-hidden rounded-[10px] bg-white shadow-[0_12px_40px_rgba(42,7,0,.18)]"><iframe title={exam.title} srcDoc={exam.reportHtml} className="h-[1100px] w-full border-0 bg-white" /></div>
           ) : (
-            <div className="flex min-h-full items-center justify-center"><EmptyState text="O conteúdo completo deste exame não está disponível." /></div>
+            <div className="flex min-h-full items-center justify-center"><EmptyState text="O conteúdo completo deste registro não está disponível." /></div>
           )}
         </div>
       </div>

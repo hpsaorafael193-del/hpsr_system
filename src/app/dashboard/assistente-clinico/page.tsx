@@ -144,28 +144,63 @@ function drawMultilineCenteredText(context: CanvasRenderingContext2D, text: stri
   return lines.length;
 }
 
-function drawTemplateLabelCover(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, title: string, subtitle?: string, align: CanvasTextAlign = "left") {
-  context.fillStyle = "rgba(255,250,244,0.98)";
-  context.fillRect(x, y, width, height);
-  context.fillStyle = "#8f4c2d";
-  context.textAlign = align;
-  context.font = "600 15px Arial";
-  const textX = align === "right" ? x + width : x;
-  context.fillText(title, textX, y + 18);
-  if (subtitle) {
-    context.font = "700 18px Arial";
-    context.fillText(subtitle, textX, y + 40);
+function fitCanvasFontSize(
+  context: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  baseSize: number,
+  minSize = 13,
+  fontFamily = "Georgia",
+  fontWeight = "700",
+) {
+  let size = baseSize;
+  while (size > minSize) {
+    context.font = `${fontWeight} ${size}px ${fontFamily}`;
+    if (context.measureText(text).width <= maxWidth) return size;
+    size -= 1;
   }
+  return minSize;
+}
+
+function drawSingleLineField(
+  context: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  width: number,
+  options?: { fontFamily?: string; fontWeight?: string; baseSize?: number; minSize?: number; color?: string; align?: CanvasTextAlign },
+) {
+  const value = (text || "").trim() || "—";
+  const {
+    fontFamily = "Georgia",
+    fontWeight = "700",
+    baseSize = 42,
+    minSize = 15,
+    color = "#5f250f",
+    align = "left",
+  } = options || {};
+  const size = fitCanvasFontSize(context, value, width, baseSize, minSize, fontFamily, fontWeight);
+  context.font = `${fontWeight} ${size}px ${fontFamily}`;
+  context.fillStyle = color;
+  context.textAlign = align;
+  if (align === "center") context.fillText(value, x + width / 2, y);
+  else if (align === "right") context.fillText(value, x + width, y);
+  else context.fillText(value, x, y);
   context.textAlign = "left";
 }
 
 function drawDateChips(context: CanvasRenderingContext2D, dates: string[], rects: Array<{ x: number; y: number; width: number; height: number }>) {
-  context.fillStyle = "#ffffff";
-  context.font = "800 21px Arial";
   dates.forEach((date, index) => {
     const rect = rects[index];
     if (!rect) return;
-    drawCenteredText(context, date, rect.x, rect.y + rect.height / 2 + 7, rect.width);
+    const fontSize = fitCanvasFontSize(context, date, rect.width - 18, 21, 14, "Arial", "800");
+    context.fillStyle = "#ffffff";
+    context.font = `800 ${fontSize}px Arial`;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(date, rect.x + rect.width / 2, rect.y + rect.height / 2 + 1);
+    context.textAlign = "left";
+    context.textBaseline = "alphabetic";
   });
 }
 
@@ -217,14 +252,21 @@ async function downloadObstetricPlanningImage({
   if (!context) return;
 
   context.drawImage(background, 0, 0);
-  drawTemplateLabelCover(context, 50, 170, 485, 42, "Hospital São Rafael", planType === "short" ? "Planejamento pré-natal · modelo curto" : "Planejamento pré-natal · modelo longo");
-  drawTemplateLabelCover(context, background.width - 280, 250, 240, 56, "HOSPITAL", "SÃO RAFAEL", "right");
 
-  context.fillStyle = "#5f250f";
-  context.font = "700 42px Georgia";
-  context.fillText(patientName || "Paciente não informado", 52, 255);
-  context.font = "700 23px Arial";
-  context.fillText(passport || "—", 62, 312);
+  drawSingleLineField(context, patientName || "Paciente não informado", 54, 255, 710, {
+    fontFamily: "Georgia",
+    fontWeight: "700",
+    baseSize: 42,
+    minSize: 20,
+    color: "#5f250f",
+  });
+  drawSingleLineField(context, passport || "—", 64, 312, 400, {
+    fontFamily: "Arial",
+    fontWeight: "700",
+    baseSize: 23,
+    minSize: 15,
+    color: "#6a341f",
+  });
 
   const dates = buildPregnancyPlanDates({ currentWeek, durationDays, startDate, planType }).map((item) => item.date);
   const rects = planType === "short"
@@ -271,14 +313,21 @@ async function downloadIvfPlanningImage({
   if (!context) return;
 
   context.drawImage(background, 0, 0);
-  drawTemplateLabelCover(context, 55, 170, 485, 42, "Hospital São Rafael", responsible ? `Planejamento FIV · ${responsible}` : "Planejamento FIV · Ginecologia");
-  drawTemplateLabelCover(context, background.width - 280, 250, 240, 56, "HOSPITAL", "SÃO RAFAEL", "right");
 
-  context.fillStyle = "#5f250f";
-  context.font = "700 42px Georgia";
-  context.fillText(patientName || "Paciente não informado", 52, 255);
-  context.font = "700 23px Arial";
-  context.fillText(passport || "—", 62, 312);
+  drawSingleLineField(context, patientName || "Paciente não informado", 60, 255, 700, {
+    fontFamily: "Georgia",
+    fontWeight: "700",
+    baseSize: 42,
+    minSize: 20,
+    color: "#5f250f",
+  });
+  drawSingleLineField(context, passport || "—", 70, 312, 400, {
+    fontFamily: "Arial",
+    fontWeight: "700",
+    baseSize: 23,
+    minSize: 15,
+    color: "#6a341f",
+  });
 
   const dates = ivfPlan.map((item) => formatDate(addDays(startDate, (item.week - 1) * 7)));
   const rects = [

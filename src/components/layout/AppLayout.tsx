@@ -52,7 +52,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       <main
         className={cn(
-          "relative min-h-dvh min-w-0 overflow-x-hidden overflow-y-auto transition-all duration-300",
+          "hpsr-main-scroll relative min-h-dvh min-w-0 overflow-x-hidden overflow-y-auto transition-all duration-300",
           isTraumatologyFixedPage && "xl:h-dvh xl:min-h-0 xl:overflow-y-hidden",
           collapsed ? "lg:pl-[92px]" : "lg:pl-[292px]"
         )}

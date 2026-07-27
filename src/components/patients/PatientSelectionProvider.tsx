@@ -109,8 +109,14 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
         .filter(Boolean) as SharedPatient[];
 
       authoritative.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-      setPatients(authoritative);
-      writePatientCache(authoritative);
+      setPatients((current) => {
+        if (!authoritative.length && current.length) {
+          console.warn("[HPSR] Resposta vazia inesperada ao sincronizar pacientes; mantendo cache atual.");
+          return current;
+        }
+        writePatientCache(authoritative);
+        return authoritative;
+      });
       setLoading(false);
     })();
 
@@ -125,14 +131,29 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
   useEffect(() => {
     void refreshPatients();
     const unsubscribeLocal = subscribePatientRegistryUpdated(() => void refreshPatients());
+    const handleVisibilityOrFocus = () => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      void refreshPatients();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+    window.addEventListener("focus", handleVisibilityOrFocus);
+
     const client = createClient();
-    if (!client) return unsubscribeLocal;
+    if (!client) {
+      return () => {
+        unsubscribeLocal();
+        document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+        window.removeEventListener("focus", handleVisibilityOrFocus);
+      };
+    }
     const channel = client
       .channel("shared-patient-selection")
       .on("postgres_changes", { event: "*", schema: "public", table: "patient_registry" }, () => void refreshPatients())
       .subscribe();
     return () => {
       unsubscribeLocal();
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
       void client.removeChannel(channel);
     };
   }, [refreshPatients]);

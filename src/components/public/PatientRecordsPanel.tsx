@@ -82,7 +82,7 @@ export function PatientRecordsPanel({ onSessionExpired }: { onSessionExpired?: (
       });
       return;
     }
-    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${record.title}</title><style>body{font-family:Arial,sans-serif;max-width:850px;margin:40px auto;padding:0 24px;color:#32150f}h1{color:#6f2b17}header{border-bottom:2px solid #6f2b17;padding-bottom:16px;margin-bottom:24px}.notice{background:#fff3cd;border:1px solid #f1ce6b;padding:12px;border-radius:10px;margin-bottom:20px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #dbc2ae;padding:8px}</style></head><body><header><h1>Hospital São Rafael - Eldorado</h1><p>${record.title}</p><p>${formatDate(record.createdAt)} · ${record.doctor}</p></header><div class="notice"><strong>Aviso institucional:</strong> documento disponibilizado pelo Hospital São Rafael.</div><main>${record.html || "<p>Conteúdo não disponível para exportação.</p>"}</main></body></html>`;
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${record.title}</title><style>body{font-family:Arial,sans-serif;max-width:850px;margin:40px auto;padding:0 24px;color:#32150f}h1{color:#6f2b17}header{border-bottom:2px solid #6f2b17;padding-bottom:16px;margin-bottom:24px}.notice{background:#fff3cd;border:1px solid #f1ce6b;padding:12px;border-radius:10px;margin-bottom:20px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #dbc2ae;padding:8px}</style></head><body><header><h1>Hospital São Rafael</h1><p>${record.title}</p><p>${formatDate(record.createdAt)} · ${record.doctor}</p></header><div class="notice"><strong>Aviso institucional:</strong> documento disponibilizado pelo Hospital São Rafael.</div><main>${record.html || "<p>Conteúdo não disponível para exportação.</p>"}</main></body></html>`;
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -113,7 +113,7 @@ export function PatientRecordsPanel({ onSessionExpired }: { onSessionExpired?: (
 
       {error && <p className="mt-4 rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">{error}</p>}
 
-      <div className="mt-4 max-h-[520px] space-y-2 overflow-y-auto pr-1">
+      <div className="hpsr-touch-scroll mt-4 max-h-[min(520px,62dvh)] space-y-2 overflow-y-auto pr-1">
         {visibleRecords.map((record) => (
           <article key={record.id} className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3.5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -125,7 +125,7 @@ export function PatientRecordsPanel({ onSessionExpired }: { onSessionExpired?: (
                 <p className="mt-1 text-xs font-semibold text-hpsr-muted">{record.type} · {formatDate(record.createdAt)} · {record.doctor}</p>
                 {record.protocol && <p className="mt-1 text-[11px] font-bold text-hpsr-wineLight">Protocolo: {record.protocol}</p>}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2 sm:flex-nowrap">
                 <button type="button" onClick={() => void loadRecordDetail(record, "view")} className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine"><Eye size={15} /> Visualizar</button>
                 <button type="button" onClick={() => void loadRecordDetail(record, "download")} className="inline-flex items-center gap-2 rounded-[12px] bg-hpsr-wine px-3 py-2 text-xs font-black text-white"><Download size={15} /> Baixar</button>
               </div>
@@ -136,10 +136,10 @@ export function PatientRecordsPanel({ onSessionExpired }: { onSessionExpired?: (
       </div>
 
       {selected && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/55 p-3" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
-          <div className="max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-2xl">
+        <div className="fixed inset-0 z-[120] flex items-end justify-center overflow-y-auto bg-black/55 p-2 sm:items-center sm:p-3" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
+          <div className="flex max-h-[96dvh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[22px] border border-hpsr-border bg-white shadow-2xl sm:max-h-[92dvh] sm:rounded-[22px]">
             <div className="flex items-center justify-between border-b border-hpsr-border bg-[#fff8f0] p-4"><div><h3 className="font-black text-hpsr-text">{selected.title}</h3><p className="text-xs font-semibold text-hpsr-muted">{formatDate(selected.createdAt)} · {selected.doctor}</p></div><button type="button" onClick={() => setSelected(null)} className="rounded-full border border-hpsr-border bg-white p-2 text-hpsr-wine"><X size={18} /></button></div>
-            <div className="max-h-[72vh] overflow-y-auto p-5"><div className="mb-4 rounded-[12px] border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-950">Conteúdo disponibilizado pelo Hospital São Rafael.</div>{(selected.previewImages?.length || selected.previewImage) ? <div className="space-y-4">{(selected.previewImages?.length ? selected.previewImages : [selected.previewImage!]).map((page, index) => <img key={`${selected.id}-${index}`} src={page} alt={`${selected.title} — página ${index + 1}`} className="mx-auto h-auto max-w-full rounded-[12px] border border-hpsr-border bg-white" />)}</div> : <div className="prose max-w-none text-hpsr-text" dangerouslySetInnerHTML={{ __html: selected.html || "<p>Este registro antigo não possui conteúdo formatado disponível.</p>" }} />}</div>
+            <div className="hpsr-touch-scroll min-h-0 flex-1 overflow-y-auto p-3 sm:p-5"><div className="mb-4 rounded-[12px] border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-950">Conteúdo disponibilizado pelo Hospital São Rafael.</div>{(selected.previewImages?.length || selected.previewImage) ? <div className="space-y-4">{(selected.previewImages?.length ? selected.previewImages : [selected.previewImage!]).map((page, index) => <img key={`${selected.id}-${index}`} src={page} alt={`${selected.title} — página ${index + 1}`} className="mx-auto h-auto max-w-full rounded-[12px] border border-hpsr-border bg-white" />)}</div> : <div className="prose max-w-none text-hpsr-text" dangerouslySetInnerHTML={{ __html: selected.html || "<p>Este registro antigo não possui conteúdo formatado disponível.</p>" }} />}</div>
           </div>
         </div>
       )}

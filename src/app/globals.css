@@ -349,3 +349,84 @@ button:active {
   outline: none;
 }
 .portal-input:focus { border-color: #7b2d1a; box-shadow: 0 0 0 3px rgba(123,45,26,.08); }
+
+
+/* Rolagem responsiva e natural para dispositivos por toque. */
+.hpsr-main-scroll,
+.hpsr-touch-scroll,
+[class*="overflow-y-auto"],
+[class*="overflow-auto"],
+[class*="overflow-x-auto"] {
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (pointer: coarse) {
+  html,
+  body {
+    overscroll-behavior-y: auto;
+  }
+
+  .hpsr-main-scroll,
+  .hpsr-touch-scroll,
+  [class*="overflow-y-auto"],
+  [class*="overflow-auto"],
+  [class*="overflow-x-auto"] {
+    touch-action: pan-x pan-y pinch-zoom;
+    scrollbar-width: none;
+  }
+
+  .hpsr-main-scroll::-webkit-scrollbar,
+  .hpsr-touch-scroll::-webkit-scrollbar,
+  [class*="overflow-y-auto"]::-webkit-scrollbar,
+  [class*="overflow-auto"]::-webkit-scrollbar,
+  [class*="overflow-x-auto"]::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+}
+
+/* Monitores verticais, notebooks menores e tablets usam fluxo natural. */
+@media (max-width: 1279px) {
+  .hpsr-page,
+  .hpsr-fixed-page {
+    height: auto !important;
+    min-height: auto !important;
+    overflow: visible !important;
+  }
+
+  .hpsr-page > section:not(.fixed),
+  .hpsr-page > main:not(.fixed),
+  .hpsr-page > aside:not(.fixed) {
+    max-height: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .hpsr-page {
+    gap: 0.75rem;
+  }
+
+  .hpsr-page-header {
+    padding: 1rem;
+    border-radius: 18px;
+  }
+
+  .hpsr-modal-shell {
+    max-height: calc(100dvh - 1rem);
+    border-radius: 16px;
+  }
+
+  .hpsr-page button,
+  .hpsr-page a[role="button"] {
+    min-height: 42px;
+  }
+}

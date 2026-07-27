@@ -2179,11 +2179,11 @@ export default function ExamesPage() {
   }
 
   return (
-    <div className="hpsr-page gap-3 text-hpsr-text xl:h-[calc(100dvh-2.4rem)] xl:min-h-0 xl:overflow-hidden">
+    <div className="hpsr-page gap-3 text-hpsr-text 2xl:h-[calc(100dvh-2.4rem)] 2xl:min-h-0 2xl:overflow-hidden">
       <div className="hpsr-topbar" />
 
-      <section className="min-h-0 grid flex-1 gap-4 overflow-hidden xl:grid-cols-[420px_minmax(0,1fr)] 2xl:grid-cols-[440px_minmax(0,1fr)]">
-        <aside className="min-h-0 overflow-y-auto pr-1 xl:pr-2">
+      <section className="grid min-h-0 flex-1 gap-4 overflow-visible xl:grid-cols-[420px_minmax(0,1fr)] 2xl:grid-cols-[440px_minmax(0,1fr)] 2xl:overflow-hidden">
+        <aside className="min-h-0 overflow-visible pr-0 xl:pr-2 2xl:overflow-y-auto">
           <div className="rounded-[22px] border border-[#dfd1c5] bg-white p-3.5 shadow-[0_14px_34px_rgba(42,7,0,0.055)]">
             <PageHeader
               eyebrow="Exames"
@@ -2585,7 +2585,7 @@ export default function ExamesPage() {
           </div>
         </aside>
 
-        <main className="hpsr-light-editor-shell flex min-h-0 flex-col overflow-hidden rounded-[22px] border border-[#ded0c4] bg-white shadow-[0_18px_46px_rgba(42,7,0,0.08)]">
+        <main className="hpsr-light-editor-shell flex min-h-0 flex-col overflow-visible rounded-[22px] 2xl:overflow-hidden border border-[#ded0c4] bg-white shadow-[0_18px_46px_rgba(42,7,0,0.08)]">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#ddc6b4] bg-white px-5 py-4">
             <div>
               <h2 className="text-xl font-black tracking-[-0.01em] text-hpsr-text">
