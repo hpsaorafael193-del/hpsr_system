@@ -443,10 +443,10 @@ export default function CalculatorPage() {
         description="Calculadora de valores do Hospital São Rafael."
       />
 
-      <div className="hpsr-page-scroll min-h-0 flex-1 overflow-hidden">
+      <div className="hpsr-page-scroll hpsr-calculadora-scroll-region min-h-0 flex-1 overflow-hidden">
       <section className="grid h-full min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-stretch">
         <div className="order-2 min-h-0 overflow-hidden xl:order-1">
-          <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfa_0%,#ffffff_100%)] shadow-[0_14px_34px_rgba(79,42,21,0.07)]">
+          <section className="hpsr-calculadora-panel flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfa_0%,#ffffff_100%)] shadow-[0_14px_34px_rgba(79,42,21,0.07)]">
             <div className="shrink-0 border-b border-hpsr-border/70 bg-[linear-gradient(180deg,#f8f1e8_0%,#f4ebe0_100%)] p-2.5">
               <div className="grid gap-2 rounded-[16px] bg-[#f0e7dd] p-2 lg:grid-cols-2">
                 {tabs.map((tab) => (
@@ -520,7 +520,7 @@ export default function CalculatorPage() {
 
             </div>
 
-            <div className="min-h-0 flex-1 overscroll-contain overflow-y-auto px-3.5 pb-3.5 pt-3">
+            <div className="hpsr-calculadora-scroll-region min-h-0 flex-1 overscroll-contain overflow-y-auto px-3.5 pb-3.5 pt-3">
               {viewMode === "list" ? (
                 <ProductList
                   products={filteredProducts}
@@ -549,8 +549,8 @@ export default function CalculatorPage() {
         </div>
 
         <aside className="order-1 min-h-0 overflow-hidden xl:order-2">
-          <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-[0_18px_42px_rgba(79,42,21,0.09)]">
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-[linear-gradient(145deg,#fff8f1_0%,#f8eadc_100%)] p-4">
+          <section className="hpsr-calculadora-panel flex h-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-[0_18px_42px_rgba(79,42,21,0.09)]">
+            <div className="hpsr-calculadora-scroll-region flex min-h-0 flex-1 flex-col overflow-hidden bg-[linear-gradient(145deg,#fff8f1_0%,#f8eadc_100%)] p-4">
               <div className="flex shrink-0 items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white shadow-sm">
@@ -566,7 +566,7 @@ export default function CalculatorPage() {
                 </span>
               </div>
 
-              <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[#d9cbbb] bg-[linear-gradient(180deg,#fffefd_0%,#fff8f1_100%)] p-4 shadow-[0_10px_28px_rgba(90,46,24,0.07)]">
+              <div className="hpsr-calculadora-scroll-region mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[#d9cbbb] bg-[linear-gradient(180deg,#fffefd_0%,#fff8f1_100%)] p-4 shadow-[0_10px_28px_rgba(90,46,24,0.07)]">
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b border-dashed border-[#cfbda9] pb-3">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[.08em] text-hpsr-muted">Condições da compra</p>
@@ -631,12 +631,12 @@ export default function CalculatorPage() {
                   ))}
                 </div>
 
-                <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden border-t border-dashed border-[#cfbda9] pt-3">
+                <div className="hpsr-calculadora-scroll-region mt-3 flex min-h-0 flex-1 flex-col overflow-hidden border-t border-dashed border-[#cfbda9] pt-3">
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <p className="text-[11px] font-black uppercase tracking-[.08em] text-hpsr-muted">Itens da compra</p>
                     <p className="text-[11px] font-bold text-hpsr-muted">Qtd. total: {totalUnits}</p>
                   </div>
-                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+                  <div className="hpsr-calculadora-scroll-region min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
                     {selectedItems.length ? (
                       <div className="space-y-2.5">
                         {selectedItems.map((item, index) => (

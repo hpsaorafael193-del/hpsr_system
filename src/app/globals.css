@@ -430,3 +430,40 @@ button:active {
     min-height: 42px;
   }
 }
+
+/* Calculadora: rolagem móvel contínua, inclusive quando o gesto começa sobre cards e botões. */
+@media (max-width: 1279px), (pointer: coarse) {
+  .hpsr-calculadora-page,
+  .hpsr-calculadora-page > .hpsr-page-scroll,
+  .hpsr-calculadora-page > .hpsr-page-scroll > section {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overscroll-behavior: auto !important;
+  }
+
+  .hpsr-calculadora-page .hpsr-calculadora-panel,
+  .hpsr-calculadora-page .hpsr-calculadora-scroll-region {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overscroll-behavior: auto !important;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y pinch-zoom;
+  }
+
+  .hpsr-calculadora-page button,
+  .hpsr-calculadora-page [role="button"],
+  .hpsr-calculadora-page article,
+  .hpsr-calculadora-page li {
+    touch-action: pan-y;
+  }
+
+  .hpsr-calculadora-page input,
+  .hpsr-calculadora-page select,
+  .hpsr-calculadora-page textarea {
+    touch-action: manipulation;
+  }
+}
