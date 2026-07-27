@@ -467,3 +467,65 @@ button:active {
     touch-action: manipulation;
   }
 }
+
+/* Rolagem touch unificada para todas as abas do painel.
+   Mantém cards/modais com recorte visual, mas impede que estruturas de desktop
+   capturem o gesto vertical em celulares, tablets e monitores estreitos. */
+@media (max-width: 1279px), (pointer: coarse) {
+  .hpsr-page,
+  .hpsr-fixed-page,
+  .hpsr-page > .hpsr-page-scroll,
+  .hpsr-page > section:not(.fixed),
+  .hpsr-page > main:not(.fixed),
+  .hpsr-page > aside:not(.fixed) {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+    overscroll-behavior-y: auto !important;
+  }
+
+  .hpsr-page > .hpsr-page-scroll,
+  .hpsr-page > section:not(.fixed),
+  .hpsr-page > main:not(.fixed),
+  .hpsr-page > aside:not(.fixed),
+  .hpsr-page article,
+  .hpsr-page li,
+  .hpsr-page button,
+  .hpsr-page [role="button"],
+  .hpsr-page details,
+  .hpsr-page summary,
+  .hpsr-page label {
+    touch-action: pan-y;
+  }
+
+  .hpsr-page [class*="overflow-y-auto"],
+  .hpsr-page [class*="overflow-auto"] {
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y pinch-zoom;
+  }
+
+  .hpsr-page [class*="overflow-x-auto"] {
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y pinch-zoom;
+  }
+
+  .hpsr-page input,
+  .hpsr-page textarea,
+  .hpsr-page select,
+  .hpsr-page [contenteditable="true"] {
+    touch-action: manipulation;
+  }
+
+  /* Painéis de desktop que normalmente usam altura total deixam a página
+     principal assumir a rolagem no touch, sem afetar janelas fixas. */
+  .hpsr-page .hpsr-mobile-natural-flow,
+  .hpsr-page .hpsr-touch-scroll {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+}
