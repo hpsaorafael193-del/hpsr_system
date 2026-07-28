@@ -35,8 +35,9 @@ export async function GET(request: NextRequest) {
     }
     const passport = String(access.patient_passport || "");
     const { data: patient } = await supabase.from("patient_registry").select("name").eq("passport", passport).maybeSingle();
+    const { data: accessiblePatients } = await supabase.rpc("patient_portal_accessible_patients", { target_passport: passport });
     const passportHint = passport.length > 4 ? `${passport.slice(0, 2)}•••${passport.slice(-2)}` : "••••";
-    return NextResponse.json({ authenticated: true, expiresAt: session.expires_at, passportHint, patientName: patient?.name || "Paciente" });
+    return NextResponse.json({ authenticated: true, expiresAt: session.expires_at, passportHint, patientName: patient?.name || "Paciente", accessiblePatients: accessiblePatients || [] });
   } catch (error) {
     console.error("[patient-portal] session", error);
     return NextResponse.json({ authenticated: false });

@@ -24,6 +24,7 @@ export default function DirectionPage() {
   const [search, setSearch] = useState("");
   const [reportPeriod, setReportPeriod] = useState("all");
   const [activityChartFilter, setActivityChartFilter] = useState<"modules" | "plans" | "exams" | "services">("modules");
+  const [exportingReport, setExportingReport] = useState(false);
 
   useEffect(() => {
     async function loadDirectionData() {
@@ -202,23 +203,79 @@ export default function DirectionPage() {
     );
   }
 
-  function handleExportReport() {
-    exportAdministrativeReport(teamMembers, applications.map((item) => ({
-      name: item.name || "Candidato",
-      passport: item.passport || "",
-      discord: item.discord || "",
-      desiredRole: item.desiredRole || item.desired_role || "",
-      interestArea: item.interestArea || "",
-      createdAt: item.createdAt || item.created_at || "",
-      triageDecision: item.triageDecision || "",
-      status: item.status || "",
-      decisionAt: item.decisionAt || "",
-      interviewStatus: item.interviewStatus || "",
-      interviewAt: item.interviewAt || "",
-      interviewResult: item.interviewResult || "",
-      interviewNotes: item.interviewNotes || "",
-      notes: item.notes || "",
-    })));
+  async function handleExportReport() {
+    const client = createClient();
+    if (!client || exportingReport) return;
+    setExportingReport(true);
+    try {
+      const startTimestamp = getPeriodStart(reportPeriod);
+      const fromIso = startTimestamp ? new Date(startTimestamp).toISOString() : "";
+      const reportWarnings: string[] = [];
+      const fetchAll = async (table: string, orderColumn = "created_at") => {
+        const pageSize = 1000;
+        const rows: GenericRecord[] = [];
+        for (let offset = 0; ; offset += pageSize) {
+          let query: any = client.from(table).select("*").order(orderColumn, { ascending: false }).range(offset, offset + pageSize - 1);
+          if (fromIso && orderColumn !== "month_start") query = query.gte(orderColumn, fromIso);
+          const { data, error } = await query;
+          if (error) { reportWarnings.push(`${table}: ${error.message}`); break; }
+          const page = (data || []) as GenericRecord[];
+          rows.push(...page);
+          if (page.length < pageSize) break;
+        }
+        return rows;
+      };
+
+      const [profileRows, activityRows, teamRows, applicationRows, registrationRows, patientRows, appointmentRows, clinicalRows, receiptRows, planRows, timeRows, auditRows, bedRows, donationRows, castRows, followupPlanRows, followupOccurrenceRows, guardianRows] = await Promise.all([
+        fetchAll("profiles"),
+        fetchAll("system_activities"),
+        fetchAll("team_members"),
+        fetchAll("staff_applications"),
+        fetchAll("staff_registration_requests"),
+        fetchAll("patient_registry"),
+        fetchAll("appointments"),
+        fetchAll("clinical_records"),
+        fetchAll("financial_receipts"),
+        fetchAll("financial_plan_entries"),
+        fetchAll("time_clock_entries", "opened_at"),
+        fetchAll("time_clock_audit"),
+        fetchAll("hospital_beds", "updated_at"),
+        fetchAll("blood_donations"),
+        fetchAll("cast_records"),
+        fetchAll("clinical_followup_plans"),
+        fetchAll("clinical_followup_occurrences"),
+        fetchAll("patient_guardian_links"),
+      ]);
+
+      exportAdministrativeReport({
+        periodLabel,
+        warnings: reportWarnings,
+        profiles: profileRows,
+        activities: activityRows,
+        teamMembers: teamRows,
+        applications: applicationRows,
+        registrationRequests: registrationRows,
+        patients: patientRows,
+        appointments: appointmentRows,
+        clinicalRecords: clinicalRows,
+        receipts: receiptRows,
+        planEntries: planRows,
+        timeEntries: timeRows,
+        timeAudits: auditRows,
+        extraSections: [
+          { name: "Leitos", title: "Situação e movimentações de leitos", rows: bedRows },
+          { name: "Doações de sangue", title: "Registros de doações de sangue", rows: donationRows },
+          { name: "Traumatologia", title: "Registros de gesso e traumatologia", rows: castRows },
+          { name: "Acompanhamentos", title: "Planos de acompanhamento clínico", rows: followupPlanRows },
+          { name: "Ocorrências acomp.", title: "Ocorrências dos acompanhamentos clínicos", rows: followupOccurrenceRows },
+          { name: "Responsáveis", title: "Vínculos de responsáveis por pacientes", rows: guardianRows },
+        ],
+      });
+    } catch (error) {
+      window.alert(error instanceof Error ? `Não foi possível gerar o relatório completo. ${error.message}` : "Não foi possível gerar o relatório completo.");
+    } finally {
+      setExportingReport(false);
+    }
   }
 
   return <div className="hpsr-page gap-3 lg:h-[calc(100dvh-2.4rem)] lg:min-h-0 lg:overflow-hidden">
@@ -240,7 +297,7 @@ export default function DirectionPage() {
               <option value="all">Todo o histórico</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option>
             </StyledSelect>
           </label>
-          <button type="button" onClick={handleExportReport} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 text-xs font-black text-white transition hover:opacity-90"><Download size={15}/> Exportar relatório</button>
+          <button type="button" onClick={handleExportReport} disabled={exportingReport} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 text-xs font-black text-white transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60"><Download size={15}/> {exportingReport ? "Gerando relatório..." : "Exportar relatório"}</button>
           <ExportMenu onActivities={handleExportActivities} onTeam={handleExportTeam} onApplications={handleExportApplications}/>
         </div>
       </div>

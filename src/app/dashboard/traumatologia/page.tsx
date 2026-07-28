@@ -228,7 +228,10 @@ export default function TraumaPage() {
       return;
     }
     setQuickSaving(true);
-    const { error } = await client.from("patient_registry").upsert({
+    const { data: duplicate, error: duplicateError } = await client.from("patient_registry").select("name").eq("passport", patient.passport).maybeSingle();
+    if (duplicateError) { setQuickSaving(false); await hpsrAlert(duplicateError.message, "Não foi possível verificar o passaporte"); return; }
+    if (duplicate) { setQuickSaving(false); await hpsrAlert(`O passaporte já pertence a ${duplicate.name}. Abra o prontuário para editar os dados com segurança.`, "Passaporte já cadastrado"); return; }
+    const { error } = await client.from("patient_registry").insert({
       passport: patient.passport,
       name: patient.name,
       age: patient.age || null,
@@ -237,10 +240,10 @@ export default function TraumaPage() {
       email: patient.email || null,
       follow_up: patient.followUp,
       updated_at: new Date().toISOString(),
-    }, { onConflict: "passport" });
+    });
     setQuickSaving(false);
     if (error) {
-      await hpsrAlert(`Não foi possível cadastrar o paciente: ${error.message}`, "Cadastro rápido");
+      await hpsrAlert(error.code === "23505" ? "Este passaporte acabou de ser cadastrado por outro profissional." : `Não foi possível cadastrar o paciente: ${error.message}`, "Cadastro rápido");
       return;
     }
     setPatients((current) => [patient, ...current.filter((item) => item.passport !== patient.passport)].sort((a,b) => a.name.localeCompare(b.name)));

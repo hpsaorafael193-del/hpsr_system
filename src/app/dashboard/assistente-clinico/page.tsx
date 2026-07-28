@@ -9,8 +9,6 @@ import {
   FlaskConical,
   Info,
   LockKeyhole,
-  BrainCircuit,
-  Construction,
   RotateCcw,
   ShieldCheck,
   Sparkles,
@@ -168,39 +166,76 @@ function drawSingleLineField(
   x: number,
   y: number,
   width: number,
-  options?: { fontFamily?: string; fontWeight?: string; baseSize?: number; minSize?: number; color?: string; align?: CanvasTextAlign },
+  options?: { fontFamily?: string; fontWeight?: string; baseSize?: number; minSize?: number; color?: string; align?: CanvasTextAlign; baseline?: CanvasTextBaseline },
 ) {
   const value = (text || "").trim() || "—";
   const {
-    fontFamily = "Georgia",
+    fontFamily = '"Times New Roman", Georgia, serif',
     fontWeight = "700",
     baseSize = 42,
     minSize = 15,
     color = "#5f250f",
     align = "left",
+    baseline = "top",
   } = options || {};
   const size = fitCanvasFontSize(context, value, width, baseSize, minSize, fontFamily, fontWeight);
   context.font = `${fontWeight} ${size}px ${fontFamily}`;
   context.fillStyle = color;
   context.textAlign = align;
+  const previousBaseline = context.textBaseline;
+  context.textBaseline = baseline;
   if (align === "center") context.fillText(value, x + width / 2, y);
   else if (align === "right") context.fillText(value, x + width, y);
   else context.fillText(value, x, y);
   context.textAlign = "left";
+  context.textBaseline = previousBaseline;
+}
+
+function drawTemplatePatientIdentity(
+  context: CanvasRenderingContext2D,
+  patientName: string,
+  passport: string,
+) {
+  // Limpa somente a área de identificação do paciente para não depender
+  // do posicionamento dos rótulos incorporados ao arquivo de fundo.
+  context.save();
+  context.fillStyle = "#ffffff";
+  context.fillRect(36, 188, 940, 152);
+
+  drawSingleLineField(context, `NOME: ${(patientName || "Paciente não informado").trim()}`, 55, 216, 850, {
+    fontFamily: '"Times New Roman", Georgia, serif',
+    fontWeight: "700",
+    baseSize: 30,
+    minSize: 16,
+    color: "#5f250f",
+    baseline: "top",
+  });
+
+  drawSingleLineField(context, `PASSAPORTE: ${(passport || "—").trim()}`, 55, 267, 500, {
+    fontFamily: '"Times New Roman", Georgia, serif',
+    fontWeight: "700",
+    baseSize: 20,
+    minSize: 13,
+    color: "#6a341f",
+    baseline: "top",
+  });
+  context.restore();
 }
 
 function drawDateChips(context: CanvasRenderingContext2D, dates: string[], rects: Array<{ x: number; y: number; width: number; height: number }>) {
   dates.forEach((date, index) => {
     const rect = rects[index];
-    if (!rect) return;
-    const fontSize = fitCanvasFontSize(context, date, rect.width - 18, 21, 14, "Arial", "800");
-    context.fillStyle = "#ffffff";
+    if (!rect || !date || date === "—") return;
+    const fontSize = fitCanvasFontSize(context, date, rect.width - 24, 20, 13, 'Arial', '800');
+    context.fillStyle = '#ffffff';
     context.font = `800 ${fontSize}px Arial`;
-    context.textAlign = "center";
-    context.textBaseline = "middle";
-    context.fillText(date, rect.x + rect.width / 2, rect.y + rect.height / 2 + 1);
-    context.textAlign = "left";
-    context.textBaseline = "alphabetic";
+    context.textAlign = 'center';
+    const previousBaseline = context.textBaseline;
+    context.textBaseline = 'top';
+    const textY = rect.y + Math.round((rect.height - fontSize) / 2) - 3;
+    context.fillText(date, rect.x + rect.width / 2, textY);
+    context.textAlign = 'left';
+    context.textBaseline = previousBaseline;
   });
 }
 
@@ -252,45 +287,34 @@ async function downloadObstetricPlanningImage({
   if (!context) return;
 
   context.drawImage(background, 0, 0);
+  drawTemplatePatientIdentity(context, patientName, passport);
 
-  drawSingleLineField(context, patientName || "Paciente não informado", 54, 255, 710, {
-    fontFamily: "Georgia",
-    fontWeight: "700",
-    baseSize: 42,
-    minSize: 20,
-    color: "#5f250f",
-  });
-  drawSingleLineField(context, passport || "—", 64, 312, 400, {
-    fontFamily: "Arial",
-    fontWeight: "700",
-    baseSize: 23,
-    minSize: 15,
-    color: "#6a341f",
-  });
-
-  const dates = buildPregnancyPlanDates({ currentWeek, durationDays, startDate, planType }).map((item) => item.date);
+  const generatedDates = buildPregnancyPlanDates({ currentWeek, durationDays, startDate, planType }).map((item) => item.date);
+  const dates = planType === "long"
+    ? [...generatedDates.slice(0, 8), "Aguarde"]
+    : [...generatedDates.slice(0, 4), "Aguarde"];
   const rects = planType === "short"
     ? [
-        { x: 260, y: 370, width: 190, height: 54 },
-        { x: 260, y: 506, width: 190, height: 54 },
-        { x: 260, y: 643, width: 190, height: 54 },
-        { x: 260, y: 781, width: 190, height: 54 },
-        { x: 260, y: 918, width: 190, height: 54 },
+        { x: 260, y: 367, width: 190, height: 54 },
+        { x: 260, y: 503, width: 190, height: 54 },
+        { x: 260, y: 640, width: 190, height: 54 },
+        { x: 260, y: 778, width: 190, height: 54 },
+        { x: 260, y: 915, width: 190, height: 54 },
       ]
     : [
-        { x: 252, y: 343, width: 190, height: 48 },
-        { x: 252, y: 418, width: 190, height: 48 },
-        { x: 252, y: 493, width: 190, height: 48 },
-        { x: 252, y: 568, width: 190, height: 48 },
-        { x: 252, y: 644, width: 190, height: 48 },
-        { x: 252, y: 719, width: 190, height: 48 },
-        { x: 252, y: 795, width: 190, height: 48 },
-        { x: 252, y: 870, width: 190, height: 48 },
-        { x: 252, y: 946, width: 190, height: 48 },
+        { x: 252, y: 340, width: 190, height: 48 },
+        { x: 252, y: 415, width: 190, height: 48 },
+        { x: 252, y: 490, width: 190, height: 48 },
+        { x: 252, y: 565, width: 190, height: 48 },
+        { x: 252, y: 641, width: 190, height: 48 },
+        { x: 252, y: 716, width: 190, height: 48 },
+        { x: 252, y: 792, width: 190, height: 48 },
+        { x: 252, y: 867, width: 190, height: 48 },
+        { x: 252, y: 943, width: 190, height: 48 },
       ];
   drawDateChips(context, dates, rects);
 
-  triggerCanvasDownload(canvas, `${sanitizeFilename(`planejamento-pre-natal-${planType}`)}-${sanitizeFilename(patientName || passport || "paciente")}.png`);
+  triggerCanvasDownload(canvas, `${sanitizeFilename(patientName || passport || "paciente")}-planejamento-pre-natal.png`);
 }
 
 async function downloadIvfPlanningImage({
@@ -313,33 +337,19 @@ async function downloadIvfPlanningImage({
   if (!context) return;
 
   context.drawImage(background, 0, 0);
-
-  drawSingleLineField(context, patientName || "Paciente não informado", 60, 255, 700, {
-    fontFamily: "Georgia",
-    fontWeight: "700",
-    baseSize: 42,
-    minSize: 20,
-    color: "#5f250f",
-  });
-  drawSingleLineField(context, passport || "—", 70, 312, 400, {
-    fontFamily: "Arial",
-    fontWeight: "700",
-    baseSize: 23,
-    minSize: 15,
-    color: "#6a341f",
-  });
+  drawTemplatePatientIdentity(context, patientName, passport);
 
   const dates = ivfPlan.map((item) => formatDate(addDays(startDate, (item.week - 1) * 7)));
   const rects = [
-    { x: 291, y: 376, width: 190, height: 54 },
-    { x: 291, y: 513, width: 190, height: 54 },
-    { x: 291, y: 650, width: 190, height: 54 },
-    { x: 291, y: 787, width: 190, height: 54 },
-    { x: 291, y: 924, width: 190, height: 54 },
+    { x: 291, y: 372, width: 190, height: 54 },
+    { x: 291, y: 509, width: 190, height: 54 },
+    { x: 291, y: 646, width: 190, height: 54 },
+    { x: 291, y: 783, width: 190, height: 54 },
+    { x: 291, y: 920, width: 190, height: 54 },
   ];
   drawDateChips(context, dates, rects);
 
-  triggerCanvasDownload(canvas, `${sanitizeFilename("planejamento-fertilizacao-in-vitro")}-${sanitizeFilename(patientName || passport || "paciente")}.png`);
+  triggerCanvasDownload(canvas, `${sanitizeFilename(patientName || passport || "paciente")}-planejamento-FIV.png`);
 }
 
 function downloadPlanningImage({
@@ -474,7 +484,7 @@ function downloadPlanningImage({
   context.font = "500 18px Arial";
   context.fillText("Planejamento gerado pelo Assistente Clínico e sujeito à revisão do profissional responsável.", margin, canvas.height - 65);
 
-  triggerCanvasDownload(canvas, `${sanitizeFilename(title)}-${sanitizeFilename(patientName || passport || "paciente")}.png`);
+  triggerCanvasDownload(canvas, `${sanitizeFilename(patientName || passport || "paciente")}-${sanitizeFilename(title)}.png`);
 }
 
 function SectionTitle({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
@@ -771,55 +781,6 @@ function RestrictedAssistantView({ role, specialty }: { role: string; specialty:
   );
 }
 
-function LockedAssistantView() {
-  return (
-    <div className="space-y-4">
-      <section className="overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-sm">
-        <div className="border-b border-hpsr-border bg-[#f8f1e8] px-8 py-8">
-          <div className="flex items-start gap-4">
-            <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[18px] bg-hpsr-wine text-white shadow-sm ring-1 ring-hpsr-border/60">
-              <BrainCircuit size={24} />
-            </div>
-            <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-[.24em] text-hpsr-wineLight">
-                Em desenvolvimento
-              </p>
-              <h2 className="mt-2 text-2xl font-black text-hpsr-text md:text-[2rem]">
-                Este módulo ainda não está disponível
-              </h2>
-              <p className="mt-3 max-w-4xl text-sm font-semibold leading-relaxed text-hpsr-muted md:text-[15px]">
-                O Assistente Clínico está sendo preparado para apoiar a equipe sem substituir avaliação, conduta ou decisão médica. Nenhuma função clínica automatizada está ativa nesta versão.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid gap-3 bg-[#fffdf9] p-5 md:grid-cols-2">
-          <div className="rounded-[18px] border border-hpsr-border bg-white p-5 shadow-[0_1px_0_rgba(91,24,9,0.03)]">
-            <div className="flex items-center gap-2 text-hpsr-wine">
-              <Construction size={16} />
-            </div>
-            <p className="mt-4 text-xl font-black text-hpsr-text">Desenvolvimento controlado</p>
-            <p className="mt-2 text-sm font-semibold leading-relaxed text-hpsr-muted">
-              A lógica será liberada somente após validação dos fluxos, permissões e registros clínicos.
-            </p>
-          </div>
-
-          <div className="rounded-[18px] border border-hpsr-border bg-white p-5 shadow-[0_1px_0_rgba(91,24,9,0.03)]">
-            <div className="flex items-center gap-2 text-hpsr-wine">
-              <ShieldCheck size={16} />
-            </div>
-            <p className="mt-4 text-xl font-black text-hpsr-text">Segurança assistencial</p>
-            <p className="mt-2 text-sm font-semibold leading-relaxed text-hpsr-muted">
-              As futuras funções deverão manter rastreabilidade e supervisão de um profissional habilitado.
-            </p>
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
 export default function ClinicalAssistantPage() {
   const { profile } = useCurrentUserProfile();
   const actualSpecialty = useMemo(() => resolveSpecialty(profile), [profile]);
@@ -836,7 +797,6 @@ export default function ClinicalAssistantPage() {
   }, [isDeveloper]);
 
   const activeSpecialty: SpecialtyMode | null = simulation || actualSpecialty || (isDeveloper ? "obstetricia" : null);
-  const assistantLocked = true;
 
   function changeSimulation(value: string) {
     if (!isDeveloper) return;
@@ -846,9 +806,6 @@ export default function ClinicalAssistantPage() {
     else localStorage.removeItem(SIMULATION_KEY);
   }
 
-  if (assistantLocked) {
-    return <LockedAssistantView />;
-  }
 
   if (!activeSpecialty) {
     return <RestrictedAssistantView role={profile.role} specialty={profile.specialty} />;

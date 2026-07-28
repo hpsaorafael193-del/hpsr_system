@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getValidPatientSession } from "@/lib/patient-portal/server";
+import { getValidPatientSession, resolvePortalPatientPassport } from "@/lib/patient-portal/server";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
@@ -10,10 +10,13 @@ export async function GET(request: NextRequest) {
     const valid = await getValidPatientSession(request);
     if (!valid) return NextResponse.json({ ok: false, error: "Sessão expirada." }, { status: 401 });
 
+    const targetPassport = await resolvePortalPatientPassport(request, valid);
+    if (!targetPassport) return NextResponse.json({ ok: false, error: "Acesso não autorizado para este paciente." }, { status: 403 });
+
     const { data, error } = await valid.supabase
       .from("appointments")
       .select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,date:payload->>date,preferred_period:payload->>preferredPeriod,time:payload->>time,physician:payload->>physician,doctor:payload->>doctor,reason:payload->>reason,notes:payload->>notes,proposed_date:payload->>proposedDate,proposed_time:payload->>proposedTime,reschedule_reason:payload->>rescheduleReason,patient_availability:payload->>patientAvailability,answer:payload->>answer")
-      .eq("passport", valid.access.patient_passport)
+      .eq("passport", targetPassport)
       .order("created_at", { ascending: false })
       .limit(100);
 
@@ -53,9 +56,11 @@ export async function PATCH(request: NextRequest) {
   try {
     const valid = await getValidPatientSession(request);
     if (!valid) return NextResponse.json({ ok: false, error: "Sessão expirada." }, { status: 401 });
+    const targetPassport = await resolvePortalPatientPassport(request, valid);
+    if (!targetPassport) return NextResponse.json({ ok: false, error: "Acesso não autorizado para este paciente." }, { status: 403 });
     const body = await request.json() as { id?: string; action?: string; availability?: string };
     if (!body.id || !body.action) return NextResponse.json({ ok: false, error: "Ação inválida." }, { status: 400 });
-    const { data: row, error: readError } = await valid.supabase.from("appointments").select("id,passport,payload,status").eq("id", body.id).eq("passport", valid.access.patient_passport).maybeSingle();
+    const { data: row, error: readError } = await valid.supabase.from("appointments").select("id,passport,payload,status").eq("id", body.id).eq("passport", targetPassport).maybeSingle();
     if (readError || !row) return NextResponse.json({ ok: false, error: "Consulta não encontrada." }, { status: 404 });
     const payload = { ...((row.payload || {}) as Record<string, unknown>), patientResponseAt: new Date().toISOString() } as Record<string, unknown>;
     let status = String(row.status || "");
@@ -65,7 +70,7 @@ export async function PATCH(request: NextRequest) {
     else if (body.action === "withdraw") status = "Desistência solicitada";
     else return NextResponse.json({ ok: false, error: "Ação inválida." }, { status: 400 });
     payload.status = status;
-    const { error } = await valid.supabase.from("appointments").update({ status, payload, updated_at: new Date().toISOString() }).eq("id", body.id).eq("passport", valid.access.patient_passport);
+    const { error } = await valid.supabase.from("appointments").update({ status, payload, updated_at: new Date().toISOString() }).eq("id", body.id).eq("passport", targetPassport);
     if (error) throw error;
     return NextResponse.json({ ok: true, status });
   } catch (error) {

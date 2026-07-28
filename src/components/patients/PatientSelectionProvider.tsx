@@ -165,15 +165,14 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
     const client = createClient();
     if (!client) return false;
 
-    const { error } = await client.from("patient_registry").upsert({
-      passport: normalized.passport,
+    const { error } = await client.from("patient_registry").update({
       name: normalized.name,
       age: normalized.age || null,
       blood_type: normalized.bloodType || null,
       city_phone: normalized.cityPhone || null,
       email: normalized.email || null,
       updated_at: new Date().toISOString(),
-    }, { onConflict: "passport" });
+    }).eq("passport", normalized.passport);
 
     if (error) {
       console.error("[HPSR] Paciente não salvo no Supabase:", error.message);

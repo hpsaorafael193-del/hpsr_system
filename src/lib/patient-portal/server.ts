@@ -113,3 +113,14 @@ export async function getValidPatientSession(request: Request) {
   }
   return { supabase, session, access };
 }
+
+export async function resolvePortalPatientPassport(request: Request, patientSession: Awaited<ReturnType<typeof getValidPatientSession>>) {
+  if (!patientSession) return null;
+  const requested = normalizePassport(new URL(request.url).searchParams.get("passport") || patientSession.access.patient_passport);
+  const { data, error } = await patientSession.supabase.rpc("patient_portal_accessible_patients", {
+    target_passport: patientSession.access.patient_passport,
+  });
+  if (error) throw error;
+  const allowed = (data || []).some((row: any) => normalizePassport(row.passport) === requested);
+  return allowed ? requested : null;
+}

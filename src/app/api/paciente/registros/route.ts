@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getValidPatientSession } from "@/lib/patient-portal/server";
+import { getValidPatientSession, resolvePortalPatientPassport } from "@/lib/patient-portal/server";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
@@ -40,13 +40,16 @@ export async function GET(request: NextRequest) {
     const patientSession = await getValidPatientSession(request);
     if (!patientSession) return NextResponse.json({ error: "Sessão inválida ou expirada." }, { status: 401 });
 
+    const targetPassport = await resolvePortalPatientPassport(request, patientSession);
+    if (!targetPassport) return NextResponse.json({ error: "Acesso não autorizado para este paciente." }, { status: 403 });
+
     const recordId = request.nextUrl.searchParams.get("id");
     if (recordId) {
       const { data: record, error } = await patientSession.supabase
         .from("clinical_records")
         .select("id,patient_passport,record_type,payload,created_at,updated_at,is_confidential,released_at")
         .eq("id", recordId)
-        .eq("patient_passport", patientSession.access.patient_passport)
+        .eq("patient_passport", targetPassport)
         .eq("is_confidential", false)
         .not("released_at", "is", null)
         .maybeSingle();
@@ -58,7 +61,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await patientSession.supabase
       .from("clinical_records")
       .select("id,record_type,created_at,updated_at,is_confidential,released_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,protocol:payload->>protocol")
-      .eq("patient_passport", patientSession.access.patient_passport)
+      .eq("patient_passport", targetPassport)
       .eq("is_confidential", false)
       .not("released_at", "is", null)
       .order("created_at", { ascending: false })

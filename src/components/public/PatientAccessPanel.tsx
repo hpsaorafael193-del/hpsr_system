@@ -14,7 +14,8 @@ import { formatPhoneNumber } from "@/lib/phone";
 
 type Stage = "checking" | "login" | "register" | "portal";
 type PortalSection = "home" | "request" | "scheduled" | "records" | "pending";
-type SessionResponse = { authenticated?: boolean; patientName?: string };
+type PortalPatient = { passport: string; name: string; relationship: string; access_type: string };
+type SessionResponse = { authenticated?: boolean; patientName?: string; accessiblePatients?: PortalPatient[] };
 
 type RegisterForm = {
   name: string;
@@ -39,6 +40,8 @@ export function PatientAccessPanel() {
   const [password, setPassword] = useState("");
   const [register, setRegister] = useState<RegisterForm>(EMPTY_REGISTER);
   const [patientName, setPatientName] = useState("Paciente");
+  const [accessiblePatients, setAccessiblePatients] = useState<PortalPatient[]>([]);
+  const [selectedPassport, setSelectedPassport] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -52,6 +55,9 @@ export function PatientAccessPanel() {
         clearLoginPersistence();
         setAuthContext("patient");
         setPatientName(data.patientName || "Paciente");
+        const profiles = data.accessiblePatients || [];
+        setAccessiblePatients(profiles);
+        setSelectedPassport((current) => profiles.some((item) => item.passport === current) ? current : (profiles[0]?.passport || ""));
         setStage("portal");
         return true;
       }
@@ -225,6 +231,7 @@ export function PatientAccessPanel() {
               <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Painel do paciente</p>
               <h2 className="mt-1 text-2xl font-black text-hpsr-text">Olá, {patientName}</h2>
               <p className="mt-1 text-sm font-semibold text-hpsr-muted">Escolha abaixo o que precisa acessar.</p>
+              {accessiblePatients.length > 1 && <div className="mt-3 max-w-sm"><label className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Visualizando prontuário de</label><StyledSelect className="mt-1 min-h-[44px] w-full rounded-[14px] border border-hpsr-border bg-white px-3 text-sm font-black text-hpsr-text" value={selectedPassport} onChange={(event) => { setSelectedPassport(event.target.value); setPortalSection("home"); }}>{accessiblePatients.map((item) => <option key={item.passport} value={item.passport}>{item.name} · {item.access_type === "self" ? "Titular" : item.relationship}</option>)}</StyledSelect></div>}
             </div>
             <button onClick={logout} disabled={busy} className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-4 text-sm font-black text-hpsr-wine disabled:opacity-50">
               <LogOut size={16} /> Sair
@@ -258,10 +265,10 @@ export function PatientAccessPanel() {
             <p className="mx-auto mt-2 max-w-xl text-sm font-semibold leading-relaxed text-hpsr-muted">Use uma das quatro opções acima para solicitar atendimento, consultar compromissos, acessar registros liberados ou verificar pendências.</p>
           </section>
         )}
-        {portalSection === "request" && <PatientAppointmentsPanel view="request" onSessionExpired={handleSessionExpired} />}
-        {portalSection === "scheduled" && <PatientAppointmentsPanel view="scheduled" onSessionExpired={handleSessionExpired} />}
-        {portalSection === "records" && <PatientRecordsPanel onSessionExpired={handleSessionExpired} />}
-        {portalSection === "pending" && <PatientAppointmentsPanel view="pending" onSessionExpired={handleSessionExpired} />}
+        {portalSection === "request" && <PatientAppointmentsPanel view="request" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
+        {portalSection === "scheduled" && <PatientAppointmentsPanel view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
+        {portalSection === "records" && <PatientRecordsPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
+        {portalSection === "pending" && <PatientAppointmentsPanel view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
       </div>
     );
   }

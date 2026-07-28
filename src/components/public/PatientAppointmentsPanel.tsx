@@ -35,7 +35,7 @@ function formatDate(value: string) {
 
 type PatientAppointmentsView = "scheduled" | "request" | "pending";
 
-export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled" }: { onSessionExpired?: () => void; view?: PatientAppointmentsView }) {
+export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled", passport }: { onSessionExpired?: () => void; view?: PatientAppointmentsView; passport?: string }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -67,7 +67,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled" 
       if (!silent) setLoading(true);
       setError("");
       try {
-        const response = await fetch("/api/paciente/consultas", { cache: "no-store" });
+        const response = await fetch(`/api/paciente/consultas${passport ? `?passport=${encodeURIComponent(passport)}` : ""}`, { cache: "no-store" });
         const data = await response.json();
         if (response.status === 401) {
           onSessionExpiredRef.current?.();
@@ -89,7 +89,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled" 
     } finally {
       requestInFlightRef.current = null;
     }
-  }, []);
+  }, [passport]);
 
   const handleBooked = useCallback(() => {
     void loadAppointments({ silent: true, force: true });
@@ -112,7 +112,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled" 
   async function appointmentAction(id: string, action: string) {
     setSaving(true); setError(""); setMessage("");
     try {
-      const response = await fetch("/api/paciente/consultas", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action, availability: availability[id] || "" }) });
+      const response = await fetch(`/api/paciente/consultas${passport ? `?passport=${encodeURIComponent(passport)}` : ""}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, action, availability: availability[id] || "" }) });
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível atualizar a consulta.");
       setMessage("Resposta registrada com sucesso.");

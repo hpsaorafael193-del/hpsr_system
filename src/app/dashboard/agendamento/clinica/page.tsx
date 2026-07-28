@@ -638,15 +638,18 @@ function NewAppointmentForm({
       return;
     }
     const now = new Date().toISOString();
-    const { error: registryError } = await client.from("patient_registry").upsert({
+    const { data: duplicate, error: duplicateError } = await client.from("patient_registry").select("name").eq("passport", normalizedPassport).maybeSingle();
+    if (duplicateError) { setMessage({ type: "error", text: `Não foi possível verificar o passaporte: ${duplicateError.message}` }); return; }
+    if (duplicate) { setMessage({ type: "error", text: `Passaporte já cadastrado para ${duplicate.name}. Abra o prontuário para editar ou substituir os dados com confirmação.` }); return; }
+    const { error: registryError } = await client.from("patient_registry").insert({
       passport: normalizedPassport,
       name,
       age: patient.age || null,
       blood_type: patient.bloodType || null,
       updated_at: now,
-    }, { onConflict: "passport" });
+    });
     if (registryError) {
-      setMessage({ type: "error", text: `Não foi possível cadastrar o paciente: ${registryError.message}` });
+      setMessage({ type: "error", text: registryError.code === "23505" ? "Este passaporte acabou de ser cadastrado por outro profissional." : `Não foi possível cadastrar o paciente: ${registryError.message}` });
       return;
     }
     const { error } = await client.from("clinical_records").insert({

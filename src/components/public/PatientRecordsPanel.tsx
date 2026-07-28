@@ -21,7 +21,7 @@ function formatDate(value: string) {
   return new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
-export function PatientRecordsPanel({ onSessionExpired }: { onSessionExpired?: () => void }) {
+export function PatientRecordsPanel({ onSessionExpired, passport }: { onSessionExpired?: () => void; passport?: string }) {
   const [records, setRecords] = useState<PatientRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -32,7 +32,7 @@ export function PatientRecordsPanel({ onSessionExpired }: { onSessionExpired?: (
     if (!silent) setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/paciente/registros", { cache: "no-store" });
+      const response = await fetch(`/api/paciente/registros${passport ? `?passport=${encodeURIComponent(passport)}` : ""}`, { cache: "no-store" });
       const data = await response.json();
       if (response.status === 401) { onSessionExpired?.(); return; }
       if (!response.ok) throw new Error(data.error || "Não foi possível carregar seus registros.");
@@ -49,7 +49,7 @@ export function PatientRecordsPanel({ onSessionExpired }: { onSessionExpired?: (
     const onVisibility = () => { if (document.visibilityState === "visible") void loadRecords(true); };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, []);
+  }, [passport]);
 
   const visibleRecords = useMemo(() => {
     if (activeType === "Todos") return records;
@@ -58,7 +58,7 @@ export function PatientRecordsPanel({ onSessionExpired }: { onSessionExpired?: (
 
   async function loadRecordDetail(record: PatientRecord, action: "view" | "download") {
     try {
-      const response = await fetch(`/api/paciente/registros?id=${encodeURIComponent(record.id)}`, { cache: "no-store" });
+      const response = await fetch(`/api/paciente/registros?id=${encodeURIComponent(record.id)}${passport ? `&passport=${encodeURIComponent(passport)}` : ""}`, { cache: "no-store" });
       const data = await response.json();
       if (response.status === 401) { onSessionExpired?.(); return; }
       if (!response.ok) throw new Error(data.error || "Não foi possível carregar o registro.");
