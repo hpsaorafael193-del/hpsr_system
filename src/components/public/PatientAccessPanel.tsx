@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   AlertCircle, CalendarCheck2, ChevronRight, ClipboardPlus, FileHeart,
-  Loader2, LockKeyhole, LogIn, LogOut, ShieldCheck, UserPlus,
+  Loader2, LockKeyhole, LogIn, LogOut, Plus, ShieldCheck, Trash2, UserPlus,
 } from "lucide-react";
 import { PatientRecordsPanel } from "@/components/public/PatientRecordsPanel";
 import { StyledSelect } from "@/components/ui/StyledSelect";
@@ -26,12 +26,13 @@ type RegisterForm = {
   email: string;
   password: string;
   confirmation: string;
+  guardianPassports: string[];
 };
 
 const PATIENT_EMAIL_STORAGE_KEY = "hpsr_patient_login_email";
 
 const EMPTY_REGISTER: RegisterForm = {
-  name: "", passport: "", age: "", bloodType: "", phone: "", email: "", password: "", confirmation: "",
+  name: "", passport: "", age: "", bloodType: "", phone: "", email: "", password: "", confirmation: "", guardianPassports: [""],
 };
 
 export function PatientAccessPanel() {
@@ -101,6 +102,29 @@ export function PatientAccessPanel() {
     } finally { setBusy(false); }
   }
 
+  const numericAge = Number.parseInt(register.age.replace(/\D/g, ""), 10);
+  const isMinorRegistration = Number.isFinite(numericAge) && numericAge < 18;
+
+  function updateGuardianPassport(index: number, value: string) {
+    setRegister((current) => ({
+      ...current,
+      guardianPassports: current.guardianPassports.map((passport, itemIndex) => itemIndex === index ? value.toUpperCase() : passport),
+    }));
+  }
+
+  function addGuardianPassport() {
+    setRegister((current) => ({ ...current, guardianPassports: [...current.guardianPassports, ""] }));
+  }
+
+  function removeGuardianPassport(index: number) {
+    setRegister((current) => ({
+      ...current,
+      guardianPassports: current.guardianPassports.length === 1
+        ? [""]
+        : current.guardianPassports.filter((_, itemIndex) => itemIndex !== index),
+    }));
+  }
+
   async function createAccount() {
     clearFeedback();
     if (register.password.length < 6) {
@@ -108,6 +132,13 @@ export function PatientAccessPanel() {
     }
     if (register.password !== register.confirmation) {
       setError("A senha e a confirmação não são iguais."); return;
+    }
+    const guardians = Array.from(new Set(register.guardianPassports.map((passport) => passport.trim().toUpperCase()).filter(Boolean)));
+    if (isMinorRegistration && guardians.length === 0) {
+      setError("Informe o passaporte de pelo menos um responsável cadastrado no sistema."); return;
+    }
+    if (guardians.includes(register.passport.trim().toUpperCase())) {
+      setError("O paciente menor de idade não pode ser informado como o próprio responsável."); return;
     }
     setBusy(true);
     try {
@@ -369,15 +400,43 @@ export function PatientAccessPanel() {
               <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Nome completo" wide><input value={register.name} onChange={(e) => setRegister(v => ({...v, name:e.target.value}))} className="portal-input" /></Field>
               <Field label="Passaporte"><input value={register.passport} onChange={(e) => setRegister(v => ({...v, passport:e.target.value}))} className="portal-input" /></Field>
-              <Field label="Idade"><input value={register.age} onChange={(e) => setRegister(v => ({...v, age:e.target.value}))} className="portal-input" /></Field>
+              <Field label="Idade"><input inputMode="numeric" value={register.age} onChange={(e) => setRegister(v => ({...v, age:e.target.value}))} className="portal-input" /></Field>
               <Field label="Tipo sanguíneo"><StyledSelect value={register.bloodType} onChange={(e) => setRegister(v => ({...v, bloodType:e.target.value}))} className="portal-input"><option value="">Selecione</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></StyledSelect></Field>
+              {isMinorRegistration && (
+                <div className="sm:col-span-2 rounded-[18px] border border-[#e4c7bd] bg-[#fff8f4] p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-[.12em] text-hpsr-wineLight">Responsável pelo menor</p>
+                      <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Informe o passaporte de ao menos um responsável. Ele precisa existir no prontuário, mas não precisa possuir conta no portal.</p>
+                    </div>
+                    <button type="button" onClick={addGuardianPassport} className="inline-flex min-h-[38px] shrink-0 items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine transition hover:border-hpsr-wineLight">
+                      <Plus size={14} /> Adicionar responsável
+                    </button>
+                  </div>
+                  <div className="mt-3 grid gap-2">
+                    {register.guardianPassports.map((passport, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <input
+                          value={passport}
+                          onChange={(event) => updateGuardianPassport(index, event.target.value)}
+                          placeholder={`Passaporte do responsável ${index + 1}`}
+                          className="portal-input min-w-0 flex-1 uppercase"
+                        />
+                        <button type="button" onClick={() => removeGuardianPassport(index)} aria-label="Remover responsável" className="grid h-[46px] w-[46px] shrink-0 place-items-center rounded-[14px] border border-rose-200 bg-white text-rose-700 transition hover:bg-rose-50">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
               <Field label="Telefone"><input inputMode="numeric" maxLength={13} placeholder="(055) 626-323" value={register.phone} onChange={(e) => setRegister(v => ({...v, phone:formatPhoneNumber(e.target.value)}))} className="portal-input" /></Field>
               <Field label="E-mail" wide><input type="email" autoComplete="email" value={register.email} onChange={(e) => setRegister(v => ({...v, email:e.target.value}))} className="portal-input" /></Field>
               <Field label="Senha"><input type="password" autoComplete="new-password" value={register.password} onChange={(e) => setRegister(v => ({...v, password:e.target.value}))} className="portal-input" minLength={6} placeholder="Mínimo de 6 caracteres" /></Field>
               <Field label="Confirmar senha"><input type="password" autoComplete="new-password" value={register.confirmation} minLength={6} onChange={(e) => setRegister(v => ({...v, confirmation:e.target.value}))} className="portal-input" /></Field>
               </div>
             </div>
-            <button onClick={createAccount} disabled={busy || !register.name || !register.passport || !register.email || !register.password || !register.confirmation} className="mt-5 inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[16px] bg-hpsr-wine px-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(103,38,20,.16)] transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />} Criar conta</button>
+            <button onClick={createAccount} disabled={busy || !register.name || !register.passport || !register.email || !register.password || !register.confirmation || (isMinorRegistration && !register.guardianPassports.some((passport) => passport.trim()))} className="mt-5 inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[16px] bg-hpsr-wine px-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(103,38,20,.16)] transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />} Criar conta</button>
           </div>
         )}
 

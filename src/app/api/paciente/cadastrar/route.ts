@@ -23,6 +23,13 @@ export async function POST(request: NextRequest) {
     const phone = formatPhoneNumber(clean(body.phone, 60));
     const requestedEmail = clean(body.email, 254).toLowerCase();
     const password = String(body.password ?? "");
+    const numericAge = Number.parseInt(age.replace(/\D/g, ""), 10);
+    const isMinor = Number.isFinite(numericAge) && numericAge < 18;
+    const guardianPassports: string[] = Array.from(new Set<string>(
+      (Array.isArray(body.guardianPassports) ? body.guardianPassports : [])
+        .map((value: unknown) => normalizePassport(value))
+        .filter((value: string): value is string => Boolean(value))
+    ));
 
     if (!name || !passport || !requestedEmail || !password) {
       return NextResponse.json({ error: "Preencha nome, passaporte, e-mail e senha." }, { status: 400 });
@@ -33,8 +40,35 @@ export async function POST(request: NextRequest) {
     if (password.length < 6) {
       return NextResponse.json({ error: "A senha deve ter pelo menos 6 caracteres." }, { status: 400 });
     }
+    if (isMinor && guardianPassports.length === 0) {
+      return NextResponse.json({ error: "Para cadastrar um menor de idade, informe o passaporte de pelo menos um responsável cadastrado no sistema." }, { status: 400 });
+    }
+    if (guardianPassports.includes(passport)) {
+      return NextResponse.json({ error: "O paciente menor de idade não pode ser o próprio responsável." }, { status: 400 });
+    }
 
     const supabase = getServiceClient();
+    if (isMinor) {
+      const { data: guardianRows, error: guardianLookupError } = await supabase
+        .from("patient_registry")
+        .select("passport,name")
+        .in("passport", guardianPassports);
+      if (guardianLookupError) throw guardianLookupError;
+      const foundGuardians = new Set<string>(
+        (guardianRows || []).map((row) => normalizePassport(row.passport))
+      );
+      const missingGuardians = guardianPassports.filter((guardianPassport) => !foundGuardians.has(guardianPassport));
+      if (missingGuardians.length > 0) {
+        return NextResponse.json({
+          code: "GUARDIAN_NOT_REGISTERED",
+          error: missingGuardians.length === 1
+            ? `O responsável de passaporte ${missingGuardians[0]} não está cadastrado no sistema. Cadastre-o no prontuário para continuar.`
+            : `Os responsáveis de passaportes ${missingGuardians.join(", ")} não estão cadastrados no sistema. Cadastre-os no prontuário para continuar.`,
+          missingGuardianPassports: missingGuardians,
+        }, { status: 409 });
+      }
+    }
+
     const authorization = request.headers.get("authorization") || "";
     const accessToken = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
     let linkedUserId: string | null = null;
@@ -164,6 +198,22 @@ export async function POST(request: NextRequest) {
         .update(registryUpdates)
         .eq("passport", passport);
       if (registryUpdateError) throw registryUpdateError;
+    }
+
+    if (isMinor) {
+      const { error: guardianLinkError } = await supabase
+        .from("patient_guardian_links")
+        .upsert(
+          guardianPassports.map((guardianPassport) => ({
+            child_passport: passport,
+            guardian_passport: guardianPassport,
+            relationship: "Responsável legal",
+            access_status: "authorized",
+            portal_access: true,
+          })),
+          { onConflict: "child_passport,guardian_passport" }
+        );
+      if (guardianLinkError) throw guardianLinkError;
     }
 
     return NextResponse.json({

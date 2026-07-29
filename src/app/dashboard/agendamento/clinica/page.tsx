@@ -183,7 +183,7 @@ export default function ClinicalSchedulePage() {
           specialty: String(payload.specialty || "Clínico Geral"),
           physician: String(payload.physician || payload.doctor || "A definir"),
           date: String(row.status === "Reagendamento aceito" ? payload.proposedDate || payload.preferredDate || payload.date || "" : payload.preferredDate || payload.date || ""),
-          time: String(row.status === "Reagendamento aceito" ? payload.proposedTime || payload.time || "09:00" : payload.time || (payload.preferredPeriod === "Tarde" ? "14:00" : payload.preferredPeriod === "Noite" ? "19:00" : "09:00")),
+          time: String(row.status === "Reagendamento aceito" ? payload.proposedTime || payload.time || "09:00" : payload.time || payload.preferredTime || (payload.preferredPeriod === "Tarde" ? "14:00" : payload.preferredPeriod === "Noite" ? "19:00" : "09:00")),
           status: String(row.status === "Aceita" ? "Agendada" : row.status),
         };
       }));

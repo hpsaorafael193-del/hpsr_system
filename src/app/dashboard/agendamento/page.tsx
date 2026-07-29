@@ -39,9 +39,12 @@ type PublicAppointmentRequest = {
   specialty: string;
   preferredDate?: string;
   preferredPeriod?: string;
+  preferredTime?: string;
   preferred?: string;
   reason?: string;
   notes?: string;
+  flowType?: string;
+  flowDetails?: string;
   status: string;
   createdAt?: string;
   updatedAt?: string;
@@ -55,7 +58,7 @@ type PublicAppointmentRequest = {
 
 function publicRequestPreferred(item: PublicAppointmentRequest) {
   const date = item.preferredDate ? formatDate(item.preferredDate) : "Data a definir";
-  const period = item.preferredPeriod || "Período a definir";
+  const period = item.preferredTime ? `às ${item.preferredTime}` : (item.preferredPeriod || "Período a definir");
   return item.preferred || `${date} · ${period}`;
 }
 
@@ -281,13 +284,13 @@ export default function AppointmentsPage() {
       .filter((item) => item.status === "Aceita")
       .map((item) => ({
         id: item.id,
-        time: preferredPeriodToTime(item.preferredPeriod),
+        time: item.preferredTime || preferredPeriodToTime(item.preferredPeriod),
         date: item.preferredDate || "A definir",
         passport: item.passport,
         patient: item.patient,
         specialty: item.specialty,
         doctor: item.doctor || currentUserProfile.systemName,
-        type: "Consulta comum",
+        type: item.flowType || "Consulta comum",
         status: "Agendada",
       }));
   }, [publicRequests]);
@@ -305,7 +308,9 @@ export default function AppointmentsPage() {
       return (
         item.patient.toLowerCase().includes(normalizedSearch) ||
         item.passport.includes(normalizedSearch) ||
-        item.specialty.toLowerCase().includes(normalizedSearch)
+        item.specialty.toLowerCase().includes(normalizedSearch) ||
+        (item.flowType || "Consulta comum").toLowerCase().includes(normalizedSearch) ||
+        (item.flowDetails || "").toLowerCase().includes(normalizedSearch)
       );
     });
   }, [pendingRequests, searchTerm]);
@@ -652,8 +657,8 @@ function RequestsTab({
                 subtitle={`Passaporte ${item.passport} · ${item.specialty} · Preferência: ${publicRequestPreferred(item)}`}
                 status={<StatusBadge status={item.status} />}
                 meta={[
-                  ["Motivo", item.reason || "Aguardando análise médica"],
-                  ["Fluxo", "Consulta comum"],
+                  ["Fluxo", item.flowType || "Consulta comum"],
+                  ["Objetivo", item.flowType === "Outros" ? (item.flowDetails || "Não informado") : (item.reason || "Aguardando análise médica")],
                 ]}
                 actions={
                   <>
