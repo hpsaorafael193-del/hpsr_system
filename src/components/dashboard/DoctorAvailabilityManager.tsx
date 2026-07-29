@@ -158,7 +158,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
               <div>
                 <div className="flex flex-wrap items-center gap-2"><span className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Etapa 2</span><span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] text-hpsr-muted">Disponibilidade médica</span></div>
                 <h2 className="mt-1 text-xl font-black tracking-tight text-hpsr-text">Publicar horários de atendimento</h2>
-                <p className="mt-1 max-w-3xl text-sm leading-relaxed text-hpsr-muted">Organize uma sequência semanal. Os pacientes visualizarão as vagas somente durante o dia anterior à consulta.</p>
+                <p className="mt-1 max-w-3xl text-sm leading-relaxed text-hpsr-muted">Organize uma sequência semanal. Os pacientes poderão confirmar os horários disponíveis até 24 horas antes de cada atendimento.</p>
               </div>
             </div>
             <div className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2 text-right"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-hpsr-muted">Sequências ativas</p><p className="mt-0.5 text-xl font-black text-hpsr-wine">{series.length}</p></div>
@@ -200,7 +200,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
               <div className="rounded-[13px] border border-hpsr-border bg-white p-3"><Repeat2 size={16} className="text-hpsr-wine" /><p className="mt-2 text-[10px] uppercase tracking-wider text-hpsr-muted">Duração</p><p className="mt-0.5 text-xl font-black text-hpsr-text">{form.duration}<span className="ml-1 text-xs">min</span></p></div>
             </div>
           </div>
-          <p className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-900">A publicação não torna as vagas visíveis antecipadamente. A abertura continua automática no dia anterior. O sistema considera no máximo 5 vagas por dia.</p>
+          <p className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-900">Os horários podem ser exibidos com antecedência, mas cada vaga deixa de aceitar confirmação 24 horas antes do atendimento. Depois do encerramento, o portal apresenta a próxima ocorrência disponível. O sistema considera no máximo 5 vagas por dia.</p>
         </aside>
       </div>
 

@@ -48,7 +48,7 @@ export default function PatientPortalPage() {
                 </div>
                 <div className="mt-4 grid gap-3">
                   <Step number="1" title="Consulta planejada" text="A equipe médica define a data do acompanhamento e disponibiliza os horários correspondentes." />
-                  <Step number="2" title="Escolha do horário" text="Durante o dia anterior à consulta, os horários liberados aparecem no portal para confirmação." />
+                  <Step number="2" title="Escolha do horário" text="Os horários da próxima consulta planejada aparecem com antecedência e podem ser confirmados até 24 horas antes do atendimento." />
                   <Step number="3" title="Confirmação" text="O primeiro paciente que confirma um horário disponível garante aquela vaga." />
                   <Step number="4" title="Acompanhamento" text="Consultas futuras, alterações e orientações ficam reunidas na sua área pessoal." />
                 </div>
