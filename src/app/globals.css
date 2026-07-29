@@ -529,3 +529,16 @@ button:active {
     overflow-y: visible !important;
   }
 }
+
+/* Agenda Clínica: painel de próximas consultas com rolagem própria. */
+.hpsr-appointments-scroll {
+  overflow-y: scroll !important;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  touch-action: pan-y;
+  pointer-events: auto;
+}
+.hpsr-appointments-scroll > * { pointer-events: auto; }
+@media (min-width: 1280px) {
+  .hpsr-appointments-scroll { min-height: 0 !important; max-height: none !important; }
+}

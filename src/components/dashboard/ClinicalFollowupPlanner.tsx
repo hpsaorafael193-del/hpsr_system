@@ -36,10 +36,12 @@ export function ClinicalFollowupPlanner({
   doctorId,
   doctorName,
   defaultSpecialty,
+  embedded = false,
 }: {
   doctorId?: string;
   doctorName: string;
   defaultSpecialty?: string;
+  embedded?: boolean;
 }) {
   const today = useMemo(() => dateKey(new Date()), []);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -165,17 +167,30 @@ export function ClinicalFollowupPlanner({
     if (!client) return;
     setBusy(true);
     setError("");
-    const { error: removeError } = await client
-      .from("clinical_followup_plans")
-      .delete()
-      .eq("id", id)
-      .eq("doctor_id", doctorId);
-    if (removeError) setError(removeError.message);
-    else {
+    try {
+      const { error: occurrenceError } = await client
+        .from("clinical_followup_occurrences")
+        .delete()
+        .eq("plan_id", id);
+      if (occurrenceError) throw occurrenceError;
+
+      const { data: removedPlan, error: removeError } = await client
+        .from("clinical_followup_plans")
+        .delete()
+        .eq("id", id)
+        .eq("doctor_id", doctorId)
+        .select("id")
+        .maybeSingle();
+      if (removeError) throw removeError;
+      if (!removedPlan) throw new Error("O banco não confirmou a exclusão do planejamento. Verifique as permissões e tente novamente.");
+      setPlans((current) => current.filter((plan) => plan.id !== id));
       setMessage("Planejamento removido.");
       await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Não foi possível remover o planejamento.");
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   }
 
   const generatedDates = dates();
@@ -183,23 +198,35 @@ export function ClinicalFollowupPlanner({
   const selectedPatient = patients.find((patient) => patient.passport === form.passport);
 
   return (
-    <section className="overflow-hidden rounded-[20px] border border-hpsr-border bg-white shadow-[0_12px_35px_rgba(93,45,24,0.05)]">
-      <div className="flex flex-col gap-3 border-b border-hpsr-border bg-[#fffaf4] px-4 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white">
-            <CalendarRange size={20} />
-          </div>
+    <section className={embedded ? "space-y-4" : "overflow-hidden rounded-[20px] border border-hpsr-border bg-white shadow-[0_12px_35px_rgba(93,45,24,0.05)]"}>
+      {embedded ? (
+        <div className="flex flex-col gap-3 rounded-[18px] border border-hpsr-border bg-[linear-gradient(180deg,#ffffff_0%,#fffaf4_100%)] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Planejamento clínico</p>
-            <h2 className="mt-0.5 text-lg font-black tracking-tight text-hpsr-text">Planejar acompanhamento</h2>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Configuração da sequência</p>
+            <p className="mt-1 text-sm text-hpsr-muted">Defina paciente, frequência e encerramento sem redundâncias na tela.</p>
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-hpsr-border bg-white px-3 py-1.5 text-xs font-black text-hpsr-wine">
+            <CalendarRange size={14} /> {plans.length} ativo{plans.length === 1 ? "" : "s"}
           </div>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-full border border-hpsr-border bg-white px-3 py-1.5 text-xs font-black text-hpsr-wine">
-          <CalendarRange size={14} /> {plans.length} ativo{plans.length === 1 ? "" : "s"}
+      ) : (
+        <div className="flex flex-col gap-3 border-b border-hpsr-border bg-[#fffaf4] px-4 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-5">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white">
+              <CalendarRange size={20} />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Planejamento clínico</p>
+              <h2 className="mt-0.5 text-lg font-black tracking-tight text-hpsr-text">Planejar acompanhamento</h2>
+            </div>
+          </div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-hpsr-border bg-white px-3 py-1.5 text-xs font-black text-hpsr-wine">
+            <CalendarRange size={14} /> {plans.length} ativo{plans.length === 1 ? "" : "s"}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="p-4 lg:p-5">
+      <div className={embedded ? "rounded-[20px] border border-hpsr-border bg-white p-4 shadow-[0_10px_28px_rgba(93,45,24,0.05)] lg:p-5" : "p-4 lg:p-5"}>
         <div className="grid gap-3 lg:grid-cols-12">
           <label className={`${label} lg:col-span-5`}>
             Paciente
@@ -276,7 +303,7 @@ export function ClinicalFollowupPlanner({
       </div>
 
       {plans.length > 0 && (
-        <div className="border-t border-hpsr-border bg-[#fffdf9] px-4 py-4 lg:px-5">
+        <div className={embedded ? "rounded-[20px] border border-hpsr-border bg-[#fffdf9] px-4 py-4 shadow-[0_10px_28px_rgba(93,45,24,0.04)] lg:px-5" : "border-t border-hpsr-border bg-[#fffdf9] px-4 py-4 lg:px-5"}>
           <div className="mb-3">
             <p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Acompanhamentos cadastrados</p>
           </div>

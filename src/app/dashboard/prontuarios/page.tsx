@@ -581,6 +581,7 @@ export default function RecordsPage() {
         birth_date: data.birthDate || null,
         blood_type: nextPatient.bloodType === "—" ? null : nextPatient.bloodType,
         city_phone: nextPatient.cityPhone === "Não informado" ? null : nextPatient.cityPhone,
+        email: null,
         follow_up: nextPatient.followUp,
         updated_at: createdAt,
       });

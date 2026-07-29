@@ -12,6 +12,8 @@ export type AdministrativeReportData = {
   applications: ReportRecord[];
   registrationRequests: ReportRecord[];
   patients: ReportRecord[];
+  patientAccounts?: ReportRecord[];
+  patientPortalAccess?: ReportRecord[];
   appointments: ReportRecord[];
   clinicalRecords: ReportRecord[];
   receipts: ReportRecord[];
@@ -79,10 +81,30 @@ export function exportAdministrativeReport(data: AdministrativeReportData) {
     Discord: text(p.discord), Telefone: text(p.cityPhone), CRM: text(p.crm), Especialidade: text(p.specialty), Observações: text(p.notes, p.reason),
   }; });
 
-  const patientRows = data.patients.map((row) => ({
-    Nome: row.name, Passaporte: row.passport, "Data de nascimento": dateText(row.birth_date), Idade: row.age, "Tipo sanguíneo": row.blood_type,
-    Telefone: row.city_phone, Email: row.email, "Cadastrado em": dateText(row.created_at), "Última atualização": dateText(row.updated_at), "Cadastrado por": row.created_by,
-  }));
+  const normalizePassport = (value: unknown) => String(value ?? "").trim().toUpperCase();
+  const normalizeEmail = (value: unknown) => String(value ?? "").trim().toLowerCase();
+  const isSyntheticPortalEmail = (value: string) => /^portal-direto\+[^@]+@hpsr\.local$/i.test(value);
+  const verifiedPatientEmails = new Map<string, string>();
+
+  for (const row of data.patientAccounts || []) {
+    const passport = normalizePassport(text(row.patient_passport, row.passport));
+    const email = normalizeEmail(row.email);
+    if (passport && email && !isSyntheticPortalEmail(email)) verifiedPatientEmails.set(passport, email);
+  }
+  for (const row of data.patientPortalAccess || []) {
+    const passport = normalizePassport(text(row.patient_passport, row.passport));
+    const email = normalizeEmail(row.email);
+    if (passport && email && !isSyntheticPortalEmail(email) && !verifiedPatientEmails.has(passport)) verifiedPatientEmails.set(passport, email);
+  }
+
+  const patientRows = data.patients.map((row) => {
+    const passport = normalizePassport(row.passport);
+    const verifiedEmail = verifiedPatientEmails.get(passport) || "";
+    return {
+      Nome: row.name, Passaporte: row.passport, "Data de nascimento": dateText(row.birth_date), Idade: row.age, "Tipo sanguíneo": row.blood_type,
+      Telefone: row.city_phone, Email: verifiedEmail, "Cadastrado em": dateText(row.created_at), "Última atualização": dateText(row.updated_at), "Cadastrado por": row.created_by,
+    };
+  });
 
   const appointmentRows = data.appointments.map((row) => { const p = payload(row); return {
     Protocolo: row.id, Paciente: text(row.patient, p.patientName, p.name), Passaporte: text(row.passport, p.passport), Status: text(row.status, p.status),

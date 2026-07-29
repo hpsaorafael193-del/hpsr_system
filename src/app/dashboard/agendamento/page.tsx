@@ -319,79 +319,89 @@ export default function AppointmentsPage() {
   );
 
   return (
-    <div className="hpsr-page gap-3">
+    <div className="hpsr-page gap-2 xl:h-[calc(100dvh-2.4rem)] xl:min-h-0 xl:overflow-hidden">
       <PageHeader
         eyebrow="Agendamentos"
         title="Central de agendamentos"
         description="Painel geral para solicitações, consultas, acompanhamentos, reagendamentos e pendências de cobrança. Procedimentos seguem separados na agenda própria."
       />
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <IndicatorCard
-          icon={<CalendarCheck2 size={18} />}
-          label="Consultas de hoje"
-          value={String(loggedDoctorConsultationsToday.length)}
-          description="Do médico logado"
-        />
-        <IndicatorCard
-          icon={<CalendarDays size={18} />}
-          label="Solicitações"
-          value={String(pendingRequests.length)}
-          description="Consultas aguardando análise"
-        />
-        <IndicatorCard
-          icon={<RotateCcw size={18} />}
-          label="Reagendamentos/cancelamentos"
-          value={String(pendingScheduleChanges.length)}
-          description="Pedidos pendentes"
-        />
-        <IndicatorCard
-          icon={<FileClock size={18} />}
-          label="Consultas no mês"
-          value={String(monthlyDoctorConsultations.length)}
-          description="Total do médico logado"
-        />
+      <section className="shrink-0 overflow-hidden rounded-[20px] border border-[#e6d2cd] bg-[linear-gradient(135deg,#fffaf7_0%,#fff4ee_100%)] shadow-sm">
+        <div className="grid gap-px bg-[#eadbd6] md:grid-cols-2 xl:grid-cols-4">
+          <IndicatorCard
+            icon={<CalendarCheck2 size={17} />}
+            label="Consultas de hoje"
+            value={String(loggedDoctorConsultationsToday.length)}
+            description="Do médico logado"
+          />
+          <IndicatorCard
+            icon={<CalendarDays size={17} />}
+            label="Solicitações"
+            value={String(pendingRequests.length)}
+            description="Aguardando análise"
+          />
+          <IndicatorCard
+            icon={<RotateCcw size={17} />}
+            label="Reagendamentos/cancelamentos"
+            value={String(pendingScheduleChanges.length)}
+            description="Pedidos pendentes"
+          />
+          <IndicatorCard
+            icon={<FileClock size={17} />}
+            label="Consultas no mês"
+            value={String(monthlyDoctorConsultations.length)}
+            description="Total do médico logado"
+          />
+        </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-3">
-        <ScheduleCard
-          icon={Stethoscope}
-          title="Agenda Clínica"
-          description="Área detalhada para calendário mensal e controle das consultas."
-          href="/dashboard/agendamento/clinica"
-          count={visibleAppointments.length}
-        />
+      <section className="shrink-0 rounded-[20px] border border-hpsr-border bg-white p-3 shadow-sm">
+        <div className="mb-3 flex items-center justify-between gap-3 px-1">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Acessos rápidos</p>
+            <p className="mt-0.5 text-sm font-semibold text-hpsr-muted">Escolha a área que deseja gerenciar.</p>
+          </div>
+          <div className="hidden h-9 w-9 items-center justify-center rounded-[12px] bg-[#f7e9e3] text-hpsr-wine sm:flex">
+            <CalendarClock size={18} />
+          </div>
+        </div>
 
-        <ScheduleCard
-          icon={Scissors}
-          title="Agenda de Procedimentos"
-          description="Procedimentos ficam separados por exigirem sala, equipe e duração específica."
-          href="/dashboard/agendamento/cirurgias"
-          count={4}
-        />
+        <div className="grid gap-2 md:grid-cols-3">
+          <ScheduleCard
+            icon={Stethoscope}
+            title="Agenda Clínica"
+            description="Calendário, consultas e gestão médica."
+            href="/dashboard/agendamento/clinica"
+            count={visibleAppointments.length}
+          />
 
-        <button
-          type="button"
-          onClick={() => setRequestsModalOpen(true)}
-          className="rounded-[16px] border border-hpsr-border bg-white p-3.5 text-left transition hover:bg-[#fffdf9]"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] text-white">
-                <CalendarDays size={21} />
+          <ScheduleCard
+            icon={Scissors}
+            title="Procedimentos"
+            description="Salas, equipes e duração específica."
+            href="/dashboard/agendamento/cirurgias"
+            count={4}
+          />
+
+          <button
+            type="button"
+            onClick={() => setRequestsModalOpen(true)}
+            className="group rounded-[17px] border border-hpsr-border bg-[#fffdfb] p-3.5 text-left transition hover:border-hpsr-wineLight/50 hover:bg-[#fff8f3]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white shadow-sm">
+                <CalendarDays size={19} />
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-hpsr-text">Solicitações de Consulta</h3>
-                <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">
-                  Abrir análise de pedidos do Portal do Paciente.
-                </p>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="truncate text-sm font-black text-hpsr-text">Solicitações de Consulta</h3>
+                  <span className="rounded-full bg-[#f6e7e1] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{pendingRequests.length}</span>
+                </div>
+                <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">Pedidos enviados pelo Portal do Paciente.</p>
               </div>
             </div>
-            <span className="rounded-full border border-hpsr-border bg-[#fcf6ee] px-3 py-1 text-xs font-bold text-hpsr-wine">
-              {pendingRequests.length}
-            </span>
-          </div>
-        </button>
+          </button>
+        </div>
       </section>
 
       <ConsultationOverview appointments={visibleAppointments} />
@@ -420,27 +430,23 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
   });
 
   return (
-    <section className="overflow-hidden rounded-[16px] border border-hpsr-border bg-white">
-      <div className="flex flex-col gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-3.5 md:flex-row md:items-center md:justify-between">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-hpsr-border bg-white shadow-sm">
+      <div className="flex shrink-0 flex-col gap-2 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf7_0%,#f7e9e2_100%)] px-4 py-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">
-            Visão geral
-          </p>
-          <h2 className="mt-1 text-lg font-black text-hpsr-text">Consultas agendadas</h2>
-          <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">
-            Lista geral das consultas de todos os médicos, com paciente, responsável, data, horário e status.
-          </p>
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Visão geral</p>
+          <h2 className="mt-0.5 text-lg font-black text-hpsr-text">Consultas agendadas</h2>
+          <p className="mt-0.5 text-xs leading-relaxed text-hpsr-muted">Paciente, profissional responsável, data, horário e situação atual.</p>
         </div>
-        <span className="rounded-2xl border border-hpsr-border bg-white px-4 py-2 text-xs font-black text-hpsr-wine">
+        <span className="rounded-[13px] border border-[#dcc1ba] bg-white px-3 py-2 text-xs font-black text-hpsr-wine shadow-sm">
           {sortedAppointments.length} consultas
         </span>
       </div>
 
-      <div className="grid gap-3 p-3.5">
+      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-contain p-3 pr-2 [scrollbar-gutter:stable]">
         {sortedAppointments.map((item) => (
           <article
             key={item.id}
-            className="grid gap-3 rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3.5 lg:grid-cols-[minmax(0,1.3fr)_minmax(180px,0.7fr)_150px_150px]"
+            className="grid gap-3 rounded-[16px] border border-hpsr-border bg-white p-3 shadow-[0_4px_14px_rgba(89,44,30,0.04)] transition hover:border-hpsr-wineLight/40 hover:bg-[#fffdfb] lg:grid-cols-[minmax(0,1.3fr)_minmax(180px,0.7fr)_140px_140px]"
           >
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">
@@ -905,15 +911,15 @@ function IndicatorCard({
   description: string;
 }) {
   return (
-    <article className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{label}</p>
-          <p className="mt-2 text-lg font-black leading-none text-hpsr-text">{value}</p>
-          <p className="mt-2 text-xs font-semibold text-hpsr-muted">{description}</p>
-        </div>
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[16px] bg-[#fcf6ee] text-hpsr-wine">
-          {icon}
+    <article className="bg-white px-3.5 py-3">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-[#f6e7e1] text-hpsr-wine">{icon}</div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[9px] font-black uppercase tracking-[0.13em] text-hpsr-wineLight">{label}</p>
+          <div className="mt-0.5 flex items-baseline gap-2">
+            <p className="text-xl font-black leading-none text-hpsr-text">{value}</p>
+            <p className="truncate text-[10px] font-semibold text-hpsr-muted">{description}</p>
+          </div>
         </div>
       </div>
     </article>
@@ -936,21 +942,19 @@ function ScheduleCard({
   return (
     <Link
       href={href}
-      className="group rounded-[16px] border border-hpsr-border bg-white p-3.5 transition hover:bg-[#fffdf9]"
+      className="group rounded-[17px] border border-hpsr-border bg-[#fffdfb] p-3.5 transition hover:border-hpsr-wineLight/50 hover:bg-[#fff8f3]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] text-white">
-            <Icon size={21} />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white shadow-sm">
+            <Icon size={19} />
           </div>
-          <div>
-            <h3 className="text-lg font-bold text-hpsr-text">{title}</h3>
-            <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">{description}</p>
+          <div className="min-w-0">
+            <h3 className="truncate text-sm font-black text-hpsr-text">{title}</h3>
+            <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">{description}</p>
           </div>
         </div>
-        <span className="rounded-full border border-hpsr-border bg-[#fcf6ee] px-3 py-1 text-xs font-bold text-hpsr-wine">
-          {count}
-        </span>
+        <span className="rounded-full bg-[#f6e7e1] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{count}</span>
       </div>
     </Link>
   );

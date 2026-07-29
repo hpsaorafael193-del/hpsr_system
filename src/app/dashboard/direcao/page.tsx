@@ -226,13 +226,15 @@ export default function DirectionPage() {
         return rows;
       };
 
-      const [profileRows, activityRows, teamRows, applicationRows, registrationRows, patientRows, appointmentRows, clinicalRows, receiptRows, planRows, timeRows, auditRows, bedRows, donationRows, castRows, followupPlanRows, followupOccurrenceRows, guardianRows] = await Promise.all([
+      const [profileRows, activityRows, teamRows, applicationRows, registrationRows, patientRows, patientAccountRows, patientPortalRows, appointmentRows, clinicalRows, receiptRows, planRows, timeRows, auditRows, bedRows, donationRows, castRows, followupPlanRows, followupOccurrenceRows, guardianRows] = await Promise.all([
         fetchAll("profiles"),
         fetchAll("system_activities"),
         fetchAll("team_members"),
         fetchAll("staff_applications"),
         fetchAll("staff_registration_requests"),
         fetchAll("patient_registry"),
+        fetchAll("patient_accounts"),
+        fetchAll("patient_portal_access"),
         fetchAll("appointments"),
         fetchAll("clinical_records"),
         fetchAll("financial_receipts"),
@@ -256,6 +258,8 @@ export default function DirectionPage() {
         applications: applicationRows,
         registrationRequests: registrationRows,
         patients: patientRows,
+        patientAccounts: patientAccountRows,
+        patientPortalAccess: patientPortalRows,
         appointments: appointmentRows,
         clinicalRecords: clinicalRows,
         receipts: receiptRows,

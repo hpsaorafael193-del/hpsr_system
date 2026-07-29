@@ -1,7 +1,7 @@
 "use client";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   CalendarDays,
   CalendarClock,
@@ -14,6 +14,8 @@ import {
   FileClock,
   HeartPulse,
   Plus,
+  Search,
+  ListFilter,
   Stethoscope,
   UserRound,
   UserPlus,
@@ -23,6 +25,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { DoctorAvailabilityManager } from "@/components/dashboard/DoctorAvailabilityManager";
+import { DeveloperAppointmentManager } from "@/components/dashboard/DeveloperAppointmentManager";
 import { ClinicalFollowupPlanner } from "@/components/dashboard/ClinicalFollowupPlanner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase";
@@ -54,6 +57,8 @@ type ModalState = {
   mode: ModalMode;
   appointment?: Appointment;
 } | null;
+
+type ScheduleToolModal = "followup" | "availability" | null;
 
 function getBrasiliaToday() {
   const formatter = new Intl.DateTimeFormat("en-CA", {
@@ -124,7 +129,10 @@ function buildMonthMatrix(baseDate: Date) {
 function statusClasses(status: string) {
   switch (status) {
     case "Concluída":
+    case "Realizada":
       return "bg-emerald-50 text-emerald-700 border-emerald-200";
+    case "Em atendimento":
+      return "bg-violet-50 text-violet-700 border-violet-200";
     case "Cancelada":
       return "bg-rose-50 text-rose-700 border-rose-200";
     case "Não compareceu":
@@ -141,6 +149,9 @@ const labelClass = "text-xs font-semibold uppercase tracking-[0.16em] text-hpsr-
 
 export default function ClinicalSchedulePage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
+  const isDeveloper = currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema" || currentUserProfile.accessLevel === "Total";
+  const isDirector = ["Diretora", "Vice Diretor", "Diretor Clínico"].some((role) => role === currentUserProfile.role || role === currentUserProfile.systemRole);
+  const canViewAllMedicalSchedules = isDeveloper || isDirector;
   const [scheduledAppointments, setScheduledAppointments] = useState<Appointment[]>([]);
   const brasiliaToday = useMemo(() => getBrasiliaToday(), []);
   const [currentMonth, setCurrentMonth] = useState(
@@ -148,31 +159,46 @@ export default function ClinicalSchedulePage() {
   );
   const [selectedDate, setSelectedDate] = useState(brasiliaToday);
   const [modal, setModal] = useState<ModalState>(null);
+  const [scheduleToolModal, setScheduleToolModal] = useState<ScheduleToolModal>(null);
+  const [appointmentSearch, setAppointmentSearch] = useState("");
 
   const dateKey = toDateKey(selectedDate);
 
-  useEffect(() => {
-    const supabase = createClient();
-    if (!supabase) return;
-    const client = supabase;
-    let active = true;
-    async function loadAppointments() {
-      const { data, error } = await client.from("appointments").select("id,passport,patient,status,payload,created_at").order("created_at", { ascending: false });
-      if (error || !active) return;
-      setScheduledAppointments((data || []).filter((row: any) => row.status === "Aceita" || row.status === "Agendada" || row.status === "Confirmada" || row.status === "Reagendamento aceito").map((row: any) => {
+  const loadAppointments = useCallback(async () => {
+    const client = createClient();
+    if (!client) return;
+    const { data, error } = await client
+      .from("appointments")
+      .select("id,passport,patient,status,payload,created_at")
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    setScheduledAppointments((data || [])
+      .filter((row: any) => ["Aceita", "Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento"].includes(String(row.status)))
+      .map((row: any) => {
         const payload = (row.payload || {}) as Record<string, unknown>;
         return {
-          id: String(row.id), patient: String(row.patient || payload.patient || "Paciente"), passport: String(row.passport || payload.passport || ""),
-          specialty: String(payload.specialty || "Clínico Geral"), physician: String(payload.physician || payload.doctor || "A definir"),
-          date: String(row.status === "Reagendamento aceito" ? payload.proposedDate || payload.preferredDate || payload.date || "" : payload.preferredDate || payload.date || ""), time: String(row.status === "Reagendamento aceito" ? payload.proposedTime || payload.time || "09:00" : payload.time || (payload.preferredPeriod === "Tarde" ? "14:00" : payload.preferredPeriod === "Noite" ? "19:00" : "09:00")),
+          id: String(row.id),
+          patient: String(row.patient || payload.patient || "Paciente"),
+          passport: String(row.passport || payload.passport || ""),
+          specialty: String(payload.specialty || "Clínico Geral"),
+          physician: String(payload.physician || payload.doctor || "A definir"),
+          date: String(row.status === "Reagendamento aceito" ? payload.proposedDate || payload.preferredDate || payload.date || "" : payload.preferredDate || payload.date || ""),
+          time: String(row.status === "Reagendamento aceito" ? payload.proposedTime || payload.time || "09:00" : payload.time || (payload.preferredPeriod === "Tarde" ? "14:00" : payload.preferredPeriod === "Noite" ? "19:00" : "09:00")),
           status: String(row.status === "Aceita" ? "Agendada" : row.status),
         };
       }));
-    }
-    void loadAppointments();
-    const channel = client.channel("agenda-clinica-sync").on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, loadAppointments).subscribe();
-    return () => { active = false; void client.removeChannel(channel); };
   }, []);
+
+  useEffect(() => {
+    const client = createClient();
+    if (!client) return;
+    void loadAppointments();
+    const channel = client
+      .channel("agenda-clinica-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => void loadAppointments())
+      .subscribe();
+    return () => { void client.removeChannel(channel); };
+  }, [loadAppointments]);
 
   const doctorAppointments = scheduledAppointments.filter((appointment) =>
     appointment.physician === currentUserProfile.systemName || doctorCanAccessSpecialty(appointment.specialty)
@@ -181,6 +207,18 @@ export default function ClinicalSchedulePage() {
   const appointmentsOnSelectedDay = doctorAppointments
     .filter((appointment) => appointment.date === dateKey)
     .sort((a, b) => a.time.localeCompare(b.time));
+
+  const visibleAppointmentsOnSelectedDay = appointmentsOnSelectedDay.filter((appointment) => {
+    const query = appointmentSearch.trim().toLocaleLowerCase("pt-BR");
+    if (!query) return true;
+    return [appointment.patient, appointment.passport, appointment.specialty, appointment.physician, appointment.status, appointment.time]
+      .some((value) => value.toLocaleLowerCase("pt-BR").includes(query));
+  });
+
+  const todayKey = toDateKey(brasiliaToday);
+  const todayAppointments = doctorAppointments.filter((appointment) => appointment.date === todayKey);
+  const confirmedAppointments = doctorAppointments.filter((appointment) => appointment.status === "Confirmada").length;
+  const inServiceAppointments = doctorAppointments.filter((appointment) => appointment.status === "Em atendimento").length;
 
   async function handleDeleteAppointment(appointment: Appointment) {
     const confirmed = await hpsrConfirm(
@@ -213,16 +251,22 @@ export default function ClinicalSchedulePage() {
       deletedBy: currentUserProfile.systemName,
       previousStatus: appointment.status,
     };
-    const { error } = await client
+    const { data: cancelledRow, error } = await client
       .from("appointments")
       .update({ status: "Cancelada", payload, updated_at: now })
-      .eq("id", appointment.id);
+      .eq("id", appointment.id)
+      .select("id,status")
+      .maybeSingle();
     if (error) {
       await hpsrAlert(error.message, "Falha ao excluir consulta");
       return;
     }
+    if (!cancelledRow || cancelledRow.status !== "Cancelada") {
+      await hpsrAlert("O banco não confirmou a alteração desta consulta. Verifique as permissões do usuário e tente novamente.", "Consulta não alterada");
+      return;
+    }
 
-    setScheduledAppointments((current) => current.filter((item) => item.id !== appointment.id));
+    await loadAppointments();
   }
 
   const monthlyAppointments = doctorAppointments.filter((appointment) => {
@@ -246,67 +290,58 @@ export default function ClinicalSchedulePage() {
       <PageHeader
         eyebrow="Agendamentos"
         title="Agenda Clínica"
-        description="Planeje acompanhamentos, publique horários e acompanhe as consultas do corpo clínico em uma única visão."
+        description="Calendário, consultas e ações clínicas em uma única visão."
+        compact
       />
 
-      <section className="rounded-[20px] border border-hpsr-border bg-white px-4 py-4 shadow-[0_12px_35px_rgba(93,45,24,0.04)] lg:px-5">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Visão diária</p>
-            <h2 className="mt-1 text-[clamp(1.3rem,2vw,1.8rem)] font-black tracking-tight text-hpsr-text">
-              Consultas e atendimentos
-            </h2>
-            <p className="mt-1 max-w-2xl text-sm font-semibold leading-relaxed text-hpsr-muted">
-              Selecione uma data no calendário e acompanhe os atendimentos previstos para o dia.
-            </p>
-          </div>
-
+      <section className="rounded-[18px] border border-hpsr-border bg-white p-3 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setModal({ mode: "new" })}
-              className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 py-2.5 text-sm font-black text-white transition hover:opacity-95"
-            >
-              <Plus size={16} />
-              Nova consulta
+            <button onClick={() => setModal({ mode: "new" })} className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-hpsr-wine px-4 py-2.5 text-sm font-black text-white">
+              <Plus size={16} /> Nova consulta
             </button>
-            <a
-              href="#planejar-consultas"
-              className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:bg-white"
-            >
-              <CalendarCheck2 size={16} />
-              Planejar consultas
-            </a>
-            <a
-              href="#publicar-horarios"
-              className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:bg-white"
-            >
-              <CalendarClock size={16} />
-              Publicar horários
-            </a>
-            <button
-              onClick={() => setModal({ mode: "export" })}
-              className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:bg-[#fffdf9]"
-            >
-              <Download size={16} />
-              Exportar
+            <button type="button" onClick={() => setScheduleToolModal("followup")} className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:border-hpsr-wineLight hover:bg-[#fff4e9]">
+              <CalendarCheck2 size={16} /> Planejar acompanhamento
             </button>
+            <button type="button" onClick={() => setScheduleToolModal("availability")} className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:border-hpsr-wineLight hover:bg-[#fff4e9]">
+              <CalendarClock size={16} /> Publicar horários
+            </button>
+            <button onClick={() => setModal({ mode: "export" })} className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-4 py-2.5 text-sm font-black text-hpsr-wine">
+              <Download size={16} /> Exportar
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {[
+              ["Hoje", String(todayAppointments.length)],
+              ["Mês", String(monthlyAppointments.length)],
+              ["Confirmadas", String(confirmedAppointments)],
+              ["Em atendimento", String(inServiceAppointments)],
+            ].map(([label, value]) => (
+              <div key={label} className="min-w-[92px] rounded-[12px] border border-hpsr-border bg-[#fffdf9] px-3 py-2">
+                <p className="text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">{label}</p>
+                <p className="mt-0.5 text-base font-black text-hpsr-text">{value}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      <section className="grid gap-3 xl:grid-cols-[minmax(320px,430px)_minmax(0,1fr)]">
-        <article className="overflow-hidden rounded-[20px] border border-hpsr-border bg-white p-4 shadow-[0_12px_35px_rgba(93,45,24,0.04)]">
-          <div className="mb-5 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">Calendário</p>
-              <h2 className="mt-2 text-lg font-semibold text-hpsr-text">Consultas por data</h2>
-            </div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-[14px] bg-[#f7f2ea] text-hpsr-wine">
-              <CalendarDays size={20} />
+      <section className="grid items-start gap-3 xl:grid-cols-[minmax(320px,410px)_minmax(0,1fr)]">
+        <article className="flex h-auto flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfb_0%,#fff8f4_100%)] shadow-[0_12px_35px_rgba(93,45,24,0.05)] xl:h-[590px]">
+          <div className="shrink-0 border-b border-hpsr-border/80 bg-white/80 px-4 py-3.5 backdrop-blur">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Calendário</p>
+                <h2 className="mt-1 text-xl font-black text-hpsr-text">Consultas por data</h2>
+                <p className="mt-1 text-sm text-hpsr-muted">Selecione um dia para visualizar e organizar os atendimentos.</p>
+              </div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-[16px] bg-hpsr-wine text-white shadow-sm">
+                <CalendarDays size={18} />
+              </div>
             </div>
           </div>
-
-          <div className="rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3.5">
+          <div className="min-h-0 flex-1 p-4">
+          <div className="rounded-[18px] border border-hpsr-border bg-white p-3.5 shadow-sm">
             <div className="mb-4 flex items-center justify-between gap-2">
               <button
                 type="button"
@@ -377,54 +412,87 @@ export default function ClinicalSchedulePage() {
               })}
             </div>
           </div>
+          </div>
+          <div className="border-t border-hpsr-border bg-[#fffaf6] px-4 py-3 text-xs font-semibold leading-relaxed text-hpsr-muted">
+            Os dias com consultas possuem um marcador. Selecione uma data para atualizar o painel de atendimentos.
+          </div>
         </article>
 
-        <article className="overflow-hidden rounded-[20px] border border-hpsr-border bg-white p-4 shadow-[0_12px_35px_rgba(93,45,24,0.04)]">
-          <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <article className="flex h-auto min-h-0 flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfb_0%,#fff8f4_100%)] shadow-[0_12px_35px_rgba(93,45,24,0.05)] xl:h-[590px]">
+          <div className="shrink-0 border-b border-hpsr-border/80 bg-white/80 p-4 backdrop-blur">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">Próximas consultas</p>
-              <h2 className="mt-2 text-lg font-semibold capitalize text-hpsr-text">{selectedDateLabel}</h2>
-              <p className="mt-2 text-sm text-hpsr-muted">
+              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Próximas consultas</p>
+              <h2 className="mt-1 text-xl font-black capitalize text-hpsr-text">{selectedDateLabel}</h2>
+              <p className="mt-1 text-sm text-hpsr-muted">
                 Horários exibidos no padrão de Brasília (BRT).
               </p>
             </div>
 
-            <div className="rounded-2xl border border-hpsr-border bg-[#fcf6ee] px-4 py-3 text-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-hpsr-muted">Resumo do dia</p>
-              <p className="mt-1 font-semibold text-hpsr-text">
+            <div className="min-w-[150px] rounded-[18px] border border-[#e6d0c7] bg-white px-4 py-3 text-sm shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Resumo do dia</p>
+              <p className="mt-1 text-lg font-black text-hpsr-text">
                 {appointmentsOnSelectedDay.length} consulta{appointmentsOnSelectedDay.length === 1 ? "" : "s"}
               </p>
             </div>
+            </div>
+
+            <div className="mt-4 flex items-center gap-2 rounded-[16px] border border-hpsr-border bg-[#fffaf6] px-3.5 shadow-sm">
+              <Search size={16} className="shrink-0 text-hpsr-wineLight" />
+              <input
+                value={appointmentSearch}
+                onChange={(event) => setAppointmentSearch(event.target.value)}
+                placeholder="Buscar paciente, passaporte, médico ou status"
+                className="h-11 min-w-0 flex-1 bg-transparent text-sm font-semibold text-hpsr-text outline-none placeholder:text-hpsr-muted/70"
+              />
+              <ListFilter size={16} className="shrink-0 text-hpsr-muted" />
+            </div>
           </div>
 
+          <div
+            className="hpsr-appointments-scroll min-h-0 flex-1 overflow-y-scroll p-4 [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]"
+            onWheel={(event) => {
+              const panel = event.currentTarget;
+              if (panel.scrollHeight > panel.clientHeight) {
+                panel.scrollTop += event.deltaY;
+                event.stopPropagation();
+              }
+            }}
+          >
           {appointmentsOnSelectedDay.length === 0 ? (
-            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-[16px] border border-dashed border-hpsr-border bg-[#fff8f0] px-4 text-center">
-              <div className="flex h-8 w-8 items-center justify-center rounded-[14px] bg-white text-hpsr-wine ">
+            <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-[18px] border border-dashed border-[#dfc6bb] bg-white px-5 text-center shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[#f7e8e4] text-hpsr-wine">
                 <FileClock size={24} />
               </div>
-              <h3 className="mt-4 text-lg font-semibold text-hpsr-text">Nenhuma consulta agendada</h3>
+              <h3 className="mt-4 text-xl font-black text-hpsr-text">Nenhuma consulta agendada</h3>
               <p className="mt-2 max-w-md text-sm leading-relaxed text-hpsr-muted">
                 Selecione outra data no calendário ou crie um novo agendamento para o corpo clínico.
               </p>
               <button
                 onClick={() => setModal({ mode: "new" })}
-                className="mt-5 inline-flex items-center gap-2 rounded-[14px] bg-hpsr-wineLight px-4 py-3 text-sm font-semibold text-white transition hover:opacity-95"
+                className="mt-5 inline-flex items-center gap-2 rounded-[14px] bg-hpsr-wine px-4 py-3 text-sm font-black text-white transition hover:opacity-95"
               >
                 <Plus size={16} />
                 Agendar consulta
               </button>
             </div>
+          ) : visibleAppointmentsOnSelectedDay.length === 0 ? (
+            <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-[18px] border border-dashed border-[#dfc6bb] bg-white px-5 text-center shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[#f7e8e4] text-hpsr-wine"><Search size={22} /></div>
+              <h3 className="mt-4 text-xl font-black text-hpsr-text">Nenhuma consulta encontrada</h3>
+              <p className="mt-2 max-w-md text-sm leading-relaxed text-hpsr-muted">Revise o termo pesquisado para visualizar os agendamentos deste dia.</p>
+            </div>
           ) : (
             <div className="grid gap-3">
-              {appointmentsOnSelectedDay.map((appointment) => (
+              {visibleAppointmentsOnSelectedDay.map((appointment) => (
                 <div
                   key={appointment.id}
-                  className="rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3.5 transition hover:bg-[#fffdf9]"
+                  className="rounded-[18px] border border-[#e5d1c6] bg-white p-3.5 shadow-sm transition hover:border-[#d6b8ac] hover:bg-[#fffdfa]"
                 >
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-hpsr-wine ">
+                        <span className="inline-flex items-center gap-2 rounded-full border border-[#ead8cf] bg-[#fff8f4] px-3 py-1 text-xs font-semibold text-hpsr-wine ">
                           <CalendarDays size={14} />
                           {appointment.time} · Brasília
                         </span>
@@ -490,24 +558,76 @@ export default function ClinicalSchedulePage() {
               ))}
             </div>
           )}
+          </div>
         </article>
       </section>
 
-      <section className="space-y-4 pt-1">
-        <div className="rounded-[18px] border border-hpsr-border bg-[#fffaf4] px-4 py-3">
-          <p className="text-[11px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Organização da agenda</p>
-          <p className="mt-1 text-sm font-semibold text-hpsr-muted">Planeje os acompanhamentos e publique os horários somente quando precisar.</p>
-        </div>
+      <DeveloperAppointmentManager doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} canViewAll={canViewAllMedicalSchedules} />
 
-        <div id="planejar-consultas" className="scroll-mt-24">
-          <ClinicalFollowupPlanner doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} defaultSpecialty={currentUserProfile.specialty || "Clínico Geral"} />
-        </div>
-        <div id="publicar-horarios" className="scroll-mt-24">
-          <DoctorAvailabilityManager doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} defaultSpecialty={currentUserProfile.specialty || "Clínico Geral"} />
+      <ScheduleToolDialog
+        mode={scheduleToolModal}
+        onClose={() => setScheduleToolModal(null)}
+        doctorId={currentUserProfile.id}
+        doctorName={currentUserProfile.systemName}
+        defaultSpecialty={currentUserProfile.specialty || "Clínico Geral"}
+      />
+
+      <AgendaModal modal={modal} onClose={() => setModal(null)} onChanged={loadAppointments} selectedDate={dateKey} appointments={doctorAppointments} />
+    </div>
+  );
+}
+
+function ScheduleToolDialog({
+  mode,
+  onClose,
+  doctorId,
+  doctorName,
+  defaultSpecialty,
+}: {
+  mode: ScheduleToolModal;
+  onClose: () => void;
+  doctorId?: string;
+  doctorName: string;
+  defaultSpecialty: string;
+}) {
+  if (!mode) return null;
+
+  const isFollowup = mode === "followup";
+
+  return (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center px-3 py-3 sm:px-5">
+      <button type="button" onClick={onClose} aria-label="Fechar modal" className="hpsr-modal-backdrop" />
+
+      <section className="relative flex max-h-[94vh] w-full max-w-[1180px] flex-col overflow-hidden rounded-[24px] border border-hpsr-border bg-[#fffaf5] shadow-[0_28px_80px_rgba(57,19,8,.28)]">
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-hpsr-border bg-white px-5 py-4 sm:px-6">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-hpsr-wine text-white shadow-sm">
+              {isFollowup ? <CalendarCheck2 size={20} /> : <CalendarClock size={20} />}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[.18em] text-hpsr-wineLight">Agenda clínica</p>
+              <h2 className="mt-0.5 text-xl font-black text-hpsr-text">{isFollowup ? "Planejar acompanhamento" : "Publicar horários"}</h2>
+              <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">
+                {isFollowup
+                  ? "Monte uma sequência de acompanhamento para o paciente sem sair da visão principal da agenda."
+                  : "Defina e publique os horários disponíveis para atendimento médico."}
+              </p>
+            </div>
+          </div>
+
+          <button type="button" onClick={onClose} className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-muted transition hover:border-hpsr-wineLight hover:bg-[#fff8f0] hover:text-hpsr-wine" aria-label="Fechar">
+            <X size={18} />
+          </button>
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5" style={{ scrollbarGutter: "stable" }}>
+          {isFollowup ? (
+            <ClinicalFollowupPlanner doctorId={doctorId} doctorName={doctorName} defaultSpecialty={defaultSpecialty} embedded />
+          ) : (
+            <DoctorAvailabilityManager doctorId={doctorId} doctorName={doctorName} defaultSpecialty={defaultSpecialty} embedded />
+          )}
         </div>
       </section>
-
-      <AgendaModal modal={modal} onClose={() => setModal(null)} selectedDate={dateKey} appointments={doctorAppointments} />
     </div>
   );
 }
@@ -515,11 +635,13 @@ export default function ClinicalSchedulePage() {
 function AgendaModal({
   modal,
   onClose,
+  onChanged,
   selectedDate,
   appointments,
 }: {
   modal: ModalState;
   onClose: () => void;
+  onChanged: () => Promise<void>;
   selectedDate: string;
   appointments: Appointment[];
 }) {
@@ -577,7 +699,7 @@ function AgendaModal({
         <div className="overflow-visible bg-[#fffaf5] p-4 sm:p-5">
           {modal.mode === "new" && <NewAppointmentForm selectedDate={selectedDate} onClose={onClose} appointments={appointments} />}
           {modal.mode === "export" && <ExportReportForm onClose={onClose} />}
-          {modal.mode === "open" && appointment && <OpenAttendanceForm appointment={appointment} onClose={onClose} />}
+          {modal.mode === "open" && appointment && <OpenAttendanceForm appointment={appointment} onClose={onClose} onChanged={onChanged} />}
           {modal.mode === "patient" && appointment && <PatientDetails appointment={appointment} />}
           {modal.mode === "reschedule" && appointment && (
             <RescheduleForm appointment={appointment} onClose={onClose} appointments={appointments} />
@@ -783,21 +905,110 @@ function ExportReportForm({ onClose }: { onClose: () => void }) {
   );
 }
 
-function OpenAttendanceForm({ appointment, onClose }: { appointment: Appointment; onClose: () => void }) {
+function OpenAttendanceForm({ appointment, onClose, onChanged }: { appointment: Appointment; onClose: () => void; onChanged: () => Promise<void> }) {
+  const [status, setStatus] = useState("em_atendimento");
+  const [recordType, setRecordType] = useState("consulta");
+  const [summary, setSummary] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const { profile: currentUserProfile } = useCurrentUserProfile();
+
+  const statusMap: Record<string, string> = {
+    agendada: "Agendada",
+    confirmada: "Confirmada",
+    em_atendimento: "Em atendimento",
+    realizada: "Realizada",
+    ausente: "Não compareceu",
+    cancelada: "Cancelada",
+  };
+
+  async function handleSave() {
+    const nextStatus = statusMap[status];
+    if (!nextStatus) {
+      setMessage({ type: "error", text: "Selecione um status válido para o atendimento." });
+      return;
+    }
+
+    const client = createClient();
+    if (!client) {
+      setMessage({ type: "error", text: "Não foi possível acessar o banco de dados." });
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const { data: currentRow, error: readError } = await client
+        .from("appointments")
+        .select("payload,status")
+        .eq("id", appointment.id)
+        .maybeSingle();
+      if (readError) throw readError;
+      if (!currentRow) throw new Error("A consulta não foi encontrada no banco de dados.");
+
+      const now = new Date().toISOString();
+      const currentPayload = (currentRow.payload || {}) as Record<string, unknown>;
+      const payload = {
+        ...currentPayload,
+        attendanceStatus: nextStatus,
+        attendanceRecordType: recordType,
+        attendanceSummary: summary.trim() || null,
+        attendanceUpdatedAt: now,
+        attendanceUpdatedBy: currentUserProfile.systemName,
+        previousStatus: currentRow.status,
+        updatedAt: now,
+      };
+
+      const { data: updatedAppointment, error: updateError } = await client
+        .from("appointments")
+        .update({ status: nextStatus, payload, updated_at: now })
+        .eq("id", appointment.id)
+        .select("id,status,payload")
+        .maybeSingle();
+      if (updateError) throw updateError;
+      if (!updatedAppointment || updatedAppointment.status !== nextStatus) {
+        throw new Error("O banco não confirmou a alteração do status. Verifique as permissões e tente novamente.");
+      }
+
+      const slotId = String(currentPayload.slotId || "");
+      if (slotId) {
+        const slotStatus = nextStatus === "Realizada" ? "Concluído" : nextStatus === "Não compareceu" ? "Ausente" : nextStatus;
+        await client.from("clinical_appointment_slots").update({ status: slotStatus, updated_at: now }).eq("id", slotId);
+      }
+
+      const occurrenceId = String(currentPayload.occurrenceId || "");
+      if (occurrenceId) {
+        const occurrenceStatus = nextStatus === "Realizada" ? "Consulta realizada" : nextStatus;
+        await client.from("clinical_followup_occurrences").update({ status: occurrenceStatus, updated_at: now }).eq("id", occurrenceId);
+      }
+
+      await onChanged();
+      setMessage({ type: "success", text: `Status alterado para “${nextStatus}” e sincronizado no sistema.` });
+      window.setTimeout(() => onClose(), 500);
+    } catch (caught) {
+      setMessage({ type: "error", text: caught instanceof Error ? caught.message : "Não foi possível atualizar o atendimento." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="grid gap-3">
       <AppointmentSummary appointment={appointment} />
 
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Status do atendimento">
-          <StyledSelect className={inputClass} defaultValue="em_atendimento">
+          <StyledSelect className={inputClass} value={status} onChange={(event) => setStatus(event.target.value)}>
+            <option value="agendada">Agendada</option>
+            <option value="confirmada">Confirmada</option>
             <option value="em_atendimento">Em atendimento</option>
-            <option value="concluida">Concluir consulta</option>
+            <option value="realizada">Consulta realizada</option>
             <option value="ausente">Paciente não compareceu</option>
+            <option value="cancelada">Cancelada</option>
           </StyledSelect>
         </Field>
         <Field label="Tipo de registro">
-          <StyledSelect className={inputClass} defaultValue="consulta">
+          <StyledSelect className={inputClass} value={recordType} onChange={(event) => setRecordType(event.target.value)}>
             <option value="consulta">Consulta clínica</option>
             <option value="retorno">Retorno</option>
             <option value="triagem">Triagem</option>
@@ -805,11 +1016,16 @@ function OpenAttendanceForm({ appointment, onClose }: { appointment: Appointment
         </Field>
       </div>
 
-      <Field label="Resumo inicial">
-        <textarea className={inputClass} rows={4} placeholder="Registre queixa principal, conduta inicial ou observação do atendimento." />
+      <Field label="Resumo do atendimento">
+        <textarea className={inputClass} rows={4} value={summary} onChange={(event) => setSummary(event.target.value)} placeholder="Registre queixa principal, conduta inicial ou observação do atendimento." />
       </Field>
 
-      <ModalActions onClose={onClose} actionLabel="Iniciar atendimento" />
+      {message && <ValidationMessage type={message.type} text={message.text} />}
+
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button type="button" onClick={onClose} disabled={saving} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-xs font-black text-hpsr-text disabled:opacity-50">Cancelar</button>
+        <button type="button" onClick={() => void handleSave()} disabled={saving} className="rounded-[14px] bg-hpsr-wine px-4 py-3 text-xs font-black text-white disabled:opacity-50">{saving ? "Salvando..." : "Salvar atendimento"}</button>
+      </div>
     </div>
   );
 }

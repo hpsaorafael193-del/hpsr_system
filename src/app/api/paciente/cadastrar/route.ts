@@ -10,6 +10,9 @@ function clean(value: unknown, max = 180) {
 
 export async function POST(request: NextRequest) {
   let createdUserId: string | null = null;
+  let createdRegistryPassport: string | null = null;
+  let createdPatientAccountUserId: string | null = null;
+  let createdPortalAccessId: string | null = null;
   try {
     const body = await request.json();
     const name = clean(body.name, 160);
@@ -50,19 +53,28 @@ export async function POST(request: NextRequest) {
     }
 
     const [{ data: accountByPassport }, { data: accountByEmail }, { data: accountByUser }] = await Promise.all([
-      supabase.from("patient_accounts").select("user_id").eq("patient_passport", passport).maybeSingle(),
-      supabase.from("patient_accounts").select("user_id").eq("email", email).maybeSingle(),
+      supabase.from("patient_accounts").select("user_id,patient_passport,email").eq("patient_passport", passport).maybeSingle(),
+      supabase.from("patient_accounts").select("user_id,patient_passport,email").eq("email", email).maybeSingle(),
       linkedUserId
-        ? supabase.from("patient_accounts").select("user_id").eq("user_id", linkedUserId).maybeSingle()
+        ? supabase.from("patient_accounts").select("user_id,patient_passport,email").eq("user_id", linkedUserId).maybeSingle()
         : Promise.resolve({ data: null }),
     ]);
 
     const existingAccount = accountByPassport || accountByEmail || accountByUser;
     if (existingAccount) {
-      if (linkedUserId && existingAccount.user_id === linkedUserId) {
+      const sameUser = Boolean(linkedUserId && existingAccount.user_id === linkedUserId);
+      const samePassport = existingAccount.patient_passport === passport;
+      const sameEmail = String(existingAccount.email || "").toLowerCase() === email;
+      if (sameUser && samePassport && sameEmail) {
         return NextResponse.json({ ok: true, alreadyLinked: true, message: "Sua conta já está vinculada ao Portal do Paciente." });
       }
-      return NextResponse.json({ error: "Já existe uma conta vinculada a este passaporte ou e-mail." }, { status: 409 });
+      if (accountByPassport) {
+        return NextResponse.json({ error: "Este passaporte já está vinculado a outra conta do Portal do Paciente." }, { status: 409 });
+      }
+      if (accountByEmail || accountByUser) {
+        return NextResponse.json({ error: "Este e-mail ou conta já está vinculado a outro paciente." }, { status: 409 });
+      }
+      return NextResponse.json({ error: "Já existe uma conta vinculada a estes dados." }, { status: 409 });
     }
 
     const { data: existingPatient, error: patientLookupError } = await supabase
@@ -92,27 +104,18 @@ export async function POST(request: NextRequest) {
       createdUserId = linkedUserId;
     }
 
-    if (existingPatient) {
-      const updates: Record<string, string> = {};
-      if (!clean(existingPatient.age) && age) updates.age = age;
-      if (!clean(existingPatient.blood_type) && bloodType) updates.blood_type = bloodType;
-      if (!clean(existingPatient.city_phone) && phone) updates.city_phone = phone;
-      if (!clean(existingPatient.email)) updates.email = email;
-      if (Object.keys(updates).length) {
-        const { error } = await supabase.from("patient_registry").update(updates).eq("passport", passport);
-        if (error) throw error;
-      }
-    } else {
+    if (!existingPatient) {
       const { error } = await supabase.from("patient_registry").insert({
         passport,
         name,
         age: age || null,
         blood_type: bloodType || null,
         city_phone: phone || null,
-        email,
+        email: null,
         follow_up: "Rotina",
       });
       if (error) throw error;
+      createdRegistryPassport = passport;
     }
 
     const { error: accountError } = await supabase.from("patient_accounts").insert({
@@ -121,16 +124,46 @@ export async function POST(request: NextRequest) {
       email,
     });
     if (accountError) throw accountError;
+    createdPatientAccountUserId = linkedUserId;
 
-    const { data: portalAccess } = await supabase
+    const { data: portalAccess, error: portalLookupError } = await supabase
       .from("patient_portal_access")
       .select("id")
       .eq("patient_passport", passport)
       .maybeSingle();
+    if (portalLookupError) throw portalLookupError;
+
     if (portalAccess?.id) {
-      await supabase.from("patient_portal_access").update({ email, access_enabled: true }).eq("id", portalAccess.id);
+      const { error: portalUpdateError } = await supabase
+        .from("patient_portal_access")
+        .update({ email, access_enabled: true })
+        .eq("id", portalAccess.id);
+      if (portalUpdateError) throw portalUpdateError;
     } else {
-      await supabase.from("patient_portal_access").insert({ patient_passport: passport, email, access_enabled: true });
+      const { data: insertedPortalAccess, error: portalInsertError } = await supabase
+        .from("patient_portal_access")
+        .insert({ patient_passport: passport, email, access_enabled: true })
+        .select("id")
+        .single();
+      if (portalInsertError) throw portalInsertError;
+      createdPortalAccessId = insertedPortalAccess.id;
+    }
+
+    const registryUpdates: Record<string, string> = {};
+    if (existingPatient) {
+      if (!clean(existingPatient.age) && age) registryUpdates.age = age;
+      if (!clean(existingPatient.blood_type) && bloodType) registryUpdates.blood_type = bloodType;
+      if (!clean(existingPatient.city_phone) && phone) registryUpdates.city_phone = phone;
+      if (!clean(existingPatient.email)) registryUpdates.email = email;
+    } else {
+      registryUpdates.email = email;
+    }
+    if (Object.keys(registryUpdates).length) {
+      const { error: registryUpdateError } = await supabase
+        .from("patient_registry")
+        .update(registryUpdates)
+        .eq("passport", passport);
+      if (registryUpdateError) throw registryUpdateError;
     }
 
     return NextResponse.json({
@@ -142,8 +175,18 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("[patient-portal] register", error);
+    const supabase = getServiceClient();
+    if (createdPortalAccessId) {
+      try { await supabase.from("patient_portal_access").delete().eq("id", createdPortalAccessId); } catch {}
+    }
+    if (createdPatientAccountUserId) {
+      try { await supabase.from("patient_accounts").delete().eq("user_id", createdPatientAccountUserId); } catch {}
+    }
+    if (createdRegistryPassport) {
+      try { await supabase.from("patient_registry").delete().eq("passport", createdRegistryPassport); } catch {}
+    }
     if (createdUserId) {
-      try { await getServiceClient().auth.admin.deleteUser(createdUserId); } catch {}
+      try { await supabase.auth.admin.deleteUser(createdUserId); } catch {}
     }
     return NextResponse.json({ error: "Não foi possível concluir o cadastro." }, { status: 500 });
   }
