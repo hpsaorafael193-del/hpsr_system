@@ -165,7 +165,7 @@ export default function RecordsPage() {
           cityPhone: patient.cityPhone || existing?.cityPhone || "Não informado",
           birthDate: existing?.birthDate,
           status: existing?.status || "Ativo",
-          followUp: existing?.followUp || "Prontuário clínico",
+          followUp: normalizePatientFollowUp(existing?.followUp),
           lastVisit: existing?.lastVisit || "—",
           alerts: existing?.alerts || [],
         });
@@ -228,7 +228,7 @@ export default function RecordsPage() {
           cityPhone: source.cityPhone && source.cityPhone !== "Não informado" ? source.cityPhone : current?.cityPhone || "Não informado",
           birthDate: source.birthDate || current?.birthDate || "",
           status: source.status || current?.status || "Ativo",
-          followUp: source.followUp || current?.followUp || "Prontuário clínico",
+          followUp: normalizePatientFollowUp(source.followUp || current?.followUp),
           lastVisit: [current?.lastVisit, source.lastVisit].filter(Boolean).sort().at(-1) || "",
           alerts: Array.from(new Set([...(current?.alerts || []), ...(source.alerts || [])])),
         });
@@ -242,7 +242,7 @@ export default function RecordsPage() {
           cityPhone: formatPhoneDisplay(row.city_phone, "Não informado"),
           birthDate: row.birth_date || "",
           status: "Ativo",
-          followUp: row.follow_up || "Rotina",
+          followUp: normalizePatientFollowUp(row.follow_up),
           lastVisit: String(row.updated_at || row.created_at || "").slice(0, 10),
         });
       }
@@ -253,7 +253,7 @@ export default function RecordsPage() {
         if (!current) continue;
         upsertPatient(passport, {
           status: row.access_enabled ? current.status : "Arquivado",
-          followUp: current.followUp,
+          followUp: normalizePatientFollowUp(current.followUp),
           lastVisit: String(row.created_at || current.lastVisit || "").slice(0, 10),
           alerts: row.access_enabled ? current.alerts : [...current.alerts, "Acesso ao portal desativado"],
         });
@@ -266,7 +266,7 @@ export default function RecordsPage() {
         if (registeredPatient) {
           upsertPatient(passport, {
             status: "Em acompanhamento",
-            followUp: "Consultas e agendamentos",
+            followUp: "Rotina",
             lastVisit: String(row.updated_at || row.created_at || "").slice(0, 10),
           });
         }
@@ -289,7 +289,7 @@ export default function RecordsPage() {
         if (registeredPatient) {
           upsertPatient(passport, {
             status: "Em acompanhamento",
-            followUp: "Prontuário clínico",
+            followUp: "Rotina",
             lastVisit: String(row.created_at || "").slice(0, 10),
           });
         }
@@ -527,7 +527,7 @@ export default function RecordsPage() {
       cityPhone: data.cityPhone.trim() || "Não informado",
       birthDate: data.birthDate || "",
       status: existingPatient?.status || "Ativo",
-      followUp: data.followUp,
+      followUp: normalizePatientFollowUp(data.followUp),
       lastVisit: existingPatient?.lastVisit || "—",
       alerts: existingPatient?.alerts || [],
     };
@@ -566,7 +566,7 @@ export default function RecordsPage() {
         birth_date: data.birthDate || null,
         blood_type: nextPatient.bloodType === "—" ? null : nextPatient.bloodType,
         city_phone: nextPatient.cityPhone === "Não informado" ? null : nextPatient.cityPhone,
-        follow_up: nextPatient.followUp,
+        follow_up: normalizePatientFollowUp(nextPatient.followUp),
         updated_at: createdAt,
       }).eq("passport", normalizedPassport);
       if (error) {
@@ -582,7 +582,7 @@ export default function RecordsPage() {
         blood_type: nextPatient.bloodType === "—" ? null : nextPatient.bloodType,
         city_phone: nextPatient.cityPhone === "Não informado" ? null : nextPatient.cityPhone,
         email: null,
-        follow_up: nextPatient.followUp,
+        follow_up: normalizePatientFollowUp(nextPatient.followUp),
         updated_at: createdAt,
       });
       if (error) {
@@ -632,7 +632,7 @@ export default function RecordsPage() {
       birth_date: data.birthDate || null,
       blood_type: data.bloodType || null,
       city_phone: data.cityPhone.trim() || null,
-      follow_up: data.followUp,
+      follow_up: normalizePatientFollowUp(data.followUp),
       updated_at: new Date().toISOString(),
     }).eq("passport", selectedPatient.passport);
     if (error) return void hpsrAlert(error.message, "Não foi possível editar o paciente");
@@ -1096,10 +1096,10 @@ function CreatePatientModal({
 
 
 function EditPatientModal({ patient, onClose, onSave }: { patient: PatientRecord; onClose: () => void; onSave: (data: { name: string; passport: string; age: string; birthDate: string; bloodType: string; cityPhone: string; followUp: string }) => void | Promise<void> }) {
-  const [form, setForm] = useState({ name: patient.name, passport: patient.passport, age: patient.age === "—" ? "" : patient.age, birthDate: patient.birthDate || "", bloodType: patient.bloodType === "—" ? "" : patient.bloodType, cityPhone: patient.cityPhone === "Não informado" ? "" : patient.cityPhone, followUp: patient.followUp });
+  const [form, setForm] = useState({ name: patient.name, passport: patient.passport, age: patient.age === "—" ? "" : patient.age, birthDate: patient.birthDate || "", bloodType: patient.bloodType === "—" ? "" : patient.bloodType, cityPhone: patient.cityPhone === "Não informado" ? "" : patient.cityPhone, followUp: normalizePatientFollowUp(patient.followUp) });
   const [saving, setSaving] = useState(false);
   async function submit(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); setSaving(true); try { await onSave(form); } finally { setSaving(false); } }
-  return <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3"><button type="button" aria-label="Fechar edição" onClick={onClose} className="absolute inset-0 bg-[#2a0700]/45" /><form onSubmit={submit} className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[720px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf4] shadow-[0_28px_90px_rgba(42,7,0,0.28)]"><div className="bg-[linear-gradient(135deg,#2a0700_0%,#672614_52%,#9d6b4f_100%)] px-5 py-4 text-white"><div className="flex items-start justify-between gap-3"><div><span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]"><Pencil size={14}/>Dados cadastrais</span><h2 className="mt-3 text-xl font-black">Editar paciente</h2><p className="mt-1 text-sm text-white/80">O histórico clínico será preservado.</p></div><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-white/25 bg-white/10"><X size={18}/></button></div></div><div className="min-h-0 overflow-y-auto p-4 sm:p-5"><section className="grid gap-3 rounded-[18px] border border-hpsr-border bg-white p-4"><ModalField label="Nome" required><input className={modalInputClass} value={form.name} onChange={e=>setForm(c=>({...c,name:e.target.value}))}/></ModalField><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Passaporte" required><input className={modalInputClass} value={form.passport} onChange={e=>setForm(c=>({...c,passport:e.target.value.toUpperCase()}))}/></ModalField><ModalField label="Idade"><input className={modalInputClass} value={form.age} onChange={e=>setForm(c=>({...c,age:e.target.value}))}/></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Data de nascimento"><input type="date" className={modalInputClass} value={form.birthDate} onChange={e=>setForm(c=>({...c,birthDate:e.target.value}))}/></ModalField><ModalField label="Tipo sanguíneo"><input className={modalInputClass} value={form.bloodType} onChange={e=>setForm(c=>({...c,bloodType:e.target.value.toUpperCase()}))}/></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Telefone"><input className={modalInputClass} value={form.cityPhone} onChange={e=>setForm(c=>({...c,cityPhone:formatPhoneNumber(e.target.value)}))}/></ModalField><ModalField label="Acompanhamento"><StyledSelect className={modalInputClass} value={form.followUp} onChange={e=>setForm(c=>({...c,followUp:e.target.value}))}><option>Rotina</option><option>Clínico</option><option>Especializado</option></StyledSelect></ModalField></div></section></div><div className="flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white px-5 py-3.5 sm:flex-row sm:justify-end"><button type="button" onClick={onClose} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black">Cancelar</button><button disabled={saving} type="submit" className="rounded-[16px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-60">{saving?"Salvando...":"Salvar alterações"}</button></div></form></div>;
+  return <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3"><button type="button" aria-label="Fechar edição" onClick={onClose} className="absolute inset-0 bg-[#2a0700]/45" /><form onSubmit={submit} className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[720px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf4] shadow-[0_28px_90px_rgba(42,7,0,0.28)]"><div className="bg-[linear-gradient(135deg,#2a0700_0%,#672614_52%,#9d6b4f_100%)] px-5 py-4 text-white"><div className="flex items-start justify-between gap-3"><div><span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]"><Pencil size={14}/>Dados cadastrais</span><h2 className="mt-3 text-xl font-black">Editar paciente</h2><p className="mt-1 text-sm text-white/80">O histórico clínico será preservado.</p></div><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-white/25 bg-white/10"><X size={18}/></button></div></div><div className="min-h-0 overflow-y-auto p-4 sm:p-5"><section className="grid gap-3 rounded-[18px] border border-hpsr-border bg-white p-4"><ModalField label="Nome" required><input className={modalInputClass} value={form.name} onChange={e=>setForm(c=>({...c,name:e.target.value}))}/></ModalField><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Passaporte" required><input className={modalInputClass} value={form.passport} onChange={e=>setForm(c=>({...c,passport:e.target.value.toUpperCase()}))}/></ModalField><ModalField label="Idade"><input className={modalInputClass} value={form.age} onChange={e=>setForm(c=>({...c,age:e.target.value}))}/></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Data de nascimento"><input type="date" className={modalInputClass} value={form.birthDate} onChange={e=>setForm(c=>({...c,birthDate:e.target.value}))}/></ModalField><ModalField label="Tipo sanguíneo"><input className={modalInputClass} value={form.bloodType} onChange={e=>setForm(c=>({...c,bloodType:e.target.value.toUpperCase()}))}/></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Telefone"><input className={modalInputClass} value={form.cityPhone} onChange={e=>setForm(c=>({...c,cityPhone:formatPhoneNumber(e.target.value)}))}/></ModalField><ModalField label="Acompanhamento"><StyledSelect className={modalInputClass} value={form.followUp} onChange={e=>setForm(c=>({...c,followUp:e.target.value as "Rotina" | "Clínico" | "Especializado"}))}><option>Rotina</option><option>Clínico</option><option>Especializado</option></StyledSelect></ModalField></div></section></div><div className="flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white px-5 py-3.5 sm:flex-row sm:justify-end"><button type="button" onClick={onClose} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black">Cancelar</button><button disabled={saving} type="submit" className="rounded-[16px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-60">{saving?"Salvando...":"Salvar alterações"}</button></div></form></div>;
 }
 
 function GuardianManagerModal({ patient, patients, onClose }: { patient: PatientRecord; patients: PatientRecord[]; onClose: () => void }) {
@@ -1147,6 +1147,15 @@ function AddClinicalRecordModal({
   );
 }
 
+
+const VALID_PATIENT_FOLLOW_UP = ["Rotina", "Clínico", "Especializado"] as const;
+
+function normalizePatientFollowUp(value: unknown): (typeof VALID_PATIENT_FOLLOW_UP)[number] {
+  const normalized = String(value ?? "").trim();
+  return VALID_PATIENT_FOLLOW_UP.includes(normalized as (typeof VALID_PATIENT_FOLLOW_UP)[number])
+    ? (normalized as (typeof VALID_PATIENT_FOLLOW_UP)[number])
+    : "Rotina";
+}
 const modalInputClass =
   "min-w-0 w-full rounded-[16px] border border-hpsr-border bg-[#fff8f0] px-4 py-3 text-sm font-semibold text-hpsr-text outline-none transition placeholder:text-zinc-400 focus:border-hpsr-wineLight focus:bg-white focus:ring-2 focus:ring-hpsr-wineLight/20";
 
