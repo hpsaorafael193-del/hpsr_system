@@ -134,9 +134,6 @@ export function PatientAccessPanel() {
       setError("A senha e a confirmação não são iguais."); return;
     }
     const guardians = Array.from(new Set(register.guardianPassports.map((passport) => passport.trim().toUpperCase()).filter(Boolean)));
-    if (isMinorRegistration && guardians.length === 0) {
-      setError("Informe o passaporte de pelo menos um responsável cadastrado no sistema."); return;
-    }
     if (guardians.includes(register.passport.trim().toUpperCase())) {
       setError("O paciente menor de idade não pode ser informado como o próprio responsável."); return;
     }
@@ -406,8 +403,8 @@ export function PatientAccessPanel() {
                 <div className="sm:col-span-2 rounded-[18px] border border-[#e4c7bd] bg-[#fff8f4] p-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="text-xs font-black uppercase tracking-[.12em] text-hpsr-wineLight">Responsável pelo menor</p>
-                      <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Informe o passaporte de ao menos um responsável. Ele precisa existir no prontuário, mas não precisa possuir conta no portal.</p>
+                      <p className="text-xs font-black uppercase tracking-[.12em] text-hpsr-wineLight">Responsável pelo menor <span className="normal-case tracking-normal text-hpsr-muted">(opcional)</span></p>
+                      <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Opcional. Caso informado, o responsável precisa existir no prontuário, mas não precisa possuir conta no portal.</p>
                     </div>
                     <button type="button" onClick={addGuardianPassport} className="inline-flex min-h-[38px] shrink-0 items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine transition hover:border-hpsr-wineLight">
                       <Plus size={14} /> Adicionar responsável
@@ -436,7 +433,7 @@ export function PatientAccessPanel() {
               <Field label="Confirmar senha"><input type="password" autoComplete="new-password" value={register.confirmation} minLength={6} onChange={(e) => setRegister(v => ({...v, confirmation:e.target.value}))} className="portal-input" /></Field>
               </div>
             </div>
-            <button onClick={createAccount} disabled={busy || !register.name || !register.passport || !register.email || !register.password || !register.confirmation || (isMinorRegistration && !register.guardianPassports.some((passport) => passport.trim()))} className="mt-5 inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[16px] bg-hpsr-wine px-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(103,38,20,.16)] transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />} Criar conta</button>
+            <button onClick={createAccount} disabled={busy || !register.name || !register.passport || !register.email || !register.password || !register.confirmation} className="mt-5 inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[16px] bg-hpsr-wine px-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(103,38,20,.16)] transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />} Criar conta</button>
           </div>
         )}
 

@@ -1,3 +1,3 @@
-Versão 1.0.107
+Versão 1.0.116
 
-Revisão e otimização do consumo de egress no acesso ao Portal do Paciente.
+Correção do cruzamento e exibição de horários publicados no Portal do Paciente.

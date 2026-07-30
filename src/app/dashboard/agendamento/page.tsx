@@ -58,6 +58,10 @@ type PublicAppointmentRequest = {
   patientAlternativeDate?: string;
   patientAlternativeTime?: string;
   source?: string;
+  requestedDoctorId?: string;
+  requestedDoctorName?: string;
+  followupPlanId?: string;
+  doctorNotificationUnread?: boolean;
 };
 
 function publicRequestPreferred(item: PublicAppointmentRequest) {
@@ -180,7 +184,8 @@ export default function AppointmentsPage() {
     const { data, error } = await client
       .from("appointments")
       .select("id, passport, patient, status, payload, created_at, updated_at")
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(400);
 
     if (error) {
       console.error("[HPSR][Agendamento] Falha ao carregar solicitações:", error);
@@ -242,11 +247,57 @@ export default function AppointmentsPage() {
 
     const client = createClient();
     if (client) {
+      if (status === "Acompanhamento confirmado") {
+        if (request.requestedDoctorId && request.requestedDoctorId !== currentUserProfile.id) {
+          console.error("[HPSR][Agendamento] Este acompanhamento foi direcionado a outro médico.");
+          return;
+        }
+        const startDate = request.preferredDate || todayInSaoPaulo();
+        const dates = Array.from({ length: 9 }, (_, index) => {
+          const date = new Date(`${startDate}T12:00:00`);
+          date.setDate(date.getDate() + index * 7);
+          return date.toISOString().slice(0, 10);
+        });
+        const { data: plan, error: planError } = await client.from("clinical_followup_plans").insert({
+          doctor_id: currentUserProfile.id,
+          doctor_name: currentUserProfile.systemName,
+          patient_passport: request.passport.trim().toUpperCase(),
+          patient_name: request.patient,
+          specialty: request.specialty,
+          frequency: "Semanal",
+          interval_days: 7,
+          start_date: dates[0],
+          end_date: dates[dates.length - 1],
+          total_consultations: dates.length,
+          status: "Ativo",
+        }).select("id").single();
+        if (planError || !plan) {
+          console.error("[HPSR][Agendamento] Falha ao confirmar acompanhamento:", planError);
+          return;
+        }
+        const { error: occurrenceError } = await client.from("clinical_followup_occurrences").insert(dates.map((plannedDate) => ({
+          plan_id: plan.id,
+          doctor_id: currentUserProfile.id,
+          patient_passport: request.passport.trim().toUpperCase(),
+          patient_name: request.patient,
+          specialty: request.specialty,
+          planned_date: plannedDate,
+          status: "Planejada",
+        })));
+        if (occurrenceError) {
+          await client.from("clinical_followup_plans").delete().eq("id", plan.id);
+          console.error("[HPSR][Agendamento] Falha ao criar ocorrências:", occurrenceError);
+          return;
+        }
+        updatedRequest.followupPlanId = String(plan.id);
+        updatedRequest.doctorNotificationUnread = false;
+        updatedRequest.answer = `Acompanhamento confirmado por ${currentUserProfile.systemName}. Os próximos horários publicados por este médico ficarão disponíveis no portal.`;
+      }
       const payload = {
         ...request,
         ...updatedRequest,
         physician:
-          status === "Aceita" || status === "Reagendamento solicitado"
+          status === "Aceita" || status === "Reagendamento solicitado" || status === "Acompanhamento confirmado"
             ? currentUserProfile.systemName
             : request.doctor || "A definir",
         source: request.source || "patient_portal",
@@ -272,6 +323,7 @@ export default function AppointmentsPage() {
   const pendingRequests = useMemo(() => {
     const pendingMarkers = [
       "solicit",
+      "acompanhamento aguardando confirmacao",
       "em analise",
       "aguardando ajuste",
       "pendente",
@@ -289,9 +341,12 @@ export default function AppointmentsPage() {
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "");
 
-      return pendingMarkers.some((marker) => normalizedStatus.includes(marker));
+      const isTargetedFollowup = item.flowType === "Acompanhamento com especialista" && Boolean(item.requestedDoctorId);
+      const isManager = ["Total", "Dev / Desenvolvedor do Sistema"].includes(currentUserProfile.accessLevel) || ["Diretora", "Vice Diretor", "Diretor Clínico"].includes(currentUserProfile.role);
+      const belongsToDoctor = !isTargetedFollowup || item.requestedDoctorId === currentUserProfile.id || isManager;
+      return belongsToDoctor && pendingMarkers.some((marker) => normalizedStatus.includes(marker));
     });
-  }, [publicRequests]);
+  }, [publicRequests, currentUserProfile.accessLevel, currentUserProfile.id, currentUserProfile.role]);
 
   const publicAcceptedAppointments = useMemo(() => {
     return publicRequests
@@ -692,6 +747,7 @@ function RequestsTab({
                   status={<StatusBadge status={item.status} />}
                   meta={[
                     ["Fluxo", item.flowType || "Consulta comum"],
+                    ...(item.flowType === "Acompanhamento com especialista" ? [["Médico solicitado", item.requestedDoctorName || "Não informado"] as [string, string]] : []),
                     ["Objetivo", item.flowType === "Outros" ? (item.flowDetails || "Não informado") : (item.reason || "Aguardando análise médica")],
                     ...(patientAnsweredReschedule ? [["Resposta do paciente", item.patientResponse || item.status] as [string, string]] : []),
                     ...(patientAcceptedReschedule ? [["Data confirmada", `${formatDate(item.proposedDate || item.preferredDate || "")} · ${item.proposedTime || item.preferredTime || "A definir"}`] as [string, string]] : []),
@@ -704,6 +760,11 @@ function RequestsTab({
                         {patientAcceptedReschedule ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
                         {patientAcceptedReschedule ? "Paciente confirmou" : "Resposta recebida"}
                       </span>
+                    ) : item.flowType === "Acompanhamento com especialista" ? (
+                      <>
+                        <ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Acompanhamento confirmado")}>Confirmar acompanhamento</ActionButton>
+                        <ActionButton variant="danger" onClick={() => onUpdateStatus(item, "Recusada")}>Recusar vínculo</ActionButton>
+                      </>
                     ) : (
                       <>
                         <ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Aceita")}>Aceitar</ActionButton>

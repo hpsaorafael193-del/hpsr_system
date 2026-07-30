@@ -33,16 +33,13 @@ import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvi
 import { hpsrConfirm, hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { specialties } from "@/data/mock";
-import {
-  doctorCanAccessSpecialty,
-  findSpecialtyScheduleConflict,
-} from "@/data/appointment-rules";
+import { findSpecialtyScheduleConflict } from "@/data/appointment-rules";
 
 const BRAZIL_TIMEZONE = "America/Sao_Paulo";
 
 const weekdayLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-type Appointment = { id: string; patient: string; passport: string; specialty: string; physician: string; date: string; time: string; status: string };
+type Appointment = { id: string; patient: string; passport: string; specialty: string; physician: string; doctorId: string; date: string; time: string; status: string };
 
 
 
@@ -170,7 +167,9 @@ export default function ClinicalSchedulePage() {
     const { data, error } = await client
       .from("appointments")
       .select("id,passport,patient,status,payload,created_at")
-      .order("created_at", { ascending: false });
+      .in("status", ["Aceita", "Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento"])
+      .order("created_at", { ascending: false })
+      .limit(400);
     if (error) throw error;
     setScheduledAppointments((data || [])
       .filter((row: any) => ["Aceita", "Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento"].includes(String(row.status)))
@@ -182,6 +181,7 @@ export default function ClinicalSchedulePage() {
           passport: String(row.passport || payload.passport || ""),
           specialty: String(payload.specialty || "Clínico Geral"),
           physician: String(payload.physician || payload.doctor || "A definir"),
+          doctorId: String(payload.doctorId || payload.doctor_id || ""),
           date: String(row.status === "Reagendamento aceito" ? payload.proposedDate || payload.preferredDate || payload.date || "" : payload.preferredDate || payload.date || ""),
           time: String(row.status === "Reagendamento aceito" ? payload.proposedTime || payload.time || "09:00" : payload.time || payload.preferredTime || (payload.preferredPeriod === "Tarde" ? "14:00" : payload.preferredPeriod === "Noite" ? "19:00" : "09:00")),
           status: String(row.status === "Aceita" ? "Agendada" : row.status),
@@ -200,9 +200,11 @@ export default function ClinicalSchedulePage() {
     return () => { void client.removeChannel(channel); };
   }, [loadAppointments]);
 
-  const doctorAppointments = scheduledAppointments.filter((appointment) =>
-    appointment.physician === currentUserProfile.systemName || doctorCanAccessSpecialty(appointment.specialty)
-  );
+  const doctorAppointments = scheduledAppointments.filter((appointment) => {
+    if (canViewAllMedicalSchedules) return true;
+    if (appointment.doctorId) return appointment.doctorId === currentUserProfile.id;
+    return appointment.physician === currentUserProfile.systemName;
+  });
 
   const appointmentsOnSelectedDay = doctorAppointments
     .filter((appointment) => appointment.date === dateKey)

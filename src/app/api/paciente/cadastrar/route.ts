@@ -40,15 +40,12 @@ export async function POST(request: NextRequest) {
     if (password.length < 6) {
       return NextResponse.json({ error: "A senha deve ter pelo menos 6 caracteres." }, { status: 400 });
     }
-    if (isMinor && guardianPassports.length === 0) {
-      return NextResponse.json({ error: "Para cadastrar um menor de idade, informe o passaporte de pelo menos um responsável cadastrado no sistema." }, { status: 400 });
-    }
     if (guardianPassports.includes(passport)) {
       return NextResponse.json({ error: "O paciente menor de idade não pode ser o próprio responsável." }, { status: 400 });
     }
 
     const supabase = getServiceClient();
-    if (isMinor) {
+    if (isMinor && guardianPassports.length > 0) {
       const { data: guardianRows, error: guardianLookupError } = await supabase
         .from("patient_registry")
         .select("passport,name")
@@ -200,7 +197,7 @@ export async function POST(request: NextRequest) {
       if (registryUpdateError) throw registryUpdateError;
     }
 
-    if (isMinor) {
+    if (isMinor && guardianPassports.length > 0) {
       const { error: guardianLinkError } = await supabase
         .from("patient_guardian_links")
         .upsert(

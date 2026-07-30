@@ -1,6 +1,7 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession } from "@/lib/patient-portal/server";
+import { isClinicalProfessional, profileMatchesClinicalSpecialty } from "@/lib/clinical-scheduling";
 
 export const runtime = "nodejs";
 
@@ -19,7 +20,9 @@ export async function POST(request: NextRequest) {
     const notes = String(body.notes || "").trim();
     const flowType = String(body.flowType || "Consulta comum").trim();
     const flowDetails = String(body.flowDetails || "").trim();
-    const allowedFlowTypes = ["Consulta comum", "Acompanhamento prolongado", "Exames", "Outros"];
+    const requestedDoctorId = String(body.requestedDoctorId || "").trim();
+    const requestedDoctorName = String(body.requestedDoctorName || "").trim();
+    const allowedFlowTypes = ["Consulta comum", "Acompanhamento com especialista", "Exames", "Outros"];
 
     if (!patient || !specialty || !preferredDate || !preferredPeriod || !reason || !allowedFlowTypes.includes(flowType)) {
       return NextResponse.json({ ok: false, error: "Preencha os campos obrigatórios." }, { status: 400 });
@@ -27,8 +30,28 @@ export async function POST(request: NextRequest) {
     if (preferredTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(preferredTime)) {
       return NextResponse.json({ ok: false, error: "Informe um horário preferencial válido." }, { status: 400 });
     }
+    if (flowType === "Acompanhamento com especialista" && (!requestedDoctorId || !requestedDoctorName)) {
+      return NextResponse.json({ ok: false, error: "Selecione o médico responsável pelo acompanhamento." }, { status: 400 });
+    }
     if (flowType === "Outros" && !flowDetails) {
       return NextResponse.json({ ok: false, error: "Descreva o objetivo da solicitação selecionada como Outros." }, { status: 400 });
+    }
+
+    let verifiedDoctorId = "";
+    let verifiedDoctorName = "";
+    if (flowType === "Acompanhamento com especialista") {
+      const { data: doctor, error: doctorError } = await valid.supabase
+        .from("profiles")
+        .select("id,name,specialty,role,crm,access_status")
+        .eq("id", requestedDoctorId)
+        .eq("access_status", "Aprovado")
+        .maybeSingle();
+      if (doctorError) throw doctorError;
+      if (!doctor || !isClinicalProfessional(doctor) || !profileMatchesClinicalSpecialty(doctor, specialty)) {
+        return NextResponse.json({ ok: false, error: "O médico selecionado não está disponível para esta especialidade." }, { status: 400 });
+      }
+      verifiedDoctorId = String(doctor.id);
+      verifiedDoctorName = String(doctor.name || requestedDoctorName);
     }
 
     const now = new Date().toISOString();
@@ -44,8 +67,11 @@ export async function POST(request: NextRequest) {
       notes,
       flowType,
       flowDetails: flowType === "Outros" ? flowDetails : "",
+      requestedDoctorId: flowType === "Acompanhamento com especialista" ? verifiedDoctorId : "",
+      requestedDoctorName: flowType === "Acompanhamento com especialista" ? verifiedDoctorName : "",
       source: "patient_portal",
-      physician: "A definir",
+      physician: flowType === "Acompanhamento com especialista" ? verifiedDoctorName : "A definir",
+      doctorNotificationUnread: flowType === "Acompanhamento com especialista",
       createdAt: now,
       updatedAt: now,
     };
@@ -54,7 +80,7 @@ export async function POST(request: NextRequest) {
       id,
       passport: valid.access.patient_passport,
       patient,
-      status: "Solicitação enviada",
+      status: flowType === "Acompanhamento com especialista" ? "Acompanhamento aguardando confirmação" : "Solicitação enviada",
       payload,
       created_at: now,
       updated_at: now,
@@ -71,7 +97,7 @@ export async function POST(request: NextRequest) {
       created_at: now,
     });
 
-    return NextResponse.json({ ok: true, id, status: "Solicitação enviada" });
+    return NextResponse.json({ ok: true, id, status: flowType === "Acompanhamento com especialista" ? "Acompanhamento aguardando confirmação" : "Solicitação enviada" });
   } catch (error) {
     console.error("[patient-portal] create appointment", error);
     return NextResponse.json({ ok: false, error: "Não foi possível solicitar a consulta." }, { status: 500 });

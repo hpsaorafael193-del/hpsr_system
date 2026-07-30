@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { specialties } from "@/data/mock";
+import { normalizeClinicalPassport } from "@/lib/clinical-scheduling";
 
 type Patient = { passport: string; name: string };
 type Plan = {
@@ -65,7 +66,7 @@ export function ClinicalFollowupPlanner({
     const client = createClient();
     if (!client || !doctorId) return;
     const [{ data: patientRows }, { data: planRows }] = await Promise.all([
-      client.from("patient_registry").select("passport,name").order("name"),
+      client.from("patient_registry").select("passport,name").order("name").limit(500),
       client
         .from("clinical_followup_plans")
         .select("id,patient_name,patient_passport,specialty,frequency,start_date,end_date,total_consultations,status")
@@ -113,7 +114,7 @@ export function ClinicalFollowupPlanner({
     setMessage("");
     try {
       if (!doctorId) throw new Error("Médico não identificado.");
-      const patient = patients.find((item) => item.passport === form.passport);
+      const patient = patients.find((item) => normalizeClinicalPassport(item.passport) === normalizeClinicalPassport(form.passport));
       if (!patient) throw new Error("Selecione um paciente.");
       const list = dates();
       if (!list.length) throw new Error("Nenhuma data foi gerada.");
@@ -124,7 +125,7 @@ export function ClinicalFollowupPlanner({
         .insert({
           doctor_id: doctorId,
           doctor_name: doctorName,
-          patient_passport: patient.passport,
+          patient_passport: normalizeClinicalPassport(patient.passport),
           patient_name: patient.name,
           specialty: form.specialty,
           frequency: form.frequency,
@@ -142,7 +143,7 @@ export function ClinicalFollowupPlanner({
         list.map((plannedDate) => ({
           plan_id: plan.id,
           doctor_id: doctorId,
-          patient_passport: patient.passport,
+          patient_passport: normalizeClinicalPassport(patient.passport),
           patient_name: patient.name,
           specialty: form.specialty,
           planned_date: plannedDate,

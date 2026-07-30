@@ -49,6 +49,11 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [requestFlowType, setRequestFlowType] = useState("Consulta comum");
+  const [requestSpecialty, setRequestSpecialty] = useState("");
+  const [specialistDoctors, setSpecialistDoctors] = useState<Array<{ id: string; name: string; specialty: string }>>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState("");
+  const [loadingDoctors, setLoadingDoctors] = useState(false);
+  const [doctorLoadError, setDoctorLoadError] = useState("");
   const [availability, setAvailability] = useState<Record<string, string>>({});
   const [alternativeDates, setAlternativeDates] = useState<Record<string, string>>({});
   const [alternativeTimes, setAlternativeTimes] = useState<Record<string, string>>({});
@@ -117,6 +122,33 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [loadAppointments, view]);
 
+  useEffect(() => {
+    if (requestFlowType !== "Acompanhamento com especialista" || !requestSpecialty) {
+      setSpecialistDoctors([]);
+      setSelectedDoctorId("");
+      setDoctorLoadError("");
+      return;
+    }
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      setLoadingDoctors(true);
+      setDoctorLoadError("");
+      try {
+        const response = await fetch(`/api/paciente/medicos?specialty=${encodeURIComponent(requestSpecialty)}`, { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível carregar os médicos.");
+        if (active) setSpecialistDoctors(data.doctors || []);
+      } catch (loadDoctorError) {
+        if (active) {
+          setSpecialistDoctors([]);
+          setDoctorLoadError(loadDoctorError instanceof Error ? loadDoctorError.message : "Não foi possível carregar os médicos.");
+        }
+      } finally {
+        if (active) setLoadingDoctors(false);
+      }
+    }, 250);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [requestFlowType, requestSpecialty]);
 
   async function appointmentAction(id: string, action: string) {
     setSaving(true); setError(""); setMessage("");
@@ -153,6 +185,8 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
       setMessage(`Solicitação registrada. Protocolo: ${data.id}`);
       formElement.reset();
       setRequestFlowType("Consulta comum");
+      setRequestSpecialty("");
+      setSelectedDoctorId("");
       await loadAppointments({ silent: true, force: true });
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Não foi possível solicitar a consulta.");
@@ -178,7 +212,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
           </div>
         </section>
       )}
-      {view === "scheduled" && <PatientBookingPanel onSessionExpired={onSessionExpired} onBooked={handleBooked} />}
+      {view === "scheduled" && <PatientBookingPanel passport={passport} onSessionExpired={onSessionExpired} onBooked={handleBooked} />}
       {view !== "request" && <section className="rounded-[22px] border border-hpsr-border bg-white/90 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -242,18 +276,34 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
       {view === "request" && <section className="rounded-[22px] border border-hpsr-border bg-white/90 p-4 sm:p-5">
         <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Stethoscope size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Novo atendimento</p><h3 className="text-lg font-black text-hpsr-text">Agendar consulta</h3></div></div>
         <p className="mt-3 text-sm font-semibold leading-relaxed text-hpsr-muted">A solicitação será analisada pela equipe. O envio não confirma automaticamente a consulta.</p>
+        <button type="button" onClick={() => setRequestFlowType("Acompanhamento com especialista")} className={`mt-4 flex w-full items-start gap-3 rounded-[18px] border p-4 text-left transition ${requestFlowType === "Acompanhamento com especialista" ? "border-hpsr-wine bg-[#fff4ee] shadow-sm" : "border-hpsr-border bg-[#fffaf4] hover:border-hpsr-wineLight"}`}>
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-hpsr-wine text-white"><Stethoscope size={19} /></span>
+          <span><strong className="block text-sm font-black text-hpsr-text">Já faço acompanhamento com um especialista</strong><span className="mt-1 block text-xs font-semibold leading-relaxed text-hpsr-muted">Selecione o médico que já acompanha você e envie o pré-registro para confirmação do profissional.</span></span>
+        </button>
         <form onSubmit={submitAppointment} className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="text-xs font-black text-hpsr-muted">Nome do paciente<input name="patient" required className={`${fieldClass} mt-1.5`} /></label>
-          <label className="text-xs font-black text-hpsr-muted">Especialidade<StyledSelect name="specialty" required defaultValue="" className={`${fieldClass} mt-1.5`}><option value="" disabled>Selecione</option>{specialties.map((item) => <option key={item}>{item}</option>)}</StyledSelect></label>
+          <label className="text-xs font-black text-hpsr-muted">Especialidade<StyledSelect name="specialty" required value={requestSpecialty} onChange={(event) => setRequestSpecialty(event.target.value)} className={`${fieldClass} mt-1.5`}><option value="" disabled>Selecione</option>{specialties.map((item) => <option key={item}>{item}</option>)}</StyledSelect></label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Tipo de fluxo
             <StyledSelect name="flowType" required value={requestFlowType} onChange={(event) => setRequestFlowType(event.target.value)} className={`${fieldClass} mt-1.5`}>
               <option>Consulta comum</option>
-              <option>Acompanhamento prolongado</option>
+              <option>Acompanhamento com especialista</option>
               <option>Exames</option>
               <option>Outros</option>
             </StyledSelect>
             <span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Escolha a finalidade principal para direcionar a solicitação à equipe adequada.</span>
           </label>
+          {requestFlowType === "Acompanhamento com especialista" && (
+            <div className="sm:col-span-2 rounded-[18px] border border-hpsr-border bg-[#fffaf4] p-4">
+              <p className="text-xs font-black text-hpsr-text">Médico que já realiza seu acompanhamento</p>
+              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-hpsr-muted">Selecione o profissional responsável. Ele receberá um pré-registro e precisará confirmar o vínculo antes de publicar horários para você.</p>
+              <StyledSelect name="requestedDoctorId" required value={selectedDoctorId} onChange={(event) => setSelectedDoctorId(event.target.value)} disabled={!requestSpecialty || loadingDoctors} className={`${fieldClass} mt-3`}>
+                <option value="" disabled>{loadingDoctors ? "Carregando médicos..." : !requestSpecialty ? "Selecione primeiro a especialidade" : specialistDoctors.length ? "Selecione o médico" : "Nenhum médico disponível nesta especialidade"}</option>
+                {specialistDoctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name}</option>)}
+              </StyledSelect>
+              {doctorLoadError && <p className="mt-2 rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">{doctorLoadError}</p>}
+              <input type="hidden" name="requestedDoctorName" value={specialistDoctors.find((doctor) => doctor.id === selectedDoctorId)?.name || ""} />
+            </div>
+          )}
           {requestFlowType === "Outros" && (
             <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Descreva o objetivo da solicitação
               <textarea name="flowDetails" required rows={3} placeholder="Explique exatamente o atendimento, procedimento ou orientação que você procura." className={`${fieldClass} mt-1.5 py-3`} />
