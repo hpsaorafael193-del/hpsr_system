@@ -53,6 +53,10 @@ type PublicAppointmentRequest = {
   proposedDate?: string;
   proposedTime?: string;
   rescheduleReason?: string;
+  patientResponse?: string;
+  patientResponseAt?: string;
+  patientAlternativeDate?: string;
+  patientAlternativeTime?: string;
   source?: string;
 };
 
@@ -266,7 +270,17 @@ export default function AppointmentsPage() {
   }
 
   const pendingRequests = useMemo(() => {
-    const pendingMarkers = ["solicit", "em analise", "aguardando ajuste", "pendente"];
+    const pendingMarkers = [
+      "solicit",
+      "em analise",
+      "aguardando ajuste",
+      "pendente",
+      "reagendamento aceito",
+      "nova proposta do paciente",
+      "reagendamento recusado",
+      "disponibilidade informada",
+      "desistencia solicitada",
+    ];
 
     return publicRequests.filter((item) => {
       const normalizedStatus = item.status
@@ -281,17 +295,21 @@ export default function AppointmentsPage() {
 
   const publicAcceptedAppointments = useMemo(() => {
     return publicRequests
-      .filter((item) => item.status === "Aceita")
+      .filter((item) => item.status === "Aceita" || item.status === "Reagendamento aceito")
       .map((item) => ({
         id: item.id,
-        time: item.preferredTime || preferredPeriodToTime(item.preferredPeriod),
-        date: item.preferredDate || "A definir",
+        time: item.status === "Reagendamento aceito"
+          ? item.proposedTime || item.preferredTime || preferredPeriodToTime(item.preferredPeriod)
+          : item.preferredTime || preferredPeriodToTime(item.preferredPeriod),
+        date: item.status === "Reagendamento aceito"
+          ? item.proposedDate || item.preferredDate || "A definir"
+          : item.preferredDate || "A definir",
         passport: item.passport,
         patient: item.patient,
         specialty: item.specialty,
         doctor: item.doctor || currentUserProfile.systemName,
         type: item.flowType || "Consulta comum",
-        status: "Agendada",
+        status: item.status === "Reagendamento aceito" ? "Confirmada" : "Agendada",
       }));
   }, [publicRequests]);
 
@@ -650,25 +668,53 @@ function RequestsTab({
       {requests.length > 0 ? (
         <div className="max-h-[540px] overflow-y-auto pr-2">
           <div className="grid gap-3">
-            {requests.map((item) => (
-              <AppointmentCard
-                key={item.id ?? item.passport}
-                title={item.patient}
-                subtitle={`Passaporte ${item.passport} · ${item.specialty} · Preferência: ${publicRequestPreferred(item)}`}
-                status={<StatusBadge status={item.status} />}
-                meta={[
-                  ["Fluxo", item.flowType || "Consulta comum"],
-                  ["Objetivo", item.flowType === "Outros" ? (item.flowDetails || "Não informado") : (item.reason || "Aguardando análise médica")],
-                ]}
-                actions={
-                  <>
-                    <ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Aceita")}>Aceitar</ActionButton>
-                    <ActionButton onClick={() => openReschedule(item)}>Reagendar</ActionButton>
-                    <ActionButton variant="danger" onClick={() => onUpdateStatus(item, "Recusada")}>Recusar</ActionButton>
-                  </>
-                }
-              />
-            ))}
+            {requests.map((item) => {
+              const patientAcceptedReschedule = item.status === "Reagendamento aceito";
+              const patientAnsweredReschedule = [
+                "Reagendamento aceito",
+                "Nova proposta do paciente",
+                "Reagendamento recusado",
+                "Disponibilidade informada",
+                "Desistência solicitada",
+              ].includes(item.status);
+
+              const responseAlert = patientAcceptedReschedule
+                ? `Reagendamento aceito pelo paciente. Nova consulta confirmada para ${formatDate(item.proposedDate || item.preferredDate || "")} às ${item.proposedTime || item.preferredTime || "horário a definir"}.`
+                : patientAnsweredReschedule
+                  ? `Resposta do paciente: ${item.patientResponse || item.status}.${item.patientAlternativeDate ? ` Preferência: ${formatDate(item.patientAlternativeDate)} às ${item.patientAlternativeTime || "horário a definir"}.` : ""}`
+                  : undefined;
+
+              return (
+                <AppointmentCard
+                  key={item.id ?? item.passport}
+                  title={item.patient}
+                  subtitle={`Passaporte ${item.passport} · ${item.specialty} · Preferência: ${publicRequestPreferred(item)}`}
+                  status={<StatusBadge status={item.status} />}
+                  meta={[
+                    ["Fluxo", item.flowType || "Consulta comum"],
+                    ["Objetivo", item.flowType === "Outros" ? (item.flowDetails || "Não informado") : (item.reason || "Aguardando análise médica")],
+                    ...(patientAnsweredReschedule ? [["Resposta do paciente", item.patientResponse || item.status] as [string, string]] : []),
+                    ...(patientAcceptedReschedule ? [["Data confirmada", `${formatDate(item.proposedDate || item.preferredDate || "")} · ${item.proposedTime || item.preferredTime || "A definir"}`] as [string, string]] : []),
+                  ]}
+                  alert={responseAlert}
+                  alertTone={patientAcceptedReschedule ? "success" : "warning"}
+                  actions={
+                    patientAnsweredReschedule ? (
+                      <span className={`inline-flex items-center gap-2 rounded-[14px] border px-3 py-2 text-xs font-black ${patientAcceptedReschedule ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+                        {patientAcceptedReschedule ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
+                        {patientAcceptedReschedule ? "Paciente confirmou" : "Resposta recebida"}
+                      </span>
+                    ) : (
+                      <>
+                        <ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Aceita")}>Aceitar</ActionButton>
+                        <ActionButton onClick={() => openReschedule(item)}>Reagendar</ActionButton>
+                        <ActionButton variant="danger" onClick={() => onUpdateStatus(item, "Recusada")}>Recusar</ActionButton>
+                      </>
+                    )
+                  }
+                />
+              );
+            })}
           </div>
         </div>
       ) : (
@@ -986,6 +1032,7 @@ function AppointmentCard({
   meta,
   actions,
   alert,
+  alertTone = "warning",
 }: {
   title: string;
   subtitle: string;
@@ -993,6 +1040,7 @@ function AppointmentCard({
   meta: Array<[string, string]>;
   actions: ReactNode;
   alert?: string;
+  alertTone?: "warning" | "success";
 }) {
   return (
     <article className="rounded-[16px] border border-hpsr-border bg-white p-3.5 transition hover:bg-[#fffdf9]">
@@ -1011,8 +1059,8 @@ function AppointmentCard({
           </div>
 
           {alert && (
-            <p className="mt-3 inline-flex items-start gap-2 rounded-[14px] border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
-              <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+            <p className={`mt-3 inline-flex items-start gap-2 rounded-[14px] border px-4 py-3 text-xs font-semibold ${alertTone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+              {alertTone === "success" ? <CheckCircle2 size={15} className="mt-0.5 shrink-0" /> : <AlertTriangle size={15} className="mt-0.5 shrink-0" />}
               {alert}
             </p>
           )}

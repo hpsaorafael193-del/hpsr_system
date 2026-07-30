@@ -16,10 +16,6 @@ type PortalAccessRow = {
   access_enabled: boolean;
 };
 
-function samePassport(value: unknown, expected: string) {
-  return normalizePassport(value) === expected;
-}
-
 async function findPortalAccess(
   supabase: ReturnType<typeof getServiceClient>,
   passport: string,
@@ -27,28 +23,46 @@ async function findPortalAccess(
   const { data, error } = await supabase
     .from("patient_portal_access")
     .select("id,patient_passport,access_enabled")
-    .limit(5000);
+    .eq("patient_passport", passport)
+    .maybeSingle();
 
   if (error) throw error;
-  return ((data || []) as PortalAccessRow[]).find((row) => samePassport(row.patient_passport, passport)) || null;
+  return data as PortalAccessRow | null;
 }
 
 async function patientExists(
   supabase: ReturnType<typeof getServiceClient>,
   passport: string,
 ) {
-  const [recordsResult, appointmentsResult] = await Promise.all([
-    supabase.from("clinical_records").select("patient_passport").limit(5000),
-    supabase.from("appointments").select("passport").limit(5000),
+  const { data: registryPatient, error: registryError } = await supabase
+    .from("patient_registry")
+    .select("passport")
+    .eq("passport", passport)
+    .maybeSingle();
+
+  if (registryError) throw registryError;
+  if (registryPatient) return true;
+
+  // Compatibilidade com registros antigos sem entrada no patient_registry.
+  // Cada fallback retorna no máximo uma linha, evitando varreduras e egress excessivo.
+  const [recordResult, appointmentResult] = await Promise.all([
+    supabase
+      .from("clinical_records")
+      .select("patient_passport")
+      .eq("patient_passport", passport)
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("appointments")
+      .select("passport")
+      .eq("passport", passport)
+      .limit(1)
+      .maybeSingle(),
   ]);
 
-  if (recordsResult.error) throw recordsResult.error;
-  if (appointmentsResult.error) throw appointmentsResult.error;
-
-  return (
-    (recordsResult.data || []).some((row) => samePassport(row.patient_passport, passport)) ||
-    (appointmentsResult.data || []).some((row) => samePassport(row.passport, passport))
-  );
+  if (recordResult.error) throw recordResult.error;
+  if (appointmentResult.error) throw appointmentResult.error;
+  return Boolean(recordResult.data || appointmentResult.data);
 }
 
 async function ensurePortalAccess(
@@ -85,7 +99,6 @@ async function ensurePortalAccess(
 
   if (!error) return data as PortalAccessRow;
 
-  // Protege contra duas tentativas simultâneas de criar o mesmo acesso.
   if (error.code === "23505") return findPortalAccess(supabase, passport);
   throw error;
 }

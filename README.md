@@ -1,3 +1,3 @@
-HPSR System — versão 1.0.100
+Versão 1.0.107
 
-Correção de tipagem no cadastro de pacientes menores de idade.
+Revisão e otimização do consumo de egress no acesso ao Portal do Paciente.

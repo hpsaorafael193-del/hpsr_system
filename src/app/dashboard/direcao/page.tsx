@@ -2,7 +2,7 @@
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState } from "react";
-import { Activity, CalendarDays, ClipboardCheck, Database, Download, FileSpreadsheet, FlaskConical, PieChart, Search, ShieldCheck, Stethoscope, UserPlus, Users, WalletCards } from "lucide-react";
+import { Activity, CalendarDays, ClipboardCheck, Database, Download, FlaskConical, PieChart, Search, ShieldCheck, Stethoscope, UserPlus, Users, WalletCards } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { type SystemActivity } from "@/lib/administrative-storage";
 import { createClient } from "@/lib/supabase";
@@ -153,56 +153,6 @@ export default function DirectionPage() {
 
 
 
-  function handleExportActivities() {
-    exportCsv(
-      `atividades-hpsr-${fileDate()}.csv`,
-      ["Data", "Módulo", "Ação", "Descrição", "Responsável", "Referência"],
-      unified.map((item) => [
-        formatDateTime(item.createdAt),
-        item.module,
-        item.action,
-        item.description,
-        item.actor || "",
-        item.reference || "",
-      ]),
-    );
-  }
-
-  function handleExportTeam() {
-    exportCsv(
-      `equipe-hpsr-${fileDate()}.csv`,
-      ["Nome", "Passaporte", "CRM", "Cargo", "Especialidade", "Departamento", "Entrada"],
-      teamMembers.map((member) => [
-        member.name,
-        member.passport,
-        member.crm,
-        member.hospitalRole,
-        member.specialty,
-        member.department,
-        formatDateTime(member.joinedAt),
-      ]),
-    );
-  }
-
-  function handleExportApplications() {
-    const periodStart = getPeriodStart(reportPeriod);
-    const rows = applications.filter((item) => !periodStart || new Date(item.createdAt || item.created_at || 0).getTime() >= periodStart);
-    exportCsv(
-      `candidaturas-hpsr-${fileDate()}.csv`,
-      ["Nome", "Passaporte", "Cargo desejado", "Status", "Triagem", "Entrevista", "Resultado", "Data"],
-      rows.map((item) => [
-        item.name || "",
-        item.passport || "",
-        item.desiredRole || item.desired_role || "",
-        item.status || "",
-        item.triageDecision || "",
-        item.interviewStatus || "",
-        item.interviewResult || "",
-        formatDateTime(item.createdAt || item.created_at),
-      ]),
-    );
-  }
-
   async function handleExportReport() {
     const client = createClient();
     if (!client || exportingReport) return;
@@ -249,7 +199,7 @@ export default function DirectionPage() {
         fetchAll("patient_guardian_links"),
       ]);
 
-      exportAdministrativeReport({
+      await exportAdministrativeReport({
         periodLabel,
         warnings: reportWarnings,
         profiles: profileRows,
@@ -302,7 +252,6 @@ export default function DirectionPage() {
             </StyledSelect>
           </label>
           <button type="button" onClick={handleExportReport} disabled={exportingReport} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 text-xs font-black text-white transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60"><Download size={15}/> {exportingReport ? "Gerando relatório..." : "Exportar relatório"}</button>
-          <ExportMenu onActivities={handleExportActivities} onTeam={handleExportTeam} onApplications={handleExportApplications}/>
         </div>
       </div>
     </section>
@@ -344,7 +293,7 @@ export default function DirectionPage() {
           </div>
           <aside className="grid h-full min-h-0 content-start gap-3 overflow-y-auto overscroll-contain pr-1">
             <Summary title="Solicitações de cadastro" icon={<UserPlus size={17}/>} items={staffRequests.map((item)=>`${item.name || "Profissional"} — ${item.status || "Pendente"}`)}/>
-            <Summary title="Candidaturas" icon={<ClipboardCheck size={17}/>} items={applications.map((item)=>`${item.name || "Candidato"} — ${item.status || "Em análise"}`)}/>
+            <Summary title="Candidaturas" icon={<ClipboardCheck size={17}/>} items={applications.map((item)=>`${item.name || "Candidato"} · Passaporte: ${item.passport || "Não informado"} — ${item.status || "Em análise"}`)}/>
             <Summary title="Governança" icon={<ShieldCheck size={17}/>} items={["Histórico centralizado no Supabase", "Solicitações públicas consolidadas", "Recibos vinculados ao Financeiro", "Registros compartilhados entre usuários autorizados"]}/>
           </aside>
         </section>
@@ -366,23 +315,7 @@ function formatDateTime(value?: string) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString("pt-BR");
 }
 
-function fileDate() {
-  return new Date().toISOString().slice(0, 10);
-}
 
-function exportCsv(filename: string, headers: string[], rows: Array<Array<unknown>>) {
-  const escape = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
-  const csv = [headers, ...rows].map((row) => row.map(escape).join(";")).join("\n");
-  const blob = new Blob(["\ufeff", csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
 
 function formatMoney(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -485,15 +418,4 @@ function Summary({title,icon,items}:{title:string;icon:React.ReactNode;items:str
     <div className="flex items-center justify-between gap-2 border-b border-hpsr-border pb-2.5"><div className="flex min-w-0 items-center gap-2 text-hpsr-wine">{icon}<h3 className="truncate text-sm font-black text-hpsr-text">{title}</h3></div><span className="shrink-0 rounded-full bg-[#fff1e5] px-2 py-0.5 text-[9px] font-black text-hpsr-wine">{items.length}</span></div>
     <div className="mt-2.5 grid content-start gap-1.5">{items.map((item,index)=><div key={`${item}-${index}`} className="min-h-[34px] rounded-[11px] border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-[11px] font-semibold leading-[1.35] text-hpsr-muted" title={item}>{item}</div>)}{!items.length&&<p className="py-4 text-center text-xs text-hpsr-muted">Nenhum registro disponível.</p>}</div>
   </section>;
-}
-
-function ExportMenu({ onActivities, onTeam, onApplications }: { onActivities: () => void; onTeam: () => void; onApplications: () => void }) {
-  return <details className="group relative">
-    <summary className="flex min-h-[40px] cursor-pointer list-none items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]"><FileSpreadsheet size={15}/> Exportações CSV</summary>
-    <div className="absolute right-0 z-30 mt-2 grid min-w-[205px] gap-1 rounded-[14px] border border-hpsr-border bg-white p-2 shadow-xl">
-      <button type="button" onClick={onActivities} className="rounded-[10px] px-3 py-2 text-left text-xs font-bold text-hpsr-text hover:bg-[#fff8f0]">Atividades do sistema</button>
-      <button type="button" onClick={onTeam} className="rounded-[10px] px-3 py-2 text-left text-xs font-bold text-hpsr-text hover:bg-[#fff8f0]">Equipe cadastrada</button>
-      <button type="button" onClick={onApplications} className="rounded-[10px] px-3 py-2 text-left text-xs font-bold text-hpsr-text hover:bg-[#fff8f0]">Candidaturas</button>
-    </div>
-  </details>;
 }

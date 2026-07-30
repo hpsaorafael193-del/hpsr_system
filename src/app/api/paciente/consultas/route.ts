@@ -79,6 +79,8 @@ export async function PATCH(request: NextRequest) {
     if (body.action === "accept_reschedule") {
       status = "Reagendamento aceito";
       payload.patientResponse = "Aceitou a data e o horário sugeridos pelo médico";
+      payload.doctorNotification = "Reagendamento aceito pelo paciente";
+      payload.doctorNotificationUnread = true;
       payload.preferredDate = payload.proposedDate;
       payload.date = payload.proposedDate;
       payload.time = payload.proposedTime;

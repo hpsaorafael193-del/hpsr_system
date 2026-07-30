@@ -1734,8 +1734,16 @@ export default function ExamesPage() {
     const loadImage = (src: string) =>
       new Promise<HTMLImageElement | null>((resolve) => {
         const image = new Image();
+        const isRemoteImage = /^https?:\/\//i.test(src);
+        if (isRemoteImage) {
+          image.crossOrigin = "anonymous";
+          image.referrerPolicy = "no-referrer";
+        }
         image.onload = () => resolve(image);
-        image.onerror = () => resolve(null);
+        image.onerror = () => {
+          console.warn("[HPSR][Exames] Imagem ignorada na exportação por restrição de origem:", src);
+          resolve(null);
+        };
         image.src = src;
       });
 
@@ -1746,7 +1754,13 @@ export default function ExamesPage() {
       const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
       if (!sourceContext) return image;
       sourceContext.drawImage(image, 0, 0);
-      const pixels = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+      let pixels: ImageData;
+      try {
+        pixels = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+      } catch (error) {
+        console.warn("[HPSR][Exames] A assinatura não pôde ser normalizada por restrição de origem e será omitida do PNG.", error);
+        return null;
+      }
       const data = pixels.data;
       let minX = sourceCanvas.width;
       let minY = sourceCanvas.height;
@@ -2014,7 +2028,9 @@ export default function ExamesPage() {
         : null;
       if (signature) {
         const normalizedSignature = normalizeSignatureImage(signature);
-        drawImageContain(normalizedSignature as HTMLCanvasElement, 237, 993, 320, 64);
+        if (normalizedSignature) {
+          drawImageContain(normalizedSignature, 237, 993, 320, 64);
+        }
       }
 
       context.strokeStyle = "#5b1809";
