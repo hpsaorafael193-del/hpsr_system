@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Download, Eye, FileText, Loader2, RefreshCcw, Stethoscope, X } from "lucide-react";
+import { AlertTriangle, Download, Eye, FileText, Loader2, RefreshCcw, Stethoscope, X } from "lucide-react";
 
 type PatientRecord = {
   id: string;
@@ -27,6 +27,7 @@ export function PatientRecordsPanel({ onSessionExpired, passport }: { onSessionE
   const [error, setError] = useState("");
   const [activeType, setActiveType] = useState<"Todos" | "Exame" | "Documento">("Todos");
   const [selected, setSelected] = useState<PatientRecord | null>(null);
+  const [pendingMultiDownload, setPendingMultiDownload] = useState<{ pages: string[]; safeName: string } | null>(null);
 
   async function loadRecords(silent = false) {
     if (!silent) setLoading(true);
@@ -73,13 +74,16 @@ export function PatientRecordsPanel({ onSessionExpired, passport }: { onSessionE
 
   function downloadRecord(record: PatientRecord) {
     const pages = record.previewImages?.length ? record.previewImages : (record.previewImage ? [record.previewImage] : []);
-    if (pages.length) {
-      pages.forEach((page, index) => {
-        const anchor = document.createElement("a");
-        anchor.href = page;
-        anchor.download = `${record.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "registro"}${pages.length > 1 ? `-pagina-${index + 1}` : ""}.png`;
-        anchor.click();
-      });
+    const safeName = record.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "registro";
+    if (pages.length === 1) {
+      const anchor = document.createElement("a");
+      anchor.href = pages[0];
+      anchor.download = `${safeName}.png`;
+      anchor.click();
+      return;
+    }
+    if (pages.length > 1) {
+      setPendingMultiDownload({ pages, safeName });
       return;
     }
     const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${record.title}</title><style>body{font-family:Arial,sans-serif;max-width:850px;margin:40px auto;padding:0 24px;color:#32150f}h1{color:#6f2b17}header{border-bottom:2px solid #6f2b17;padding-bottom:16px;margin-bottom:24px}.notice{background:#fff3cd;border:1px solid #f1ce6b;padding:12px;border-radius:10px;margin-bottom:20px}table{width:100%;border-collapse:collapse}td,th{border:1px solid #dbc2ae;padding:8px}</style></head><body><header><h1>Hospital São Rafael</h1><p>${record.title}</p><p>${formatDate(record.createdAt)} · ${record.doctor}</p></header><div class="notice"><strong>Aviso institucional:</strong> documento disponibilizado pelo Hospital São Rafael.</div><main>${record.html || "<p>Conteúdo não disponível para exportação.</p>"}</main></body></html>`;
@@ -87,9 +91,28 @@ export function PatientRecordsPanel({ onSessionExpired, passport }: { onSessionE
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `${record.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "registro"}.html`;
+    anchor.download = `${safeName}.html`;
     anchor.click();
     setTimeout(() => URL.revokeObjectURL(url), 500);
+  }
+
+
+  function confirmMultiPageDownload() {
+    if (!pendingMultiDownload) return;
+    const { pages, safeName } = pendingMultiDownload;
+    setPendingMultiDownload(null);
+
+    pages.forEach((page, index) => {
+      window.setTimeout(() => {
+        const anchor = document.createElement("a");
+        anchor.href = page;
+        anchor.download = `${safeName}-pagina-${index + 1}.png`;
+        anchor.rel = "noopener";
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+      }, index * 300);
+    });
   }
 
   if (loading) {
@@ -134,6 +157,29 @@ export function PatientRecordsPanel({ onSessionExpired, passport }: { onSessionE
         ))}
         {!visibleRecords.length && !error && <div className="rounded-[16px] border border-dashed border-hpsr-border bg-[#fff8f0] p-6 text-center"><FileText className="mx-auto text-hpsr-wine" /><p className="mt-3 font-black text-hpsr-text">Nenhum registro liberado</p><p className="mt-1 text-sm text-hpsr-muted">Exames e documentos em sigilo não aparecem no portal.</p></div>}
       </div>
+
+      {pendingMultiDownload && (
+        <div className="fixed inset-0 z-[130] flex items-end justify-center bg-black/55 p-2 sm:items-center sm:p-3" onMouseDown={(event) => { if (event.target === event.currentTarget) setPendingMultiDownload(null); }}>
+          <div className="w-full max-w-md rounded-t-[22px] border border-hpsr-border bg-white p-5 shadow-2xl sm:rounded-[22px]">
+            <div className="flex items-start gap-3">
+              <div className="rounded-full bg-amber-100 p-2.5 text-amber-800"><AlertTriangle size={22} /></div>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-lg font-black text-hpsr-text">Permita vários downloads</h3>
+                <p className="mt-2 text-sm font-semibold leading-6 text-hpsr-muted">
+                  Este exame possui {pendingMultiDownload.pages.length} páginas. Cada página será baixada separadamente em PNG.
+                </p>
+                <div className="mt-3 rounded-[12px] border border-amber-300 bg-amber-50 p-3 text-sm font-semibold leading-5 text-amber-950">
+                  O navegador pode solicitar autorização para baixar vários arquivos. Quando o aviso aparecer, escolha <strong>Permitir</strong> para receber todas as páginas.
+                </div>
+              </div>
+            </div>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setPendingMultiDownload(null)} className="rounded-[12px] border border-hpsr-border bg-white px-4 py-2.5 text-sm font-black text-hpsr-wine">Cancelar</button>
+              <button type="button" onClick={confirmMultiPageDownload} className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-hpsr-wine px-4 py-2.5 text-sm font-black text-white"><Download size={16} /> Entendi, baixar todas</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selected && (
         <div className="fixed inset-0 z-[120] flex items-end justify-center overflow-y-auto bg-black/55 p-2 sm:items-center sm:p-3" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>

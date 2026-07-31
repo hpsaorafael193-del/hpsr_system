@@ -2,18 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  AlertCircle, CalendarCheck2, ChevronRight, ClipboardPlus, FileHeart,
+  AlertCircle, ChevronRight, ClipboardPlus, FileHeart,
   Loader2, LockKeyhole, LogIn, LogOut, Plus, ShieldCheck, Trash2, UserPlus,
 } from "lucide-react";
 import { PatientRecordsPanel } from "@/components/public/PatientRecordsPanel";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { PatientAppointmentsPanel } from "@/components/public/PatientAppointmentsPanel";
+import { PatientBookingPanel } from "@/components/public/PatientBookingPanel";
 import { createClient } from "@/lib/supabase";
 import { clearAuthContext, clearLoginPersistence, setAuthContext } from "@/lib/auth-persistence";
 import { formatPhoneNumber } from "@/lib/phone";
 
 type Stage = "checking" | "login" | "register" | "portal";
-type PortalSection = "home" | "request" | "scheduled" | "records" | "pending";
+type PortalSection = "home" | "request" | "records" | "pending";
 type PortalPatient = { passport: string; name: string; relationship: string; access_type: string };
 type SessionResponse = { authenticated?: boolean; patientName?: string; accessiblePatients?: PortalPatient[] };
 
@@ -246,57 +247,144 @@ export function PatientAccessPanel() {
   if (stage === "portal") {
     const sections = [
       { id: "request" as const, icon: ClipboardPlus, title: "Solicitar consulta", subtitle: "Envie uma nova solicitação para análise da equipe." },
-      { id: "scheduled" as const, icon: CalendarCheck2, title: "Consultas marcadas", subtitle: "Confirme horários e acompanhe seus atendimentos." },
       { id: "records" as const, icon: FileHeart, title: "Meu prontuário", subtitle: "Exames, documentos e serviços liberados pelo HP." },
       { id: "pending" as const, icon: AlertCircle, title: "Pendências", subtitle: "Acompanhe respostas, justificativas e avisos importantes." },
     ];
 
-    return (
-      <div className="space-y-5">
-        <section className="overflow-hidden rounded-[26px] border border-hpsr-border bg-white/95 shadow-[0_18px_45px_rgba(82,48,27,.08)]">
-          <div className="flex flex-col gap-4 border-b border-hpsr-border bg-[#fffaf4] px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Painel do paciente</p>
-              <h2 className="mt-1 text-2xl font-black text-hpsr-text">Olá, {patientName}</h2>
-              <p className="mt-1 text-sm font-semibold text-hpsr-muted">Escolha abaixo o que precisa acessar.</p>
-              {accessiblePatients.length > 1 && <div className="mt-3 max-w-sm"><label className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Visualizando prontuário de</label><StyledSelect className="mt-1 min-h-[44px] w-full rounded-[14px] border border-hpsr-border bg-white px-3 text-sm font-black text-hpsr-text" value={selectedPassport} onChange={(event) => { setSelectedPassport(event.target.value); setPortalSection("home"); }}>{accessiblePatients.map((item) => <option key={item.passport} value={item.passport}>{item.name} · {item.access_type === "self" ? "Titular" : item.relationship}</option>)}</StyledSelect></div>}
-            </div>
-            <button onClick={logout} disabled={busy} className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-4 text-sm font-black text-hpsr-wine disabled:opacity-50">
-              <LogOut size={16} /> Sair
-            </button>
-          </div>
+    const selectedPatient = accessiblePatients.find((item) => item.passport === selectedPassport) || accessiblePatients[0] || null;
+    const portalSectionTitle = portalSection === "request"
+      ? "Solicitar consulta"
+      : portalSection === "records"
+        ? "Meu prontuário"
+        : portalSection === "pending"
+          ? "Pendências"
+          : "Bem-vindo ao portal";
+    const portalSectionDescription = portalSection === "request"
+      ? "Registre uma nova solicitação para a equipe médica analisar e entrar em contato."
+      : portalSection === "records"
+        ? "Consulte exames, documentos e registros liberados pelo hospital."
+        : portalSection === "pending"
+          ? "Acompanhe solicitações em aberto, avisos e respostas importantes."
+          : "Use as opções abaixo para solicitar atendimento, consultar seu prontuário e acompanhar pendências.";
 
-          <div className="grid gap-3 p-4 sm:grid-cols-2 sm:p-5 xl:grid-cols-4">
-            {sections.map(({ id, icon: Icon, title, subtitle }) => {
-              const active = portalSection === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setPortalSection(id)}
-                  className={`group flex min-h-[142px] flex-col rounded-[19px] border p-4 text-left transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_12px_28px_rgba(103,38,20,.18)]" : "border-hpsr-border bg-white hover:-translate-y-0.5 hover:border-hpsr-wine/35 hover:bg-[#fffaf4]"}`}
-                >
-                  <div className={`flex h-10 w-10 items-center justify-center rounded-[13px] ${active ? "bg-white/15 text-white" : "bg-[#f7ede3] text-hpsr-wine"}`}><Icon size={20} /></div>
-                  <p className={`mt-4 font-black ${active ? "text-white" : "text-hpsr-text"}`}>{title}</p>
-                  <p className={`mt-1 text-xs font-semibold leading-relaxed ${active ? "text-white/75" : "text-hpsr-muted"}`}>{subtitle}</p>
-                  <ChevronRight size={16} className={`mt-auto self-end ${active ? "text-white/80" : "text-hpsr-wine"}`} />
+    return (
+      <div className="mx-auto max-w-6xl space-y-4">
+        <section className="overflow-hidden rounded-[26px] border border-hpsr-border bg-white/95 shadow-[0_18px_45px_rgba(82,48,27,.08)]">
+          <div className="border-b border-hpsr-border bg-[linear-gradient(180deg,#fffaf4_0%,#fff6ee_100%)] px-5 py-4 sm:px-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Portal do paciente</p>
+                <h2 className="mt-1 text-[1.7rem] font-black leading-tight text-hpsr-text">Olá, {patientName}</h2>
+                <p className="mt-1 text-sm font-semibold text-hpsr-muted">Acompanhe seu atendimento, consulte seus registros e veja os horários liberados pelo seu médico.</p>
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="rounded-[18px] border border-hpsr-border bg-white px-4 py-3 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Paciente em visualização</p>
+                  <p className="mt-1 text-sm font-black text-hpsr-text">{selectedPatient?.name || patientName}</p>
+                  <p className="text-xs font-semibold text-hpsr-muted">{selectedPatient ? (selectedPatient.access_type === "self" ? "Titular" : selectedPatient.relationship) : "Titular"}</p>
+                </div>
+
+                <button onClick={logout} disabled={busy} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 text-sm font-black text-hpsr-wine shadow-sm transition hover:bg-[#fff8f2] disabled:opacity-50">
+                  <LogOut size={16} /> Sair
                 </button>
-              );
-            })}
+              </div>
+            </div>
+
+            {accessiblePatients.length > 1 && (
+              <div className="mt-4 max-w-md">
+                <label className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Visualizando prontuário de</label>
+                <StyledSelect
+                  className="mt-1 min-h-[44px] w-full rounded-[14px] border border-hpsr-border bg-white px-3 text-sm font-black text-hpsr-text"
+                  value={selectedPassport}
+                  onChange={(event) => {
+                    setSelectedPassport(event.target.value);
+                    setPortalSection("home");
+                  }}
+                >
+                  {accessiblePatients.map((item) => (
+                    <option key={item.passport} value={item.passport}>
+                      {item.name} · {item.access_type === "self" ? "Titular" : item.relationship}
+                    </option>
+                  ))}
+                </StyledSelect>
+              </div>
+            )}
           </div>
         </section>
 
-        {portalSection === "home" && (
-          <section className="rounded-[22px] border border-hpsr-border bg-white/90 p-6 text-center shadow-[0_14px_35px_rgba(82,48,27,.06)]">
-            <ShieldCheck className="mx-auto text-hpsr-wine" size={28} />
-            <h3 className="mt-3 text-lg font-black text-hpsr-text">Sua área está pronta</h3>
-            <p className="mx-auto mt-2 max-w-xl text-sm font-semibold leading-relaxed text-hpsr-muted">Use uma das quatro opções acima para solicitar atendimento, consultar compromissos, acessar registros liberados ou verificar pendências.</p>
-          </section>
-        )}
-        {portalSection === "request" && <PatientAppointmentsPanel view="request" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
-        {portalSection === "scheduled" && <PatientAppointmentsPanel view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
-        {portalSection === "records" && <PatientRecordsPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
-        {portalSection === "pending" && <PatientAppointmentsPanel view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
+        <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+          <div className="min-w-0 space-y-4">
+            <section className="overflow-hidden rounded-[24px] border border-hpsr-border bg-white shadow-[0_14px_34px_rgba(82,48,27,.06)]">
+              <div className="border-b border-hpsr-border bg-[#fffaf4] px-4 py-3.5 sm:px-5">
+                <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Acesso rápido</p>
+                <h3 className="mt-1 text-lg font-black text-hpsr-text">Escolha o que deseja fazer</h3>
+                <p className="mt-1 text-sm font-semibold text-hpsr-muted">As funções abaixo continuam disponíveis enquanto a agenda fica visível ao lado.</p>
+              </div>
+
+              <div className="space-y-2.5 p-4">
+                {sections.map(({ id, icon: Icon, title, subtitle }) => {
+                  const active = portalSection === id;
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setPortalSection(id)}
+                      className={`group flex w-full items-center gap-3 rounded-[16px] border px-3.5 py-3 text-left transition ${active ? "border-hpsr-wine bg-[linear-gradient(135deg,#672614_0%,#8b4127_100%)] text-white shadow-[0_12px_24px_rgba(103,38,20,.15)]" : "border-hpsr-border bg-white hover:border-hpsr-wine/30 hover:bg-[#fffaf4] hover:shadow-sm"}`}
+                    >
+                      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] ${active ? "bg-white/14 text-white" : "bg-[#f7ede3] text-hpsr-wine"}`}>
+                        <Icon size={20} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-sm font-black ${active ? "text-white" : "text-hpsr-text"}`}>{title}</p>
+                        <p className={`mt-1 text-xs font-semibold leading-relaxed ${active ? "text-white/76" : "text-hpsr-muted"}`}>{subtitle}</p>
+                      </div>
+                      <ChevronRight size={16} className={`shrink-0 ${active ? "text-white/80" : "text-hpsr-wine"}`} />
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="overflow-hidden rounded-[24px] border border-hpsr-border bg-white shadow-[0_14px_34px_rgba(82,48,27,.06)]">
+              <div className="border-b border-hpsr-border bg-[#fffdf9] px-4 py-3.5 sm:px-5">
+                <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Área selecionada</p>
+                <h3 className="mt-1 text-lg font-black text-hpsr-text">{portalSectionTitle}</h3>
+                <p className="mt-1 text-sm font-semibold text-hpsr-muted">{portalSectionDescription}</p>
+              </div>
+
+              <div className="p-4 sm:p-5">
+                {portalSection === "home" && (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-[18px] border border-hpsr-border bg-[#fffaf4] p-4 shadow-sm">
+                      <p className="text-sm font-black text-hpsr-text">Como funciona o atendimento</p>
+                      <ul className="mt-2 space-y-2 text-sm font-semibold leading-relaxed text-hpsr-muted">
+                        <li>• Solicite a consulta ou acompanhe pendências da equipe.</li>
+                        <li>• O médico libera os horários do acompanhamento na agenda ao lado.</li>
+                        <li>• Após escolher um horário, a confirmação fica registrada no sistema.</li>
+                      </ul>
+                    </div>
+                    <div className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-sm">
+                      <p className="text-sm font-black text-hpsr-text">O que você pode acessar</p>
+                      <ul className="mt-2 space-y-2 text-sm font-semibold leading-relaxed text-hpsr-muted">
+                        <li>• Solicitar novos atendimentos.</li>
+                        <li>• Consultar exames, documentos e liberações.</li>
+                        <li>• Ver respostas, reagendamentos e avisos importantes.</li>
+                      </ul>
+                    </div>
+                  </div>
+                )}
+                {portalSection === "request" && <PatientAppointmentsPanel view="request" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
+                {portalSection === "records" && <PatientRecordsPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
+                {portalSection === "pending" && <PatientAppointmentsPanel view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
+              </div>
+            </section>
+          </div>
+
+          <aside className="min-w-0 lg:sticky lg:top-5">
+            <PatientBookingPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />
+          </aside>
+        </div>
       </div>
     );
   }

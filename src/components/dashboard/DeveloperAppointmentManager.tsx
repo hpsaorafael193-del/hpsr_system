@@ -33,6 +33,19 @@ type Plan = {
   status: string;
 };
 
+type Occurrence = {
+  id: string;
+  plan_id: string;
+  doctor_id: string;
+  patient_name: string;
+  patient_passport: string;
+  specialty: string;
+  planned_date: string;
+  status: string;
+  slot_id: string | null;
+  appointment_id: string | null;
+};
+
 type Series = {
   id: string;
   doctor_id: string;
@@ -83,6 +96,7 @@ function displayTime(value: string | null | undefined) {
 
 export function DeveloperAppointmentManager({ doctorId, doctorName, canViewAll = false }: { doctorId: string; doctorName: string; canViewAll?: boolean }) {
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [occurrences, setOccurrences] = useState<Occurrence[]>([]);
   const [series, setSeries] = useState<Series[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,6 +120,12 @@ export function DeveloperAppointmentManager({ doctorId, doctorName, canViewAll =
       .select("id,doctor_id,doctor_name,patient_name,patient_passport,specialty,frequency,start_date,end_date,total_consultations,status")
       .order("created_at", { ascending: false })
       .limit(300);
+    let occurrenceQuery = client
+      .from("clinical_followup_occurrences")
+      .select("id,plan_id,doctor_id,patient_name,patient_passport,specialty,planned_date,status,slot_id,appointment_id")
+      .gte("planned_date", new Intl.DateTimeFormat("en-CA", { timeZone: BRAZIL_TIMEZONE }).format(new Date()))
+      .order("planned_date", { ascending: true })
+      .limit(500);
     let seriesQuery = client
       .from("clinical_availability_series")
       .select("id,doctor_id,doctor_name,specialty,start_date,end_date,start_time,end_time,slot_duration_minutes,status")
@@ -120,15 +140,17 @@ export function DeveloperAppointmentManager({ doctorId, doctorName, canViewAll =
 
     if (!effectiveViewAll) {
       planQuery = planQuery.eq("doctor_id", doctorId);
+      occurrenceQuery = occurrenceQuery.eq("doctor_id", doctorId);
       seriesQuery = seriesQuery.eq("doctor_id", doctorId);
       slotQuery = slotQuery.eq("doctor_id", doctorId);
     }
 
-    const [planResult, seriesResult, slotResult] = await Promise.all([planQuery, seriesQuery, slotQuery]);
-    const firstError = planResult.error || seriesResult.error || slotResult.error;
+    const [planResult, occurrenceResult, seriesResult, slotResult] = await Promise.all([planQuery, occurrenceQuery, seriesQuery, slotQuery]);
+    const firstError = planResult.error || occurrenceResult.error || seriesResult.error || slotResult.error;
     if (firstError) setError(firstError.message);
     else {
       setPlans((planResult.data || []) as Plan[]);
+      setOccurrences((occurrenceResult.data || []) as Occurrence[]);
       setSeries((seriesResult.data || []) as Series[]);
       setSlots((slotResult.data || []) as Slot[]);
     }
@@ -313,7 +335,7 @@ export function DeveloperAppointmentManager({ doctorId, doctorName, canViewAll =
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           <div className="rounded-[14px] border border-hpsr-border bg-white p-3"><p className="text-[9px] font-black uppercase tracking-[.13em] text-hpsr-wineLight">Planejamentos</p><p className="mt-1 text-xl font-black text-hpsr-text">{plans.length}</p></div>
-          <div className="rounded-[14px] border border-hpsr-border bg-white p-3"><p className="text-[9px] font-black uppercase tracking-[.13em] text-hpsr-wineLight">Horários carregados</p><p className="mt-1 text-xl font-black text-hpsr-text">{slots.length}</p></div>
+          <div className="rounded-[14px] border border-hpsr-border bg-white p-3"><p className="text-[9px] font-black uppercase tracking-[.13em] text-hpsr-wineLight">Consultas planejadas</p><p className="mt-1 text-xl font-black text-hpsr-text">{occurrences.length}</p></div>
           <div className="rounded-[14px] border border-hpsr-border bg-white p-3"><p className="text-[9px] font-black uppercase tracking-[.13em] text-hpsr-wineLight">Reservados</p><p className="mt-1 text-xl font-black text-hpsr-text">{occupiedCount}</p></div>
         </div>
       </div>
@@ -340,6 +362,13 @@ export function DeveloperAppointmentManager({ doctorId, doctorName, canViewAll =
               <div className="mb-3 flex items-center gap-2"><CalendarRange size={17} className="text-hpsr-wine" /><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Planejamentos clínicos</p><p className="text-xs text-hpsr-muted">Consultas futuras organizadas por paciente.</p></div></div>
               <div className="grid max-h-[340px] gap-2 overflow-y-auto lg:grid-cols-2">
                 {visiblePlans.length ? visiblePlans.map((plan) => <div key={plan.id} className="flex items-center gap-3 rounded-[14px] border border-hpsr-border bg-white p-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-[#fff4ea] text-hpsr-wine"><UserRound size={17} /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{plan.patient_name} · {plan.patient_passport}</p><p className="mt-0.5 truncate text-xs font-semibold text-hpsr-muted">{plan.specialty} · {plan.doctor_name}</p><p className="mt-1 text-[11px] text-hpsr-muted">{displayDate(plan.start_date)} até {displayDate(plan.end_date)} · {plan.total_consultations || 0} consultas</p></div><button disabled={Boolean(busyId)} onClick={() => void removePlan(plan)} aria-label="Excluir planejamento" className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] border border-rose-100 text-rose-700 hover:bg-rose-50 disabled:opacity-50">{busyId === `plan-${plan.id}` ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}</button></div>) : <p className="col-span-full rounded-[14px] border border-dashed border-hpsr-border bg-white p-5 text-center text-sm text-hpsr-muted">Nenhum planejamento encontrado.</p>}
+              </div>
+            </div>
+
+            <div className="rounded-[18px] border border-hpsr-border bg-[#fffdf9] p-3.5">
+              <div className="mb-3 flex items-center gap-2"><CalendarClock size={17} className="text-hpsr-wine" /><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Próximas consultas planejadas</p><p className="text-xs text-hpsr-muted">Datas previstas, situação da liberação e horário escolhido pelo paciente.</p></div></div>
+              <div className="grid max-h-[360px] gap-2 overflow-y-auto lg:grid-cols-2 xl:grid-cols-3">
+                {occurrences.length ? occurrences.map((occurrence) => { const linkedSlot = occurrence.slot_id ? slots.find((slot) => slot.id === occurrence.slot_id) : undefined; return <div key={occurrence.id} className="rounded-[14px] border border-hpsr-border bg-white p-3"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><p className="truncate text-sm font-black text-hpsr-text">{occurrence.patient_name} · {occurrence.patient_passport}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">{occurrence.specialty}</p></div><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-black uppercase ${linkedSlot ? "bg-emerald-50 text-emerald-700" : occurrence.status === "Horários disponíveis" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-800"}`}>{linkedSlot ? "Confirmada" : occurrence.status}</span></div><div className="mt-3 rounded-[12px] bg-[#fff8f4] px-3 py-2"><p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Data planejada</p><p className="mt-1 text-sm font-black text-hpsr-text">{displayDate(occurrence.planned_date)}{linkedSlot ? ` · ${displayTime(linkedSlot.starts_at)}` : " · Horário aguardando escolha"}</p></div></div> }) : <p className="col-span-full rounded-[14px] border border-dashed border-hpsr-border bg-white p-5 text-center text-sm text-hpsr-muted">Nenhuma consulta planejada futura.</p>}
               </div>
             </div>
 

@@ -65,6 +65,7 @@ type PublicAppointmentRequest = {
 };
 
 function publicRequestPreferred(item: PublicAppointmentRequest) {
+  if (!item.preferredDate && !item.preferredTime && !item.preferredPeriod) return "Definição pela equipe médica";
   const date = item.preferredDate ? formatDate(item.preferredDate) : "Data a definir";
   const period = item.preferredTime ? `às ${item.preferredTime}` : (item.preferredPeriod || "Período a definir");
   return item.preferred || `${date} · ${period}`;
@@ -76,7 +77,7 @@ function buildPublicAnswer(
   details?: { proposedDate?: string; proposedTime?: string; reason?: string }
 ) {
   if (status === "Aceita") {
-    return `Consulta aceita por ${doctorName}. Compareça ao hospital no período informado ou aguarde contato interno no RP.`;
+    return `Solicitação aceita por ${doctorName}. A equipe entrará em contato pelo Discord privado ou pelo celular no RP para confirmar o dia e o horário.`;
   }
 
   if (status === "Recusada") {

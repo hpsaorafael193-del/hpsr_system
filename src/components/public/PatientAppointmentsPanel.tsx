@@ -275,7 +275,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
 
       {view === "request" && <section className="rounded-[22px] border border-hpsr-border bg-white/90 p-4 sm:p-5">
         <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Stethoscope size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Novo atendimento</p><h3 className="text-lg font-black text-hpsr-text">Agendar consulta</h3></div></div>
-        <p className="mt-3 text-sm font-semibold leading-relaxed text-hpsr-muted">A solicitação será analisada pela equipe. O envio não confirma automaticamente a consulta.</p>
+        <p className="mt-3 text-sm font-semibold leading-relaxed text-hpsr-muted">Envie a necessidade do atendimento. A equipe médica definirá a data e o horário e fará contato para confirmação.</p>
         <button type="button" onClick={() => setRequestFlowType("Acompanhamento com especialista")} className={`mt-4 flex w-full items-start gap-3 rounded-[18px] border p-4 text-left transition ${requestFlowType === "Acompanhamento com especialista" ? "border-hpsr-wine bg-[#fff4ee] shadow-sm" : "border-hpsr-border bg-[#fffaf4] hover:border-hpsr-wineLight"}`}>
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-hpsr-wine text-white"><Stethoscope size={19} /></span>
           <span><strong className="block text-sm font-black text-hpsr-text">Já faço acompanhamento com um especialista</strong><span className="mt-1 block text-xs font-semibold leading-relaxed text-hpsr-muted">Selecione o médico que já acompanha você e envie o pré-registro para confirmação do profissional.</span></span>
@@ -309,9 +309,15 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
               <textarea name="flowDetails" required rows={3} placeholder="Explique exatamente o atendimento, procedimento ou orientação que você procura." className={`${fieldClass} mt-1.5 py-3`} />
             </label>
           )}
-          <label className="text-xs font-black text-hpsr-muted">Data preferencial<input name="preferredDate" type="date" required className={`${fieldClass} mt-1.5`} /></label>
-          <label className="text-xs font-black text-hpsr-muted">Período<StyledSelect name="preferredPeriod" required defaultValue="" className={`${fieldClass} mt-1.5`}><option value="" disabled>Selecione</option><option>Manhã</option><option>Tarde</option><option>Noite</option><option>Indiferente</option></StyledSelect></label>
-          <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Horário preferencial <span className="font-semibold text-hpsr-muted/75">(opcional)</span><input name="preferredTime" type="time" className={`${fieldClass} mt-1.5`} /><span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Preencha somente quando desejar sugerir uma hora específica. A equipe ainda confirmará a disponibilidade.</span></label>
+          <div className="sm:col-span-2 rounded-[18px] border border-amber-200 bg-[linear-gradient(135deg,#fff9e8_0%,#fff3d6_100%)] p-4">
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-amber-700 text-white"><CalendarClock size={18} /></span>
+              <div>
+                <p className="text-xs font-black text-amber-950">Data e horário serão definidos pela equipe médica</p>
+                <p className="mt-1 text-[11px] font-semibold leading-relaxed text-amber-900">Após analisar a solicitação, o médico ou a equipe entrará em contato pelo privado do Discord ou pelo celular no RP para confirmar o dia e o horário. Fique atento às mensagens.</p>
+              </div>
+            </div>
+          </div>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Motivo da solicitação<textarea name="reason" required rows={4} placeholder="Descreva brevemente o motivo clínico ou a necessidade do atendimento." className={`${fieldClass} mt-1.5 py-3`} /></label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Observações<textarea name="notes" rows={3} className={`${fieldClass} mt-1.5 py-3`} /></label>
           {message && <p className="sm:col-span-2 rounded-[12px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800"><CheckCircle2 className="mr-2 inline" size={16} />{message}</p>}

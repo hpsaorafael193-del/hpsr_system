@@ -7,8 +7,11 @@ export default function PatientPortalPage() {
   return (
     <PublicShell>
       <main className="public-pattern min-h-[100dvh] overflow-x-hidden px-3 py-6 text-hpsr-text sm:px-4 sm:py-8 lg:px-5 lg:py-10">
-        <div className="mx-auto w-full max-w-5xl min-w-0">
-          <header className="text-center">
+        <div className="mx-auto w-full max-w-[1500px] min-w-0">
+          <header className="relative overflow-hidden rounded-[32px] border border-hpsr-border bg-[radial-gradient(circle_at_top_left,rgba(103,38,20,.10),transparent_38%),linear-gradient(135deg,rgba(255,250,244,.98),rgba(255,255,255,.96))] px-5 py-8 text-center shadow-[0_22px_60px_rgba(82,48,27,.08)] sm:px-8 sm:py-10">
+            <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full border-[32px] border-[#f3e5d8]/70" />
+            <div className="pointer-events-none absolute -bottom-24 -left-20 h-52 w-52 rounded-full bg-[#f7ede3]/70 blur-2xl" />
+            <div className="relative">
             <span className="inline-flex items-center gap-2 rounded-full border border-hpsr-border bg-white/85 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-hpsr-wineLight shadow-sm">
               <FileHeart size={15} /> Área do paciente
             </span>
@@ -18,13 +21,14 @@ export default function PatientPortalPage() {
             <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold leading-relaxed text-hpsr-muted sm:text-base">
               Entre na sua conta para acompanhar consultas, confirmar horários e acessar exames e documentos liberados pelo Hospital São Rafael.
             </p>
+            </div>
           </header>
 
-          <section className="mx-auto mt-6 max-w-4xl">
+          <section className="mx-auto mt-6 w-full">
             <PatientAccessPanel />
           </section>
 
-          <section className="mx-auto mt-6 max-w-5xl">
+          <section className="mx-auto mt-8 max-w-6xl">
             <div className="mb-4 flex items-center gap-3 px-1">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white">
                 <Stethoscope size={19} />

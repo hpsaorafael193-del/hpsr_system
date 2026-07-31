@@ -19,8 +19,8 @@ type PublicAppointment = {
   bloodType: string;
   discord: string;
   specialty: string;
-  preferredDate: string;
-  preferredPeriod: string;
+  preferredDate?: string;
+  preferredPeriod?: string;
   reason: string;
   notes: string;
   status: string;
@@ -53,8 +53,8 @@ export default function SchedulePage() {
       bloodType: String(form.get("bloodType") ?? "").trim(),
       discord: String(form.get("discord") ?? "").trim(),
       specialty: String(form.get("specialty") ?? "").trim(),
-      preferredDate: String(form.get("preferredDate") ?? "").trim(),
-      preferredPeriod: String(form.get("preferredPeriod") ?? "").trim(),
+      preferredDate: "",
+      preferredPeriod: "",
       reason: String(form.get("reason") ?? "").trim(),
       notes: String(form.get("notes") ?? "").trim(),
       status: "Solicitação enviada",
@@ -89,7 +89,7 @@ export default function SchedulePage() {
             <p className="mt-6 text-xs font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">Paciente</p>
             <h1 className="mt-2 text-[clamp(1.45rem,4vw,2rem)] font-semibold text-hpsr-text lg:text-[clamp(1.7rem,5vw,2.55rem)]">Solicitar consulta</h1>
             <p className="mt-3 max-w-3xl leading-relaxed text-hpsr-muted">
-              Preencha os dados abaixo. A solicitação será enviada para análise do médico responsável pela especialidade e só será confirmada após aceite.
+              Preencha os dados abaixo. A equipe médica analisará a solicitação e entrará em contato para definir e confirmar o dia e o horário.
             </p>
 
             {submitError && <p className="mt-4 rounded-[14px] border border-red-300 bg-red-50 px-4 py-3 text-sm font-bold text-red-800">{submitError}</p>}
@@ -173,19 +173,12 @@ export default function SchedulePage() {
                   </StyledSelect>
                 </FormField>
 
-                <FormField label="Data preferencial">
-                  <input name="preferredDate" className={inputClass} type="date" required />
-                </FormField>
-
-                <FormField label="Período preferencial">
-                  <StyledSelect name="preferredPeriod" className={inputClass} defaultValue="" required>
-                    <option value="" disabled>Selecione o período</option>
-                    <option>Manhã</option>
-                    <option>Tarde</option>
-                    <option>Noite</option>
-                    <option>Indiferente</option>
-                  </StyledSelect>
-                </FormField>
+                <div className="md:col-span-2 rounded-[18px] border border-amber-200 bg-[linear-gradient(135deg,#fff9e8_0%,#fff3d6_100%)] p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-amber-700 text-white"><CalendarDays size={18} /></div>
+                    <div><p className="text-sm font-black text-amber-950">A equipe definirá a data e o horário</p><p className="mt-1 text-xs font-semibold leading-relaxed text-amber-900">Fique atento ao privado do Discord e ao celular no RP. O médico entrará em contato para confirmar o agendamento.</p></div>
+                  </div>
+                </div>
 
                 <div className="md:col-span-2">
                   <FormField label="Motivo da consulta">
@@ -205,7 +198,7 @@ export default function SchedulePage() {
               </button>
 
               <p className="mt-4 rounded-[14px] border border-hpsr-border bg-[#fcf6ee] p-3.5 text-sm leading-relaxed text-hpsr-muted">
-                Após o envio, a solicitação ficará aguardando análise médica. A consulta só será confirmada se o médico responsável aceitar.
+                Após o envio, fique atento ao privado do Discord e ao celular no RP. A consulta só será confirmada depois que a equipe definir o dia e o horário com você.
               </p>
             </form>
           </div>

@@ -13,9 +13,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const patient = String(body.patient || "").trim();
     const specialty = String(body.specialty || "").trim();
-    const preferredDate = String(body.preferredDate || "").trim();
-    const preferredPeriod = String(body.preferredPeriod || "").trim();
-    const preferredTime = String(body.preferredTime || "").trim();
+    const preferredDate = "";
+    const preferredPeriod = "";
+    const preferredTime = "";
     const reason = String(body.reason || "").trim();
     const notes = String(body.notes || "").trim();
     const flowType = String(body.flowType || "Consulta comum").trim();
@@ -24,11 +24,8 @@ export async function POST(request: NextRequest) {
     const requestedDoctorName = String(body.requestedDoctorName || "").trim();
     const allowedFlowTypes = ["Consulta comum", "Acompanhamento com especialista", "Exames", "Outros"];
 
-    if (!patient || !specialty || !preferredDate || !preferredPeriod || !reason || !allowedFlowTypes.includes(flowType)) {
+    if (!patient || !specialty || !reason || !allowedFlowTypes.includes(flowType)) {
       return NextResponse.json({ ok: false, error: "Preencha os campos obrigatórios." }, { status: 400 });
-    }
-    if (preferredTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(preferredTime)) {
-      return NextResponse.json({ ok: false, error: "Informe um horário preferencial válido." }, { status: 400 });
     }
     if (flowType === "Acompanhamento com especialista" && (!requestedDoctorId || !requestedDoctorName)) {
       return NextResponse.json({ ok: false, error: "Selecione o médico responsável pelo acompanhamento." }, { status: 400 });
@@ -63,6 +60,8 @@ export async function POST(request: NextRequest) {
       preferredDate,
       preferredPeriod,
       preferredTime,
+      schedulingMode: "medical_contact",
+      schedulingNotice: "A equipe médica entrará em contato pelo Discord privado ou pelo celular no RP para confirmar o dia e o horário da consulta.",
       reason,
       notes,
       flowType,
