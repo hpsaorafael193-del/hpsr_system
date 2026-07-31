@@ -384,6 +384,11 @@ export default function RecordsPage() {
   const selectedPatient =
     patients.find((patient) => patient.passport === selectedPassport) ?? searchedPatient;
 
+  const selectedPatientAge = selectedPatient
+    ? Number.parseInt(String(selectedPatient.age).replace(/\D/g, ""), 10)
+    : Number.NaN;
+  const selectedPatientIsMinor = Number.isFinite(selectedPatientAge) && selectedPatientAge < 18;
+
   const patientEvents = selectedPatient
     ? timelineEvents
         .filter((event) => event.patientPassport === selectedPatient.passport)
@@ -881,49 +886,63 @@ export default function RecordsPage() {
 
           {selectedPatient ? (
             <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-white xl:h-full xl:max-h-full">
-              <div className="z-20 shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffdf9_0%,#f4e7dc_100%)] p-3.5 shadow-[0_8px_18px_rgba(79,42,21,0.05)]">
-                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-2xl font-black text-hpsr-text">{selectedPatient.name}</h2>
-                      <span className={`rounded-full border px-3 py-1 text-xs font-black ${statusClasses(selectedPatient.status)}`}>
-                        {selectedPatient.status}
-                      </span>
+              <div className="z-20 shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffdf9_0%,#f4e7dc_100%)] px-3.5 py-3 shadow-[0_8px_18px_rgba(79,42,21,0.05)]">
+                <div className="flex flex-col gap-3">
+                  <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        <h2 className="min-w-0 break-words text-[clamp(1.35rem,2.2vw,2rem)] font-black leading-tight text-hpsr-text">{selectedPatient.name}</h2>
+                        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black ${statusClasses(selectedPatient.status)}`}>
+                          {selectedPatient.status}
+                        </span>
+                      </div>
+
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
+                          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Passaporte</p>
+                          <p className="mt-0.5 truncate text-xs font-black text-hpsr-text">{selectedPatient.passport}</p>
+                        </div>
+                        <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
+                          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Idade</p>
+                          <p className="mt-0.5 text-xs font-black text-hpsr-text">{selectedPatient.age} anos</p>
+                        </div>
+                        <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
+                          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Tipo sanguíneo</p>
+                          <p className="mt-0.5 text-xs font-black text-hpsr-text">{selectedPatient.bloodType}</p>
+                        </div>
+                        <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
+                          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Telefone</p>
+                          <p className="mt-0.5 truncate text-xs font-black text-hpsr-text">{formatPhoneDisplay(selectedPatient.cityPhone, "Não informado")}</p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-[11px] font-bold text-hpsr-muted">Passaporte {selectedPatient.passport}</span>
-                      <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-[11px] font-bold text-hpsr-muted">{selectedPatient.age} anos</span>
-                      <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-[11px] font-bold text-hpsr-muted">Tipo {selectedPatient.bloodType}</span>
-                      <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-[11px] font-bold text-hpsr-muted">{formatPhoneDisplay(selectedPatient.cityPhone, "Não informado")}</span>
+
+                    <div className="flex shrink-0 flex-wrap gap-2 xl:max-w-[500px] xl:justify-end">
+                      <button type="button" onClick={() => setIsEditPatientOpen(true)} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]"><Pencil size={15} />Editar dados</button>
+                      {selectedPatientIsMinor && (
+                        <button type="button" onClick={() => setIsGuardiansOpen(true)} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]"><UsersRound size={15} />Responsáveis</button>
+                      )}
+                      <button type="button" onClick={() => setIsPortalSpecialtiesOpen(true)} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]"><Stethoscope size={15} />Agenda do portal</button>
+                      <button
+                        type="button"
+                        onClick={() => setIsClinicalRecordOpen(true)}
+                        className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] bg-[linear-gradient(135deg,#672614,#74321e)] px-3 text-xs font-black text-white transition hover:-translate-y-0.5"
+                      >
+                        <ClipboardPlus size={16} />
+                        Adicionar registro
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isDeletingPatient}
+                        onClick={() => void deletePatient(selectedPatient)}
+                        className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] border border-red-200 bg-red-50 px-3 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <Trash2 size={16} />
+                        {isDeletingPatient ? "Excluindo..." : "Excluir paciente"}
+                      </button>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    <div className="hidden rounded-[14px] border border-hpsr-border bg-white px-3 py-2.5 2xl:block">
-                      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Histórico protegido</p>
-                      <p className="mt-0.5 text-[11px] font-semibold text-hpsr-muted">Correções entram como nova observação.</p>
-                    </div>
-                    <button type="button" onClick={() => setIsEditPatientOpen(true)} className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-3.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]"><Pencil size={15} />Editar dados</button>
-                    <button type="button" onClick={() => setIsGuardiansOpen(true)} className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-3.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]"><UsersRound size={15} />Responsáveis</button>
-                    <button type="button" onClick={() => setIsPortalSpecialtiesOpen(true)} className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-3.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]"><Stethoscope size={15} />Agenda do portal</button>
-                    <button
-                      type="button"
-                      onClick={() => setIsClinicalRecordOpen(true)}
-                      className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#672614,#74321e)] px-3.5 text-xs font-black text-white transition hover:-translate-y-0.5"
-                    >
-                      <ClipboardPlus size={16} />
-                      Adicionar registro
-                    </button>
-                    <button
-                      type="button"
-                      disabled={isDeletingPatient}
-                      onClick={() => void deletePatient(selectedPatient)}
-                      className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-red-200 bg-red-50 px-3.5 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <Trash2 size={16} />
-                      {isDeletingPatient ? "Excluindo..." : "Excluir paciente"}
-                    </button>
-                  </div>
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
