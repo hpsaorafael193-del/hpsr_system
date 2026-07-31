@@ -101,33 +101,28 @@ export function PatientBookingPanel({ onSessionExpired, onBooked, passport }: { 
   return (
     <>
       <section className="overflow-hidden rounded-[24px] border border-hpsr-border bg-white shadow-[0_16px_38px_rgba(82,48,27,.07)]">
-        <div className="relative overflow-hidden border-b border-hpsr-border bg-[linear-gradient(135deg,#401208_0%,#6d2413_100%)] p-4 text-white">
+        <div className="relative overflow-hidden border-b border-hpsr-border bg-[linear-gradient(135deg,#401208_0%,#6d2413_100%)] p-4 text-white sm:p-5">
           <div className="pointer-events-none absolute -right-12 -top-16 h-44 w-44 rounded-full border-[28px] border-white/[.055]" />
-          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex items-start gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] border border-white/15 bg-white/10 text-white"><HeartPulse size={19} /></div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[.16em] text-white/60">Agenda dos especialistas</p>
-                <h3 className="mt-0.5 text-lg font-black text-white">Horários disponíveis</h3>
-                <p className="mt-1 max-w-xl text-xs font-semibold leading-relaxed text-white/72">Escolha uma vaga da especialidade liberada no seu prontuário. Confira sempre o nome do médico antes de confirmar.</p>
-              </div>
+          <div className="relative flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-[10px] font-black uppercase tracking-[.16em] text-white/60">Portal do paciente</p>
+              <h3 className="mt-1 text-[1.55rem] font-black leading-none text-white sm:text-[1.75rem]">Agenda médica</h3>
             </div>
-            <button onClick={() => void load(true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[12px] border border-white/15 bg-white/10 px-3 text-xs font-black text-white transition hover:bg-white/15"><RefreshCcw size={14} />Atualizar</button>
+            <button onClick={() => void load(true)} className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-[12px] border border-white/15 bg-white/10 px-3 text-xs font-black text-white transition hover:bg-white/15"><RefreshCcw size={14} />Atualizar</button>
           </div>
         </div>
 
         <div className="p-3.5">
-          <div className="rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3.5 py-2.5 text-sm font-bold text-hpsr-text shadow-sm">Paciente: {patientName || "Identificado pela sessão"}</div>
           {loading ? (
             <div className="py-10 text-center"><Loader2 className="mx-auto animate-spin text-hpsr-wine" /></div>
           ) : !slots.length ? (
-            <div className="mt-4 rounded-[20px] border border-dashed border-hpsr-border bg-[linear-gradient(180deg,#fffdf9,#fff8f1)] p-7 text-center">
+            <div className="rounded-[20px] border border-dashed border-hpsr-border bg-[linear-gradient(180deg,#fffdf9,#fff8f1)] p-7 text-center">
               <CalendarDays className="mx-auto text-hpsr-wine" />
               <p className="mt-3 font-black text-hpsr-text">Nenhum horário disponível</p>
               <p className="mx-auto mt-1 max-w-xl text-sm leading-relaxed text-hpsr-muted">{emptyReason || "Quando um médico publicar horários para uma especialidade liberada no seu prontuário, as opções aparecerão aqui."}</p>
             </div>
           ) : (
-            <div className="hpsr-touch-scroll mt-3 max-h-[440px] space-y-3 overflow-y-auto pr-1">
+            <div className="hpsr-touch-scroll max-h-[440px] space-y-3 overflow-y-auto pr-1">
               {Object.entries(grouped).map(([day, items]) => (
                 <div key={day} className="rounded-[16px] border border-hpsr-border bg-[#fffdf9] p-3 shadow-[0_8px_20px_rgba(82,48,27,.035)]">
                   <div className="mb-2.5 flex items-center gap-2"><CalendarDays size={16} className="text-hpsr-wine" /><h4 className="capitalize text-sm font-black text-hpsr-text">{day}</h4></div>
@@ -140,10 +135,10 @@ export function PatientBookingPanel({ onSessionExpired, onBooked, passport }: { 
                           <div className="flex items-center gap-3">
                             <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-[12px] ${active ? "bg-white/15" : "bg-[#f7ede3] text-hpsr-wine"}`}><Clock3 size={17} /></div>
                             <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-base font-black">{time}</span><span className={`text-[10px] font-black uppercase tracking-[.11em] ${active ? "text-white/75" : "text-hpsr-wineLight"}`}>{slot.specialty}</span></div>
+                              <div className="flex flex-wrap items-center justify-between gap-2"><span className="text-sm font-black">{time}</span><span className={`text-[10px] font-black uppercase tracking-[.11em] ${active ? "text-white/75" : "text-hpsr-wineLight"}`}>{slot.specialty}</span></div>
                               <div className={`mt-2 rounded-[10px] border px-2.5 py-2 ${active ? "border-white/15 bg-white/10" : "border-[#ead7ca] bg-[#fffaf4]"}`}>
                                 <p className={`text-[9px] font-black uppercase tracking-[.12em] ${active ? "text-white/65" : "text-hpsr-wineLight"}`}>Médico responsável por este horário</p>
-                                <p className={`mt-0.5 truncate text-sm font-black ${active ? "text-white" : "text-hpsr-text"}`}><Stethoscope className="mr-1 inline" size={13} />{slot.doctor_name}</p>
+                                <p className={`mt-0.5 truncate text-[13px] font-black ${active ? "text-white" : "text-hpsr-text"}`}><Stethoscope className="mr-1 inline" size={13} />{slot.doctor_name}</p>
                               </div>
                             </div>
                             <span className={`h-3.5 w-3.5 shrink-0 rounded-full border-2 ${active ? "border-white bg-white" : "border-hpsr-border bg-white"}`} />

@@ -46,7 +46,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }, [collapsed, hydrated]);
 
   return (
-    <div className="hpsr-dashboard-shell min-h-dvh overflow-x-hidden bg-hpsr-bg text-hpsr-text">
+    <div className="hpsr-dashboard-shell hpsr-compact-type min-h-dvh overflow-x-hidden bg-hpsr-bg text-hpsr-text">
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((v) => !v)} />
       <MobileSidebar />
 

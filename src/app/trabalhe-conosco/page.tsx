@@ -3,7 +3,7 @@ import { RecruitmentClient } from "@/components/public/RecruitmentClient";
 
 export default function WorkWithUsPage() {
   return (
-    <PublicShell>
+    <PublicShell compactTypography={false}>
       <RecruitmentClient />
     </PublicShell>
   );

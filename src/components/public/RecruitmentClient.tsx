@@ -151,16 +151,16 @@ export function RecruitmentClient() {
             <span className="inline-flex rounded-full border border-hpsr-border bg-white/70 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-hpsr-wineLight">
               Área pública
             </span>
-            <h1 className="mt-5 text-[clamp(1.45rem,4vw,2rem)] font-black tracking-tight text-hpsr-text lg:text-[clamp(1.7rem,5vw,2.55rem)]">
+            <h1 className="mt-5 text-[clamp(1.3rem,3.6vw,1.8rem)] font-black tracking-tight text-hpsr-text lg:text-[clamp(1.5rem,4.4vw,2.2rem)]">
               Edital de Recrutamento
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-hpsr-muted lg:text-base">
+            <p className="mx-auto mt-4 max-w-2xl text-[13px] leading-relaxed text-hpsr-muted lg:text-sm">
               Hospital São Rafael · Eldorado
             </p>
           </div>
 
           <section className="mx-auto mt-5 max-w-4xl border border-hpsr-border bg-white/65 px-4 py-3 text-center ">
-            <p className="mx-auto max-w-3xl text-sm font-semibold leading-relaxed text-hpsr-muted md:text-base">
+            <p className="mx-auto max-w-3xl text-[13px] font-semibold leading-relaxed text-hpsr-muted md:text-sm">
               O Hospital São Rafael abre seu processo de recrutamento para novos integrantes comprometidos com ética, responsabilidade e atendimento humanizado em Eldorado. Buscamos pessoas dispostas a aprender, respeitar protocolos e contribuir com a organização da equipe.
             </p>
           </section>
@@ -190,7 +190,7 @@ export function RecruitmentClient() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white">
                   <ClipboardCheck size={20} />
                 </div>
-                <h2 className="text-xl font-black text-hpsr-text">Etapas do Processo</h2>
+                <h2 className="text-lg font-black text-hpsr-text">Etapas do Processo</h2>
               </div>
 
               <div className="space-y-5">
@@ -213,7 +213,7 @@ export function RecruitmentClient() {
                     <h3 className="text-sm font-black text-red-600">Atenção ao Estágio</h3>
                     <p className="mt-2 text-xs leading-relaxed text-hpsr-muted">
                       Faltas injustificadas ou má conduta durante o período de estágio poderão gerar
-                      anulação imediata e multa rescisória de <strong>R$ 250.000,00</strong> em caso de
+                      anulação imediata e multa rescisória de <strong>R$ 500.000,00</strong> em caso de
                       justa causa ou desistência indevida.
                     </p>
                   </div>
@@ -226,7 +226,7 @@ export function RecruitmentClient() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-[14px] bg-[#f7f2ea] text-hpsr-wine">
                   <Gavel size={20} />
                 </div>
-                <h2 className="text-xl font-black text-hpsr-text">Regras Gerais</h2>
+                <h2 className="text-lg font-black text-hpsr-text">Regras Gerais</h2>
               </div>
 
               <ul className="space-y-4 text-sm leading-relaxed text-hpsr-muted">
