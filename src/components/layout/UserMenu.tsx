@@ -209,15 +209,18 @@ export function UserMenu() {
   useEffect(() => {
     if (clock.status === "Fora de serviço") return;
     void sendClockHeartbeat(false);
-    const heartbeatInterval = window.setInterval(() => { void sendClockHeartbeat(false); }, 30000);
+    const heartbeatInterval = window.setInterval(() => { void sendClockHeartbeat(false); }, 60000);
     const closeClock = () => { void sendClockHeartbeat(true); };
     const handleOffline = () => { void sendClockHeartbeat(true); };
+    const handleOnline = () => { void sendClockHeartbeat(false); };
     window.addEventListener("pagehide", closeClock);
     window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
     return () => {
       window.clearInterval(heartbeatInterval);
       window.removeEventListener("pagehide", closeClock);
       window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
     };
   }, [clock.status, sendClockHeartbeat]);
 
