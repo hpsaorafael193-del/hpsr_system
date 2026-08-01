@@ -20,9 +20,10 @@ type CurrentUserProfileContextValue = {
 
 const CurrentUserProfileContext = createContext<CurrentUserProfileContextValue | null>(null);
 
-function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage: string | null): CurrentUserProfile {
+function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage: string | null, resolvedSystemRole?: string): CurrentUserProfile {
   const name = String(row.name || "Médico");
   const role = String(row.role || "Médico Clínico");
+  const systemRole = resolvedSystemRole || (role === "Dev / Desenvolvedor do Sistema" ? role : "");
   const specialty = String(row.specialty || "Clínico Geral");
   const passport = String(row.passport || "—");
   const crm = String(row.crm || "—");
@@ -37,8 +38,8 @@ function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage
     characterName: name,
     passport,
     role,
-    systemRole: role,
-    accessLevel: role === "Dev / Desenvolvedor do Sistema" ? "Total" : "Padrão",
+    systemRole: systemRole || role,
+    accessLevel: systemRole === "Dev / Desenvolvedor do Sistema" || role === "Dev / Desenvolvedor do Sistema" ? "Total" : "Padrão",
     department: "Hospital São Rafael",
     specialty,
     specialties: [specialty],
@@ -94,7 +95,27 @@ export function CurrentUserProfileProvider({ children }: { children: React.React
         const { data: publicData } = client.storage.from("signatures").getPublicUrl(signaturePath);
         resolvedSignatureImage = publicData.publicUrl || signaturePath;
       }
-      setProfile(mapDatabaseProfile(row, resolvedSignatureImage));
+      const passport = String(row.passport || "").trim();
+      let { data: teamMemberData } = await client
+        .from("team_members")
+        .select("payload")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!teamMemberData && passport) {
+        const fallbackResult = await client
+          .from("team_members")
+          .select("payload")
+          .eq("passport", passport)
+          .limit(1)
+          .maybeSingle();
+        teamMemberData = fallbackResult.data;
+      }
+
+      const teamPayload = (teamMemberData?.payload || {}) as Record<string, unknown>;
+      const resolvedSystemRole = String(teamPayload.systemRole || "").trim();
+
+      setProfile(mapDatabaseProfile(row, resolvedSignatureImage, resolvedSystemRole));
     }
     else if (!data) setProfile({ ...localDevProfile, systemName: "Perfil não localizado", characterName: "Perfil não localizado", passport: "—", role: "Médico", systemRole: "Médico", specialty: "Não informado", specialties: ["Não informado"], crm: "—", cityPhone: "—", email: "", signatureName: "Perfil não localizado", signatureRole: "Médico" });
     setLoading(false);
