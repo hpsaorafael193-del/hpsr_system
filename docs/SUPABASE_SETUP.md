@@ -37,7 +37,7 @@ Crie o usuário em **Authentication → Users** e confirme o e-mail. Depois, no 
 update public.profiles
 set
   name = 'NOME DO ADMINISTRADOR',
-  role = 'Dev / Desenvolvedor do Sistema',
+  role = 'Diretor Técnico / Dev',
   access_status = 'Aprovado',
   updated_at = now()
 where email = 'EMAIL DO ADMINISTRADOR';

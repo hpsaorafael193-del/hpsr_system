@@ -349,7 +349,7 @@ export default function InsurancePage() {
   const [plansLoadError, setPlansLoadError] = useState("");
   const [registerDraft, setRegisterDraft] = useState<RegisterDraft>(() => initialRegisterDraft());
 
-  const isSystemDeveloper = currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema";
+  const isSystemDeveloper = currentUserProfile.systemRole === "Diretor Técnico / Dev";
   const canRegisterPlan = isSystemDeveloper || registerRoles.includes(currentUserProfile.role);
   const canManagePlans = isSystemDeveloper || directorRoles.includes(currentUserProfile.role);
 

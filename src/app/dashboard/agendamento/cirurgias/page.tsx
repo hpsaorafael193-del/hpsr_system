@@ -197,7 +197,7 @@ export default function ProcedureSchedulePage() {
 
   const canScheduleProcedures =
     directorRoles.includes(currentUserProfile.role) ||
-    currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema";
+    currentUserProfile.systemRole === "Diretor Técnico / Dev";
 
 
   function handleCreateProcedure(form: ProcedureFormState) {

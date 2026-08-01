@@ -23,7 +23,7 @@ const CurrentUserProfileContext = createContext<CurrentUserProfileContextValue |
 function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage: string | null, resolvedSystemRole?: string): CurrentUserProfile {
   const name = String(row.name || "Médico");
   const role = String(row.role || "Médico Clínico");
-  const systemRole = resolvedSystemRole || (role === "Dev / Desenvolvedor do Sistema" ? role : "");
+  const systemRole = resolvedSystemRole || (role === "Diretor Técnico / Dev" ? role : "");
   const specialty = String(row.specialty || "Clínico Geral");
   const passport = String(row.passport || "—");
   const crm = String(row.crm || "—");
@@ -39,7 +39,7 @@ function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage
     passport,
     role,
     systemRole: systemRole || role,
-    accessLevel: systemRole === "Dev / Desenvolvedor do Sistema" || role === "Dev / Desenvolvedor do Sistema" ? "Total" : "Padrão",
+    accessLevel: systemRole === "Diretor Técnico / Dev" || role === "Diretor Técnico / Dev" ? "Total" : "Padrão",
     department: "Hospital São Rafael",
     specialty,
     specialties: [specialty],

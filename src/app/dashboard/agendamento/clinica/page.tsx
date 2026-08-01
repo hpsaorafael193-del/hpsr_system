@@ -146,7 +146,7 @@ const labelClass = "text-xs font-semibold uppercase tracking-[0.16em] text-hpsr-
 
 export default function ClinicalSchedulePage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
-  const isDeveloper = currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema" || currentUserProfile.accessLevel === "Total";
+  const isDeveloper = currentUserProfile.systemRole === "Diretor Técnico / Dev" || currentUserProfile.accessLevel === "Total";
   const isDirector = ["Diretora", "Vice Diretor", "Diretor Clínico"].some((role) => role === currentUserProfile.role || role === currentUserProfile.systemRole);
   const canViewAllMedicalSchedules = isDeveloper || isDirector;
   const [scheduledAppointments, setScheduledAppointments] = useState<Appointment[]>([]);

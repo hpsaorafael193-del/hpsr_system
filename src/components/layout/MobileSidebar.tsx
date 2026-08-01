@@ -13,7 +13,7 @@ export function MobileSidebar() {
   const [open, setOpen] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
   const canSeeTeamAdmin =
-    currentUserProfile.systemRole === "Dev / Desenvolvedor do Sistema" ||
+    currentUserProfile.systemRole === "Diretor Técnico / Dev" ||
     ["Diretora", "Vice Diretor"].includes(currentUserProfile.role);
   const visibleAdminNavigation = canSeeTeamAdmin ? adminNavigation : [];
   const visibleToolsNavigation = toolsNavigation.filter((item) => canSeeNavigationItem(item, currentUserProfile.role));

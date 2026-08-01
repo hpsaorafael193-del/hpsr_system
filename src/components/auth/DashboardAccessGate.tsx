@@ -17,7 +17,7 @@ export function DashboardAccessGate({ children }: { children: React.ReactNode })
     async function validateAccess() {
       if (!isSupabaseConfigured()) {
         const localSession = readLocalAuthSession();
-        if (localSession?.approved && localSession.systemRole === "Dev / Desenvolvedor do Sistema") {
+        if (localSession?.approved && localSession.systemRole === "Diretor Técnico / Dev") {
           if (active) setState("approved");
           return;
         }
