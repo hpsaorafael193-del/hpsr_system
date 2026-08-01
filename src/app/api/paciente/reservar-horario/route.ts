@@ -1,23 +1,9 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession, normalizePassport, resolvePortalPatientPassport } from "@/lib/patient-portal/server";
-import { CLINICAL_BOOKING_CUTOFF_MS, CLINICAL_TIMEZONE, clinicalDateKey, normalizeClinicalSpecialty } from "@/lib/clinical-scheduling";
+import { CLINICAL_BOOKING_CUTOFF_MS, CLINICAL_TIMEZONE, clinicalDateKey } from "@/lib/clinical-scheduling";
 
 export const runtime = "nodejs";
-
-function specialtyTokens(value: unknown) {
-  return String(value ?? "")
-    .split(/[,;/|]+/)
-    .map((item) => normalizeClinicalSpecialty(item))
-    .filter(Boolean);
-}
-
-function matchesAllowedSpecialty(slotSpecialty: unknown, allowed: string[]) {
-  const slotTokens = specialtyTokens(slotSpecialty);
-  return allowed.some((wanted) => slotTokens.some((candidate) =>
-    candidate === wanted || candidate.includes(wanted) || wanted.includes(candidate)
-  ));
-}
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,24 +17,25 @@ export async function POST(request: NextRequest) {
     if (!resolvedPassport) return NextResponse.json({ ok: false, error: "Paciente não autorizado para esta sessão." }, { status: 403 });
     const passport = normalizePassport(resolvedPassport);
 
-    const [patientResult, slotResult, specialtiesResult] = await Promise.all([
+    const [patientResult, slotResult] = await Promise.all([
       valid.supabase.from("patient_registry").select("name").eq("passport", passport).maybeSingle(),
       valid.supabase.from("clinical_appointment_slots").select("id,doctor_id,doctor_name,specialty,starts_at,ends_at,status").eq("id", slotId).maybeSingle(),
-      valid.supabase.rpc("patient_portal_allowed_specialties", { target_passport: passport }),
     ]);
     const { data: patient, error: patientError } = patientResult;
     const { data: slot, error: slotError } = slotResult;
     if (patientError) throw patientError;
     if (slotError) throw slotError;
-    if (specialtiesResult.error) throw specialtiesResult.error;
     if (!patient) return NextResponse.json({ ok: false, error: "Paciente não encontrado no prontuário." }, { status: 404 });
     if (!slot || slot.status !== "Disponível") return NextResponse.json({ ok: false, error: "Este horário não está mais disponível." }, { status: 409 });
 
-    const allowedSpecialties = (Array.isArray(specialtiesResult.data) ? specialtiesResult.data : [])
-      .map((item) => normalizeClinicalSpecialty(item))
-      .filter(Boolean);
-    if (!matchesAllowedSpecialty(slot.specialty, allowedSpecialties)) {
-      return NextResponse.json({ ok: false, error: "Este horário não pertence às especialidades liberadas no seu prontuário." }, { status: 403 });
+    const allowedResult = await valid.supabase.rpc("patient_portal_slot_allowed", {
+      target_passport: passport,
+      target_doctor_id: slot.doctor_id,
+      target_specialty: slot.specialty,
+    });
+    if (allowedResult.error) throw allowedResult.error;
+    if (!allowedResult.data) {
+      return NextResponse.json({ ok: false, error: "Este horário não pertence ao médico e à especialidade liberados para o seu prontuário." }, { status: 403 });
     }
 
     const startsAt = new Date(slot.starts_at);

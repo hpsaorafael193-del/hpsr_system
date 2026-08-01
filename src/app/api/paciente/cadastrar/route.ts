@@ -167,13 +167,13 @@ export async function POST(request: NextRequest) {
     if (portalAccess?.id) {
       const { error: portalUpdateError } = await supabase
         .from("patient_portal_access")
-        .update({ email, access_enabled: true })
+        .update({ email, access_enabled: true, triage_status: "Pendente" })
         .eq("id", portalAccess.id);
       if (portalUpdateError) throw portalUpdateError;
     } else {
       const { data: insertedPortalAccess, error: portalInsertError } = await supabase
         .from("patient_portal_access")
-        .insert({ patient_passport: passport, email, access_enabled: true })
+        .insert({ patient_passport: passport, email, access_enabled: true, triage_status: "Pendente" })
         .select("id")
         .single();
       if (portalInsertError) throw portalInsertError;

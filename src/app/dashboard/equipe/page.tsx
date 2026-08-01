@@ -2,6 +2,8 @@
 import { formatPhoneDisplay } from "@/lib/phone";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
+import { ApplicationHistoryModal } from "@/components/dashboard/ApplicationHistoryModal";
+import { isStaffApplicationPending } from "@/lib/staff-application-status";
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -13,7 +15,6 @@ import {
   Code2,
   Crown,
   FileText,
-  UserPlus,
   Trash2,
   CalendarClock,
   MessageCircle,
@@ -137,6 +138,7 @@ const roleDescriptions = [
   { title: "Dev / Desenvolvedor", description: "Acesso total técnico. Ajuste de permissões é função exclusiva do Dev.", group: "Sistema" },
   { title: "Diretora", description: "Acesso administrativo hospitalar total. Promoções são decisão exclusiva da Diretora.", group: "Direção" },
   { title: "Vice Diretor", description: "Gestão operacional ampla, procedimentos, convênios, equipe e prontuários. Pode remover membros, mas não promover nem ajustar permissões.", group: "Direção" },
+  { title: "Diretor Técnico", description: "Título clínico e visual, sem concessão automática de permissões administrativas adicionais.", group: "Direção" },
   { title: "Diretor Clínico", description: "Monitoramento do histórico assistencial da equipe para revisão de exames, documentos, convênios, consultas e procedimentos, com finalidade de orientação clínica.", group: "Direção" },
   { title: "Médico Cirurgião", description: "Atendimento e condutas cirúrgicas conforme liberação e protocolo do hospital.", group: "Corpo Médico" },
   { title: "Médico Especialista", description: "Atendimento por especialidade, prontuários e acompanhamentos vinculados à área.", group: "Corpo Médico" },
@@ -149,6 +151,18 @@ const categoryOrder: TeamCategory[] = ["Sistema", "Direção", "Corpo Médico", 
 const serviceStatuses: ServiceStatus[] = ["Em serviço", "Fora de serviço", "Em atendimento", "Em procedimento"];
 
 const administrativeRoles = ["Diretora", "Vice Diretor"];
+const roleHierarchy: Record<string, number> = {
+  "Dev / Desenvolvedor do Sistema": 0,
+  "Diretora": 1,
+  "Vice Diretor": 2,
+  "Diretor Técnico": 3,
+  "Diretor Clínico": 4,
+  "Médico Cirurgião": 5,
+  "Médico Especialista": 6,
+  "Médico Clínico": 7,
+  "Residente": 8,
+  "Estagiário de Enfermagem": 9,
+};
 
 
 function formatDate(value: string) {
@@ -188,7 +202,7 @@ function saoPauloCalendarDate() {
 }
 
 function getContractInfo(member: TeamMember) {
-  if (member.systemRole || ["Diretora", "Vice Diretor", "Diretor Clínico"].includes(member.hospitalRole)) {
+  if (member.systemRole || ["Diretora", "Vice Diretor", "Diretor Clínico", "Diretor Técnico"].includes(member.hospitalRole)) {
     return null;
   }
 
@@ -293,7 +307,7 @@ function contractToneClasses(tone: "danger" | "warning" | "neutral") {
 function roleIcon(role: string) {
   if (role.includes("Dev")) return <Code2 size={17} />;
   if (role === "Diretora" || role === "Vice Diretor") return <Crown size={17} />;
-  if (role === "Diretor Clínico") return <ShieldCheck size={17} />;
+  if (["Diretor Clínico", "Diretor Técnico"].includes(role)) return <ShieldCheck size={17} />;
   if (role.includes("Médico")) return <Stethoscope size={17} />;
   return <UserRound size={17} />;
 }
@@ -346,6 +360,7 @@ export default function TeamPage() {
   const [selectedId, setSelectedId] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isPendingModalOpen, setIsPendingModalOpen] = useState(false);
+  const [isApplicationHistoryOpen, setIsApplicationHistoryOpen] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<PublicStaffApplication | null>(null);
   const [publicApplications, setPublicApplications] = useState<PublicStaffApplication[]>([]);
   const [registrationRequests, setRegistrationRequests] = useState<StaffRegistrationRequest[]>([]);
@@ -540,21 +555,25 @@ export default function TeamPage() {
 
   const visibleMembers = useMemo(() => {
     const normalized = searchTerm.trim().toLowerCase();
-    if (!normalized) return members;
+    const filtered = normalized
+      ? members.filter((member) =>
+          [member.name, member.passport, member.hospitalRole, member.systemRole ?? "", member.department, member.specialty]
+            .join(" ")
+            .toLowerCase()
+            .includes(normalized)
+        )
+      : members;
 
-    return members.filter((member) =>
-      [member.name, member.passport, member.hospitalRole, member.systemRole ?? "", member.department, member.specialty]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalized)
-    );
+    return [...filtered].sort((first, second) => {
+      const firstRole = first.systemRole || first.hospitalRole;
+      const secondRole = second.systemRole || second.hospitalRole;
+      const hierarchyDifference = (roleHierarchy[firstRole] ?? 99) - (roleHierarchy[secondRole] ?? 99);
+      return hierarchyDifference || first.name.localeCompare(second.name, "pt-BR");
+    });
   }, [members, searchTerm]);
 
   const allApplications: PublicStaffApplication[] = publicApplications;
-  const isPendingApplication = (item: PublicStaffApplication) =>
-    !["Recusado", "Contratado", "Não contratado", "Sem resposta"].includes(item.status)
-    && !["Contratado", "Não contratado"].includes(item.interviewResult || "Pendente");
-  const pendingApplications = allApplications.filter(isPendingApplication);
+  const pendingApplications = allApplications.filter(isStaffApplicationPending);
   const contractAlerts = members
     .map((member) => ({ member, contract: getContractInfo(member) }))
     .filter((item): item is { member: TeamMember; contract: NonNullable<ReturnType<typeof getContractInfo>> } =>
@@ -998,7 +1017,7 @@ export default function TeamPage() {
             <div className="flex flex-wrap justify-end gap-2">
               {hasTeamAdminAccess && (<>
               <button type="button" onClick={() => setIsRegistrationRequestsOpen(true)} className="relative inline-flex min-h-[38px] w-full items-center justify-center gap-2 rounded-[16px] border border-hpsr-border bg-white px-3.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0] md:min-h-[46px] md:w-auto md:px-4 md:text-sm">
-                <UserPlus size={16}/> Cadastros médicos
+                <UserCog size={16}/> Gerenciar médico
                 {registrationRequests.filter((item) => item.status === "Pendente").length > 0 && <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-hpsr-wine px-2 py-0.5 text-[11px] font-black text-white">{registrationRequests.filter((item) => item.status === "Pendente").length}</span>}
               </button>
 
@@ -1023,11 +1042,11 @@ export default function TeamPage() {
 
               <button
                 type="button"
-                onClick={() => setIsAddOpen(true)}
+                onClick={() => setIsApplicationHistoryOpen(true)}
                 className="inline-flex min-h-[38px] w-full items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 text-xs font-black text-white transition md:min-h-[46px] md:w-auto md:rounded-[16px] md:px-5 md:text-sm"
               >
-                <Plus size={16} />
-                Gerenciar médico
+                <UsersRound size={16} />
+                Candidatos
               </button>
               </>)}
             </div>
@@ -1156,7 +1175,7 @@ export default function TeamPage() {
 
       </div>
 
-      {hasTeamAdminAccess && isRegistrationRequestsOpen && <RegistrationRequestsModal items={registrationRequests} loading={registrationRequestsLoading} error={registrationRequestError} decisionId={registrationDecisionId} onRefresh={loadRegistrationRequestsFromSupabase} onClose={() => setIsRegistrationRequestsOpen(false)} onDecision={handleRegistrationRequest} />}
+      {hasTeamAdminAccess && isRegistrationRequestsOpen && <RegistrationRequestsModal items={registrationRequests} loading={registrationRequestsLoading} error={registrationRequestError} decisionId={registrationDecisionId} onRefresh={loadRegistrationRequestsFromSupabase} onClose={() => setIsRegistrationRequestsOpen(false)} onDecision={handleRegistrationRequest} onOpenEditor={() => { setIsRegistrationRequestsOpen(false); setIsAddOpen(true); }} />}
       {hasTeamAdminAccess && isPendingModalOpen && (
         <PendingApplicationsModal
           items={pendingApplications}
@@ -1165,6 +1184,7 @@ export default function TeamPage() {
           onDelete={deleteRejectedApplication}
         />
       )}
+      {hasTeamAdminAccess && isApplicationHistoryOpen && <ApplicationHistoryModal items={allApplications} onClose={() => setIsApplicationHistoryOpen(false)} onOpenAnalysis={(item) => { setIsApplicationHistoryOpen(false); setSelectedApplication(item as PublicStaffApplication); }} />}
       {selectedApplication && (
         <ApplicationAnalysisModal
           item={selectedApplication}
@@ -1194,6 +1214,7 @@ function RegistrationRequestsModal({
   onRefresh,
   onClose,
   onDecision,
+  onOpenEditor,
 }: {
   items: StaffRegistrationRequest[];
   loading: boolean;
@@ -1202,7 +1223,18 @@ function RegistrationRequestsModal({
   onRefresh: () => void | Promise<void>;
   onClose: () => void;
   onDecision: (item: StaffRegistrationRequest, decision: "Aprovado" | "Recusado") => void | Promise<void>;
+  onOpenEditor: () => void;
 }) {
+  const orderedItems = [...items].sort((a, b) => {
+    if (a.status === b.status) return 0;
+    if (a.status === "Pendente") return -1;
+    if (b.status === "Pendente") return 1;
+    return 0;
+  });
+  const pendingCount = items.filter((item) => item.status === "Pendente").length;
+  const approvedCount = items.filter((item) => item.status === "Aprovado").length;
+  const rejectedCount = items.filter((item) => item.status === "Recusado").length;
+
   return (
     <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
       <button type="button" aria-label="Fechar" onClick={onClose} className="fixed inset-0 bg-[#1f0805]/62 backdrop-blur-md" />
@@ -1210,10 +1242,11 @@ function RegistrationRequestsModal({
         <div className="flex items-start justify-between gap-3 border-b border-hpsr-border bg-white px-5 py-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Acesso da equipe</p>
-            <h2 className="mt-1 text-lg font-black text-hpsr-text">Solicitações de cadastro médico</h2>
-            <p className="mt-1 text-sm text-hpsr-muted">Aprove ou recuse os cadastros recebidos pelo Supabase.</p>
+            <h2 className="mt-1 text-lg font-black text-hpsr-text">Gerenciar médico</h2>
+            <p className="mt-1 text-sm text-hpsr-muted">Analise os pedidos de acesso enviados pelos profissionais. Cadastros aprovados entram automaticamente na equipe.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button type="button" onClick={onOpenEditor} className="inline-flex min-h-[38px] items-center justify-center gap-2 rounded-xl bg-hpsr-wine px-4 py-2 text-xs font-black text-white"><UserCog size={15} /> Editar médico</button>
             <button type="button" onClick={() => void onRefresh()} disabled={loading} className="rounded-xl border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine disabled:opacity-50">
               {loading ? "Atualizando..." : "Atualizar"}
             </button>
@@ -1221,15 +1254,20 @@ function RegistrationRequestsModal({
           </div>
         </div>
         <div className="max-h-[76vh] overflow-y-auto p-4">
+          <div className="mb-4 grid gap-2 sm:grid-cols-3">
+            <div className="rounded-[14px] border border-amber-200 bg-amber-50 px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[.14em] text-amber-700">Aguardando análise</p><p className="mt-1 text-xl font-black text-amber-950">{pendingCount}</p></div>
+            <div className="rounded-[14px] border border-emerald-200 bg-emerald-50 px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[.14em] text-emerald-700">Aprovados</p><p className="mt-1 text-xl font-black text-emerald-950">{approvedCount}</p></div>
+            <div className="rounded-[14px] border border-rose-200 bg-rose-50 px-4 py-3"><p className="text-[10px] font-black uppercase tracking-[.14em] text-rose-700">Recusados</p><p className="mt-1 text-xl font-black text-rose-950">{rejectedCount}</p></div>
+          </div>
           {error ? <div className="mb-3 rounded-[14px] border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</div> : null}
           <div className="grid gap-3">
             {loading && items.length === 0 ? <div className="rounded-[16px] border border-hpsr-border bg-white p-6 text-center text-sm text-hpsr-muted">Carregando solicitações...</div> : null}
-            {items.map((item) => {
+            {orderedItems.map((item) => {
               const deciding = decisionId === item.id;
               return (
-                <article key={item.id} className="rounded-[16px] border border-hpsr-border bg-white p-4">
+                <article key={item.id} className={`rounded-[16px] border bg-white p-4 shadow-[0_8px_24px_rgba(74,31,18,.06)] ${item.status === "Pendente" ? "border-amber-300" : "border-hpsr-border"}`}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div><h3 className="font-black text-hpsr-text">{item.name}</h3><p className="mt-1 text-xs text-hpsr-muted">Passaporte {item.passport} · {item.requestedRole} · {item.specialty}</p></div>
+                    <div className="flex min-w-0 items-start gap-3"><div className={`grid h-10 w-10 shrink-0 place-items-center rounded-[14px] ${item.status === "Pendente" ? "bg-amber-100 text-amber-800" : "bg-[#f6e8dc] text-hpsr-wine"}`}><UserRound size={19} /></div><div className="min-w-0"><h3 className="truncate font-black text-hpsr-text">{item.name}</h3><p className="mt-1 text-xs font-semibold text-hpsr-muted">Passaporte {item.passport}</p><p className="mt-1 text-xs text-hpsr-muted">{item.requestedRole} · {item.specialty}</p></div></div>
                     <StatusBadge status={item.status} />
                   </div>
                   <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4"><Info label="E-mail" value={item.email} /><Info label="Telefone" value={item.cityPhone} /><Info label="Discord" value={item.discord} /><Info label="CRM" value={item.crm} /></div>
@@ -1354,7 +1392,7 @@ function PendingApplicationsModal({
         <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Trabalhe Conosco</p><h2 className="mt-1 text-lg font-black text-hpsr-text">Formulários pendentes</h2><p className="mt-1 text-sm text-hpsr-muted">Somente candidaturas que ainda aguardam uma decisão final.</p></div>
-            <div className="flex items-center gap-2"><span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-800">{pendingCount} pendente{pendingCount === 1 ? "" : "s"}</span><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-wine"><X size={18} /></button></div>
+            <div className="flex flex-wrap items-center justify-end gap-2"><span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-800">{pendingCount} pendente{pendingCount === 1 ? "" : "s"}</span><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-wine"><X size={18} /></button></div>
           </div>
         </div>
         <div className="max-h-[76vh] overflow-y-auto p-3.5"><div className="grid gap-3">{items.map((item) => <ApplicationCard key={item.protocol} item={item} onOpenAnalysis={onOpenAnalysis} onDelete={onDelete} />)}{items.length === 0 && <div className="rounded-[16px] border border-dashed border-hpsr-border bg-white p-6 text-center"><p className="font-black text-hpsr-text">Nenhum formulário pendente.</p></div>}</div></div>
@@ -2242,9 +2280,11 @@ function ManageMemberModal({
                 Selecione um médico cadastrado para editar especialidades, tempo e situação do contrato e advertências.
               </p>
             </div>
-            <button type="button" onClick={onClose} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-white/25 bg-white/10 text-white transition hover:bg-white/20">
-              <X size={18} />
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-white/25 bg-white/10 text-white transition hover:bg-white/20">
+                <X size={18} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -2438,6 +2478,7 @@ function getAccessLevel(hospitalRole: string, systemRole?: string): TeamMember["
   if (systemRole?.includes("Dev")) return "Total";
   if (hospitalRole === "Diretora" || hospitalRole === "Vice Diretor") return "Direção";
   if (hospitalRole === "Diretor Clínico") return "Clínico avançado";
+  if (hospitalRole === "Diretor Técnico") return "Clínico";
   if (hospitalRole.includes("Médico")) return "Clínico";
   if (hospitalRole === "Residente") return "Supervisionado";
   return "Restrito";
@@ -2445,7 +2486,7 @@ function getAccessLevel(hospitalRole: string, systemRole?: string): TeamMember["
 
 function getCategory(hospitalRole: string, systemRole?: string): TeamCategory {
   if (systemRole?.includes("Dev")) return "Sistema";
-  if (["Diretora", "Vice Diretor", "Diretor Clínico"].includes(hospitalRole)) return "Direção";
+  if (["Diretora", "Vice Diretor", "Diretor Clínico", "Diretor Técnico"].includes(hospitalRole)) return "Direção";
   if (hospitalRole.includes("Médico")) return "Corpo Médico";
   return "Formação";
 }

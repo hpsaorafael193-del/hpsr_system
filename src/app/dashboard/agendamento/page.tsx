@@ -328,7 +328,6 @@ export default function AppointmentsPage() {
       "em analise",
       "aguardando ajuste",
       "pendente",
-      "reagendamento aceito",
       "nova proposta do paciente",
       "reagendamento recusado",
       "disponibilidade informada",
@@ -727,7 +726,6 @@ function RequestsTab({
             {requests.map((item) => {
               const patientAcceptedReschedule = item.status === "Reagendamento aceito";
               const patientAnsweredReschedule = [
-                "Reagendamento aceito",
                 "Nova proposta do paciente",
                 "Reagendamento recusado",
                 "Disponibilidade informada",

@@ -8,6 +8,8 @@ import { type SystemActivity } from "@/lib/administrative-storage";
 import { createClient } from "@/lib/supabase";
 import { exportAdministrativeReport, type AdministrativeMember } from "@/lib/export-administrative-report";
 import { TimeClockAdministrativeReport } from "@/components/dashboard/TimeClockAdministrativeReport";
+import { ApplicationHistoryModal } from "@/components/dashboard/ApplicationHistoryModal";
+import { isStaffApplicationPending } from "@/lib/staff-application-status";
 
 type GenericRecord = Record<string, any>;
 type SupabaseActivityRow = { id: string; module: string; action: string; description: string; actor?: string | null; reference?: string | null; created_at: string };
@@ -25,6 +27,7 @@ export default function DirectionPage() {
   const [reportPeriod, setReportPeriod] = useState("all");
   const [activityChartFilter, setActivityChartFilter] = useState<"modules" | "plans" | "exams" | "services">("modules");
   const [exportingReport, setExportingReport] = useState(false);
+  const [applicationHistoryOpen, setApplicationHistoryOpen] = useState(false);
 
   useEffect(() => {
     async function loadDirectionData() {
@@ -146,7 +149,7 @@ export default function DirectionPage() {
   }, [periodReceipts, unified]);
 
   const pendingRegistrations = staffRequests.filter((item)=>item.status === "Pendente").length;
-  const pendingApplications = applications.filter((item)=>!["Recusado","Contratado","Não contratado"].includes(item.status)).length;
+  const pendingApplications = applications.filter(isStaffApplicationPending).length;
   const pendingAppointments = appointments.filter((item)=>!["aceito","confirmado","recusado"].includes(String(item.status).toLowerCase())).length;
   const periodRevenue = periodReceipts.reduce((sum, item) => sum + Number(item.total || 0), 0);
   const periodLabel = reportPeriod === "all" ? "Todo o histórico" : `Últimos ${reportPeriod} dias`;
@@ -293,12 +296,13 @@ export default function DirectionPage() {
           </div>
           <aside className="grid h-full min-h-0 content-start gap-3 overflow-y-auto overscroll-contain pr-1">
             <Summary title="Solicitações de cadastro" icon={<UserPlus size={17}/>} items={staffRequests.map((item)=>`${item.name || "Profissional"} — ${item.status || "Pendente"}`)}/>
-            <Summary title="Candidaturas" icon={<ClipboardCheck size={17}/>} items={applications.map((item)=>`${item.name || "Candidato"} · Passaporte: ${item.passport || "Não informado"} — ${item.status || "Em análise"}`)}/>
+            <Summary title="Candidaturas" icon={<ClipboardCheck size={17}/>} items={applications.slice(0, 5).map((item)=>`${item.name || "Candidato"} · Passaporte: ${item.passport || "Não informado"} — ${item.status || "Em análise"}`)} actionLabel="Ver histórico" onAction={() => setApplicationHistoryOpen(true)} totalCount={applications.length}/>
             <Summary title="Governança" icon={<ShieldCheck size={17}/>} items={["Histórico centralizado no Supabase", "Solicitações públicas consolidadas", "Recibos vinculados ao Financeiro", "Registros compartilhados entre usuários autorizados"]}/>
           </aside>
         </section>
       </div>
     </div>
+    {applicationHistoryOpen && <ApplicationHistoryModal items={applications} onClose={() => setApplicationHistoryOpen(false)} />}
   </div>;
 }
 
@@ -413,9 +417,9 @@ function ActivityRow({ item }: { item: SystemActivity }) {
   </article>;
 }
 
-function Summary({title,icon,items}:{title:string;icon:React.ReactNode;items:string[]}) {
+function Summary({title,icon,items,actionLabel,onAction,totalCount}:{title:string;icon:React.ReactNode;items:string[];actionLabel?:string;onAction?:()=>void;totalCount?:number}) {
   return <section className="rounded-[18px] border border-white/80 bg-white p-3.5 shadow-[0_10px_26px_rgba(79,42,21,0.05)]">
-    <div className="flex items-center justify-between gap-2 border-b border-hpsr-border pb-2.5"><div className="flex min-w-0 items-center gap-2 text-hpsr-wine">{icon}<h3 className="truncate text-sm font-black text-hpsr-text">{title}</h3></div><span className="shrink-0 rounded-full bg-[#fff1e5] px-2 py-0.5 text-[9px] font-black text-hpsr-wine">{items.length}</span></div>
+    <div className="flex items-center justify-between gap-2 border-b border-hpsr-border pb-2.5"><div className="flex min-w-0 items-center gap-2 text-hpsr-wine">{icon}<h3 className="truncate text-sm font-black text-hpsr-text">{title}</h3></div><div className="flex items-center gap-2">{actionLabel && onAction && <button type="button" onClick={onAction} className="rounded-[10px] border border-hpsr-border bg-white px-2 py-1 text-[9px] font-black text-hpsr-wine">{actionLabel}</button>}<span className="shrink-0 rounded-full bg-[#fff1e5] px-2 py-0.5 text-[9px] font-black text-hpsr-wine">{totalCount ?? items.length}</span></div></div>
     <div className="mt-2.5 grid content-start gap-1.5">{items.map((item,index)=><div key={`${item}-${index}`} className="min-h-[34px] rounded-[11px] border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-[11px] font-semibold leading-[1.35] text-hpsr-muted" title={item}>{item}</div>)}{!items.length&&<p className="py-4 text-center text-xs text-hpsr-muted">Nenhum registro disponível.</p>}</div>
   </section>;
 }

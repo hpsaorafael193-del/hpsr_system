@@ -38,6 +38,8 @@ import { ClinicalRecordsPortalPanel } from "@/components/dashboard/ClinicalRecor
 import { specialties } from "@/data/mock";
 
 type RecordTab = "geral" | "timeline" | "consultas" | "exames" | "documentos" | "prescricoes" | "procedimentos" | "observacoes";
+type PatientFilter = "all" | "mine" | "routine";
+type ScheduleAssignment = { doctor_id: string; doctor_name: string; specialty: string };
 
 type PatientRecord = {
   id: string;
@@ -50,6 +52,8 @@ type PatientRecord = {
   status: "Ativo" | "Em acompanhamento" | "Arquivado";
   followUp: string;
   portalSpecialties: string[];
+  triageStatus: "Pendente" | "Classificado";
+  scheduleAssignments: ScheduleAssignment[];
   lastVisit: string;
   alerts: string[];
 };
@@ -132,6 +136,8 @@ export default function RecordsPage() {
   const [isEditPatientOpen, setIsEditPatientOpen] = useState(false);
   const [isGuardiansOpen, setIsGuardiansOpen] = useState(false);
   const [isPortalSpecialtiesOpen, setIsPortalSpecialtiesOpen] = useState(false);
+  const [isPendingPatientsOpen, setIsPendingPatientsOpen] = useState(false);
+  const [patientFilter, setPatientFilter] = useState<PatientFilter>("all");
   const [isLoadingPatients, setIsLoadingPatients] = useState(true);
   const [isDeletingPatient, setIsDeletingPatient] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -170,6 +176,8 @@ export default function RecordsPage() {
           status: existing?.status || "Ativo",
           followUp: normalizePatientFollowUp(existing?.followUp),
           portalSpecialties: existing?.portalSpecialties || [],
+          triageStatus: existing?.triageStatus || "Classificado",
+          scheduleAssignments: existing?.scheduleAssignments || [],
           lastVisit: existing?.lastVisit || "—",
           alerts: existing?.alerts || [],
         });
@@ -201,7 +209,7 @@ export default function RecordsPage() {
         supabase.from("patient_registry").select("passport,name,age,birth_date,blood_type,city_phone,email,follow_up,portal_specialties,created_at,updated_at").order("created_at", { ascending: false }),
         supabase.from("clinical_records").select("id,patient_passport,record_type,created_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,summary:payload->>summary").order("created_at", { ascending: false }),
         supabase.from("appointments").select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,doctor_name:payload->>doctor,reason:payload->>reason,notes:payload->>notes").order("created_at", { ascending: false }),
-        supabase.from("patient_portal_access").select("id,patient_passport,email,access_enabled,created_at").order("created_at", { ascending: false }),
+        supabase.from("patient_portal_access").select("id,patient_passport,email,access_enabled,triage_status,schedule_assignments,created_at").order("created_at", { ascending: false }),
       ]);
 
       if (!active || requestId !== loadRequestRef.current) return;
@@ -234,6 +242,8 @@ export default function RecordsPage() {
           status: source.status || current?.status || "Ativo",
           followUp: normalizePatientFollowUp(source.followUp || current?.followUp),
           portalSpecialties: source.portalSpecialties || current?.portalSpecialties || [],
+          triageStatus: source.triageStatus || current?.triageStatus || "Classificado",
+          scheduleAssignments: source.scheduleAssignments || current?.scheduleAssignments || [],
           lastVisit: [current?.lastVisit, source.lastVisit].filter(Boolean).sort().at(-1) || "",
           alerts: Array.from(new Set([...(current?.alerts || []), ...(source.alerts || [])])),
         });
@@ -246,7 +256,7 @@ export default function RecordsPage() {
           bloodType: row.blood_type || "—",
           cityPhone: formatPhoneDisplay(row.city_phone, "Não informado"),
           birthDate: row.birth_date || "",
-          status: "Ativo",
+          status: normalizePatientFollowUp(row.follow_up) === "Rotina" ? "Ativo" : "Em acompanhamento",
           followUp: normalizePatientFollowUp(row.follow_up),
           portalSpecialties: Array.isArray(row.portal_specialties) ? row.portal_specialties.map(String) : [],
           lastVisit: String(row.updated_at || row.created_at || "").slice(0, 10),
@@ -261,6 +271,8 @@ export default function RecordsPage() {
           status: row.access_enabled ? current.status : "Arquivado",
           followUp: normalizePatientFollowUp(current.followUp),
           portalSpecialties: current.portalSpecialties || [],
+          triageStatus: row.triage_status === "Pendente" ? "Pendente" : "Classificado",
+          scheduleAssignments: normalizeScheduleAssignments(row.schedule_assignments),
           lastVisit: String(row.created_at || current.lastVisit || "").slice(0, 10),
           alerts: row.access_enabled ? current.alerts : [...current.alerts, "Acesso ao portal desativado"],
         });
@@ -272,8 +284,6 @@ export default function RecordsPage() {
         const registeredPatient = patientMap.get(passport);
         if (registeredPatient) {
           upsertPatient(passport, {
-            status: "Em acompanhamento",
-            followUp: "Rotina",
             lastVisit: String(row.updated_at || row.created_at || "").slice(0, 10),
           });
         }
@@ -295,8 +305,6 @@ export default function RecordsPage() {
         const registeredPatient = patientMap.get(passport);
         if (registeredPatient) {
           upsertPatient(passport, {
-            status: "Em acompanhamento",
-            followUp: "Rotina",
             lastVisit: String(row.created_at || "").slice(0, 10),
           });
         }
@@ -367,16 +375,18 @@ export default function RecordsPage() {
     setRefreshKey((current) => current + 1);
   }
 
+  const pendingPatients = useMemo(() => patients.filter((patient) => patient.triageStatus === "Pendente"), [patients]);
+
   const visiblePatients = useMemo(() => {
     const normalized = searchTerm.trim().toLowerCase();
-    if (!normalized) return patients;
-
-    return patients.filter(
-      (patient) =>
-        patient.passport.includes(normalized) ||
-        patient.name.toLowerCase().includes(normalized)
-    );
-  }, [patients, searchTerm]);
+    return patients.filter((patient) => {
+      const matchesSearch = !normalized || patient.passport.toLowerCase().includes(normalized) || patient.name.toLowerCase().includes(normalized);
+      if (!matchesSearch) return false;
+      if (patientFilter === "mine") return patient.scheduleAssignments.some((assignment) => assignment.doctor_id === currentUserProfile.id);
+      if (patientFilter === "routine") return patient.followUp === "Rotina";
+      return true;
+    });
+  }, [patients, searchTerm, patientFilter, currentUserProfile.id]);
 
   const searchedPatient =
     searchTerm.trim() && visiblePatients.length === 1 ? visiblePatients[0] : null;
@@ -538,9 +548,11 @@ export default function RecordsPage() {
       bloodType: data.bloodType || "—",
       cityPhone: data.cityPhone.trim() || "Não informado",
       birthDate: data.birthDate || "",
-      status: existingPatient?.status || "Ativo",
+      status: normalizePatientFollowUp(data.followUp) === "Rotina" ? "Ativo" : "Em acompanhamento",
       followUp: normalizePatientFollowUp(data.followUp),
       portalSpecialties: existingPatient?.portalSpecialties || [],
+      triageStatus: existingPatient?.triageStatus || "Classificado",
+      scheduleAssignments: existingPatient?.scheduleAssignments || [],
       lastVisit: existingPatient?.lastVisit || "—",
       alerts: existingPatient?.alerts || [],
     };
@@ -717,7 +729,7 @@ export default function RecordsPage() {
     setTimelineEvents((currentEvents) => [newEvent, ...currentEvents]);
     setPatients((currentPatients) => currentPatients.map((patient) =>
       patient.passport === selectedPatient.passport
-        ? { ...patient, status: "Em acompanhamento", lastVisit: recordDate }
+        ? { ...patient, lastVisit: recordDate }
         : patient
     ));
     setActiveTab("timeline");
@@ -748,7 +760,7 @@ export default function RecordsPage() {
               </p>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
               <label className="flex min-h-[44px] items-center gap-2.5 rounded-[14px] border border-hpsr-border bg-white px-3 shadow-sm focus-within:border-hpsr-wineLight focus-within:ring-2 focus-within:ring-hpsr-wineLight/20">
                 <Search size={18} className="shrink-0 text-hpsr-muted" />
                 <input
@@ -777,6 +789,16 @@ export default function RecordsPage() {
                   </button>
                 )}
               </label>
+
+              <button
+                type="button"
+                onClick={() => setIsPendingPatientsOpen(true)}
+                className="relative inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-amber-200 bg-amber-50 px-3.5 text-xs font-black text-amber-800 transition hover:bg-amber-100"
+              >
+                <FileClock size={16} />
+                Pendentes
+                {pendingPatients.length > 0 && <span className="rounded-full bg-amber-700 px-2 py-0.5 text-[9px] text-white">{pendingPatients.length}</span>}
+              </button>
 
               <button
                 type="button"
@@ -810,10 +832,23 @@ export default function RecordsPage() {
 
         <div className="grid min-h-0 flex-1 gap-3 overflow-hidden p-3 xl:h-full xl:grid-cols-[minmax(330px,0.38fr)_minmax(0,1fr)] xl:items-stretch">
           <div className="flex min-h-0 flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-[#fffaf5] xl:h-full xl:max-h-full">
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-hpsr-border bg-white/80 px-3.5 py-3">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Pacientes</p>
-                <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{visiblePatients.length} resultado{visiblePatients.length === 1 ? "" : "s"}</p>
+            <div className="shrink-0 border-b border-hpsr-border bg-white/80 px-3.5 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Pacientes</p>
+                  <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{visiblePatients.length} resultado{visiblePatients.length === 1 ? "" : "s"}</p>
+                </div>
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-1 rounded-[12px] border border-hpsr-border bg-[#fffaf5] p-1">
+                {([
+                  ["all", "Todos"],
+                  ["mine", "Meus acompanhamentos"],
+                  ["routine", "Rotineiros"],
+                ] as Array<[PatientFilter, string]>).map(([value, label]) => (
+                  <button key={value} type="button" onClick={() => setPatientFilter(value)} className={`min-h-[34px] rounded-[9px] px-2 text-[10px] font-black transition ${patientFilter === value ? "bg-hpsr-wine text-white shadow-sm" : "text-hpsr-muted hover:bg-white"}`}>
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -826,7 +861,9 @@ export default function RecordsPage() {
                     className={`group relative min-h-[68px] shrink-0 overflow-hidden rounded-[13px] border transition ${
                       selected
                         ? "border-hpsr-wine bg-white shadow-[0_6px_16px_rgba(103,38,20,0.09)]"
-                        : "border-hpsr-border bg-white/90 hover:border-[#d6b9a4] hover:bg-white"
+                        : patient.followUp !== "Rotina"
+                          ? "border-blue-200 bg-blue-50/55 hover:border-blue-300 hover:bg-blue-50"
+                          : "border-hpsr-border bg-white/90 hover:border-[#d6b9a4] hover:bg-white"
                     }`}
                   >
                     {selected && <span className="absolute inset-y-0 left-0 w-1 bg-hpsr-wine" />}
@@ -843,8 +880,9 @@ export default function RecordsPage() {
                         <div className="flex min-w-0 items-center gap-2">
                           <p className="truncate text-sm font-black text-hpsr-text">{patient.name}</p>
                           <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-black ${statusClasses(patient.status)}`}>
-                            {patient.status}
+                            {patient.followUp === "Rotina" ? "Rotineiro" : "Em acompanhamento"}
                           </span>
+                          {patient.triageStatus === "Pendente" && <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-black text-amber-800">Pendente</span>}
                         </div>
                         <p className="mt-1 truncate text-[11px] font-semibold text-hpsr-muted">
                           Passaporte {patient.passport} · {patient.age} anos · {patient.bloodType}
@@ -1010,7 +1048,18 @@ export default function RecordsPage() {
 
       {isEditPatientOpen && selectedPatient && <EditPatientModal patient={selectedPatient} onClose={() => setIsEditPatientOpen(false)} onSave={handleEditPatient} />}
       {isGuardiansOpen && selectedPatient && <GuardianManagerModal patient={selectedPatient} patients={patients} onClose={() => setIsGuardiansOpen(false)} />}
-      {isPortalSpecialtiesOpen && selectedPatient && <PortalSpecialtiesModal patient={selectedPatient} onClose={() => setIsPortalSpecialtiesOpen(false)} onSaved={(next) => { setPatients((current) => current.map((item) => item.passport === selectedPatient.passport ? { ...item, portalSpecialties: next } : item)); setIsPortalSpecialtiesOpen(false); }} />}
+      {isPortalSpecialtiesOpen && selectedPatient && <PortalSpecialtiesModal patient={selectedPatient} onClose={() => setIsPortalSpecialtiesOpen(false)} onSaved={() => { setIsPortalSpecialtiesOpen(false); refreshRecords(); }} />}
+      {isPendingPatientsOpen && (
+        <PendingPatientsModal
+          patients={pendingPatients}
+          doctorName={currentUserProfile.systemName}
+          onClose={() => setIsPendingPatientsOpen(false)}
+          onClassified={() => {
+            setIsPendingPatientsOpen(false);
+            refreshRecords();
+          }}
+        />
+      )}
 
       {isClinicalRecordOpen && selectedPatient && (
         <AddClinicalRecordModal
@@ -1030,6 +1079,120 @@ export default function RecordsPage() {
   );
 }
 
+
+function PendingPatientsModal({
+  patients,
+  doctorName,
+  onClose,
+  onClassified,
+}: {
+  patients: PatientRecord[];
+  doctorName: string;
+  onClose: () => void;
+  onClassified: () => void;
+}) {
+  const [selectedPassport, setSelectedPassport] = useState(patients[0]?.passport || "");
+  const [classification, setClassification] = useState<"rotineiro" | "acompanhamento">("rotineiro");
+  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const selectedPatient = patients.find((patient) => patient.passport === selectedPassport) || null;
+
+  function toggleSpecialty(specialty: string) {
+    setSelectedSpecialties((current) => current.includes(specialty) ? current.filter((item) => item !== specialty) : [...current, specialty]);
+  }
+
+  async function classify() {
+    if (!selectedPatient) return;
+    if (classification === "acompanhamento" && selectedSpecialties.length === 0) {
+      await hpsrAlert("Selecione ao menos uma especialidade para o acompanhamento.", "Especialidade necessária");
+      return;
+    }
+    const client = createClient();
+    if (!client) return;
+    setSaving(true);
+    const { error } = await client.rpc("classify_patient_portal_access", {
+      target_passport: selectedPatient.passport,
+      target_classification: classification,
+      target_specialties: classification === "acompanhamento" ? selectedSpecialties : [],
+    });
+    setSaving(false);
+    if (error) {
+      await hpsrAlert(error.message, "Não foi possível classificar o paciente");
+      return;
+    }
+    onClassified();
+  }
+
+  return (
+    <div className="fixed inset-0 z-[999] flex items-end justify-center bg-[#2a0700]/45 p-0 sm:items-center sm:p-4">
+      <div className="flex max-h-[94dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-[24px] border border-white/80 bg-[#fffaf4] shadow-2xl sm:rounded-[24px]">
+        <div className="flex items-start justify-between bg-[linear-gradient(135deg,#2a0700,#672614,#9d6b4f)] px-5 py-4 text-white">
+          <div>
+            <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[.14em]"><FileClock size={14} />Pacientes pendentes</span>
+            <h2 className="mt-2 text-xl font-black">Classificação inicial</h2>
+            <p className="mt-1 text-sm text-white/75">Novos cadastros são rotineiros por padrão. Defina apenas os pacientes que você acompanha.</p>
+          </div>
+          <button onClick={onClose} className="rounded-[12px] border border-white/25 bg-white/10 p-2"><X size={18} /></button>
+        </div>
+
+        <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[300px_minmax(0,1fr)]">
+          <div className="min-h-0 overflow-y-auto border-b border-hpsr-border bg-white p-3 lg:border-b-0 lg:border-r">
+            {patients.length === 0 ? (
+              <div className="rounded-[16px] border border-dashed border-hpsr-border bg-[#fffaf4] p-5 text-center text-sm font-semibold text-hpsr-muted">Nenhum novo cadastro aguardando classificação.</div>
+            ) : patients.map((patient) => (
+              <button key={patient.passport} type="button" onClick={() => { setSelectedPassport(patient.passport); setClassification("rotineiro"); setSelectedSpecialties([]); }} className={`mb-2 w-full rounded-[14px] border p-3 text-left transition ${selectedPassport === patient.passport ? "border-hpsr-wine bg-[#fff3e9]" : "border-hpsr-border bg-white hover:bg-[#fffaf4]"}`}>
+                <p className="truncate text-sm font-black text-hpsr-text">{patient.name}</p>
+                <p className="mt-1 text-xs font-semibold text-hpsr-muted">Passaporte {patient.passport}</p>
+              </button>
+            ))}
+          </div>
+
+          <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
+            {selectedPatient ? (
+              <div>
+                <div className="rounded-[16px] border border-hpsr-border bg-white p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Paciente selecionado</p>
+                  <h3 className="mt-1 text-lg font-black text-hpsr-text">{selectedPatient.name}</h3>
+                  <p className="mt-1 text-sm font-semibold text-hpsr-muted">{selectedPatient.age} anos · {selectedPatient.bloodType} · {selectedPatient.passport}</p>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <button type="button" onClick={() => { setClassification("rotineiro"); setSelectedSpecialties([]); }} className={`rounded-[16px] border p-4 text-left ${classification === "rotineiro" ? "border-hpsr-wine bg-[#fff3e9] ring-2 ring-hpsr-wine/10" : "border-hpsr-border bg-white"}`}>
+                    <p className="font-black text-hpsr-text">Paciente rotineiro</p>
+                    <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Mantém o cadastro padrão, sem vínculo de agenda com este médico.</p>
+                  </button>
+                  <button type="button" onClick={() => setClassification("acompanhamento")} className={`rounded-[16px] border p-4 text-left ${classification === "acompanhamento" ? "border-blue-400 bg-blue-50 ring-2 ring-blue-100" : "border-hpsr-border bg-white"}`}>
+                    <p className="font-black text-hpsr-text">Em acompanhamento</p>
+                    <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Libera para este paciente a agenda publicada por {doctorName} nas especialidades escolhidas.</p>
+                  </button>
+                </div>
+
+                {classification === "acompanhamento" && (
+                  <div className="mt-4 rounded-[16px] border border-hpsr-border bg-white p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Especialidades do acompanhamento</p>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                      {specialties.map((specialty) => {
+                        const active = selectedSpecialties.includes(specialty);
+                        return <button key={specialty} type="button" onClick={() => toggleSpecialty(specialty)} className={`rounded-[12px] border px-3 py-2.5 text-left text-xs font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-[#fffaf4] text-hpsr-text hover:border-hpsr-wineLight"}`}>{specialty}</button>;
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="rounded-[16px] border border-dashed border-hpsr-border bg-white p-8 text-center text-sm font-semibold text-hpsr-muted">Selecione um paciente para classificar.</div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 border-t border-hpsr-border bg-white/95 px-5 py-3.5">
+          <button type="button" onClick={onClose} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-text">Fechar</button>
+          <button type="button" disabled={saving || !selectedPatient} onClick={() => void classify()} className="inline-flex min-w-[170px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-50">{saving ? <LoaderCircle size={16} className="animate-spin" /> : <ShieldCheck size={16} />}Salvar classificação</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function CreatePatientModal({
   onClose,
@@ -1131,8 +1294,12 @@ function EditPatientModal({ patient, onClose, onSave }: { patient: PatientRecord
   return <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3"><button type="button" aria-label="Fechar edição" onClick={onClose} className="absolute inset-0 bg-[#2a0700]/45" /><form onSubmit={submit} className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[720px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf4] shadow-[0_28px_90px_rgba(42,7,0,0.28)]"><div className="bg-[linear-gradient(135deg,#2a0700_0%,#672614_52%,#9d6b4f_100%)] px-5 py-4 text-white"><div className="flex items-start justify-between gap-3"><div><span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]"><Pencil size={14}/>Dados cadastrais</span><h2 className="mt-3 text-xl font-black">Editar paciente</h2><p className="mt-1 text-sm text-white/80">O histórico clínico será preservado.</p></div><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-white/25 bg-white/10"><X size={18}/></button></div></div><div className="min-h-0 overflow-y-auto p-4 sm:p-5"><section className="grid gap-3 rounded-[18px] border border-hpsr-border bg-white p-4"><ModalField label="Nome" required><input className={modalInputClass} value={form.name} onChange={e=>setForm(c=>({...c,name:e.target.value}))}/></ModalField><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Passaporte" required><input className={modalInputClass} value={form.passport} onChange={e=>setForm(c=>({...c,passport:e.target.value.toUpperCase()}))}/></ModalField><ModalField label="Idade"><input className={modalInputClass} value={form.age} onChange={e=>setForm(c=>({...c,age:e.target.value}))}/></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Data de nascimento"><input type="date" className={modalInputClass} value={form.birthDate} onChange={e=>setForm(c=>({...c,birthDate:e.target.value}))}/></ModalField><ModalField label="Tipo sanguíneo"><input className={modalInputClass} value={form.bloodType} onChange={e=>setForm(c=>({...c,bloodType:e.target.value.toUpperCase()}))}/></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Telefone"><input className={modalInputClass} value={form.cityPhone} onChange={e=>setForm(c=>({...c,cityPhone:formatPhoneNumber(e.target.value)}))}/></ModalField><ModalField label="Acompanhamento"><StyledSelect className={modalInputClass} value={form.followUp} onChange={e=>setForm(c=>({...c,followUp:e.target.value as "Rotina" | "Clínico" | "Especializado"}))}><option>Rotina</option><option>Clínico</option><option>Especializado</option></StyledSelect></ModalField></div></section></div><div className="flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white px-5 py-3.5 sm:flex-row sm:justify-end"><button type="button" onClick={onClose} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black">Cancelar</button><button disabled={saving} type="submit" className="rounded-[16px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-60">{saving?"Salvando...":"Salvar alterações"}</button></div></form></div>;
 }
 
-function PortalSpecialtiesModal({ patient, onClose, onSaved }: { patient: PatientRecord; onClose: () => void; onSaved: (specialties: string[]) => void }) {
-  const [selected, setSelected] = useState<string[]>(patient.portalSpecialties || []);
+function PortalSpecialtiesModal({ patient, onClose, onSaved }: { patient: PatientRecord; onClose: () => void; onSaved: () => void }) {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
+  const ownSpecialties = patient.scheduleAssignments
+    .filter((assignment) => assignment.doctor_id === currentUserProfile.id)
+    .map((assignment) => assignment.specialty);
+  const [selected, setSelected] = useState<string[]>(ownSpecialties);
   const [saving, setSaving] = useState(false);
 
   function toggle(specialty: string) {
@@ -1141,16 +1308,20 @@ function PortalSpecialtiesModal({ patient, onClose, onSaved }: { patient: Patien
 
   async function save() {
     const client = createClient();
-    if (!client) return void hpsrAlert("Não foi possível conectar ao Supabase.", "Especialidades não salvas");
+    if (!client) return void hpsrAlert("Não foi possível conectar ao Supabase.", "Agenda não salva");
     setSaving(true);
-    const { error } = await client.from("patient_registry").update({ portal_specialties: selected, updated_at: new Date().toISOString() }).eq("passport", patient.passport);
+    const { error } = await client.rpc("classify_patient_portal_access", {
+      target_passport: patient.passport,
+      target_classification: selected.length > 0 ? "acompanhamento" : "rotineiro",
+      target_specialties: selected,
+    });
     setSaving(false);
-    if (error) return void hpsrAlert(error.message, "Não foi possível liberar a agenda");
+    if (error) return void hpsrAlert(error.message, "Não foi possível atualizar a agenda");
     notifyPatientRegistryUpdated();
-    onSaved(selected);
+    onSaved();
   }
 
-  return <div className="fixed inset-0 z-[999] flex items-end justify-center bg-[#2a0700]/45 p-0 sm:items-center sm:p-4"><div className="flex max-h-[94dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[24px] border border-white/80 bg-[#fffaf4] shadow-2xl sm:rounded-[24px]"><div className="flex items-start justify-between bg-[linear-gradient(135deg,#2a0700,#672614,#9d6b4f)] px-5 py-4 text-white"><div><span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[.14em]"><Stethoscope size={14}/>Agenda do Portal do Paciente</span><h2 className="mt-2 text-xl font-black">{patient.name}</h2><p className="mt-1 text-sm text-white/75">Selecione as especialidades cujos horários o paciente poderá visualizar.</p></div><button onClick={onClose} className="rounded-[12px] border border-white/25 bg-white/10 p-2"><X size={18}/></button></div><div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5"><div className="rounded-[16px] border border-amber-200 bg-amber-50 p-3 text-sm font-semibold leading-relaxed text-amber-900">Não é necessário criar um planejamento. Ao liberar uma especialidade, o paciente passa a visualizar os horários publicados por todos os médicos dessa especialidade, sempre com o nome do profissional em destaque.</div><div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{specialties.map((specialty) => { const active = selected.includes(specialty); return <button key={specialty} type="button" onClick={() => toggle(specialty)} className={`flex items-center justify-between gap-3 rounded-[14px] border px-3 py-3 text-left text-sm font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-text hover:border-hpsr-wineLight"}`}><span>{specialty}</span><span className={`h-4 w-4 rounded-full border-2 ${active ? "border-white bg-white" : "border-hpsr-border bg-white"}`}/></button>; })}</div>{selected.length > 0 && <div className="mt-4 rounded-[16px] border border-hpsr-border bg-white p-4"><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Especialidades liberadas</p><p className="mt-2 text-sm font-semibold leading-relaxed text-hpsr-muted">{selected.join(" · ")}</p></div>}</div><div className="flex justify-end gap-3 border-t border-hpsr-border bg-white/95 px-5 py-3.5"><button type="button" onClick={onClose} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-text">Cancelar</button><button type="button" disabled={saving} onClick={() => void save()} className="inline-flex min-w-[150px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-50">{saving ? <LoaderCircle size={16} className="animate-spin" /> : <ShieldCheck size={16}/>}Salvar acessos</button></div></div></div>;
+  return <div className="fixed inset-0 z-[999] flex items-end justify-center bg-[#2a0700]/45 p-0 sm:items-center sm:p-4"><div className="flex max-h-[94dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[24px] border border-white/80 bg-[#fffaf4] shadow-2xl sm:rounded-[24px]"><div className="flex items-start justify-between bg-[linear-gradient(135deg,#2a0700,#672614,#9d6b4f)] px-5 py-4 text-white"><div><span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[.14em]"><Stethoscope size={14}/>Agenda do Portal do Paciente</span><h2 className="mt-2 text-xl font-black">{patient.name}</h2><p className="mt-1 text-sm text-white/75">Defina em quais especialidades este paciente acompanha você.</p></div><button onClick={onClose} className="rounded-[12px] border border-white/25 bg-white/10 p-2"><X size={18}/></button></div><div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5"><div className="rounded-[16px] border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Os horários exibidos serão apenas os publicados por <strong>{currentUserProfile.systemName}</strong> nas especialidades selecionadas. Sem seleção, este médico não fica vinculado à agenda do paciente.</div><div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{specialties.map((specialty) => { const active = selected.includes(specialty); return <button key={specialty} type="button" onClick={() => toggle(specialty)} className={`flex items-center justify-between gap-3 rounded-[14px] border px-3 py-3 text-left text-sm font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-text hover:border-hpsr-wineLight"}`}><span>{specialty}</span><span className={`h-4 w-4 rounded-full border-2 ${active ? "border-white bg-white" : "border-hpsr-border bg-white"}`}/></button>; })}</div>{selected.length > 0 && <div className="mt-4 rounded-[16px] border border-hpsr-border bg-white p-4"><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Seu acompanhamento</p><p className="mt-2 text-sm font-semibold leading-relaxed text-hpsr-muted">{selected.join(" · ")}</p></div>}</div><div className="flex justify-end gap-3 border-t border-hpsr-border bg-white/95 px-5 py-3.5"><button type="button" onClick={onClose} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-text">Cancelar</button><button type="button" disabled={saving} onClick={() => void save()} className="inline-flex min-w-[150px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-50">{saving ? <LoaderCircle size={16} className="animate-spin" /> : <ShieldCheck size={16}/>}Salvar vínculo</button></div></div></div>;
 }
 
 function GuardianManagerModal({ patient, patients, onClose }: { patient: PatientRecord; patients: PatientRecord[]; onClose: () => void }) {
@@ -1198,6 +1369,18 @@ function AddClinicalRecordModal({
   );
 }
 
+
+function normalizeScheduleAssignments(value: unknown): ScheduleAssignment[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const row = item as Record<string, unknown>;
+    const doctorId = String(row.doctor_id || "").trim();
+    const doctorName = String(row.doctor_name || "").trim();
+    const specialty = String(row.specialty || "").trim();
+    return doctorId && specialty ? [{ doctor_id: doctorId, doctor_name: doctorName || "Médico", specialty }] : [];
+  });
+}
 
 const VALID_PATIENT_FOLLOW_UP = ["Rotina", "Clínico", "Especializado"] as const;
 

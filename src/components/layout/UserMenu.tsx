@@ -63,6 +63,17 @@ export function UserMenu() {
     setLoadingClock(false);
   }, [currentUserProfile.serviceStatus]);
 
+  const sendClockHeartbeat = useCallback(async (close = false) => {
+    if (clock.status === "Fora de serviço") return;
+    const client = createClient();
+    if (!client) return;
+    const { data, error: heartbeatError } = await client.rpc("time_clock_heartbeat", { p_close: close });
+    if (!heartbeatError && data && typeof data === "object" && "closed" in data && Boolean((data as { closed?: boolean }).closed)) {
+      await loadClock();
+      await refreshProfile();
+    }
+  }, [clock.status, loadClock, refreshProfile]);
+
   useEffect(() => {
     void loadClock();
   }, [loadClock]);
@@ -85,7 +96,7 @@ export function UserMenu() {
         .from("appointments")
         .select(columns)
         .or(`payload->>doctorId.eq.${currentUserProfile.id},payload->>requestedDoctorId.eq.${currentUserProfile.id}`)
-        .in("status", ["Solicitação enviada", "Aguardando análise", "Acompanhamento aguardando confirmação", "Reagendamento aceito", "Confirmada"])
+        .in("status", ["Solicitação enviada", "Aguardando análise", "Acompanhamento aguardando confirmação"])
         .order("updated_at", { ascending: false })
         .limit(40);
 
@@ -122,8 +133,6 @@ export function UserMenu() {
           const flowType = String(payload.flowType || "Consulta comum");
           const patient = String(row.patient || payload.patient || "Paciente");
           const specialty = String(payload.specialty || "Especialidade não informada");
-          const proposedDate = String(payload.proposedDate || payload.preferredDate || payload.date || "");
-          const proposedTime = String(payload.proposedTime || payload.preferredTime || payload.time || "");
           let category: MedicalNotification["category"] = "Consulta";
           let title = `Nova solicitação de ${patient}`;
           let description = `${flowType} · ${specialty}`;
@@ -132,21 +141,13 @@ export function UserMenu() {
             category = "Acompanhamento";
             title = `${patient} solicitou acompanhamento`;
             description = `Pré-registro direcionado para você em ${specialty}.`;
-          } else if (row.status === "Reagendamento aceito") {
-            category = "Reagendamento";
-            title = "Reagendamento aceito pelo paciente";
-            description = `${patient}${proposedDate ? ` · ${formatSimpleDate(proposedDate)}` : ""}${proposedTime ? ` às ${proposedTime}` : ""}.`;
           } else if (flowType === "Exames") {
             category = "Exame";
             title = `${patient} enviou uma solicitação de exame`;
             description = String(payload.otherFlowDescription || payload.reason || payload.notes || specialty);
-          } else if (row.status === "Confirmada" && String(payload.source || "") === "clinical_followup") {
-            category = "Consulta";
-            title = "Horário confirmado pelo paciente";
-            description = `${patient}${proposedDate ? ` · ${formatSimpleDate(proposedDate)}` : ""}${proposedTime ? ` às ${proposedTime}` : ""}.`;
           }
 
-          const actionableStatuses = ["Solicitação enviada", "Aguardando análise", "Acompanhamento aguardando confirmação", "Reagendamento aceito", "Confirmada"];
+          const actionableStatuses = ["Solicitação enviada", "Aguardando análise", "Acompanhamento aguardando confirmação"];
           if (!actionableStatuses.includes(String(row.status))) return null;
           return {
             id: String(row.id),
@@ -207,6 +208,21 @@ export function UserMenu() {
 
   useEffect(() => {
     if (clock.status === "Fora de serviço") return;
+    void sendClockHeartbeat(false);
+    const heartbeatInterval = window.setInterval(() => { void sendClockHeartbeat(false); }, 30000);
+    const closeClock = () => { void sendClockHeartbeat(true); };
+    const handleOffline = () => { void sendClockHeartbeat(true); };
+    window.addEventListener("pagehide", closeClock);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.clearInterval(heartbeatInterval);
+      window.removeEventListener("pagehide", closeClock);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, [clock.status, sendClockHeartbeat]);
+
+  useEffect(() => {
+    if (clock.status === "Fora de serviço") return;
     let interval: number | null = null;
     const syncTimer = () => {
       if (interval !== null) window.clearInterval(interval);
@@ -264,6 +280,7 @@ export function UserMenu() {
 
   async function handleLogout() {
     const client = createClient();
+    if (client && clock.status !== "Fora de serviço") await client.rpc("time_clock_heartbeat", { p_close: true });
     if (client) await client.auth.signOut();
     localStorage.removeItem("hpsr-demo-session");
     localStorage.removeItem("hpsr-service-status");
