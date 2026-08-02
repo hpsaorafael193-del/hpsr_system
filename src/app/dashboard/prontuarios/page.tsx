@@ -214,11 +214,12 @@ export default function RecordsPage() {
 
       if (!active || requestId !== loadRequestRef.current) return;
 
-      const criticalError = registryResult.error || recordsResult.error;
+      const criticalError = registryResult.error || recordsResult.error || portalResult.error;
       if (criticalError) {
         console.warn("[HPSR][Prontuários] Sincronização incompleta; mantendo o último estado válido.", {
           registry: registryResult.error?.message,
           records: recordsResult.error?.message,
+          portalAccess: portalResult.error?.message,
         });
         setIsLoadingPatients(false);
         return;
@@ -263,7 +264,7 @@ export default function RecordsPage() {
         });
       }
 
-      for (const row of (portalResult.error ? [] : (portalResult.data || [])) as any[]) {
+      for (const row of (portalResult.data || []) as any[]) {
         const passport = String(row.patient_passport || "").trim();
         const current = patientMap.get(passport);
         if (!current) continue;
