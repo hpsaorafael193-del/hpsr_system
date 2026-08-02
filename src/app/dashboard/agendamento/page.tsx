@@ -152,6 +152,7 @@ function consultationStatusClass(status: string) {
   switch (status) {
     case "Confirmada":
     case "Concluída":
+    case "Realizada":
       return "border-emerald-200 bg-emerald-50 text-emerald-700";
     case "Cancelada":
       return "border-rose-200 bg-rose-50 text-rose-700";
@@ -350,22 +351,25 @@ export default function AppointmentsPage() {
 
   const publicAcceptedAppointments = useMemo(() => {
     return publicRequests
-      .filter((item) => item.status === "Aceita" || item.status === "Reagendamento aceito")
-      .map((item) => ({
-        id: item.id,
-        time: item.status === "Reagendamento aceito"
-          ? item.proposedTime || item.preferredTime || preferredPeriodToTime(item.preferredPeriod)
-          : item.preferredTime || preferredPeriodToTime(item.preferredPeriod),
-        date: item.status === "Reagendamento aceito"
-          ? item.proposedDate || item.preferredDate || "A definir"
-          : item.preferredDate || "A definir",
-        passport: item.passport,
-        patient: item.patient,
-        specialty: item.specialty,
-        doctor: item.doctor || currentUserProfile.systemName,
-        type: item.flowType || "Consulta comum",
-        status: item.status === "Reagendamento aceito" ? "Confirmada" : "Agendada",
-      }));
+      .filter((item) => ["Aceita", "Reagendamento aceito", "Realizada"].includes(item.status))
+      .map((item) => {
+        const wasRescheduled = item.status === "Reagendamento aceito" || Boolean(item.proposedDate || item.proposedTime);
+        return {
+          id: item.id,
+          time: wasRescheduled
+            ? item.proposedTime || item.preferredTime || preferredPeriodToTime(item.preferredPeriod)
+            : item.preferredTime || preferredPeriodToTime(item.preferredPeriod),
+          date: wasRescheduled
+            ? item.proposedDate || item.preferredDate || "A definir"
+            : item.preferredDate || "A definir",
+          passport: item.passport,
+          patient: item.patient,
+          specialty: item.specialty,
+          doctor: item.doctor || currentUserProfile.systemName,
+          type: item.flowType || "Consulta comum",
+          status: item.status === "Realizada" ? "Realizada" : item.status === "Reagendamento aceito" ? "Confirmada" : "Agendada",
+        };
+      });
   }, [publicRequests]);
 
   const visibleAppointments = useMemo(
@@ -857,7 +861,7 @@ function ConsultationsTab({ appointments }: { appointments: typeof scheduledAppo
       <SectionTitle
         icon={<Stethoscope size={18} />}
         title="Consultas marcadas"
-        description="Status simples: Agendada, Confirmada, Reagendada, Cancelada, Ausente e Concluída."
+        description="Status simples: Agendada, Confirmada, Reagendada, Cancelada, Ausente e Realizada."
       />
 
       {appointments.map((item) => (
