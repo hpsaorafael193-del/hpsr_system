@@ -34,6 +34,7 @@ import { hpsrConfirm, hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { specialties } from "@/data/mock";
 import { findSpecialtyScheduleConflict } from "@/data/appointment-rules";
+import { isClinicalProfessional } from "@/lib/clinical-scheduling";
 
 const BRAZIL_TIMEZONE = "America/Sao_Paulo";
 
@@ -737,10 +738,14 @@ function NewAppointmentForm({
   useEffect(() => {
     const client = createClient();
     if (!client) return;
-    void client.from("profiles").select("id,name,role,specialty").eq("access_status", "Aprovado").order("name").then(({ data }) => {
+    void client.from("profiles").select("id,name,role,specialty,crm").eq("access_status", "Aprovado").order("name").then(({ data, error }) => {
+      if (error) {
+        setMessage({ type: "error", text: `Não foi possível carregar os médicos: ${error.message}` });
+        return;
+      }
       const available = (data || [])
-        .filter((row: any) => String(row.role || "").includes("Médico") || ["Diretor Clínico", "Diretora", "Vice Diretor"].includes(String(row.role || "")))
-        .map((row: any) => ({ id: String(row.id), name: String(row.name || "Médico"), specialty: String(row.specialty || "Clínico Geral") }));
+        .filter((row) => isClinicalProfessional(row))
+        .map((row) => ({ id: String(row.id), name: String(row.name || "Médico"), specialty: String(row.specialty || "Clínico Geral") }));
       setDoctors(available);
       const current = available.find((item) => item.name === currentUserProfile.systemName);
       setPhysician(current?.name || available[0]?.name || currentUserProfile.systemName);
