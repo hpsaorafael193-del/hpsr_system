@@ -98,29 +98,6 @@ const answerOptions: Array<{ value: Answer; label: string }> = [
   { value: "na", label: "N/A" },
 ];
 
-const chronicOptions = [
-  "HIV/AIDS",
-  "Hepatite B ou C",
-  "Doença de Chagas",
-  "Sífilis não tratada",
-  "Tuberculose ativa",
-  "Câncer",
-  "Diabetes sem controle",
-  "Doença cardíaca grave",
-  "Anemia moderada ou grave",
-  "Outra condição",
-];
-
-const medicationOptions = [
-  "Anticoagulantes",
-  "Antibióticos recentes",
-  "Medicamentos para epilepsia",
-  "Isotretinoína",
-  "Finasterida",
-  "Dutasterida",
-  "Outro medicamento",
-];
-
 const resultConfig: Record<ResultKey, Omit<Analysis, "reasons" | "missing">> = {
   apto: {
     result: "apto",
@@ -215,8 +192,22 @@ function parseNumber(value: string) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function includesAny(values: string[], options: string[]) {
-  return values.some((value) => options.includes(value));
+function normalizeClinicalText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function includesClinicalTerm(value: string, terms: string[]) {
+  const normalized = normalizeClinicalText(value);
+  return terms.some((term) => normalized.includes(normalizeClinicalText(term)));
+}
+
+function formatDoctorLabel(name: string) {
+  const cleanName = name.replace(/^dr\.?a?\s+/i, "").trim();
+  return cleanName ? `Dr. ${cleanName}` : "Médico sem nome";
 }
 
 function analyzeForm(form: DonorForm): Analysis {
@@ -250,31 +241,35 @@ function analyzeForm(form: DonorForm): Analysis {
   if (form.barrasCheias === "nao") temporary.push("Barras de comida e bebida não estão totalmente cheias");
 
   if (form.doencaCronica === "sim") {
-    if (includesAny(form.doencas, [
+    const chronicText = [...form.doencas, form.doencaDetalhes].filter(Boolean).join(" ");
+    if (includesClinicalTerm(chronicText, [
       "HIV/AIDS",
-      "Hepatite B ou C",
+      "Hepatite B",
+      "Hepatite C",
       "Doença de Chagas",
       "Sífilis não tratada",
       "Tuberculose ativa",
       "Doença cardíaca grave",
-      "Anemia moderada ou grave",
+      "Anemia moderada",
+      "Anemia grave",
     ])) permanent.push("Doença crônica ou condição de saúde incompatível com doação");
 
-    if (form.doencas.includes("Diabetes sem controle")) medical.push("Diabetes sem controle informado");
-    if (form.doencas.includes("Câncer")) medical.push("Histórico de câncer exige avaliação médica");
-    if (form.doencas.includes("Outra condição")) medical.push("Outra condição de saúde informada");
-    if (!form.doencas.length) medical.push("Doença crônica informada sem especificação");
+    if (includesClinicalTerm(chronicText, ["Diabetes sem controle", "Diabetes descontrolada"])) medical.push("Diabetes sem controle informado");
+    if (includesClinicalTerm(chronicText, ["Câncer", "Cancer", "Neoplasia"])) medical.push("Histórico de câncer exige avaliação médica");
+    if (!chronicText.trim()) medical.push("Doença crônica informada sem especificação");
+    else if (!permanent.length && !medical.some((reason) => reason.includes("Diabetes") || reason.includes("câncer"))) medical.push("Condição de saúde informada exige avaliação médica");
   }
 
   if (form.usaMedicamento === "sim") {
-    if (form.medicamentos.includes("Anticoagulantes")) permanent.push("Uso de anticoagulantes");
-    if (form.medicamentos.includes("Antibióticos recentes")) temporary.push("Uso recente de antibióticos");
-    if (form.medicamentos.includes("Isotretinoína")) temporary.push("Uso de isotretinoína");
-    if (form.medicamentos.includes("Finasterida")) temporary.push("Uso de finasterida");
-    if (form.medicamentos.includes("Dutasterida")) temporary.push("Uso de dutasterida");
-    if (form.medicamentos.includes("Medicamentos para epilepsia")) medical.push("Medicamento para epilepsia exige avaliação médica");
-    if (form.medicamentos.includes("Outro medicamento")) medical.push("Uso de medicamento não especificado exige avaliação médica");
-    if (!form.medicamentos.length) medical.push("Uso de medicamento informado sem especificação");
+    const medicationText = [...form.medicamentos, form.medicamentoDetalhes].filter(Boolean).join(" ");
+    if (includesClinicalTerm(medicationText, ["Anticoagulante", "Varfarina", "Marevan", "Rivaroxabana", "Apixabana"])) permanent.push("Uso de anticoagulantes");
+    if (includesClinicalTerm(medicationText, ["Antibiótico", "Antibiotico"])) temporary.push("Uso recente de antibióticos");
+    if (includesClinicalTerm(medicationText, ["Isotretinoína", "Roacutan"])) temporary.push("Uso de isotretinoína");
+    if (includesClinicalTerm(medicationText, ["Finasterida"])) temporary.push("Uso de finasterida");
+    if (includesClinicalTerm(medicationText, ["Dutasterida"])) temporary.push("Uso de dutasterida");
+    if (includesClinicalTerm(medicationText, ["Epilepsia", "Anticonvulsivante"])) medical.push("Medicamento para epilepsia exige avaliação médica");
+    if (!medicationText.trim()) medical.push("Uso de medicamento informado sem especificação");
+    else if (!permanent.some((reason) => reason === "Uso de anticoagulantes") && !temporary.some((reason) => reason.startsWith("Uso")) && !medical.some((reason) => reason.includes("epilepsia"))) medical.push("Uso de medicamento informado exige avaliação médica");
   }
 
   if (form.febreOuGripe14Dias === "sim") temporary.push("Febre, infecção ou sintomas gripais nos últimos 14 dias");
@@ -380,15 +375,7 @@ export default function BloodBankPage() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
-  function toggleList(field: "doencas" | "medicamentos", value: string) {
-    setForm((current) => {
-      const nextList = current[field].includes(value)
-        ? current[field].filter((item) => item !== value)
-        : [...current[field], value];
 
-      return { ...current, [field]: nextList };
-    });
-  }
 
   async function saveRecord() {
     const client = createClient();
@@ -481,15 +468,23 @@ export default function BloodBankPage() {
                   <AnswerField label="Atualmente faz uso de algum medicamento?" value={form.usaMedicamento} onChange={(value) => setForm((current) => ({ ...current, usaMedicamento: value, ...(value === "sim" ? {} : { medicamentos: [], medicamentoDetalhes: "" }) }))} />
                 </div>
                 {form.doencaCronica === "sim" && (
-                  <div className="mt-3 grid gap-3">
-                    <Checklist title="Condições informadas" options={chronicOptions} selected={form.doencas} onToggle={(value) => toggleList("doencas", value)} />
-                    <TextArea label="Explique a condição diagnosticada" value={form.doencaDetalhes} onChange={(value) => updateField("doencaDetalhes", value)} />
+                  <div className="mt-3">
+                    <TextArea
+                      label="Descreva a condição diagnosticada"
+                      value={form.doencaDetalhes}
+                      onChange={(value) => updateField("doencaDetalhes", value)}
+                      placeholder="Digite o nome da condição e as informações relevantes para a triagem."
+                    />
                   </div>
                 )}
                 {form.usaMedicamento === "sim" && (
-                  <div className="mt-3 grid gap-3">
-                    <Checklist title="Medicamentos informados" options={medicationOptions} selected={form.medicamentos} onToggle={(value) => toggleList("medicamentos", value)} />
-                    <TextArea label="Qual medicamento / observações" value={form.medicamentoDetalhes} onChange={(value) => updateField("medicamentoDetalhes", value)} />
+                  <div className="mt-3">
+                    <TextArea
+                      label="Informe os medicamentos em uso"
+                      value={form.medicamentoDetalhes}
+                      onChange={(value) => updateField("medicamentoDetalhes", value)}
+                      placeholder="Digite o nome dos medicamentos e, se necessário, observações sobre o uso."
+                    />
                   </div>
                 )}
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -689,10 +684,10 @@ function DoctorSelect({ doctors, value, onChange }: { doctors: DoctorOption[]; v
         className="mt-1.5 min-h-[38px] w-full rounded-[16px] border border-hpsr-border bg-white px-3 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20"
       >
         <option value="">Selecione um médico</option>
-        {value && !doctors.some((doctor) => doctor.name === value) && <option value={value}>{value}</option>}
+        {value && !doctors.some((doctor) => doctor.name === value) && <option value={value}>{formatDoctorLabel(value)}</option>}
         {doctors.map((doctor) => (
           <option key={doctor.id} value={doctor.name}>
-            {doctor.name} · {doctor.specialty}{doctor.crm ? ` · ${doctor.crm}` : ""}
+            {formatDoctorLabel(doctor.name)}
           </option>
         ))}
       </select>
@@ -733,12 +728,13 @@ function TextField({
   );
 }
 
-function TextArea({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function TextArea({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
   return (
     <label className="block">
       <span className="text-xs font-black uppercase tracking-[0.1em] text-hpsr-wineLight">{label}</span>
       <textarea
         value={value}
+        placeholder={placeholder}
         onChange={(event) => onChange(event.target.value)}
         rows={3}
         className="mt-1.5 w-full resize-none rounded-[16px] border border-hpsr-border bg-white px-3 py-2 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20"
@@ -766,31 +762,6 @@ function AnswerField({ label, value, onChange }: { label: string; value: Answer;
             {option.label}
           </button>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function Checklist({ title, options, selected, onToggle }: { title: string; options: string[]; selected: string[]; onToggle: (value: string) => void }) {
-  return (
-    <div className="mt-3 rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3">
-      <p className="text-xs font-black uppercase tracking-[0.12em] text-hpsr-wineLight">{title}</p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-        {options.map((option) => {
-          const active = selected.includes(option);
-          return (
-            <button
-              key={option}
-              type="button"
-              onClick={() => onToggle(option)}
-              className={`rounded-[14px] border px-3 py-2 text-left text-xs font-black transition ${
-                active ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-wine hover:bg-[#f1dfcd]"
-              }`}
-            >
-              {option}
-            </button>
-          );
-        })}
       </div>
     </div>
   );
