@@ -21,9 +21,18 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { createClient } from "@/lib/supabase";
 import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
+import { isClinicalProfessional } from "@/lib/clinical-scheduling";
 
 type Answer = "sim" | "nao" | "na";
 type ResultKey = "apto" | "inapto-temporario" | "inapto" | "avaliacao" | "nao-autorizada";
+
+type DoctorOption = {
+  id: string;
+  name: string;
+  role: string;
+  specialty: string;
+  crm: string;
+};
 
 type DonorForm = {
   nome: string;
@@ -219,8 +228,6 @@ function analyzeForm(form: DonorForm): Analysis {
   if (!form.nome.trim()) missing.push("Nome completo do doador");
   if (!form.idade.trim()) missing.push("Idade");
   if (!form.passaporte.trim()) missing.push("Passaporte");
-  if (!form.peso.trim()) missing.push("Peso atual");
-  if (!form.telefone.trim()) missing.push("Telefone para contato");
   if (!form.medicoResponsavel.trim()) missing.push("Médico responsável");
   if (!form.dataTriagem.trim()) missing.push("Data da triagem");
   if (form.consentimento !== "sim") missing.push("Consentimento voluntário confirmado");
@@ -322,17 +329,40 @@ export default function BloodBankPage() {
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<DonationRecord | null>(null);
-
+  const [doctors, setDoctors] = useState<DoctorOption[]>([]);
 
   useEffect(() => {
-    async function loadRecords() {
+    async function loadData() {
       const client = createClient();
       if (!client) return;
-      const { data, error } = await client.from("blood_donations").select("id, donor_passport, payload, created_at").order("created_at", { ascending: false });
-      if (error) { void hpsrAlert(`Não foi possível carregar as triagens: ${error.message}`, "Banco de Sangue"); return; }
-      setRecords((data || []).map((row) => ({ ...((row.payload || {}) as DonationRecord), id: String(row.id), createdAt: String(((row.payload || {}) as Partial<DonationRecord>).createdAt || row.created_at) })));
+
+      const [recordsResult, doctorsResult] = await Promise.all([
+        client.from("blood_donations").select("id, donor_passport, payload, created_at").order("created_at", { ascending: false }),
+        client.from("profiles").select("id,name,role,specialty,crm").eq("access_status", "Aprovado").order("name"),
+      ]);
+
+      if (recordsResult.error) {
+        void hpsrAlert(`Não foi possível carregar as triagens: ${recordsResult.error.message}`, "Banco de Sangue");
+      } else {
+        setRecords((recordsResult.data || []).map((row) => ({ ...((row.payload || {}) as DonationRecord), id: String(row.id), createdAt: String(((row.payload || {}) as Partial<DonationRecord>).createdAt || row.created_at) })));
+      }
+
+      if (doctorsResult.error) {
+        void hpsrAlert(`Não foi possível carregar os médicos responsáveis: ${doctorsResult.error.message}`, "Banco de Sangue");
+      } else {
+        const options = (doctorsResult.data || [])
+          .filter((row) => isClinicalProfessional(row))
+          .map((row) => ({
+            id: String(row.id),
+            name: String(row.name || "Médico sem nome"),
+            role: String(row.role || "Médico"),
+            specialty: String(row.specialty || "Não informada"),
+            crm: String(row.crm || ""),
+          }));
+        setDoctors(options);
+      }
     }
-    void loadRecords();
+    void loadData();
   }, []);
   const analysis = useMemo(() => analyzeForm(form), [form]);
   const ResultIcon = analysis.icon;
@@ -429,10 +459,10 @@ export default function BloodBankPage() {
                   <TextField label="Nome completo do doador *" value={form.nome} onChange={(value) => updateField("nome", value)} />
                   <TextField label="Passaporte *" value={form.passaporte} onChange={(value) => updateField("passaporte", value)} />
                   <TextField label="Idade *" value={form.idade} onChange={(value) => updateField("idade", value)} inputMode="numeric" />
-                  <TextField label="Peso atual *" value={form.peso} onChange={(value) => updateField("peso", value)} inputMode="decimal" placeholder="Ex.: 70" />
-                  <TextField label="Telefone para contato *" value={form.telefone} onChange={(value) => updateField("telefone", formatPhoneNumber(value))} />
+                  <TextField label="Peso atual (opcional)" value={form.peso} onChange={(value) => updateField("peso", value)} inputMode="decimal" placeholder="Ex.: 70" />
+                  <TextField label="Telefone para contato (opcional)" value={form.telefone} onChange={(value) => updateField("telefone", formatPhoneNumber(value))} />
                   <TextField label="Data da triagem *" type="date" value={form.dataTriagem} onChange={(value) => updateField("dataTriagem", value)} />
-                  <TextField label="Médico responsável *" value={form.medicoResponsavel} onChange={(value) => updateField("medicoResponsavel", value)} className="md:col-span-2" />
+                  <DoctorSelect doctors={doctors} value={form.medicoResponsavel} onChange={(value) => updateField("medicoResponsavel", value)} />
                 </div>
               </QuestionBlock>
 
@@ -447,18 +477,26 @@ export default function BloodBankPage() {
 
               <QuestionBlock title="Histórico de saúde e medicamentos" icon={<FilePenLine size={17} />}>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <AnswerField label="Possui alguma doença crônica diagnosticada?" value={form.doencaCronica} onChange={(value) => updateField("doencaCronica", value)} />
-                  <AnswerField label="Atualmente faz uso de algum medicamento?" value={form.usaMedicamento} onChange={(value) => updateField("usaMedicamento", value)} />
+                  <AnswerField label="Possui alguma doença crônica diagnosticada?" value={form.doencaCronica} onChange={(value) => setForm((current) => ({ ...current, doencaCronica: value, ...(value === "sim" ? {} : { doencas: [], doencaDetalhes: "" }) }))} />
+                  <AnswerField label="Atualmente faz uso de algum medicamento?" value={form.usaMedicamento} onChange={(value) => setForm((current) => ({ ...current, usaMedicamento: value, ...(value === "sim" ? {} : { medicamentos: [], medicamentoDetalhes: "" }) }))} />
                 </div>
-                {form.doencaCronica === "sim" && <Checklist title="Condições informadas" options={chronicOptions} selected={form.doencas} onToggle={(value) => toggleList("doencas", value)} />}
-                {form.usaMedicamento === "sim" && <Checklist title="Medicamentos informados" options={medicationOptions} selected={form.medicamentos} onToggle={(value) => toggleList("medicamentos", value)} />}
+                {form.doencaCronica === "sim" && (
+                  <div className="mt-3 grid gap-3">
+                    <Checklist title="Condições informadas" options={chronicOptions} selected={form.doencas} onToggle={(value) => toggleList("doencas", value)} />
+                    <TextArea label="Explique a condição diagnosticada" value={form.doencaDetalhes} onChange={(value) => updateField("doencaDetalhes", value)} />
+                  </div>
+                )}
+                {form.usaMedicamento === "sim" && (
+                  <div className="mt-3 grid gap-3">
+                    <Checklist title="Medicamentos informados" options={medicationOptions} selected={form.medicamentos} onToggle={(value) => toggleList("medicamentos", value)} />
+                    <TextArea label="Qual medicamento / observações" value={form.medicamentoDetalhes} onChange={(value) => updateField("medicamentoDetalhes", value)} />
+                  </div>
+                )}
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  <TextArea label="Detalhes da condição" value={form.doencaDetalhes} onChange={(value) => updateField("doencaDetalhes", value)} />
-                  <TextArea label="Qual medicamento / observações" value={form.medicamentoDetalhes} onChange={(value) => updateField("medicamentoDetalhes", value)} />
                   <AnswerField label="Febre, infecção ou sintomas gripais nos últimos 14 dias?" value={form.febreOuGripe14Dias} onChange={(value) => updateField("febreOuGripe14Dias", value)} />
                   <AnswerField label="Cirurgia, endoscopia ou procedimento invasivo recente?" value={form.procedimentoRecente} onChange={(value) => updateField("procedimentoRecente", value)} />
-                  <AnswerField label="Transfusão de sangue nos últimos 12 meses?" value={form.transfusao12Meses} onChange={(value) => updateField("transfusao12Meses", value)} />
-                  <TextField label="Quando foi a transfusão?" value={form.transfusaoQuando} onChange={(value) => updateField("transfusaoQuando", value)} />
+                  <AnswerField label="Transfusão de sangue nos últimos 12 meses?" value={form.transfusao12Meses} onChange={(value) => setForm((current) => ({ ...current, transfusao12Meses: value, transfusaoQuando: value === "sim" ? current.transfusaoQuando : "" }))} />
+                  {form.transfusao12Meses === "sim" && <TextField label="Quando foi a transfusão?" value={form.transfusaoQuando} onChange={(value) => updateField("transfusaoQuando", value)} />}
                 </div>
               </QuestionBlock>
 
@@ -474,15 +512,15 @@ export default function BloodBankPage() {
                   <AnswerField label="Está amamentando?" value={form.amamentando} onChange={(value) => updateField("amamentando", value)} />
                   <AnswerField label="Está no período menstrual?" value={form.menstruada} onChange={(value) => updateField("menstruada", value)} />
                   <AnswerField label="Aborto espontâneo ou provocado nos últimos 6 meses?" value={form.aborto6Meses} onChange={(value) => updateField("aborto6Meses", value)} />
-                  <AnswerField label="Viajou recentemente para área de risco endêmico?" value={form.viagemRisco} onChange={(value) => updateField("viagemRisco", value)} />
-                  <TextField label="Detalhes da viagem" value={form.viagemDetalhes} onChange={(value) => updateField("viagemDetalhes", value)} />
+                  <AnswerField label="Viajou recentemente para área de risco endêmico?" value={form.viagemRisco} onChange={(value) => setForm((current) => ({ ...current, viagemRisco: value, viagemDetalhes: value === "sim" ? current.viagemDetalhes : "" }))} />
+                  {form.viagemRisco === "sim" && <TextField label="Detalhes da viagem" value={form.viagemDetalhes} onChange={(value) => updateField("viagemDetalhes", value)} />}
                 </div>
               </QuestionBlock>
 
               <QuestionBlock title="Doações anteriores e declaração final" icon={<CheckCircle2 size={17} />}>
                 <div className="grid gap-3 md:grid-cols-2">
-                  <AnswerField label="Já doou sangue antes?" value={form.jaDoou} onChange={(value) => updateField("jaDoou", value)} />
-                  <AnswerField label="Teve reação em doações anteriores?" value={form.reacaoAnterior} onChange={(value) => updateField("reacaoAnterior", value)} />
+                  <AnswerField label="Já doou sangue antes?" value={form.jaDoou} onChange={(value) => setForm((current) => ({ ...current, jaDoou: value, reacaoAnterior: value === "sim" ? current.reacaoAnterior : "nao" }))} />
+                  {form.jaDoou === "sim" && <AnswerField label="Teve reação em doações anteriores?" value={form.reacaoAnterior} onChange={(value) => updateField("reacaoAnterior", value)} />}
                   <AnswerField label="Concorda em realizar a doação voluntariamente e respondeu com verdade?" value={form.consentimento} onChange={(value) => updateField("consentimento", value)} />
                   <TextArea label="Observação médica" value={form.observacaoMedica} onChange={(value) => updateField("observacaoMedica", value)} />
                 </div>
@@ -638,6 +676,28 @@ function QuestionBlock({ title, icon, children }: { title: string; icon: ReactNo
       </div>
       {children}
     </section>
+  );
+}
+
+function DoctorSelect({ doctors, value, onChange }: { doctors: DoctorOption[]; value: string; onChange: (value: string) => void }) {
+  return (
+    <label className="block md:col-span-2">
+      <span className="text-xs font-black uppercase tracking-[0.1em] text-hpsr-wineLight">Médico responsável *</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="mt-1.5 min-h-[38px] w-full rounded-[16px] border border-hpsr-border bg-white px-3 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20"
+      >
+        <option value="">Selecione um médico</option>
+        {value && !doctors.some((doctor) => doctor.name === value) && <option value={value}>{value}</option>}
+        {doctors.map((doctor) => (
+          <option key={doctor.id} value={doctor.name}>
+            {doctor.name} · {doctor.specialty}{doctor.crm ? ` · ${doctor.crm}` : ""}
+          </option>
+        ))}
+      </select>
+      {!doctors.length && <span className="mt-1 block text-xs font-semibold text-hpsr-muted">Nenhum médico aprovado disponível no momento.</span>}
+    </label>
   );
 }
 
