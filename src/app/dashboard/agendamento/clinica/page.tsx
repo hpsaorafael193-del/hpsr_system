@@ -124,6 +124,18 @@ function buildMonthMatrix(baseDate: Date) {
   return cells;
 }
 
+function appointmentSection(status: string) {
+  if (["Realizada", "Concluída", "Não compareceu", "Cancelada"].includes(status)) return "Concluídas";
+  if (["Aceita", "Reagendamento aceito", "Em atendimento"].includes(status)) return "Aguardando ação";
+  return "Próximas consultas";
+}
+
+const appointmentSectionOrder: Record<string, number> = {
+  "Aguardando ação": 0,
+  "Próximas consultas": 1,
+  "Concluídas": 2,
+};
+
 function statusClasses(status: string) {
   switch (status) {
     case "Concluída":
@@ -168,12 +180,12 @@ export default function ClinicalSchedulePage() {
     const { data, error } = await client
       .from("appointments")
       .select("id,passport,patient,status,payload,created_at")
-      .in("status", ["Aceita", "Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento"])
+      .in("status", ["Aceita", "Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento", "Realizada", "Concluída", "Não compareceu", "Cancelada"])
       .order("created_at", { ascending: false })
       .limit(400);
     if (error) throw error;
     setScheduledAppointments((data || [])
-      .filter((row: any) => ["Aceita", "Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento"].includes(String(row.status)))
+      .filter((row: any) => ["Aceita", "Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento", "Realizada", "Concluída", "Não compareceu", "Cancelada"].includes(String(row.status)))
       .map((row: any) => {
         const payload = (row.payload || {}) as Record<string, unknown>;
         return {
@@ -216,6 +228,9 @@ export default function ClinicalSchedulePage() {
     if (!query) return true;
     return [appointment.patient, appointment.passport, appointment.specialty, appointment.physician, appointment.status, appointment.time]
       .some((value) => value.toLocaleLowerCase("pt-BR").includes(query));
+  }).sort((left, right) => {
+    const sectionDifference = appointmentSectionOrder[appointmentSection(left.status)] - appointmentSectionOrder[appointmentSection(right.status)];
+    return sectionDifference || left.time.localeCompare(right.time);
   });
 
   const todayKey = toDateKey(brasiliaToday);
@@ -297,7 +312,7 @@ export default function ClinicalSchedulePage() {
         compact
       />
 
-      <section className="rounded-[18px] border border-hpsr-border bg-white p-3 shadow-sm">
+      <section className="rounded-[16px] border border-hpsr-border bg-white p-3 shadow-sm">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-wrap gap-2">
             <button onClick={() => setModal({ mode: "new" })} className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-hpsr-wine px-4 py-2.5 text-sm font-black text-white">
@@ -329,19 +344,21 @@ export default function ClinicalSchedulePage() {
         </div>
       </section>
 
+      <DeveloperAppointmentManager
+        doctorId={currentUserProfile.id}
+        doctorName={currentUserProfile.systemName}
+        canViewAll={canViewAllMedicalSchedules}
+        appointments={doctorAppointments.map(({ id, status, patient, passport }) => ({ id, status, patient, passport }))}
+      />
+
       <section className="grid items-start gap-3 xl:grid-cols-[minmax(320px,410px)_minmax(0,1fr)]">
-        <article className="flex h-auto flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfb_0%,#fff8f4_100%)] shadow-[0_12px_35px_rgba(93,45,24,0.05)] xl:h-[590px]">
-          <div className="shrink-0 border-b border-hpsr-border/80 bg-white/80 px-4 py-3.5 backdrop-blur">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Calendário</p>
-                <h2 className="mt-1 text-xl font-black text-hpsr-text">Consultas por data</h2>
-                <p className="mt-1 text-sm text-hpsr-muted">Selecione um dia para visualizar e organizar os atendimentos.</p>
-              </div>
-              <div className="flex h-10 w-10 items-center justify-center rounded-[16px] bg-hpsr-wine text-white shadow-sm">
-                <CalendarDays size={18} />
-              </div>
+        <article className="flex h-auto flex-col overflow-hidden rounded-[18px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfb_0%,#fff8f4_100%)] shadow-sm xl:h-[560px]">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-hpsr-border/80 bg-white/85 px-4 py-3">
+            <div>
+              <h2 className="text-base font-black text-hpsr-text">Calendário</h2>
+              <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Escolha um dia para ver os atendimentos.</p>
             </div>
+            <CalendarDays size={18} className="text-hpsr-wine" />
           </div>
           <div className="min-h-0 flex-1 p-4">
           <div className="rounded-[18px] border border-hpsr-border bg-white p-3.5 shadow-sm">
@@ -421,26 +438,16 @@ export default function ClinicalSchedulePage() {
           </div>
         </article>
 
-        <article className="flex h-auto min-h-0 flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfb_0%,#fff8f4_100%)] shadow-[0_12px_35px_rgba(93,45,24,0.05)] xl:h-[590px]">
-          <div className="shrink-0 border-b border-hpsr-border/80 bg-white/80 p-4 backdrop-blur">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Próximas consultas</p>
-              <h2 className="mt-1 text-xl font-black capitalize text-hpsr-text">{selectedDateLabel}</h2>
-              <p className="mt-1 text-sm text-hpsr-muted">
-                Horários exibidos no padrão de Brasília (BRT).
-              </p>
+        <article className="flex h-auto min-h-0 flex-col overflow-hidden rounded-[18px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfb_0%,#fff8f4_100%)] shadow-sm xl:h-[560px]">
+          <div className="shrink-0 border-b border-hpsr-border/80 bg-white/85 p-3.5">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-base font-black capitalize text-hpsr-text">{selectedDateLabel}</h2>
+                <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{appointmentsOnSelectedDay.length} consulta{appointmentsOnSelectedDay.length === 1 ? "" : "s"} neste dia · horário de Brasília</p>
+              </div>
             </div>
 
-            <div className="min-w-[150px] rounded-[18px] border border-[#e6d0c7] bg-white px-4 py-3 text-sm shadow-sm">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Resumo do dia</p>
-              <p className="mt-1 text-lg font-black text-hpsr-text">
-                {appointmentsOnSelectedDay.length} consulta{appointmentsOnSelectedDay.length === 1 ? "" : "s"}
-              </p>
-            </div>
-            </div>
-
-            <div className="mt-4 flex items-center gap-2 rounded-[16px] border border-hpsr-border bg-[#fffaf6] px-3.5 shadow-sm">
+            <div className="mt-3 flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-[#fffaf6] px-3">
               <Search size={16} className="shrink-0 text-hpsr-wineLight" />
               <input
                 value={appointmentSearch}
@@ -453,7 +460,7 @@ export default function ClinicalSchedulePage() {
           </div>
 
           <div
-            className="hpsr-appointments-scroll min-h-0 flex-1 overflow-y-scroll p-4 [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]"
+            className="hpsr-appointments-scroll min-h-0 max-h-[510px] flex-1 overflow-y-auto p-4 [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]"
             onWheel={(event) => {
               const panel = event.currentTarget;
               if (panel.scrollHeight > panel.clientHeight) {
@@ -487,9 +494,19 @@ export default function ClinicalSchedulePage() {
             </div>
           ) : (
             <div className="grid gap-3">
-              {visibleAppointmentsOnSelectedDay.map((appointment) => (
+              {visibleAppointmentsOnSelectedDay.map((appointment, index) => {
+                const section = appointmentSection(appointment.status);
+                const previousSection = index > 0 ? appointmentSection(visibleAppointmentsOnSelectedDay[index - 1].status) : "";
+                const isClosedAppointment = section === "Concluídas";
+                return (
+                <div key={appointment.id}>
+                  {section !== previousSection && (
+                    <div className="mb-2 mt-2 flex items-center gap-2 first:mt-0">
+                      <span className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">{section}</span>
+                      <span className="h-px flex-1 bg-hpsr-border" />
+                    </div>
+                  )}
                 <div
-                  key={appointment.id}
                   className="rounded-[18px] border border-[#e5d1c6] bg-white p-3.5 shadow-sm transition hover:border-[#d6b8ac] hover:bg-[#fffdfa]"
                 >
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -528,13 +545,15 @@ export default function ClinicalSchedulePage() {
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <button
-                      onClick={() => setModal({ mode: "open", appointment })}
-                      className="inline-flex items-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 py-2.5 text-xs font-black text-white transition"
-                    >
-                      <ClipboardPlus size={15} />
-                      Abrir atendimento
-                    </button>
+                    {!isClosedAppointment && (
+                      <button
+                        onClick={() => setModal({ mode: "open", appointment })}
+                        className="inline-flex items-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 py-2.5 text-xs font-black text-white transition"
+                      >
+                        <ClipboardPlus size={15} />
+                        Abrir atendimento
+                      </button>
+                    )}
                     <button
                       onClick={() => setModal({ mode: "patient", appointment })}
                       className="inline-flex items-center gap-2 rounded-[16px] border border-hpsr-border bg-white px-4 py-2.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fffdf9]"
@@ -542,30 +561,35 @@ export default function ClinicalSchedulePage() {
                       <UserRound size={15} />
                       Ver paciente
                     </button>
-                    <button
-                      onClick={() => setModal({ mode: "reschedule", appointment })}
-                      className="inline-flex items-center gap-2 rounded-[16px] border border-hpsr-border bg-white px-4 py-2.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fffdf9]"
-                    >
-                      <Stethoscope size={15} />
-                      Reagendar
-                    </button>
-                    <button
-                      onClick={() => void handleDeleteAppointment(appointment)}
-                      className="inline-flex items-center gap-2 rounded-[16px] border border-rose-200 bg-white px-4 py-2.5 text-xs font-black text-rose-700 transition hover:bg-rose-50"
-                    >
-                      <Trash2 size={15} />
-                      Excluir consulta
-                    </button>
+                    {!isClosedAppointment && (
+                      <>
+                        <button
+                          onClick={() => setModal({ mode: "reschedule", appointment })}
+                          className="inline-flex items-center gap-2 rounded-[16px] border border-hpsr-border bg-white px-4 py-2.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fffdf9]"
+                        >
+                          <Stethoscope size={15} />
+                          Reagendar
+                        </button>
+                        <button
+                          onClick={() => void handleDeleteAppointment(appointment)}
+                          className="inline-flex items-center gap-2 rounded-[16px] border border-rose-200 bg-white px-4 py-2.5 text-xs font-black text-rose-700 transition hover:bg-rose-50"
+                        >
+                          <Trash2 size={15} />
+                          Excluir consulta
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
-              ))}
+                </div>
+                );
+              })}
             </div>
           )}
           </div>
         </article>
       </section>
 
-      <DeveloperAppointmentManager doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} canViewAll={canViewAllMedicalSchedules} />
 
       <ScheduleToolDialog
         mode={scheduleToolModal}

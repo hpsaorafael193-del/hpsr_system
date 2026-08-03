@@ -28,6 +28,19 @@ export async function POST(request: NextRequest) {
     if (!patient) return NextResponse.json({ ok: false, error: "Paciente não encontrado no prontuário." }, { status: 404 });
     if (!slot || slot.status !== "Disponível") return NextResponse.json({ ok: false, error: "Este horário não está mais disponível." }, { status: 409 });
 
+    const activeBookingResult = await valid.supabase.rpc("hpsr_patient_has_active_booking", {
+      target_passport: passport,
+      target_specialty: slot.specialty,
+      exclude_appointment_id: null,
+    });
+    if (activeBookingResult.error) throw activeBookingResult.error;
+    if (activeBookingResult.data) {
+      return NextResponse.json(
+        { ok: false, error: `Você já possui uma consulta ativa em ${slot.specialty}. Aguarde ela ser realizada, cancelada ou encerrada antes de escolher outro horário.` },
+        { status: 409 },
+      );
+    }
+
     const allowedResult = await valid.supabase.rpc("patient_portal_slot_allowed", {
       target_passport: passport,
       target_doctor_id: slot.doctor_id,
@@ -110,6 +123,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, appointmentId, status: "Confirmada", doctorName: slot.doctor_name });
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error || "");
+    if (errorMessage.includes("já possui uma consulta ativa")) {
+      return NextResponse.json({ ok: false, error: errorMessage }, { status: 409 });
+    }
     console.error("[patient-portal] reserve slot", error);
     return NextResponse.json({ ok: false, error: "Não foi possível escolher e confirmar o horário." }, { status: 500 });
   }

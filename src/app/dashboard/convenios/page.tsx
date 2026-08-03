@@ -14,10 +14,13 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 import {
   BadgePercent,
+  BarChart3,
+  Banknote,
   CalendarCheck2,
   CalendarDays,
   Check,
   ChevronDown,
+  FileDown,
   FilePenLine,
   HeartHandshake,
   IdCard,
@@ -110,6 +113,7 @@ type InsurancePlan = {
   holderAge?: number;
   financialEntryId?: string;
   financialCreatedAt?: string;
+  financialValue?: number;
 };
 
 type RegisterDraft = {
@@ -142,6 +146,7 @@ type ModalState =
   | { mode: "manage" }
   | { mode: "plan"; plan: Plan }
   | { mode: "patient"; patient: Patient }
+  | { mode: "report" }
   | null;
 
 const inputClass =
@@ -213,6 +218,7 @@ function financialRowToInsurancePlan(row: FinancialPlanRow): Patient | null {
     holderAge: numberValue(storedPlan.holderAge),
     financialEntryId: row.id,
     financialCreatedAt: row.created_at || stringValue(payload.createdAt, new Date().toISOString()),
+    financialValue: numberValue(row.value) ?? numberValue(payload.value),
   };
 
   const closedAt = stringValue(storedPlan.closedAt);
@@ -345,6 +351,8 @@ export default function InsurancePage() {
   const [searchedPassport, setSearchedPassport] = useState("");
   const [modal, setModal] = useState<ModalState>(null);
   const [insurancePlans, setInsurancePlans] = useState<Patient[]>(() => purgeOldClosedPlans(normalizeExpiredPlans(patients)));
+  const [reportPlans, setReportPlans] = useState<Patient[]>(patients);
+  const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [plansLoading, setPlansLoading] = useState(true);
   const [plansLoadError, setPlansLoadError] = useState("");
   const [registerDraft, setRegisterDraft] = useState<RegisterDraft>(() => initialRegisterDraft());
@@ -400,9 +408,11 @@ export default function InsurancePage() {
         const plan = financialRowToInsurancePlan(row);
         return plan ? [plan] : [];
       });
-      const normalized = purgeOldClosedPlans(normalizeExpiredPlans(loaded));
+      const normalizedAll = normalizeExpiredPlans(loaded);
+      const normalized = purgeOldClosedPlans(normalizedAll);
 
       if (!cancelled) {
+        setReportPlans(normalizedAll);
         setInsurancePlans(normalized);
         setPlansLoading(false);
       }
@@ -433,6 +443,7 @@ export default function InsurancePage() {
 
     if (!isSupabaseConfigured()) {
       saveFinancialPlanEntry(entry);
+      setReportPlans((current) => [plan, ...current.filter((item) => item.id !== plan.id)]);
       return true;
     }
 
@@ -460,6 +471,7 @@ export default function InsurancePage() {
 
     const cache = readFinancialPlanEntries();
     replaceFinancialPlanEntriesCache([entry, ...cache.filter((item) => item.id !== entry.id)]);
+    setReportPlans((current) => [plan, ...current.filter((item) => item.id !== plan.id)]);
     return true;
   }
 
@@ -520,6 +532,7 @@ export default function InsurancePage() {
       holderAge: draft.age.trim() ? holderAge : undefined,
       financialEntryId: planId,
       financialCreatedAt: createdAt,
+      financialValue: selectedPlan.value,
       dependentsList: draft.dependents
         .filter((dependent) => dependent.name.trim() && dependent.passport.trim())
         .map((dependent) => ({
@@ -731,6 +744,14 @@ export default function InsurancePage() {
             <Settings size={15} />
             Gerenciar
           </button>
+          <button
+            type="button"
+            onClick={() => setModal({ mode: "report" })}
+            className="inline-flex items-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 py-2.5 text-sm font-semibold text-hpsr-wine transition hover:bg-[#fffdf9]"
+          >
+            <BarChart3 size={15} />
+            Relatório mensal
+          </button>
         </div>
         {!canManagePlans && (
           <p className="mt-2 text-xs font-medium text-hpsr-muted">
@@ -762,6 +783,9 @@ export default function InsurancePage() {
         setInsurancePlans={setInsurancePlans}
         onCreateFromClosedPlan={handleOpenRegisterFromClosedPlan}
         onPersistPlan={persistInsurancePlan}
+        reportPlans={reportPlans}
+        reportMonth={reportMonth}
+        setReportMonth={setReportMonth}
       />
     </div>
   );
@@ -858,6 +882,9 @@ function InsuranceModal({
   setInsurancePlans,
   onCreateFromClosedPlan,
   onPersistPlan,
+  reportPlans,
+  reportMonth,
+  setReportMonth,
 }: {
   modal: ModalState;
   onClose: () => void;
@@ -868,6 +895,9 @@ function InsuranceModal({
   setInsurancePlans: (plans: Patient[] | ((currentPlans: Patient[]) => Patient[])) => void;
   onCreateFromClosedPlan: (plan: Patient) => void;
   onPersistPlan: (plan: Patient) => Promise<boolean>;
+  reportPlans: Patient[];
+  reportMonth: string;
+  setReportMonth: (month: string) => void;
 }) {
   if (!modal) return null;
 
@@ -878,7 +908,9 @@ function InsuranceModal({
         ? "Gerenciar convênios"
         : modal.mode === "patient"
           ? "Detalhes do plano"
-          : modal.plan.name;
+          : modal.mode === "report"
+            ? "Relatório mensal de convênios"
+            : modal.plan.name;
 
   return (
     <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3">
@@ -926,6 +958,9 @@ function InsuranceModal({
             />
           )}
           {modal.mode === "patient" && <PatientPlanDetails patient={modal.patient} />}
+          {modal.mode === "report" && (
+            <MonthlyPlansReport plans={reportPlans} month={reportMonth} setMonth={setReportMonth} />
+          )}
           {modal.mode === "plan" && <PlanDetails plan={modal.plan} onClose={onClose} />}
         </div>
       </div>
@@ -2027,6 +2062,358 @@ function PatientPlanDetails({ patient }: { patient: Patient }) {
   );
 }
 
+
+
+function MonthlyPlansReport({
+  plans: reportPlans,
+  month,
+  setMonth,
+}: {
+  plans: Patient[];
+  month: string;
+  setMonth: (month: string) => void;
+}) {
+  const monthPlans = useMemo(() => reportPlans.filter((plan) => {
+    const reference = plan.financialCreatedAt || plan.activatedAt;
+    return reference.slice(0, 7) === month;
+  }), [reportPlans, month]);
+
+  const summary = useMemo(() => {
+    const byPlan = plans.map((definition) => {
+      const entries = monthPlans.filter((item) => item.plan === definition.name);
+      return {
+        id: definition.id,
+        name: definition.name,
+        total: entries.length,
+        holders: entries.length,
+        dependents: entries.reduce((sum, item) => sum + item.dependentsList.length, 0),
+        value: entries.reduce((sum, item) => sum + (item.financialValue ?? definition.value), 0),
+      };
+    }).sort((a, b) => b.total - a.total || b.value - a.value);
+
+    return {
+      total: monthPlans.length,
+      active: monthPlans.filter((item) => item.status === "Ativo").length,
+      closed: monthPlans.filter((item) => item.status === "Encerrado").length,
+      holders: monthPlans.length,
+      dependents: monthPlans.reduce((sum, item) => sum + item.dependentsList.length, 0),
+      value: monthPlans.reduce((sum, item) => {
+        const definition = plans.find((plan) => plan.name === item.plan);
+        return sum + (item.financialValue ?? definition?.value ?? 0);
+      }, 0),
+      byPlan,
+    };
+  }, [monthPlans]);
+
+  const monthLabel = month ? new Date(`${month}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) : "Mês selecionado";
+  const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const topPlan = summary.byPlan.find((item) => item.total > 0);
+  const totalPeople = summary.holders + summary.dependents;
+
+  async function exportImage() {
+    const escapeXml = (value: string | number) => String(value)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+
+    const shorten = (value: string, max = 34) => (value.length > max ? `${value.slice(0, Math.max(0, max - 1))}…` : value);
+    const rowHeight = 38;
+    const sectionGap = 30;
+    const width = 1400;
+    const paddingX = 88;
+    const contentWidth = width - paddingX * 2;
+    const metricGap = 14;
+    const metricWidth = (contentWidth - metricGap * 3) / 4;
+    const rankingRows = Math.max(summary.byPlan.length, 1);
+    const detailRowsCount = Math.max(monthPlans.length, 1);
+    const rankingHeight = 48 + rankingRows * rowHeight;
+    const detailsHeight = 48 + detailRowsCount * rowHeight;
+    const headerHeight = 150;
+    const metricsHeight = 108;
+    const totalHeight = Math.ceil(headerHeight + metricsHeight + rankingHeight + detailsHeight + 190);
+    const summaryTop = 72;
+    const metricsTop = headerHeight;
+    const rankingTop = metricsTop + metricsHeight + sectionGap;
+    const detailsTop = rankingTop + rankingHeight + sectionGap;
+    const footerTop = detailsTop + detailsHeight + 40;
+
+    const metricCards = [
+      { label: 'Planos cadastrados', value: String(summary.total) },
+      { label: 'Valor total', value: money(summary.value) },
+      { label: 'Pessoas cobertas', value: String(totalPeople) },
+      { label: 'Plano mais assinado', value: topPlan?.name ?? 'Sem dados' },
+    ];
+
+    const rankingHeader = ['#', 'Plano', 'Contratos', 'Titulares', 'Dependentes', 'Valor'];
+    const rankingCols = [70, 420, 145, 145, 155, 289];
+    const detailHeader = ['Titular', 'Passaporte', 'Plano', 'Dependentes', 'Status', 'Valor'];
+    const detailCols = [290, 170, 285, 135, 155, 189];
+
+    function buildTableHeader(y: number, cols: number[], labels: string[]) {
+      let x = paddingX;
+      const cells = labels.map((label, index) => {
+        const cell = `<rect x="${x}" y="${y}" width="${cols[index]}" height="34" fill="#f2e7dc" stroke="#dfd0c3" />` +
+          `<text x="${x + 12}" y="${y + 22}" font-size="12" font-weight="700" fill="#5b2516">${escapeXml(label)}</text>`;
+        x += cols[index];
+        return cell;
+      });
+      return cells.join('');
+    }
+
+    function buildRow(y: number, cols: number[], values: string[], fill = '#ffffff') {
+      let x = paddingX;
+      const cells = values.map((value, index) => {
+        const cell = `<rect x="${x}" y="${y}" width="${cols[index]}" height="${rowHeight}" fill="${fill}" stroke="#d9c4b3" />` +
+          `<text x="${x + 12}" y="${y + 24}" font-size="13" fill="#2f241f">${escapeXml(shorten(value, index === 0 ? 28 : index === 2 ? 24 : 18))}</text>`;
+        x += cols[index];
+        return cell;
+      });
+      return cells.join('');
+    }
+
+    const rankingRowsSvg = summary.byPlan.length
+      ? summary.byPlan.map((item, index) => buildRow(rankingTop + 48 + index * rowHeight, rankingCols, [
+          String(index + 1),
+          item.name,
+          String(item.total),
+          String(item.holders),
+          String(item.dependents),
+          money(item.value),
+        ], index % 2 === 0 ? '#fffdf9' : '#fff7ef')).join('')
+      : buildRow(rankingTop + 48, rankingCols, ['-', 'Sem dados', '0', '0', '0', money(0)]);
+
+    const detailRowsSvg = monthPlans.length
+      ? monthPlans.map((item, index) => {
+          const definition = plans.find((plan) => plan.name === item.plan);
+          const value = item.financialValue ?? definition?.value ?? 0;
+          return buildRow(detailsTop + 48 + index * rowHeight, detailCols, [
+            item.name,
+            item.passport,
+            item.plan,
+            String(item.dependentsList.length),
+            item.status,
+            money(value),
+          ], index % 2 === 0 ? '#fffdf9' : '#fff7ef');
+        }).join('')
+      : buildRow(detailsTop + 48, detailCols, ['Nenhum plano cadastrado neste mês.', '-', '-', '-', '-', '-']);
+
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${totalHeight}" viewBox="0 0 ${width} ${totalHeight}">
+      <rect width="100%" height="100%" fill="#e9e1d8" />
+      <rect x="24" y="20" width="${width - 48}" height="${totalHeight - 40}" fill="#ffffff" />
+
+      <text x="${paddingX}" y="${summaryTop}" font-size="14" font-weight="700" letter-spacing="2.2" fill="#6d1f0f">HPSR · CONVÊNIOS</text>
+      <text x="${paddingX}" y="${summaryTop + 36}" font-size="34" font-weight="800" fill="#171717">Relatório mensal de convênios</text>
+      <text x="${paddingX}" y="${summaryTop + 64}" font-size="14" fill="#6d5146">Período: ${escapeXml(monthLabel)} · Gerado em ${escapeXml(new Date().toLocaleString('pt-BR'))}</text>
+      <line x1="${paddingX}" y1="${summaryTop + 82}" x2="${width - paddingX}" y2="${summaryTop + 82}" stroke="#7a2b17" stroke-width="3" />
+
+      ${metricCards.map((item, index) => {
+        const x = paddingX + index * (metricWidth + metricGap);
+        return `<g>
+          <rect x="${x}" y="${metricsTop}" width="${metricWidth}" height="82" rx="11" fill="#ffffff" stroke="#d9c4b3" />
+          <text x="${x + 16}" y="${metricsTop + 26}" font-size="13" fill="#2f241f">${escapeXml(item.label)}</text>
+          <text x="${x + 16}" y="${metricsTop + 58}" font-size="22" font-weight="800" fill="#6d1f0f">${escapeXml(shorten(item.value, 26))}</text>
+        </g>`;
+      }).join('')}
+
+      <text x="${paddingX}" y="${rankingTop + 8}" font-size="20" font-weight="800" fill="#6d1f0f">Resumo por tipo de plano</text>
+      ${buildTableHeader(rankingTop + 18, rankingCols, rankingHeader)}
+      ${rankingRowsSvg}
+
+      <text x="${paddingX}" y="${detailsTop + 8}" font-size="20" font-weight="800" fill="#6d1f0f">Planos cadastrados no período</text>
+      ${buildTableHeader(detailsTop + 18, detailCols, detailHeader)}
+      ${detailRowsSvg}
+
+      <line x1="${paddingX}" y1="${footerTop - 22}" x2="${width - paddingX}" y2="${footerTop - 22}" stroke="#d9c4b3" />
+      <text x="${paddingX}" y="${footerTop}" font-size="12" fill="#7c6d65">Documento gerado pelo HPSR. Os dados refletem os registros existentes no mês selecionado.</text>
+    </svg>`;
+
+    const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const svgUrl = URL.createObjectURL(svgBlob);
+
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Não foi possível renderizar o relatório como imagem.'));
+        img.src = svgUrl;
+      });
+
+      const scale = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(totalHeight * scale);
+      const context = canvas.getContext('2d');
+      if (!context) {
+        throw new Error('Não foi possível preparar o download da imagem.');
+      }
+      context.scale(scale, scale);
+      context.fillStyle = '#f8efe6';
+      context.fillRect(0, 0, width, totalHeight);
+      context.drawImage(image, 0, 0, width, totalHeight);
+
+      const pngBlob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error('Não foi possível finalizar a imagem do relatório.'));
+        }, 'image/png');
+      });
+
+      const downloadUrl = URL.createObjectURL(pngBlob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `relatorio-convenios-${month || 'mes'}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(downloadUrl);
+    } catch (error) {
+      console.error(error);
+      void hpsrAlert('Não foi possível gerar a imagem do relatório. Tente novamente.', 'Falha ao exportar imagem');
+    } finally {
+      URL.revokeObjectURL(svgUrl);
+    }
+  }
+
+
+  return (
+    <div className="grid gap-4">
+      <section className="overflow-hidden rounded-[20px] border border-hpsr-border bg-[linear-gradient(135deg,#fffdf9_0%,#fff7ee_58%,#f2e0cf_100%)]">
+        <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-hpsr-border bg-white/80 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wine">
+                <BarChart3 size={13} /> Relatório mensal
+              </span>
+              <span className="rounded-full bg-hpsr-wine px-2.5 py-1 text-[10px] font-bold text-white">{summary.total} plano{summary.total === 1 ? "" : "s"}</span>
+            </div>
+            <h3 className="mt-3 text-xl font-black capitalize text-hpsr-text">{monthLabel}</h3>
+            <p className="mt-1 max-w-xl text-sm leading-relaxed text-hpsr-muted">
+              Visão consolidada dos contratos, pessoas cobertas e valores registrados no período.
+            </p>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-[190px_auto]">
+            <label className="min-w-0">
+              <span className={labelClass}>Mês do relatório</span>
+              <div className="mt-1.5 flex w-full min-w-0 rounded-[14px] border border-hpsr-border bg-white px-3 py-2.5">
+                <input className="block w-full min-w-0 border-0 bg-transparent p-0 text-sm font-semibold text-hpsr-text outline-none" type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
+              </div>
+            </label>
+            <button
+              type="button"
+              onClick={() => { void exportImage(); }}
+              className="inline-flex items-center justify-center gap-2 self-end rounded-[14px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 py-3 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <FileDown size={16} />
+              Exportar imagem
+            </button>
+          </div>
+        </div>
+
+        <div className="grid border-t border-hpsr-border/80 bg-white/55 sm:grid-cols-2 lg:grid-cols-4">
+          <ReportHighlight label="Valor do mês" value={money(summary.value)} detail={`${summary.active} ativo${summary.active === 1 ? "" : "s"}`} icon={<Banknote size={17} />} />
+          <ReportHighlight label="Pessoas cobertas" value={String(totalPeople)} detail={`${summary.holders} titulares + ${summary.dependents} dependentes`} icon={<UsersRound size={17} />} />
+          <ReportHighlight label="Mais assinado" value={topPlan?.name ?? "Sem dados"} detail={topPlan ? `${topPlan.total} contrato${topPlan.total === 1 ? "" : "s"}` : "Nenhum contrato no período"} icon={<BadgePercent size={17} />} />
+          <ReportHighlight label="Situação" value={`${summary.active} / ${summary.closed}`} detail="Ativos / encerrados" icon={<ShieldCheck size={17} />} />
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-[18px] border border-hpsr-border bg-white">
+        <div className="flex flex-col gap-1 border-b border-hpsr-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-black text-hpsr-text">Planos mais assinados</h3>
+            <p className="mt-0.5 text-xs text-hpsr-muted">Ranking do mês, com integrantes e valor total por modalidade.</p>
+          </div>
+          <span className="text-xs font-bold text-hpsr-wine">{summary.byPlan.filter((item) => item.total > 0).length} modalidade{summary.byPlan.filter((item) => item.total > 0).length === 1 ? "" : "s"} com movimento</span>
+        </div>
+        <div className="max-h-[302px] overflow-y-auto p-3">
+          {summary.byPlan.map((item, index) => {
+            const percentage = summary.total > 0 ? Math.round((item.total / summary.total) * 100) : 0;
+            return (
+              <article key={item.id} className="mb-2 rounded-[15px] border border-hpsr-border bg-[#fffaf5] p-3 last:mb-0">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-hpsr-wine text-xs font-black text-white">{index + 1}</span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-black text-hpsr-text">{item.name}</p>
+                        <p className="text-xs text-hpsr-muted">{item.holders + item.dependents} pessoa{item.holders + item.dependents === 1 ? "" : "s"} coberta{item.holders + item.dependents === 1 ? "" : "s"}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#eadfd4]">
+                      <div className="h-full rounded-full bg-hpsr-wine" style={{ width: `${percentage}%` }} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 sm:min-w-[310px]">
+                    <ReportCell label="Contratos" value={String(item.total)} />
+                    <ReportCell label="Dependentes" value={String(item.dependents)} />
+                    <ReportCell label="Valor" value={money(item.value)} />
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-[18px] border border-hpsr-border bg-white">
+        <div className="flex items-center justify-between gap-3 border-b border-hpsr-border px-4 py-3">
+          <div>
+            <h3 className="text-sm font-black text-hpsr-text">Contratos do período</h3>
+            <p className="mt-0.5 text-xs text-hpsr-muted">Titulares e situação de cada plano registrado no mês.</p>
+          </div>
+          <span className="rounded-full bg-[#f3e6d9] px-2.5 py-1 text-xs font-black text-hpsr-wine">{monthPlans.length}</span>
+        </div>
+        <div className="max-h-[270px] overflow-y-auto p-3">
+          {monthPlans.length ? monthPlans.map((item) => {
+            const definition = plans.find((plan) => plan.name === item.plan);
+            const itemValue = item.financialValue ?? definition?.value ?? 0;
+            return (
+              <div key={item.id} className="mb-2 grid gap-2 rounded-[14px] border border-hpsr-border px-3 py-3 last:mb-0 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-hpsr-text">{item.name}</p>
+                  <p className="mt-0.5 truncate text-xs text-hpsr-muted">Passaporte {item.passport} · {item.plan}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
+                  <span className="rounded-full bg-[#f3e6d9] px-2.5 py-1 text-hpsr-wine">{item.dependentsList.length} dependente{item.dependentsList.length === 1 ? "" : "s"}</span>
+                  <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-hpsr-text">{money(itemValue)}</span>
+                  <span className={`rounded-full px-2.5 py-1 ${item.status === "Ativo" ? "bg-emerald-100 text-emerald-800" : "bg-zinc-100 text-zinc-700"}`}>{item.status}</span>
+                </div>
+              </div>
+            );
+          }) : (
+            <p className="rounded-[14px] border border-dashed border-hpsr-border p-6 text-center text-sm text-hpsr-muted">Nenhum plano cadastrado neste mês.</p>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ReportHighlight({ label, value, detail, icon }: { label: string; value: string; detail: string; icon: ReactNode }) {
+  return (
+    <div className="border-b border-hpsr-border/70 p-4 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0">
+      <div className="flex items-center gap-2 text-hpsr-wine">{icon}<p className="text-[10px] font-black uppercase tracking-[0.13em]">{label}</p></div>
+      <p className="mt-2 break-words text-lg font-black leading-tight text-hpsr-text">{value}</p>
+      <p className="mt-1 text-xs text-hpsr-muted">{detail}</p>
+    </div>
+  );
+}
+
+function ReportMetric({ label, value, icon }: { label: string; value: string; icon?: ReactNode }) {
+  return (
+    <div className="rounded-[14px] border border-hpsr-border bg-white p-3">
+      <div className="flex items-center gap-2 text-hpsr-wine">{icon}<p className="text-[10px] font-black uppercase tracking-[0.13em]">{label}</p></div>
+      <p className="mt-1 text-lg font-black text-hpsr-text">{value}</p>
+    </div>
+  );
+}
+
+function ReportCell({ label, value }: { label: string; value: string }) {
+  return <div><p className="text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">{label}</p><p className="mt-0.5 text-xs font-bold text-hpsr-text">{value}</p></div>;
+}
 
 function SearchResultInfo({ label, value }: { label: string; value: string }) {
   return (

@@ -2,9 +2,8 @@
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { CalendarDays, CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, RefreshCcw, Stethoscope, XCircle, CalendarClock } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, RefreshCcw, Stethoscope, XCircle, CalendarClock } from "lucide-react";
 import { specialties } from "@/data/mock";
-import { PatientBookingPanel } from "@/components/public/PatientBookingPanel";
 
 type Appointment = {
   id: string;
@@ -104,10 +103,6 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
       requestInFlightRef.current = null;
     }
   }, [passport]);
-
-  const handleBooked = useCallback(() => {
-    void loadAppointments({ silent: true, force: true });
-  }, [loadAppointments]);
 
   useEffect(() => {
     if (view === "request") {
@@ -212,14 +207,13 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
           </div>
         </section>
       )}
-      {view === "scheduled" && <PatientBookingPanel passport={passport} onSessionExpired={onSessionExpired} onBooked={handleBooked} />}
-      {view !== "request" && <section className="rounded-[22px] border border-hpsr-border bg-white/90 p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><CalendarDays size={20} /></div>
-            <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Portal do paciente</p><h3 className="text-lg font-black text-hpsr-text">{view === "pending" ? "Pendências" : "Consultas marcadas"}</h3></div>
+      {view !== "request" && <section className="rounded-[18px] border border-hpsr-border bg-white/90 p-3.5 sm:p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hpsr-border/70 pb-3">
+          <div>
+            <h3 className="text-base font-black text-hpsr-text">{view === "pending" ? "Pendências" : "Meus agendamentos"}</h3>
+            <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{view === "pending" ? "Itens que precisam da sua atenção." : "Acompanhe horários e respostas da equipe."}</p>
           </div>
-          <button type="button" onClick={() => void loadAppointments({ force: true })} className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine"><RefreshCcw size={14} /> Atualizar</button>
+          <button type="button" onClick={() => void loadAppointments({ force: true })} className="inline-flex items-center gap-1.5 rounded-[10px] border border-hpsr-border bg-white px-2.5 py-2 text-[11px] font-black text-hpsr-wine"><RefreshCcw size={13} /> Atualizar</button>
         </div>
 
         {loading ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-hpsr-wine" /></div> : visibleAppointments.length === 0 ? (
@@ -233,7 +227,8 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
                   <button type="button" onClick={() => setExpanded(isExpanded ? null : appointment.id)} className="flex w-full items-center justify-between gap-3 text-left">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black text-hpsr-text">{appointment.specialty}</p>
-                      <p className="mt-1 text-xs font-semibold text-hpsr-muted">{formatDate(appointment.preferredDate)} · {appointment.preferredTime ? `às ${appointment.preferredTime}` : (appointment.preferredPeriod || "Horário a definir")}</p>
+                      <p className="mt-1 text-xs font-semibold text-hpsr-muted">{formatDate(appointment.proposedDate || appointment.preferredDate)} · {(appointment.proposedTime || appointment.preferredTime) ? `às ${appointment.proposedTime || appointment.preferredTime}` : (appointment.preferredPeriod || "Horário a definir")}</p>
+                      <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">{appointment.physician || "Médico a definir"}</p>
                       <p className="mt-1 text-[11px] font-black uppercase tracking-[0.1em] text-hpsr-wineLight">{appointment.flowType || "Consulta comum"}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2"><span className="rounded-full bg-[#f1dfcd] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{appointment.status}</span>{isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</div>
@@ -273,9 +268,11 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
         )}
       </section>}
 
-      {view === "request" && <section className="rounded-[22px] border border-hpsr-border bg-white/90 p-4 sm:p-5">
-        <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Stethoscope size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Novo atendimento</p><h3 className="text-lg font-black text-hpsr-text">Agendar consulta</h3></div></div>
-        <p className="mt-3 text-sm font-semibold leading-relaxed text-hpsr-muted">Envie a necessidade do atendimento. A equipe médica definirá a data e o horário e fará contato para confirmação.</p>
+      {view === "request" && <section className="rounded-[18px] border border-hpsr-border bg-white/90 p-3.5 sm:p-4">
+        <div className="border-b border-hpsr-border/70 pb-3">
+          <h3 className="text-base font-black text-hpsr-text">Solicitar consulta</h3>
+          <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Informe a necessidade do atendimento. A equipe médica responderá com a data e o horário.</p>
+        </div>
         <button type="button" onClick={() => setRequestFlowType("Acompanhamento com especialista")} className={`mt-4 flex w-full items-start gap-3 rounded-[18px] border p-4 text-left transition ${requestFlowType === "Acompanhamento com especialista" ? "border-hpsr-wine bg-[#fff4ee] shadow-sm" : "border-hpsr-border bg-[#fffaf4] hover:border-hpsr-wineLight"}`}>
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-hpsr-wine text-white"><Stethoscope size={19} /></span>
           <span><strong className="block text-sm font-black text-hpsr-text">Já faço acompanhamento com um especialista</strong><span className="mt-1 block text-xs font-semibold leading-relaxed text-hpsr-muted">Selecione o médico que já acompanha você e envie o pré-registro para confirmação do profissional.</span></span>

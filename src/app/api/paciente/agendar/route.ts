@@ -34,6 +34,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "Descreva o objetivo da solicitação selecionada como Outros." }, { status: 400 });
     }
 
+    const activeBookingResult = await valid.supabase.rpc("hpsr_patient_has_active_booking", {
+      target_passport: valid.access.patient_passport,
+      target_specialty: specialty,
+      exclude_appointment_id: null,
+    });
+    if (activeBookingResult.error) throw activeBookingResult.error;
+    if (activeBookingResult.data) {
+      return NextResponse.json(
+        { ok: false, error: `Você já possui uma consulta ativa em ${specialty}. Aguarde ela ser realizada, cancelada ou encerrada antes de solicitar outra.` },
+        { status: 409 },
+      );
+    }
+
     let verifiedDoctorId = "";
     let verifiedDoctorName = "";
     if (flowType === "Acompanhamento com especialista") {
@@ -98,6 +111,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, id, status: flowType === "Acompanhamento com especialista" ? "Acompanhamento aguardando confirmação" : "Solicitação enviada" });
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error || "");
+    if (errorMessage.includes("já possui uma consulta ativa")) {
+      return NextResponse.json({ ok: false, error: errorMessage }, { status: 409 });
+    }
     console.error("[patient-portal] create appointment", error);
     return NextResponse.json({ ok: false, error: "Não foi possível solicitar a consulta." }, { status: 500 });
   }

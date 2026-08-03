@@ -206,14 +206,15 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
         </aside>
       </div>
 
-      {series.length > 0 && (
-        <div className={embedded ? "rounded-[20px] border border-hpsr-border bg-[#fffdf9] px-4 py-4 shadow-[0_10px_28px_rgba(93,45,24,0.04)] lg:px-5" : "border-t border-hpsr-border bg-[#fffdf9] px-4 py-4 lg:px-5"}>
-          <div className="mb-3"><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Disponibilidades cadastradas</p><p className="mt-1 text-sm text-hpsr-muted">Horários publicados pelo médico e liberados por especialidade.</p></div>
-          <div className="grid gap-2 lg:grid-cols-2">
-            {series.map((item) => <div key={item.id} className="flex items-center gap-3 rounded-[15px] border border-hpsr-border bg-white p-3 transition hover:border-hpsr-wineLight/50"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#fff4ea] text-hpsr-wine"><CalendarPlus2 size={18} /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{item.specialty}</p><p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{displayDate(item.start_date)} até {displayDate(item.end_date)}</p><p className="mt-1 text-[11px] text-hpsr-muted">{item.start_time.slice(0, 5)}–{item.end_time.slice(0, 5)} · {item.slot_duration_minutes} min</p></div><button aria-label="Remover sequência livre" disabled={busy} onClick={() => void removeSeries(item.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-rose-100 text-rose-700 transition hover:bg-rose-50"><Trash2 size={15} /></button></div>)}
-          </div>
+      <details open className={embedded ? "overflow-hidden rounded-[20px] border border-hpsr-border bg-[#fffdf9] shadow-[0_10px_28px_rgba(93,45,24,0.04)]" : "overflow-hidden border-t border-hpsr-border bg-[#fffdf9]"}>
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 lg:px-5">
+          <div><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Horários publicados</p><p className="mt-1 text-sm text-hpsr-muted">{series.length} sequência{series.length === 1 ? "" : "s"} ativa{series.length === 1 ? "" : "s"}</p></div>
+          <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-hpsr-wine">Ver lista</span>
+        </summary>
+        <div className="grid max-h-[252px] gap-2 overflow-y-auto border-t border-hpsr-border p-3" style={{ scrollbarGutter: "stable" }}>
+          {series.length ? series.map((item) => <div key={item.id} className="flex items-center gap-3 rounded-[15px] border border-hpsr-border bg-white p-3 transition hover:border-hpsr-wineLight/50"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#fff4ea] text-hpsr-wine"><CalendarPlus2 size={18} /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{item.specialty}</p><p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{displayDate(item.start_date)} até {displayDate(item.end_date)}</p><p className="mt-1 text-[11px] text-hpsr-muted">{item.start_time.slice(0, 5)}–{item.end_time.slice(0, 5)} · {item.slot_duration_minutes} min</p></div><button aria-label="Remover sequência livre" disabled={busy} onClick={() => void removeSeries(item.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-rose-100 text-rose-700 transition hover:bg-rose-50"><Trash2 size={15} /></button></div>) : <p className="col-span-full rounded-[14px] border border-dashed border-hpsr-border bg-white p-5 text-center text-sm text-hpsr-muted">Nenhum horário publicado.</p>}
         </div>
-      )}
+      </details>
     </section>
   );
 }

@@ -9,7 +9,10 @@ export type XlsxSheetDefinition = {
 type ZipEntry = { name: string; data: Uint8Array; crc: number; offset: number };
 
 const encoder = new TextEncoder();
-const xmlEscape = (value: unknown) => String(value ?? "")
+const sanitizeXmlText = (value: unknown) => String(value ?? "")
+  .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, "");
+
+const xmlEscape = (value: unknown) => sanitizeXmlText(value)
   .replace(/&/g, "&amp;")
   .replace(/</g, "&lt;")
   .replace(/>/g, "&gt;")
@@ -166,10 +169,26 @@ function stylesXml() {
 </styleSheet>`;
 }
 
-export function downloadXlsx(filename: string, sheets: XlsxSheetDefinition[]) {
-  const safeSheets = sheets.map((sheet, index) => ({
+function createUniqueSheetName(rawName: string, index: number, usedNames: Set<string>) {
+  const cleaned = sanitizeXmlText(rawName || `Planilha ${index + 1}`)
+    .replace(/[\/*?:[\]]/g, " ")
+    .trim() || `Planilha ${index + 1}`;
+  let candidate = cleaned.slice(0, 31);
+  let suffix = 2;
+  while (usedNames.has(candidate.toLocaleLowerCase("pt-BR"))) {
+    const marker = ` (${suffix})`;
+    candidate = `${cleaned.slice(0, Math.max(1, 31 - marker.length))}${marker}`;
+    suffix += 1;
+  }
+  usedNames.add(candidate.toLocaleLowerCase("pt-BR"));
+  return candidate;
+}
+
+export function buildXlsxBytes(sheets: XlsxSheetDefinition[]) {
+  const usedNames = new Set<string>();
+  const safeSheets = (sheets.length ? sheets : [{ name: "Relatório", title: "Relatório", rows: [] }]).map((sheet, index) => ({
     ...sheet,
-    name: (sheet.name || `Planilha ${index + 1}`).replace(/[\\/*?:[\]]/g, " ").slice(0, 31),
+    name: createUniqueSheetName(sheet.name, index, usedNames),
   }));
   const sheetOverrides = safeSheets.map((_, index) => `<Override PartName="/xl/worksheets/sheet${index + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("");
   const workbookSheets = safeSheets.map((sheet, index) => `<sheet name="${xmlEscape(sheet.name)}" sheetId="${index + 1}" r:id="rId${index + 1}"/>`).join("");
@@ -177,12 +196,16 @@ export function downloadXlsx(filename: string, sheets: XlsxSheetDefinition[]) {
   const files: Array<{ name: string; content: string }> = [
     { name: "[Content_Types].xml", content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheetOverrides}</Types>` },
     { name: "_rels/.rels", content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
-    { name: "xl/workbook.xml", content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${workbookSheets}</sheets></workbook>` },
+    { name: "xl/workbook.xml", content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><workbookPr/><bookViews><workbookView activeTab="0"/></bookViews><sheets>${workbookSheets}</sheets><calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>` },
     { name: "xl/_rels/workbook.xml.rels", content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${workbookRels}<Relationship Id="rId${safeSheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
     { name: "xl/styles.xml", content: stylesXml() },
     ...safeSheets.map((sheet, index) => ({ name: `xl/worksheets/sheet${index + 1}.xml`, content: sheetXml(sheet) })),
   ];
-  const bytes = createStoredZip(files);
+  return createStoredZip(files);
+}
+
+export function downloadXlsx(filename: string, sheets: XlsxSheetDefinition[]) {
+  const bytes = buildXlsxBytes(sheets);
   const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -191,5 +214,5 @@ export function downloadXlsx(filename: string, sheets: XlsxSheetDefinition[]) {
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
 }

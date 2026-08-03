@@ -197,6 +197,8 @@ export function ClinicalFollowupPlanner({
   const generatedDates = dates();
   const preview = generatedDates.slice(0, 8);
   const selectedPatient = patients.find((patient) => patient.passport === form.passport);
+  const plannedPassports = new Set(plans.filter((plan) => plan.status !== "Encerrado").map((plan) => normalizeClinicalPassport(plan.patient_passport)));
+  const patientsWithoutFollowup = patients.filter((patient) => !plannedPassports.has(normalizeClinicalPassport(patient.passport)));
 
   return (
     <section className={embedded ? "space-y-4" : "overflow-hidden rounded-[20px] border border-hpsr-border bg-white shadow-[0_12px_35px_rgba(93,45,24,0.05)]"}>
@@ -303,26 +305,38 @@ export function ClinicalFollowupPlanner({
         </div>
       </div>
 
-      {plans.length > 0 && (
-        <div className={embedded ? "rounded-[20px] border border-hpsr-border bg-[#fffdf9] px-4 py-4 shadow-[0_10px_28px_rgba(93,45,24,0.04)] lg:px-5" : "border-t border-hpsr-border bg-[#fffdf9] px-4 py-4 lg:px-5"}>
-          <div className="mb-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Acompanhamentos cadastrados</p>
-          </div>
-          <div className="grid gap-2 lg:grid-cols-2">
-            {plans.map((plan) => (
-              <div key={plan.id} className="flex items-center gap-3 rounded-[15px] border border-hpsr-border bg-white p-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#fff4ea] text-hpsr-wine"><Clock3 size={18} /></div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-black text-hpsr-text">{plan.patient_name}</p>
-                  <p className="mt-0.5 truncate text-xs font-semibold text-hpsr-muted">{plan.specialty} · {plan.frequency} · {plan.total_consultations || 0} consultas</p>
-                  <p className="mt-1 text-[11px] text-hpsr-muted">{displayDate(plan.start_date)}{plan.end_date ? ` até ${displayDate(plan.end_date)}` : ""}</p>
-                </div>
+      <div className={embedded ? "grid gap-3 lg:grid-cols-2" : "grid border-t border-hpsr-border bg-[#fffdf9] p-4 lg:grid-cols-2 lg:p-5"}>
+        <details open className="overflow-hidden rounded-[18px] border border-hpsr-border bg-white">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5">
+            <div><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Acompanhamentos ativos</p><p className="mt-1 text-sm font-semibold text-hpsr-muted">{plans.length} planejamento{plans.length === 1 ? "" : "s"}</p></div>
+            <span className="rounded-full bg-[#fff4ea] px-3 py-1 text-xs font-black text-hpsr-wine">Ver lista</span>
+          </summary>
+          <div className="max-h-[252px] space-y-2 overflow-y-auto border-t border-hpsr-border p-3" style={{ scrollbarGutter: "stable" }}>
+            {plans.length ? plans.map((plan) => (
+              <div key={plan.id} className="flex items-center gap-3 rounded-[14px] border border-hpsr-border bg-[#fffdf9] p-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#fff4ea] text-hpsr-wine"><Clock3 size={17} /></div>
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{plan.patient_name}</p><p className="mt-0.5 truncate text-xs font-semibold text-hpsr-muted">{plan.specialty} · {plan.total_consultations || 0} consultas</p><p className="mt-1 text-[11px] text-hpsr-muted">{displayDate(plan.start_date)}{plan.end_date ? ` até ${displayDate(plan.end_date)}` : ""}</p></div>
                 <button aria-label="Remover planejamento" disabled={busy} onClick={() => void remove(plan.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-rose-100 text-rose-700 transition hover:bg-rose-50"><Trash2 size={15} /></button>
               </div>
-            ))}
+            )) : <p className="rounded-[14px] border border-dashed border-hpsr-border p-4 text-center text-sm text-hpsr-muted">Nenhum acompanhamento cadastrado.</p>}
           </div>
-        </div>
-      )}
+        </details>
+
+        <details className="overflow-hidden rounded-[18px] border border-hpsr-border bg-white">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5">
+            <div><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Pacientes sem acompanhamento</p><p className="mt-1 text-sm font-semibold text-hpsr-muted">{patientsWithoutFollowup.length} paciente{patientsWithoutFollowup.length === 1 ? "" : "s"}</p></div>
+            <span className="rounded-full bg-[#fff4ea] px-3 py-1 text-xs font-black text-hpsr-wine">Expandir</span>
+          </summary>
+          <div className="max-h-[252px] space-y-2 overflow-y-auto border-t border-hpsr-border p-3" style={{ scrollbarGutter: "stable" }}>
+            {patientsWithoutFollowup.length ? patientsWithoutFollowup.map((patient) => (
+              <button key={patient.passport} type="button" onClick={() => setForm((current) => ({ ...current, passport: patient.passport }))} className="flex w-full items-center justify-between gap-3 rounded-[14px] border border-hpsr-border bg-[#fffdf9] px-3 py-2.5 text-left transition hover:border-hpsr-wineLight">
+                <span className="min-w-0"><span className="block truncate text-sm font-black text-hpsr-text">{patient.name}</span><span className="mt-0.5 block text-xs font-semibold text-hpsr-muted">{patient.passport}</span></span>
+                <span className="shrink-0 text-xs font-black text-hpsr-wine">Selecionar</span>
+              </button>
+            )) : <p className="rounded-[14px] border border-dashed border-hpsr-border p-4 text-center text-sm text-hpsr-muted">Todos os pacientes possuem acompanhamento ativo.</p>}
+          </div>
+        </details>
+      </div>
     </section>
   );
 }
