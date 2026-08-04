@@ -4,9 +4,9 @@ import { Baby, CalendarDays, CheckCircle2, Clock3, Gauge, HeartPulse, History, L
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
-import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { createClient } from "@/lib/supabase";
+import { StyledSelect } from "@/components/ui/StyledSelect";
 
 const inputClass = "h-11 w-full rounded-[14px] border border-hpsr-border bg-white px-3.5 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wine";
 const TOTAL_GESTATION_WEEKS = 40;
@@ -66,6 +66,7 @@ export default function ObstetricianPage() {
   const [planningMessage, setPlanningMessage] = useState("");
   const [planningError, setPlanningError] = useState("");
   const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
+  const [selectedPlanId, setSelectedPlanId] = useState("");
 
   const calculation = useMemo(() => {
     const safeWeek = Math.max(1, Math.min(TOTAL_GESTATION_WEEKS, Number(currentWeek) || 1));
@@ -96,23 +97,26 @@ export default function ObstetricianPage() {
     if (!currentUserProfile.id) return;
     const client = createClient();
     if (!client) return;
-    let query = client
+    const { data } = await client
       .from("clinical_followup_plans")
       .select("id,patient_name,patient_passport,start_date,end_date,total_consultations,status,created_at")
       .eq("doctor_id", currentUserProfile.id)
       .eq("specialty", "Obstetra")
       .order("created_at", { ascending: false })
-      .limit(12);
-    if (selectedPassport) query = query.eq("patient_passport", selectedPassport);
-    const { data } = await query;
+      .limit(50);
     setPlans((data || []) as GestationalPlan[]);
   }
 
   useEffect(() => {
     void loadHistory();
-  }, [currentUserProfile.id, selectedPassport]);
+  }, [currentUserProfile.id]);
 
-  async function deleteGestationalPlan(plan: GestationalPlan) {
+  async function deleteGestationalPlan() {
+    const plan = plans.find((item) => item.id === selectedPlanId);
+    if (!plan) {
+      setPlanningError("Selecione um planejamento para excluir.");
+      return;
+    }
     if (deletingPlanId) return;
     const confirmed = window.confirm(`Excluir o planejamento gestacional de ${plan.patient_name}? Esta ação removerá também todas as etapas vinculadas.`);
     if (!confirmed) return;
@@ -137,6 +141,7 @@ export default function ObstetricianPage() {
         .eq("doctor_id", currentUserProfile.id);
       if (planError) throw planError;
       setPlans((current) => current.filter((item) => item.id !== plan.id));
+      setSelectedPlanId("");
       setPlanningMessage(`Planejamento gestacional de ${plan.patient_name} excluído.`);
     } catch (caught) {
       setPlanningError(caught instanceof Error ? caught.message : "Não foi possível excluir o planejamento gestacional.");
@@ -361,13 +366,25 @@ export default function ObstetricianPage() {
             <div className="grid h-11 w-11 place-items-center rounded-[14px] bg-[#f7e8e4] text-hpsr-wine"><History size={20} /></div>
             <div>
               <h3 className="text-lg font-black text-hpsr-text">Histórico de planejamentos</h3>
-              <p className="text-sm text-hpsr-muted">Planejamentos gestacionais criados por você{selectedPatient ? ` para ${selectedPatient.name}` : ""}.</p>
+              <p className="text-sm text-hpsr-muted">Todos os planejamentos gestacionais criados pelo médico logado.</p>
             </div>
           </div>
-          <span className="rounded-full border border-hpsr-border bg-[#fffaf8] px-3 py-1.5 text-xs font-black text-hpsr-wine">{plans.length} registro{plans.length === 1 ? "" : "s"}</span>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span className="shrink-0 rounded-full border border-hpsr-border bg-[#fffaf8] px-3 py-1.5 text-center text-xs font-black text-hpsr-wine">{plans.length} registro{plans.length === 1 ? "" : "s"}</span>
+            <button
+              type="button"
+              onClick={() => void deleteGestationalPlan()}
+              disabled={!selectedPlanId || Boolean(deletingPlanId)}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-[14px] border border-red-200 bg-white px-4 text-sm font-black text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {deletingPlanId ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              {deletingPlanId ? "Excluindo..." : selectedPlanId ? "Excluir selecionado" : "Selecione um planejamento"}
+            </button>
+          </div>
         </div>
 
-        <div className="mt-4 max-h-[280px] overflow-y-auto pr-1 [scrollbar-gutter:stable]">
+        <p className="mt-3 text-xs font-semibold text-hpsr-muted">Clique em um planejamento para selecioná-lo. Depois use o único botão de exclusão acima.</p>
+        <div className="mt-3 max-h-[360px] overflow-y-auto pr-1 [scrollbar-gutter:stable]">
           {plans.length === 0 ? (
             <div className="rounded-[18px] border border-dashed border-hpsr-border bg-[#fffdfb] px-4 py-8 text-center">
               <p className="font-black text-hpsr-text">Nenhum planejamento registrado</p>
@@ -376,24 +393,28 @@ export default function ObstetricianPage() {
           ) : (
             <div className="grid gap-3 lg:grid-cols-2">
               {plans.map((plan) => (
-                <article key={plan.id} className="rounded-[18px] border border-hpsr-border bg-[#fffaf8] p-4">
+                <article
+                  key={plan.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={selectedPlanId === plan.id}
+                  onClick={() => setSelectedPlanId((current) => current === plan.id ? "" : plan.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setSelectedPlanId((current) => current === plan.id ? "" : plan.id);
+                    }
+                  }}
+                  className={`cursor-pointer rounded-[18px] border p-4 transition ${selectedPlanId === plan.id ? "border-hpsr-wine bg-[#fff1ec] ring-2 ring-hpsr-wine/15" : "border-hpsr-border bg-[#fffaf8] hover:border-[#cfa9a3] hover:bg-[#fff7f3]"}`}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate font-black text-hpsr-text">{plan.patient_name}</p>
                       <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Passaporte {plan.patient_passport}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
+                      {selectedPlanId === plan.id && <span className="rounded-full bg-hpsr-wine px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-white">Selecionado</span>}
                       <span className="rounded-full bg-[#f3dfda] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wine">{plan.status}</span>
-                      <button
-                        type="button"
-                        onClick={() => void deleteGestationalPlan(plan)}
-                        disabled={deletingPlanId === plan.id}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border border-red-200 bg-white text-red-700 transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-60"
-                        aria-label={`Excluir planejamento de ${plan.patient_name}`}
-                        title="Excluir planejamento"
-                      >
-                        {deletingPlanId === plan.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
-                      </button>
                     </div>
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2 text-sm">

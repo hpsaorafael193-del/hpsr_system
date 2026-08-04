@@ -96,6 +96,8 @@ type StaffRegistrationRequest = {
   createdAt: string;
   status: "Pendente" | "Aprovado" | "Recusado";
   hiddenAt?: string;
+  historical?: boolean;
+  historyReason?: string;
 };
 
 type PublicStaffApplication = {
@@ -483,7 +485,7 @@ export default function TeamPage() {
     setRegistrationRequestsLoading(true);
     setRegistrationRequestError("");
 
-    const [requestsResult, pendingProfilesResult] = await Promise.all([
+    const [requestsResult, profilesResult] = await Promise.all([
       client
         .from("staff_registration_requests")
         .select("id, auth_user_id, passport, name, requested_role, status, payload, created_at")
@@ -491,7 +493,6 @@ export default function TeamPage() {
       client
         .from("profiles")
         .select("id,name,email,passport,crm,role,specialty,city_phone,discord,access_status,created_at")
-        .neq("access_status", "Aprovado")
         .not("passport", "is", null)
         .neq("passport", "")
         .not("crm", "is", null)
@@ -505,45 +506,71 @@ export default function TeamPage() {
       return;
     }
 
+    const profiles = profilesResult.error ? [] : (profilesResult.data || []);
+    const profileById = new Map(profiles.map((profile) => [String(profile.id), profile]));
+    const profileByPassport = new Map(profiles.map((profile) => [String(profile.passport || ""), profile]));
+    const normalizeAccessStatus = (value: unknown) => String(value || "").trim().toLocaleLowerCase("pt-BR");
+    const isInactiveStatus = (value: unknown) => {
+      const normalized = normalizeAccessStatus(value);
+      return ["desativado", "desativada", "inativo", "inativa", "removido", "removida", "desligado", "desligada", "encerrado", "encerrada", "bloqueado", "bloqueada"].some((status) => normalized.includes(status));
+    };
+
     const remoteItems: StaffRegistrationRequest[] = (requestsResult.data || []).map((row) => {
       const payload = (row.payload || {}) as Record<string, unknown>;
+      const authUserId = row.auth_user_id ? String(row.auth_user_id) : undefined;
+      const passport = String(payload.passport || row.passport || "");
+      const linkedProfile = (authUserId ? profileById.get(authUserId) : undefined) || profileByPassport.get(passport);
+      const status = (row.status === "Aprovado" || row.status === "Recusado" ? row.status : "Pendente") as StaffRegistrationRequest["status"];
+      const inactiveProfile = linkedProfile ? isInactiveStatus(linkedProfile.access_status) : false;
+      const activeApprovedProfile = linkedProfile ? normalizeAccessStatus(linkedProfile.access_status) === "aprovado" : false;
+      const historical = Boolean(payload.hiddenAt) || status === "Recusado" || inactiveProfile || (status === "Aprovado" && !activeApprovedProfile);
       return {
         id: String(row.id),
-        authUserId: row.auth_user_id ? String(row.auth_user_id) : undefined,
+        authUserId,
         name: String(payload.name || row.name || "Não informado"),
-        passport: String(payload.passport || row.passport || ""),
-        email: String(payload.email || ""),
-        cityPhone: formatPhoneDisplay(String(payload.cityPhone || payload.city_phone || ""), ""),
-        discord: String(payload.discord || ""),
-        crm: String(payload.crm || ""),
-        specialty: String(payload.specialty || "Clínico Geral"),
-        requestedRole: String(payload.requestedRole || row.requested_role || "Estagiário de Enfermagem"),
+        passport,
+        email: String(payload.email || linkedProfile?.email || ""),
+        cityPhone: formatPhoneDisplay(String(payload.cityPhone || payload.city_phone || linkedProfile?.city_phone || ""), ""),
+        discord: String(payload.discord || linkedProfile?.discord || ""),
+        crm: String(payload.crm || linkedProfile?.crm || ""),
+        specialty: String(payload.specialty || linkedProfile?.specialty || "Clínico Geral"),
+        requestedRole: String(payload.requestedRole || row.requested_role || linkedProfile?.role || "Estagiário de Enfermagem"),
         createdAt: String(payload.createdAt || row.created_at || new Date().toISOString()),
-        status: (row.status === "Aprovado" || row.status === "Recusado" ? row.status : "Pendente") as StaffRegistrationRequest["status"],
+        status,
         hiddenAt: payload.hiddenAt ? String(payload.hiddenAt) : undefined,
+        historical,
+        historyReason: inactiveProfile ? "Profissional desativado ou removido" : status === "Recusado" ? "Cadastro recusado" : status === "Aprovado" && !activeApprovedProfile ? "Vínculo não está mais ativo" : payload.hiddenAt ? "Registro ocultado" : undefined,
       };
     });
 
     const requestUserIds = new Set(remoteItems.map((item) => item.authUserId).filter(Boolean));
     const requestPassports = new Set(remoteItems.map((item) => item.passport).filter(Boolean));
-    const missingProfileRequests: StaffRegistrationRequest[] = pendingProfilesResult.error
+    const missingProfileRequests: StaffRegistrationRequest[] = profilesResult.error
       ? []
-      : (pendingProfilesResult.data || [])
+      : profiles
           .filter((profile) => !requestUserIds.has(String(profile.id)) && !requestPassports.has(String(profile.passport || "")))
-          .map((profile) => ({
-            id: `profile-${profile.id}`,
-            authUserId: String(profile.id),
-            name: String(profile.name || "Não informado"),
-            passport: String(profile.passport || ""),
-            email: String(profile.email || ""),
-            cityPhone: formatPhoneDisplay(String(profile.city_phone || ""), ""),
-            discord: String(profile.discord || ""),
-            crm: String(profile.crm || ""),
-            specialty: String(profile.specialty || "Clínico Geral"),
-            requestedRole: String(profile.role || "Médico Clínico"),
-            createdAt: String(profile.created_at || new Date().toISOString()),
-            status: profile.access_status === "Recusado" ? "Recusado" : "Pendente",
-          }));
+          .map((profile) => {
+            const accessStatus = normalizeAccessStatus(profile.access_status);
+            const inactive = isInactiveStatus(profile.access_status);
+            const rejected = accessStatus === "recusado";
+            const approved = accessStatus === "aprovado";
+            return {
+              id: `profile-${profile.id}`,
+              authUserId: String(profile.id),
+              name: String(profile.name || "Não informado"),
+              passport: String(profile.passport || ""),
+              email: String(profile.email || ""),
+              cityPhone: formatPhoneDisplay(String(profile.city_phone || ""), ""),
+              discord: String(profile.discord || ""),
+              crm: String(profile.crm || ""),
+              specialty: String(profile.specialty || "Clínico Geral"),
+              requestedRole: String(profile.role || "Médico Clínico"),
+              createdAt: String(profile.created_at || new Date().toISOString()),
+              status: rejected ? "Recusado" as const : approved ? "Aprovado" as const : "Pendente" as const,
+              historical: inactive || rejected,
+              historyReason: inactive ? "Profissional desativado ou removido" : rejected ? "Cadastro recusado" : undefined,
+            };
+          });
 
     const completeItems = [...remoteItems, ...missingProfileRequests]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -613,8 +640,15 @@ export default function TeamPage() {
       deactivation_reason: reason || "Desligamento administrativo",
     });
     if (!error) {
-      const { data: requests } = await client.from("staff_registration_requests").select("id,payload").eq("auth_user_id", member.id);
-      for (const request of requests || []) {
+      const [byUserResult, byPassportResult] = await Promise.all([
+        client.from("staff_registration_requests").select("id,payload").eq("auth_user_id", member.id),
+        member.passport
+          ? client.from("staff_registration_requests").select("id,payload").eq("passport", member.passport)
+          : Promise.resolve({ data: [], error: null }),
+      ]);
+      const requests = [...(byUserResult.data || []), ...(byPassportResult.data || [])]
+        .filter((request, index, all) => all.findIndex((item) => item.id === request.id) === index);
+      for (const request of requests) {
         const payload = { ...((request.payload || {}) as Record<string, unknown>), hiddenAt: new Date().toISOString(), hiddenBy: currentUserProfile.systemName, hiddenReason: reason || "Profissional removido da equipe" };
         await client.from("staff_registration_requests").update({ payload, updated_at: new Date().toISOString() }).eq("id", request.id);
       }
@@ -1249,16 +1283,18 @@ function RegistrationRequestsModal({
   onOpenEditor: () => void;
 }) {
   const [showHistory, setShowHistory] = useState(false);
-  const visibleItems = items.filter((item) => showHistory ? Boolean(item.hiddenAt) : !item.hiddenAt);
+  const isHistoricalItem = (item: StaffRegistrationRequest) => Boolean(item.hiddenAt || item.historical);
+  const visibleItems = items.filter((item) => showHistory ? isHistoricalItem(item) : !isHistoricalItem(item));
   const orderedItems = [...visibleItems].sort((a, b) => {
     if (a.status === b.status) return 0;
     if (a.status === "Pendente") return -1;
     if (b.status === "Pendente") return 1;
     return 0;
   });
-  const pendingCount = items.filter((item) => item.status === "Pendente").length;
-  const approvedCount = items.filter((item) => item.status === "Aprovado").length;
-  const rejectedCount = items.filter((item) => item.status === "Recusado").length;
+  const currentItems = items.filter((item) => !isHistoricalItem(item));
+  const pendingCount = currentItems.filter((item) => item.status === "Pendente").length;
+  const approvedCount = currentItems.filter((item) => item.status === "Aprovado").length;
+  const rejectedCount = currentItems.filter((item) => item.status === "Recusado").length;
 
   return (
     <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
@@ -1272,7 +1308,7 @@ function RegistrationRequestsModal({
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <button type="button" onClick={onOpenEditor} className="inline-flex min-h-[38px] items-center justify-center gap-2 rounded-xl bg-hpsr-wine px-4 py-2 text-xs font-black text-white"><UserCog size={15} /> Editar médico</button>
-            <button type="button" onClick={() => setShowHistory((current) => !current)} className="rounded-xl border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">{showHistory ? "Voltar às solicitações" : `Mostrar histórico (${items.filter((item) => item.hiddenAt).length})`}</button>
+            <button type="button" onClick={() => setShowHistory((current) => !current)} className="rounded-xl border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">{showHistory ? "Voltar às solicitações" : `Mostrar histórico (${items.filter(isHistoricalItem).length})`}</button>
             <button type="button" onClick={() => void onRefresh()} disabled={loading} className="rounded-xl border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine disabled:opacity-50">
               {loading ? "Atualizando..." : "Atualizar"}
             </button>
@@ -1297,15 +1333,21 @@ function RegistrationRequestsModal({
                     <StatusBadge status={item.status} />
                   </div>
                   <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4"><Info label="E-mail" value={item.email} /><Info label="Telefone" value={item.cityPhone} /><Info label="Discord" value={item.discord} /><Info label="CRM" value={item.crm} /></div>
+                  {showHistory && item.historyReason ? <p className="mt-3 rounded-xl border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-xs font-semibold text-hpsr-muted">{item.historyReason}</p> : null}
                   {item.status === "Pendente" ? (
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button type="button" disabled={deciding} onClick={() => void onDecision(item, "Aprovado")} className="rounded-xl bg-emerald-700 px-4 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50">{deciding ? "Processando..." : "Aprovar cadastro"}</button>
                       <button type="button" disabled={deciding} onClick={() => void onDecision(item, "Recusado")} className="rounded-xl bg-red-700 px-4 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50">Recusar</button>
                     </div>
                   ) : null}
-                  {item.status !== "Pendente" || item.hiddenAt ? (
+                  {!showHistory && item.status !== "Pendente" ? (
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <button type="button" onClick={() => void onSetHidden(item, !item.hiddenAt)} className="rounded-xl border border-hpsr-border bg-white px-4 py-2 text-xs font-black text-hpsr-wine">{item.hiddenAt ? "Restaurar na lista" : "Ocultar no histórico"}</button>
+                      <button type="button" onClick={() => void onSetHidden(item, true)} className="rounded-xl border border-hpsr-border bg-white px-4 py-2 text-xs font-black text-hpsr-wine">Mover para o histórico</button>
+                    </div>
+                  ) : null}
+                  {showHistory && item.hiddenAt && !item.historical ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => void onSetHidden(item, false)} className="rounded-xl border border-hpsr-border bg-white px-4 py-2 text-xs font-black text-hpsr-wine">Restaurar na lista</button>
                     </div>
                   ) : null}
                 </article>
