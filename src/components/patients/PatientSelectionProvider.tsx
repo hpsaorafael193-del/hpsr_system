@@ -62,6 +62,8 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
   const [loading, setLoading] = useState(true);
   const [selectedPassport, setSelectedPassport] = useState("");
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
+  const lastRefreshAtRef = useRef(0);
+  const refreshQueuedRef = useRef<number | null>(null);
 
   useEffect(() => {
     try {
@@ -86,10 +88,7 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
       }
 
       setLoading(true);
-      const { data, error } = await client
-        .from("patient_registry")
-        .select("passport,name,age,blood_type,city_phone,email,created_at")
-        .order("created_at", { ascending: false });
+      const { data, error } = await client.rpc("list_patient_registry_staff");
 
       if (error) {
         console.error("[HPSR] Falha ao sincronizar pacientes:", error.message);
@@ -97,6 +96,7 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
         return;
       }
 
+      lastRefreshAtRef.current = Date.now();
       const authoritative = (data || [])
         .map((row) => normalizePatient({
           passport: row.passport,
@@ -129,11 +129,24 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
   }, []);
 
   useEffect(() => {
-    void refreshPatients();
-    const unsubscribeLocal = subscribePatientRegistryUpdated(() => void refreshPatients());
+    const requestRefresh = (force = false) => {
+      const elapsed = Date.now() - lastRefreshAtRef.current;
+      if (force || elapsed >= 5000) {
+        void refreshPatients();
+        return;
+      }
+      if (refreshQueuedRef.current !== null) return;
+      refreshQueuedRef.current = window.setTimeout(() => {
+        refreshQueuedRef.current = null;
+        void refreshPatients();
+      }, 5000 - elapsed);
+    };
+
+    requestRefresh(true);
+    const unsubscribeLocal = subscribePatientRegistryUpdated(() => requestRefresh());
     const handleVisibilityOrFocus = () => {
       if (typeof document !== "undefined" && document.hidden) return;
-      void refreshPatients();
+      requestRefresh();
     };
     document.addEventListener("visibilitychange", handleVisibilityOrFocus);
     window.addEventListener("focus", handleVisibilityOrFocus);
@@ -144,16 +157,18 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
         unsubscribeLocal();
         document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
         window.removeEventListener("focus", handleVisibilityOrFocus);
+        if (refreshQueuedRef.current !== null) window.clearTimeout(refreshQueuedRef.current);
       };
     }
     const channel = client
       .channel("shared-patient-selection")
-      .on("postgres_changes", { event: "*", schema: "public", table: "patient_registry" }, () => void refreshPatients())
+      .on("postgres_changes", { event: "*", schema: "public", table: "patient_registry" }, () => requestRefresh())
       .subscribe();
     return () => {
       unsubscribeLocal();
       document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
       window.removeEventListener("focus", handleVisibilityOrFocus);
+      if (refreshQueuedRef.current !== null) window.clearTimeout(refreshQueuedRef.current);
       void client.removeChannel(channel);
     };
   }, [refreshPatients]);
@@ -165,14 +180,14 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
     const client = createClient();
     if (!client) return false;
 
-    const { error } = await client.from("patient_registry").update({
-      name: normalized.name,
-      age: normalized.age || null,
-      blood_type: normalized.bloodType || null,
-      city_phone: normalized.cityPhone || null,
-      email: normalized.email || null,
-      updated_at: new Date().toISOString(),
-    }).eq("passport", normalized.passport);
+    const { error } = await client.rpc("upsert_patient_registry_staff", {
+      p_passport: normalized.passport,
+      p_name: normalized.name,
+      p_age: normalized.age || null,
+      p_blood_type: normalized.bloodType || null,
+      p_city_phone: normalized.cityPhone || null,
+      p_email: normalized.email || null,
+    });
 
     if (error) {
       console.error("[HPSR] Paciente não salvo no Supabase:", error.message);

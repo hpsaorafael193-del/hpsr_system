@@ -912,24 +912,31 @@ export default function DocumentsPage() {
     setQuickPatientOpen(true);
   }
 
-  function saveQuickPatient() {
+  async function saveQuickPatient() {
     const normalizedPatient = {
       ...quickPatientDraft,
       name: quickPatientDraft.name.trim(),
       passport: quickPatientDraft.passport.trim(),
     };
-    if (!normalizedPatient.name && !normalizedPatient.passport) {
+    if (!normalizedPatient.name || !normalizedPatient.passport) {
       setAppDialog({
         title: "Dados insuficientes",
-        message: "Informe pelo menos o nome ou o documento do paciente para usar o registro rápido.",
+        message: "Informe o nome e o documento do paciente. O documento é necessário para sincronizar o cadastro com o Prontuário sem criar duplicidades.",
         actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
       });
       return;
     }
-    const fallbackPassport = normalizedPatient.passport || `TEMP-${Date.now().toString().slice(-5)}`;
-    const nextPatient = { ...normalizedPatient, passport: fallbackPassport };
+    const nextPatient = { ...normalizedPatient, passport: normalizedPatient.passport.toUpperCase() };
+    const saved = await upsertSharedPatient(nextPatient);
+    if (!saved) {
+      setAppDialog({
+        title: "Cadastro não sincronizado",
+        message: "Não foi possível salvar o paciente no Prontuário. O cadastro rápido não foi concluído para evitar um registro somente local.",
+        actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
+      });
+      return;
+    }
     setPatient(nextPatient);
-    upsertSharedPatient(nextPatient);
     selectSharedPatient(nextPatient);
     setQuickPatientOpen(false);
   }

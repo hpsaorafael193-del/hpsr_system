@@ -208,18 +208,34 @@ export function UserMenu() {
 
   useEffect(() => {
     if (clock.status === "Fora de serviço") return;
+    const client = createClient();
+    if (!client) return;
+
+    let hasAuthenticatedSession = false;
+    let disposed = false;
+    void client.auth.getSession().then(({ data }) => {
+      if (!disposed) hasAuthenticatedSession = Boolean(data.session?.user?.id);
+    });
+    const { data: authListener } = client.auth.onAuthStateChange((_event, session) => {
+      hasAuthenticatedSession = Boolean(session?.user?.id);
+    });
+
     void sendClockHeartbeat(false);
     const heartbeatInterval = window.setInterval(() => { void sendClockHeartbeat(false); }, 60000);
-    const closeClock = () => { void sendClockHeartbeat(true); };
-    const handleOffline = () => { void sendClockHeartbeat(true); };
+    const requestDeferredClose = () => {
+      // pagehide também acontece em recargas e navegação. O banco apenas agenda
+      // o encerramento e o próximo heartbeat cancela a solicitação.
+      if (!hasAuthenticatedSession) return;
+      void client.rpc("time_clock_request_deferred_close");
+    };
     const handleOnline = () => { void sendClockHeartbeat(false); };
-    window.addEventListener("pagehide", closeClock);
-    window.addEventListener("offline", handleOffline);
+    window.addEventListener("pagehide", requestDeferredClose);
     window.addEventListener("online", handleOnline);
     return () => {
+      disposed = true;
+      authListener.subscription.unsubscribe();
       window.clearInterval(heartbeatInterval);
-      window.removeEventListener("pagehide", closeClock);
-      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("pagehide", requestDeferredClose);
       window.removeEventListener("online", handleOnline);
     };
   }, [clock.status, sendClockHeartbeat]);
