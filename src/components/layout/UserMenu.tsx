@@ -286,6 +286,19 @@ export function UserMenu() {
     if (!client) return;
     setActionLoading(true);
     setError("");
+
+    if (action !== "enter") {
+      const { data: preparation, error: preparationError } = await client.rpc("time_clock_prepare_action");
+      const isActive = Boolean(preparation && typeof preparation === "object" && "active" in preparation && (preparation as { active?: boolean }).active);
+      if (preparationError || !isActive) {
+        await loadClock();
+        await refreshProfile();
+        setError(preparationError?.message || "O ponto não está mais aberto no servidor. O estado foi atualizado.");
+        setActionLoading(false);
+        return;
+      }
+    }
+
     const { data, error: requestError } = await client.rpc("time_clock_action", { p_action: action });
     if (requestError) setError(requestError.message || "Não foi possível registrar a ação.");
     else if (data) {

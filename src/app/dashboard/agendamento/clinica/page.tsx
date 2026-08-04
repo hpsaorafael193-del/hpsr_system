@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -171,6 +172,8 @@ export default function ClinicalSchedulePage() {
   const [modal, setModal] = useState<ModalState>(null);
   const [scheduleToolModal, setScheduleToolModal] = useState<ScheduleToolModal>(null);
   const [appointmentSearch, setAppointmentSearch] = useState("");
+  const [scheduleScope, setScheduleScope] = useState<"mine" | "all">("mine");
+  const [showCompletedAppointments, setShowCompletedAppointments] = useState(false);
 
   const dateKey = toDateKey(selectedDate);
 
@@ -213,13 +216,20 @@ export default function ClinicalSchedulePage() {
     return () => { void client.removeChannel(channel); };
   }, [loadAppointments]);
 
+  const viewingAllSchedules = canViewAllMedicalSchedules && scheduleScope === "all";
   const doctorAppointments = scheduledAppointments.filter((appointment) => {
-    if (canViewAllMedicalSchedules) return true;
+    if (viewingAllSchedules) return true;
     if (appointment.doctorId) return appointment.doctorId === currentUserProfile.id;
     return appointment.physician === currentUserProfile.systemName;
   });
 
-  const appointmentsOnSelectedDay = doctorAppointments
+  const completedStatuses = new Set(["Realizada", "Concluída", "Não compareceu", "Cancelada"]);
+  const activeDoctorAppointments = doctorAppointments.filter((appointment) => !completedStatuses.has(appointment.status));
+  const completedDoctorAppointments = doctorAppointments
+    .filter((appointment) => completedStatuses.has(appointment.status))
+    .sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
+
+  const appointmentsOnSelectedDay = activeDoctorAppointments
     .filter((appointment) => appointment.date === dateKey)
     .sort((a, b) => a.time.localeCompare(b.time));
 
@@ -234,7 +244,7 @@ export default function ClinicalSchedulePage() {
   });
 
   const todayKey = toDateKey(brasiliaToday);
-  const todayAppointments = doctorAppointments.filter((appointment) => appointment.date === todayKey);
+  const todayAppointments = activeDoctorAppointments.filter((appointment) => appointment.date === todayKey);
   const confirmedAppointments = doctorAppointments.filter((appointment) => appointment.status === "Confirmada").length;
   const inServiceAppointments = doctorAppointments.filter((appointment) => appointment.status === "Em atendimento").length;
 
@@ -287,7 +297,7 @@ export default function ClinicalSchedulePage() {
     await loadAppointments();
   }
 
-  const monthlyAppointments = doctorAppointments.filter((appointment) => {
+  const monthlyAppointments = activeDoctorAppointments.filter((appointment) => {
     const [year, month] = appointment.date.split("-").map(Number);
     return year === currentMonth.getFullYear() && month - 1 === currentMonth.getMonth();
   });
@@ -307,49 +317,95 @@ export default function ClinicalSchedulePage() {
     <div className="hpsr-page gap-3">
       <PageHeader
         eyebrow="Agendamentos"
-        title="Agenda Clínica"
-        description="Calendário, consultas e ações clínicas em uma única visão."
-        compact
+        title="Minha Agenda Clínica"
+        description="Organize sua disponibilidade, consultas, acompanhamentos e atendimentos em um único lugar."
       />
 
-      <section className="rounded-[16px] border border-hpsr-border bg-white p-3 shadow-sm">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => setModal({ mode: "new" })} className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-hpsr-wine px-4 py-2.5 text-sm font-black text-white">
+      <section className="overflow-hidden rounded-[20px] border border-hpsr-border bg-[linear-gradient(135deg,#fffaf7_0%,#f7e8e1_100%)] shadow-sm">
+        <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.25fr)_auto] lg:items-center lg:p-5">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Central de trabalho médico</p>
+            <h1 className="mt-1.5 text-2xl font-black tracking-tight text-hpsr-text sm:text-3xl">Cuide de toda a sua agenda</h1>
+            <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-hpsr-muted">
+              Publique quando pode atender, acompanhe as consultas do dia, responda às solicitações e organize retornos sem sair desta área.
+            </p>
+            {canViewAllMedicalSchedules && (
+              <div className="mt-4 inline-flex rounded-[13px] border border-hpsr-border bg-white p-1 shadow-sm">
+                <button type="button" onClick={() => setScheduleScope("mine")} className={cn("rounded-[10px] px-3 py-2 text-xs font-black transition", scheduleScope === "mine" ? "bg-hpsr-wine text-white" : "text-hpsr-wine hover:bg-[#fff7f2]")}>Minha agenda</button>
+                <button type="button" onClick={() => setScheduleScope("all")} className={cn("rounded-[10px] px-3 py-2 text-xs font-black transition", scheduleScope === "all" ? "bg-hpsr-wine text-white" : "text-hpsr-wine hover:bg-[#fff7f2]")}>Todos os profissionais</button>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            <button onClick={() => setModal({ mode: "new" })} className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 py-3 text-sm font-black text-white shadow-sm transition hover:opacity-95">
               <Plus size={16} /> Nova consulta
             </button>
-            <button type="button" onClick={() => setScheduleToolModal("followup")} className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:border-hpsr-wineLight hover:bg-[#fff4e9]">
-              <CalendarCheck2 size={16} /> Planejar acompanhamento
+            <button onClick={() => setShowCompletedAppointments((current) => !current)} className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-wine transition hover:bg-[#fffaf4]">
+              <CalendarCheck2 size={16} /> Finalizadas ({completedDoctorAppointments.length})
             </button>
-            <button type="button" onClick={() => setScheduleToolModal("availability")} className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:border-hpsr-wineLight hover:bg-[#fff4e9]">
-              <CalendarClock size={16} /> Publicar horários
-            </button>
-            <button onClick={() => setModal({ mode: "export" })} className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-4 py-2.5 text-sm font-black text-hpsr-wine">
+            <button onClick={() => setModal({ mode: "export" })} className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-wine transition hover:bg-[#fffaf4]">
               <Download size={16} /> Exportar
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {[
-              ["Hoje", String(todayAppointments.length)],
-              ["Mês", String(monthlyAppointments.length)],
-              ["Confirmadas", String(confirmedAppointments)],
-              ["Em atendimento", String(inServiceAppointments)],
-            ].map(([label, value]) => (
-              <div key={label} className="min-w-[92px] rounded-[12px] border border-hpsr-border bg-[#fffdf9] px-3 py-2">
-                <p className="text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">{label}</p>
-                <p className="mt-0.5 text-base font-black text-hpsr-text">{value}</p>
+        </div>
+
+        <div className="grid gap-px border-t border-hpsr-border bg-[#eadbd6] sm:grid-cols-2 xl:grid-cols-4">
+          <button type="button" onClick={() => setScheduleToolModal("availability")} className="group bg-white p-4 text-left transition hover:bg-[#fff8f3]">
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-hpsr-wine text-white"><CalendarClock size={19} /></div>
+              <div className="min-w-0">
+                <p className="text-sm font-black text-hpsr-text">Minha disponibilidade</p>
+                <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">Publique os dias e horários em que poderá atender.</p>
               </div>
-            ))}
-          </div>
+            </div>
+          </button>
+
+          <button type="button" onClick={() => { setSelectedDate(brasiliaToday); setCurrentMonth(new Date(brasiliaToday.getFullYear(), brasiliaToday.getMonth(), 1)); }} className="group bg-white p-4 text-left transition hover:bg-[#fff8f3]">
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-[#f3e1da] text-hpsr-wine"><CalendarDays size={19} /></div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2"><p className="text-sm font-black text-hpsr-text">Agenda do dia</p><span className="rounded-full bg-[#f6e7e1] px-2 py-0.5 text-[10px] font-black text-hpsr-wine">{todayAppointments.length}</span></div>
+                <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">Veja os pacientes de hoje e inicie os atendimentos.</p>
+              </div>
+            </div>
+          </button>
+
+          <Link href="/dashboard/agendamento" className="group bg-white p-4 text-left transition hover:bg-[#fff8f3]">
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-[#f3e1da] text-hpsr-wine"><UsersRound size={19} /></div>
+              <div className="min-w-0">
+                <p className="text-sm font-black text-hpsr-text">Consultas e solicitações</p>
+                <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">Analise pedidos, confirmações e reagendamentos.</p>
+              </div>
+            </div>
+          </Link>
+
+          <button type="button" onClick={() => setScheduleToolModal("followup")} className="group bg-white p-4 text-left transition hover:bg-[#fff8f3]">
+            <div className="flex items-start gap-3">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-[#f3e1da] text-hpsr-wine"><HeartPulse size={19} /></div>
+              <div className="min-w-0">
+                <p className="text-sm font-black text-hpsr-text">Planejamentos e retornos</p>
+                <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">Organize acompanhamentos e próximas consultas.</p>
+              </div>
+            </div>
+          </button>
         </div>
       </section>
 
-      <DeveloperAppointmentManager
-        doctorId={currentUserProfile.id}
-        doctorName={currentUserProfile.systemName}
-        canViewAll={canViewAllMedicalSchedules}
-        appointments={doctorAppointments.map(({ id, status, patient, passport }) => ({ id, status, patient, passport }))}
-      />
+      <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[
+          ["Consultas hoje", String(todayAppointments.length)],
+          ["Consultas no mês", String(monthlyAppointments.length)],
+          ["Confirmadas", String(confirmedAppointments)],
+          ["Em atendimento", String(inServiceAppointments)],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-[14px] border border-hpsr-border bg-white px-3.5 py-3 shadow-sm">
+            <p className="text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">{label}</p>
+            <p className="mt-1 text-xl font-black text-hpsr-text">{value}</p>
+          </div>
+        ))}
+      </section>
 
       <section className="grid items-start gap-3 xl:grid-cols-[minmax(320px,410px)_minmax(0,1fr)]">
         <article className="flex h-auto flex-col overflow-hidden rounded-[18px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfb_0%,#fff8f4_100%)] shadow-sm xl:h-[560px]">
@@ -590,6 +646,29 @@ export default function ClinicalSchedulePage() {
         </article>
       </section>
 
+      {showCompletedAppointments && (
+        <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-sm">
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+            <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Histórico da agenda</p><h2 className="mt-1 text-lg font-black text-hpsr-text">Consultas finalizadas</h2><p className="mt-1 text-xs font-semibold text-hpsr-muted">Consultas realizadas, concluídas, canceladas ou marcadas como ausência não aparecem no calendário ativo.</p></div>
+            <button type="button" onClick={() => setShowCompletedAppointments(false)} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Ocultar histórico</button>
+          </div>
+          <div className="hpsr-touch-scroll max-h-[420px] space-y-2 overflow-y-auto pr-1">
+            {completedDoctorAppointments.length ? completedDoctorAppointments.map((appointment) => (
+              <article key={`completed-${appointment.id}`} className="flex flex-col gap-3 rounded-[15px] border border-hpsr-border bg-[#fffdf9] p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-black", statusClasses(appointment.status))}>{appointment.status}</span><span className="text-xs font-semibold text-hpsr-muted">{appointment.date.split("-").reverse().join("/")} às {appointment.time}</span></div><p className="mt-2 truncate text-sm font-black text-hpsr-text">{appointment.patient}</p><p className="mt-1 truncate text-xs font-semibold text-hpsr-muted">{appointment.specialty} · {appointment.physician} · Passaporte {appointment.passport}</p></div>
+                <div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => setModal({ mode: "patient", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Ver dados</button><button type="button" onClick={() => setModal({ mode: "reschedule", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Editar/Reagendar</button></div>
+              </article>
+            )) : <div className="rounded-[15px] border border-dashed border-hpsr-border p-6 text-center text-sm text-hpsr-muted">Nenhuma consulta finalizada encontrada.</div>}
+          </div>
+        </section>
+      )}
+
+      <DeveloperAppointmentManager
+        doctorId={currentUserProfile.id}
+        doctorName={currentUserProfile.systemName}
+        canViewAll={canViewAllMedicalSchedules}
+        appointments={doctorAppointments.map(({ id, status, patient, passport }) => ({ id, status, patient, passport }))}
+      />
 
       <ScheduleToolDialog
         mode={scheduleToolModal}
@@ -767,9 +846,11 @@ function NewAppointmentForm({
         setMessage({ type: "error", text: `Não foi possível carregar os médicos: ${error.message}` });
         return;
       }
+      const canManageAllDoctors = currentUserProfile.systemRole === "Diretor Técnico / Dev" || currentUserProfile.accessLevel === "Total" || ["Diretora", "Vice Diretor", "Diretor Clínico"].some((role) => role === currentUserProfile.role || role === currentUserProfile.systemRole);
       const available = (data || [])
         .filter((row) => isClinicalProfessional(row))
-        .map((row) => ({ id: String(row.id), name: String(row.name || "Médico"), specialty: String(row.specialty || "Clínico Geral") }));
+        .map((row) => ({ id: String(row.id), name: String(row.name || "Médico"), specialty: String(row.specialty || "Clínico Geral") }))
+        .filter((doctor) => canManageAllDoctors || doctor.id === currentUserProfile.id || doctor.name === currentUserProfile.systemName);
       setDoctors(available);
       const current = available.find((item) => item.name === currentUserProfile.systemName);
       setPhysician(current?.name || available[0]?.name || currentUserProfile.systemName);
@@ -844,7 +925,8 @@ function NewAppointmentForm({
     if (!client) return;
     const now = new Date().toISOString();
     const id = `appointment-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const payload = { patient: patientName, passport: patientPassport, specialty, physician, doctor: physician, date, preferredDate: date, time, source: "clinical_schedule", createdAt: now, updatedAt: now };
+    const selectedDoctor = doctors.find((doctor) => doctor.name === physician);
+    const payload = { patient: patientName, passport: patientPassport, specialty, physician, doctor: physician, doctorId: selectedDoctor?.id || currentUserProfile.id, date, preferredDate: date, time, source: "clinical_schedule", createdAt: now, updatedAt: now };
     const { error } = await client.from("appointments").insert({ id, passport: patientPassport, patient: patientName, status: "Agendada", payload, created_at: now, updated_at: now });
     if (error) { setMessage({ type: "error", text: error.message }); return; }
     setMessage({ type: "success", text: "Consulta salva e sincronizada com a visão geral e o prontuário." });

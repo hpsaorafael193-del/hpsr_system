@@ -1,6 +1,6 @@
 "use client";
 
-import { Baby, CalendarDays, CheckCircle2, Clock3, Gauge, HeartPulse, History, Loader2, Sparkles, Stethoscope } from "lucide-react";
+import { Baby, CalendarDays, CheckCircle2, Clock3, Gauge, HeartPulse, History, Loader2, Sparkles, Stethoscope, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
@@ -65,13 +65,15 @@ export default function ObstetricianPage() {
   const [planning, setPlanning] = useState(false);
   const [planningMessage, setPlanningMessage] = useState("");
   const [planningError, setPlanningError] = useState("");
+  const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
 
   const calculation = useMemo(() => {
     const safeWeek = Math.max(1, Math.min(TOTAL_GESTATION_WEEKS, Number(currentWeek) || 1));
     const safeDuration = Math.max(1, Math.min(180, Number(realDurationDays) || DEFAULT_REAL_DURATION_DAYS));
     const progressRatio = safeWeek / TOTAL_GESTATION_WEEKS;
-    const elapsedRealDays = Math.round(safeDuration * progressRatio);
-    const remainingRealDays = Math.max(0, safeDuration - elapsedRealDays);
+    const realDaysPerWeek = safeDuration / TOTAL_GESTATION_WEEKS;
+    const remainingRealDays = Math.max(0, Math.round((TOTAL_GESTATION_WEEKS - safeWeek) * realDaysPerWeek));
+    const elapsedRealDays = Math.max(0, safeDuration - remainingRealDays);
 
     return {
       safeWeek,
@@ -80,7 +82,7 @@ export default function ObstetricianPage() {
       elapsedRealDays,
       remainingRealDays,
       estimatedEndDate: addDays(referenceDate, remainingRealDays),
-      realDaysPerWeek: safeDuration / TOTAL_GESTATION_WEEKS,
+      realDaysPerWeek,
     };
   }, [currentWeek, realDurationDays, referenceDate]);
 
@@ -109,6 +111,40 @@ export default function ObstetricianPage() {
   useEffect(() => {
     void loadHistory();
   }, [currentUserProfile.id, selectedPassport]);
+
+  async function deleteGestationalPlan(plan: GestationalPlan) {
+    if (deletingPlanId) return;
+    const confirmed = window.confirm(`Excluir o planejamento gestacional de ${plan.patient_name}? Esta ação removerá também todas as etapas vinculadas.`);
+    if (!confirmed) return;
+    const client = createClient();
+    if (!client) {
+      setPlanningError("Supabase não configurado.");
+      return;
+    }
+    setDeletingPlanId(plan.id);
+    setPlanningError("");
+    setPlanningMessage("");
+    try {
+      const { error: occurrenceError } = await client
+        .from("clinical_followup_occurrences")
+        .delete()
+        .eq("plan_id", plan.id);
+      if (occurrenceError) throw occurrenceError;
+      const { error: planError } = await client
+        .from("clinical_followup_plans")
+        .delete()
+        .eq("id", plan.id)
+        .eq("doctor_id", currentUserProfile.id);
+      if (planError) throw planError;
+      setPlans((current) => current.filter((item) => item.id !== plan.id));
+      setPlanningMessage(`Planejamento gestacional de ${plan.patient_name} excluído.`);
+    } catch (caught) {
+      setPlanningError(caught instanceof Error ? caught.message : "Não foi possível excluir o planejamento gestacional.");
+      await loadHistory();
+    } finally {
+      setDeletingPlanId(null);
+    }
+  }
 
   async function createGestationalPlan() {
     setPlanning(true);
@@ -174,7 +210,6 @@ export default function ObstetricianPage() {
         eyebrow="Especialidade médica"
         title="Obstetra"
         description="Contador gestacional para acompanhar a evolução da gestação e estimar o período correspondente em dias reais."
-        compact
       />
 
       <section className="rounded-[22px] border border-[#ead9da] bg-white p-5 shadow-sm">
@@ -347,7 +382,19 @@ export default function ObstetricianPage() {
                       <p className="truncate font-black text-hpsr-text">{plan.patient_name}</p>
                       <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Passaporte {plan.patient_passport}</p>
                     </div>
-                    <span className="rounded-full bg-[#f3dfda] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wine">{plan.status}</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="rounded-full bg-[#f3dfda] px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wine">{plan.status}</span>
+                      <button
+                        type="button"
+                        onClick={() => void deleteGestationalPlan(plan)}
+                        disabled={deletingPlanId === plan.id}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-[10px] border border-red-200 bg-white text-red-700 transition hover:bg-red-50 disabled:cursor-wait disabled:opacity-60"
+                        aria-label={`Excluir planejamento de ${plan.patient_name}`}
+                        title="Excluir planejamento"
+                      >
+                        {deletingPlanId === plan.id ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                      </button>
+                    </div>
                   </div>
                   <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
                     <div><p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Início</p><p className="mt-1 font-bold text-hpsr-text">{formatDate(plan.start_date)}</p></div>

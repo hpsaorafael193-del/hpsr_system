@@ -95,6 +95,7 @@ type StaffRegistrationRequest = {
   requestedRole: string;
   createdAt: string;
   status: "Pendente" | "Aprovado" | "Recusado";
+  hiddenAt?: string;
 };
 
 type PublicStaffApplication = {
@@ -519,6 +520,7 @@ export default function TeamPage() {
         requestedRole: String(payload.requestedRole || row.requested_role || "Estagiário de Enfermagem"),
         createdAt: String(payload.createdAt || row.created_at || new Date().toISOString()),
         status: (row.status === "Aprovado" || row.status === "Recusado" ? row.status : "Pendente") as StaffRegistrationRequest["status"],
+        hiddenAt: payload.hiddenAt ? String(payload.hiddenAt) : undefined,
       };
     });
 
@@ -610,6 +612,13 @@ export default function TeamPage() {
       target_profile_id: member.id,
       deactivation_reason: reason || "Desligamento administrativo",
     });
+    if (!error) {
+      const { data: requests } = await client.from("staff_registration_requests").select("id,payload").eq("auth_user_id", member.id);
+      for (const request of requests || []) {
+        const payload = { ...((request.payload || {}) as Record<string, unknown>), hiddenAt: new Date().toISOString(), hiddenBy: currentUserProfile.systemName, hiddenReason: reason || "Profissional removido da equipe" };
+        await client.from("staff_registration_requests").update({ payload, updated_at: new Date().toISOString() }).eq("id", request.id);
+      }
+    }
 
     return { ok: !error, error: error?.message };
   }
@@ -766,6 +775,20 @@ export default function TeamPage() {
       setSelectedId("");
       setPendingAdministrativeAction(null);
     }
+  }
+
+  async function setRegistrationRequestHidden(request: StaffRegistrationRequest, hidden: boolean) {
+    const client = createClient();
+    if (!client || request.id.startsWith("profile-")) {
+      setRegistrationRequests((current) => current.map((item) => item.id === request.id ? { ...item, hiddenAt: hidden ? new Date().toISOString() : undefined } : item));
+      return;
+    }
+    const { data: row, error: readError } = await client.from("staff_registration_requests").select("payload").eq("id", request.id).maybeSingle();
+    if (readError) { await hpsrAlert(readError.message, "Erro ao atualizar histórico"); return; }
+    const payload = { ...((row?.payload || {}) as Record<string, unknown>), hiddenAt: hidden ? new Date().toISOString() : null, hiddenBy: hidden ? currentUserProfile.systemName : null };
+    const { error } = await client.from("staff_registration_requests").update({ payload, updated_at: new Date().toISOString() }).eq("id", request.id);
+    if (error) { await hpsrAlert(error.message, "Erro ao atualizar histórico"); return; }
+    setRegistrationRequests((current) => current.map((item) => item.id === request.id ? { ...item, hiddenAt: hidden ? String(payload.hiddenAt) : undefined } : item));
   }
 
   async function handleRegistrationRequest(request: StaffRegistrationRequest, decision: "Aprovado" | "Recusado") {
@@ -1173,7 +1196,7 @@ export default function TeamPage() {
 
       </div>
 
-      {hasTeamAdminAccess && isRegistrationRequestsOpen && <RegistrationRequestsModal items={registrationRequests} loading={registrationRequestsLoading} error={registrationRequestError} decisionId={registrationDecisionId} onRefresh={loadRegistrationRequestsFromSupabase} onClose={() => setIsRegistrationRequestsOpen(false)} onDecision={handleRegistrationRequest} onOpenEditor={() => { setIsRegistrationRequestsOpen(false); setIsAddOpen(true); }} />}
+      {hasTeamAdminAccess && isRegistrationRequestsOpen && <RegistrationRequestsModal items={registrationRequests} loading={registrationRequestsLoading} error={registrationRequestError} decisionId={registrationDecisionId} onRefresh={loadRegistrationRequestsFromSupabase} onClose={() => setIsRegistrationRequestsOpen(false)} onDecision={handleRegistrationRequest} onSetHidden={setRegistrationRequestHidden} onOpenEditor={() => { setIsRegistrationRequestsOpen(false); setIsAddOpen(true); }} />}
       {hasTeamAdminAccess && isPendingModalOpen && (
         <PendingApplicationsModal
           items={pendingApplications}
@@ -1212,6 +1235,7 @@ function RegistrationRequestsModal({
   onRefresh,
   onClose,
   onDecision,
+  onSetHidden,
   onOpenEditor,
 }: {
   items: StaffRegistrationRequest[];
@@ -1221,9 +1245,12 @@ function RegistrationRequestsModal({
   onRefresh: () => void | Promise<void>;
   onClose: () => void;
   onDecision: (item: StaffRegistrationRequest, decision: "Aprovado" | "Recusado") => void | Promise<void>;
+  onSetHidden: (item: StaffRegistrationRequest, hidden: boolean) => void | Promise<void>;
   onOpenEditor: () => void;
 }) {
-  const orderedItems = [...items].sort((a, b) => {
+  const [showHistory, setShowHistory] = useState(false);
+  const visibleItems = items.filter((item) => showHistory ? Boolean(item.hiddenAt) : !item.hiddenAt);
+  const orderedItems = [...visibleItems].sort((a, b) => {
     if (a.status === b.status) return 0;
     if (a.status === "Pendente") return -1;
     if (b.status === "Pendente") return 1;
@@ -1245,6 +1272,7 @@ function RegistrationRequestsModal({
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
             <button type="button" onClick={onOpenEditor} className="inline-flex min-h-[38px] items-center justify-center gap-2 rounded-xl bg-hpsr-wine px-4 py-2 text-xs font-black text-white"><UserCog size={15} /> Editar médico</button>
+            <button type="button" onClick={() => setShowHistory((current) => !current)} className="rounded-xl border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">{showHistory ? "Voltar às solicitações" : `Mostrar histórico (${items.filter((item) => item.hiddenAt).length})`}</button>
             <button type="button" onClick={() => void onRefresh()} disabled={loading} className="rounded-xl border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine disabled:opacity-50">
               {loading ? "Atualizando..." : "Atualizar"}
             </button>
@@ -1275,10 +1303,15 @@ function RegistrationRequestsModal({
                       <button type="button" disabled={deciding} onClick={() => void onDecision(item, "Recusado")} className="rounded-xl bg-red-700 px-4 py-2 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50">Recusar</button>
                     </div>
                   ) : null}
+                  {item.status !== "Pendente" || item.hiddenAt ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button type="button" onClick={() => void onSetHidden(item, !item.hiddenAt)} className="rounded-xl border border-hpsr-border bg-white px-4 py-2 text-xs font-black text-hpsr-wine">{item.hiddenAt ? "Restaurar na lista" : "Ocultar no histórico"}</button>
+                    </div>
+                  ) : null}
                 </article>
               );
             })}
-            {!loading && items.length === 0 ? <div className="rounded-[16px] border border-dashed border-hpsr-border bg-white p-6 text-center text-sm text-hpsr-muted">Nenhuma solicitação de cadastro recebida.</div> : null}
+            {!loading && orderedItems.length === 0 ? <div className="rounded-[16px] border border-dashed border-hpsr-border bg-white p-6 text-center text-sm text-hpsr-muted">{showHistory ? "Nenhuma solicitação oculta no histórico." : "Nenhuma solicitação de cadastro recebida."}</div> : null}
           </div>
         </div>
       </div>
