@@ -94,10 +94,10 @@ const medicamentos: Product[] = [
   },
   {
     id: "m7",
-    nome: "URSOS MÉDICOS",
-    descricao: "Item médico institucional com a coleção de ursos do hospital.",
-    preco: 3000000,
-    imagem: "Icones/produtos/UrsinhosHP.webp",
+    nome: "REMÉDIOS",
+    descricao: "Dispensação de remédios e medicamentos gerais.",
+    preco: 20000,
+    imagem: "Icones/produtos/Remedios.webp",
   },
 ];
 
@@ -174,10 +174,10 @@ const procedimentos: Product[] = [
   },
   {
     id: "p9",
-    nome: "REMÉDIOS",
-    descricao: "Dispensação de remédios e medicamentos gerais.",
-    preco: 20000,
-    imagem: "Icones/produtos/Remedios.webp",
+    nome: "URSOS MÉDICOS",
+    descricao: "Item médico institucional com a coleção de ursos do hospital.",
+    preco: 3000000,
+    imagem: "Icones/produtos/UrsinhosHP.webp",
   },
 ];
 

@@ -10,6 +10,7 @@ import {
   Droplets,
   FilePenLine,
   History,
+  RefreshCw,
   RotateCcw,
   Save,
   Search,
@@ -54,6 +55,7 @@ type DonorForm = {
   medicamentoDetalhes: string;
   febreOuGripe14Dias: Answer;
   procedimentoRecente: Answer;
+  tratamentoOuKitMedico: Answer;
   transfusao12Meses: Answer;
   transfusaoQuando: string;
   tatuagem12Meses: Answer;
@@ -166,6 +168,7 @@ function createInitialForm(responsibleDoctor = ""): DonorForm {
     medicamentoDetalhes: "",
     febreOuGripe14Dias: "nao",
     procedimentoRecente: "nao",
+    tratamentoOuKitMedico: "nao",
     transfusao12Meses: "nao",
     transfusaoQuando: "",
     tatuagem12Meses: "nao",
@@ -274,6 +277,7 @@ function analyzeForm(form: DonorForm): Analysis {
 
   if (form.febreOuGripe14Dias === "sim") temporary.push("Febre, infecção ou sintomas gripais nos últimos 14 dias");
   if (form.procedimentoRecente === "sim") temporary.push("Cirurgia, endoscopia ou procedimento invasivo recente");
+  if (form.tratamentoOuKitMedico === "sim") temporary.push("Tratamento recente ou uso de kit médico, bandagem ou analgésico");
   if (form.transfusao12Meses === "sim") temporary.push("Transfusão de sangue nos últimos 12 meses");
   if (form.tatuagem12Meses === "sim") temporary.push("Tatuagem, piercing ou micropigmentação nos últimos 12 meses");
 
@@ -325,22 +329,49 @@ export default function BloodBankPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<DonationRecord | null>(null);
   const [doctors, setDoctors] = useState<DoctorOption[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  async function loadRecords({ showFeedback = false }: { showFeedback?: boolean } = {}) {
+    const client = createClient();
+    if (!client) {
+      if (showFeedback) await hpsrAlert("Não foi possível conectar ao Supabase.", "Banco de Sangue");
+      return;
+    }
+
+    setHistoryLoading(true);
+    const { data, error } = await client
+      .from("blood_donations")
+      .select("id, donor_passport, payload, created_at")
+      .order("created_at", { ascending: false });
+    setHistoryLoading(false);
+
+    if (error) {
+      await hpsrAlert(`Não foi possível atualizar o histórico: ${error.message}`, "Banco de Sangue");
+      return;
+    }
+
+    const nextRecords = (data || []).map((row) => ({
+      ...((row.payload || {}) as DonationRecord),
+      id: String(row.id),
+      createdAt: String(((row.payload || {}) as Partial<DonationRecord>).createdAt || row.created_at),
+    }));
+    setRecords(nextRecords);
+    setSelectedRecord((current) => current ? nextRecords.find((record) => record.id === current.id) ?? null : null);
+    if (showFeedback) await hpsrAlert("Histórico atualizado com sucesso.", "Banco de Sangue");
+  }
 
   useEffect(() => {
     async function loadData() {
       const client = createClient();
       if (!client) return;
 
-      const [recordsResult, doctorsResult] = await Promise.all([
-        client.from("blood_donations").select("id, donor_passport, payload, created_at").order("created_at", { ascending: false }),
-        client.from("profiles").select("id,name,role,specialty,crm").eq("access_status", "Aprovado").order("name"),
-      ]);
+      const doctorsResult = await client
+        .from("profiles")
+        .select("id,name,role,specialty,crm")
+        .eq("access_status", "Aprovado")
+        .order("name");
 
-      if (recordsResult.error) {
-        void hpsrAlert(`Não foi possível carregar as triagens: ${recordsResult.error.message}`, "Banco de Sangue");
-      } else {
-        setRecords((recordsResult.data || []).map((row) => ({ ...((row.payload || {}) as DonationRecord), id: String(row.id), createdAt: String(((row.payload || {}) as Partial<DonationRecord>).createdAt || row.created_at) })));
-      }
+      await loadRecords();
 
       if (doctorsResult.error) {
         void hpsrAlert(`Não foi possível carregar os médicos responsáveis: ${doctorsResult.error.message}`, "Banco de Sangue");
@@ -380,18 +411,26 @@ export default function BloodBankPage() {
   async function saveRecord() {
     const client = createClient();
     if (!client) { await hpsrAlert("Não foi possível conectar ao Supabase.", "Banco de Sangue"); return; }
+
     const record: DonationRecord = {
       id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now()),
       createdAt: new Date().toISOString(),
       form,
       analysis,
     };
+
     setSaving(true);
     const { error } = await client.from("blood_donations").insert({ id: record.id, donor_passport: record.form.passaporte, payload: record, created_at: record.createdAt });
     setSaving(false);
-    if (error) { await hpsrAlert(`A triagem não foi salva: ${error.message}`, "Banco de Sangue"); return; }
+
+    if (error) {
+      await hpsrAlert(`A triagem não foi salva: ${error.message}`, "Banco de Sangue");
+      return;
+    }
+
     setRecords((current) => [record, ...current]);
     setSelectedRecord(record);
+    await hpsrAlert("Ficha salva com sucesso.", "Banco de Sangue");
   }
 
   async function cancelRecord(id: string) {
@@ -490,6 +529,7 @@ export default function BloodBankPage() {
                 <div className="mt-4 grid gap-3 md:grid-cols-2">
                   <AnswerField label="Febre, infecção ou sintomas gripais nos últimos 14 dias?" value={form.febreOuGripe14Dias} onChange={(value) => updateField("febreOuGripe14Dias", value)} />
                   <AnswerField label="Cirurgia, endoscopia ou procedimento invasivo recente?" value={form.procedimentoRecente} onChange={(value) => updateField("procedimentoRecente", value)} />
+                  <AnswerField label="Realizou algum tratamento ou utilizou kit médico, bandagem ou analgésico recentemente?" value={form.tratamentoOuKitMedico} onChange={(value) => updateField("tratamentoOuKitMedico", value)} />
                   <AnswerField label="Transfusão de sangue nos últimos 12 meses?" value={form.transfusao12Meses} onChange={(value) => setForm((current) => ({ ...current, transfusao12Meses: value, transfusaoQuando: value === "sim" ? current.transfusaoQuando : "" }))} />
                   {form.transfusao12Meses === "sim" && <TextField label="Quando foi a transfusão?" value={form.transfusaoQuando} onChange={(value) => updateField("transfusaoQuando", value)} />}
                 </div>
@@ -578,15 +618,26 @@ export default function BloodBankPage() {
               </div>
             </div>
 
-            <label className="flex min-h-[38px] w-full items-center gap-3 rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-4 lg:max-w-sm">
-              <Search size={17} className="text-hpsr-muted" />
-              <input
-                className="w-full bg-transparent text-sm font-semibold text-hpsr-text outline-none placeholder:text-zinc-400"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder="Buscar por nome, passaporte ou resultado"
-              />
-            </label>
+            <div className="flex w-full flex-col gap-2 sm:flex-row lg:w-auto">
+              <label className="flex min-h-[38px] w-full items-center gap-3 rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-4 lg:w-[360px]">
+                <Search size={17} className="text-hpsr-muted" />
+                <input
+                  className="w-full bg-transparent text-sm font-semibold text-hpsr-text outline-none placeholder:text-zinc-400"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Buscar por nome, passaporte ou resultado"
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => void loadRecords({ showFeedback: true })}
+                disabled={historyLoading}
+                className="inline-flex min-h-[38px] shrink-0 items-center justify-center gap-2 rounded-[16px] border border-hpsr-border bg-white px-4 text-xs font-black text-hpsr-wine transition hover:bg-[#f1dfcd] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <RefreshCw size={15} className={historyLoading ? "animate-spin" : ""} />
+                {historyLoading ? "Atualizando..." : "Atualizar histórico"}
+              </button>
+            </div>
           </div>
         </div>
 
