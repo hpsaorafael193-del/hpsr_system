@@ -14,6 +14,16 @@ export type SharedPatient = {
   email?: string;
 };
 
+type PatientRegistryRow = {
+  passport: string | null;
+  name: string | null;
+  age: string | null;
+  blood_type: string | null;
+  city_phone: string | null;
+  email: string | null;
+  created_at: string | null;
+};
+
 type PatientSelectionContextValue = {
   patients: SharedPatient[];
   loading: boolean;
@@ -97,14 +107,15 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
       }
 
       lastRefreshAtRef.current = Date.now();
-      const authoritative = (data || [])
-        .map((row) => normalizePatient({
-          passport: row.passport,
-          name: row.name,
-          age: row.age,
-          bloodType: row.blood_type,
-          cityPhone: formatPhoneDisplay(row.city_phone, ""),
-          email: row.email,
+      const rows = (data ?? []) as PatientRegistryRow[];
+      const authoritative = rows
+        .map((row: PatientRegistryRow) => normalizePatient({
+          passport: row.passport ?? undefined,
+          name: row.name ?? undefined,
+          age: row.age ?? undefined,
+          bloodType: row.blood_type ?? undefined,
+          cityPhone: formatPhoneDisplay(row.city_phone ?? undefined, ""),
+          email: row.email ?? undefined,
         }))
         .filter(Boolean) as SharedPatient[];
 
