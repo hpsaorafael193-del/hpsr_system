@@ -7,11 +7,14 @@ import {
   CheckCircle2,
   Clock3,
   Loader2,
+  Pencil,
   Trash2,
+  X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { specialties } from "@/data/mock";
 import { normalizeClinicalPassport } from "@/lib/clinical-scheduling";
+import { hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 
 type Patient = { passport: string; name: string };
 type Plan = {
@@ -48,6 +51,7 @@ export function ClinicalFollowupPlanner({
   const [patients, setPatients] = useState<Patient[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [busy, setBusy] = useState(false);
+  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [form, setForm] = useState({
@@ -71,6 +75,7 @@ export function ClinicalFollowupPlanner({
         .from("clinical_followup_plans")
         .select("id,patient_name,patient_passport,specialty,frequency,start_date,end_date,total_consultations,status")
         .eq("doctor_id", doctorId)
+        .neq("status", "Arquivado")
         .order("created_at", { ascending: false }),
     ]);
     setPatients((patientRows || []) as Patient[]);
@@ -120,41 +125,26 @@ export function ClinicalFollowupPlanner({
       if (!list.length) throw new Error("Nenhuma data foi gerada.");
       const client = createClient();
       if (!client) throw new Error("Supabase não configurado.");
-      const { data: plan, error: planError } = await client
-        .from("clinical_followup_plans")
-        .insert({
-          doctor_id: doctorId,
-          doctor_name: doctorName,
-          patient_passport: normalizeClinicalPassport(patient.passport),
-          patient_name: patient.name,
-          specialty: form.specialty,
-          frequency: form.frequency,
-          interval_days: interval(),
-          start_date: list[0],
-          end_date: list.at(-1),
-          total_consultations: list.length,
-          total_weeks: form.endMode === "weeks" ? Number(form.weeks) : null,
-          status: "Ativo",
-        })
-        .select("id")
-        .single();
-      if (planError) throw planError;
-      const { error: occurrenceError } = await client.from("clinical_followup_occurrences").insert(
-        list.map((plannedDate) => ({
-          plan_id: plan.id,
-          doctor_id: doctorId,
-          patient_passport: normalizeClinicalPassport(patient.passport),
-          patient_name: patient.name,
-          specialty: form.specialty,
-          planned_date: plannedDate,
-          status: "Planejada",
-        }))
-      );
-      if (occurrenceError) {
-        await client.from("clinical_followup_plans").delete().eq("id", plan.id);
-        throw occurrenceError;
-      }
-      setMessage(`${list.length} datas planejadas para ${patient.name}.`);
+      const { data, error: saveError } = await client.rpc("save_clinical_followup_plan", {
+        p_plan_id: editingPlanId,
+        p_doctor_name: doctorName,
+        p_patient_passport: normalizeClinicalPassport(patient.passport),
+        p_patient_name: patient.name,
+        p_specialty: form.specialty,
+        p_frequency: form.frequency,
+        p_interval_days: interval(),
+        p_start_date: list[0],
+        p_end_date: list.at(-1),
+        p_total_consultations: list.length,
+        p_total_weeks: form.endMode === "weeks" ? Number(form.weeks) : null,
+        p_planned_dates: list,
+      });
+      if (saveError) throw saveError;
+      const saved = data as { preserved_confirmed?: number } | null;
+      setMessage(editingPlanId
+        ? `Planejamento atualizado.${saved?.preserved_confirmed ? ` ${saved.preserved_confirmed} consulta(s) já confirmada(s) foram preservadas.` : ""}`
+        : `${list.length} datas previstas para ${patient.name}. Nenhuma consulta foi confirmada automaticamente.`);
+      setEditingPlanId(null);
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao criar planejamento.");
@@ -163,30 +153,47 @@ export function ClinicalFollowupPlanner({
     }
   }
 
-  async function remove(id: string) {
+  function startEditing(plan: Plan) {
+    setEditingPlanId(plan.id);
+    setForm((current) => ({
+      ...current,
+      passport: plan.patient_passport,
+      specialty: plan.specialty,
+      startDate: plan.start_date,
+      frequency: plan.frequency,
+      customDays: plan.frequency === "Personalizada" ? current.customDays : current.customDays,
+      endMode: "consultations",
+      consultations: String(plan.total_consultations || 1),
+      endDate: plan.end_date || plan.start_date,
+    }));
+    setMessage("Editando planejamento. As consultas já confirmadas serão preservadas.");
+    setError("");
+  }
+
+  function cancelEditing() {
+    setEditingPlanId(null);
+    setMessage("");
+  }
+
+  async function remove(plan: Plan) {
+    const confirmed = await hpsrConfirm(
+      `Excluir o planejamento de ${plan.patient_name}? As datas apenas previstas serão removidas. Consultas já confirmadas serão preservadas no histórico.`,
+      "Excluir planejamento?"
+    );
+    if (!confirmed) return;
     const client = createClient();
     if (!client) return;
     setBusy(true);
     setError("");
     try {
-      const { error: occurrenceError } = await client
-        .from("clinical_followup_occurrences")
-        .delete()
-        .eq("plan_id", id);
-      if (occurrenceError) throw occurrenceError;
-
-      const { data: removedPlan, error: removeError } = await client
-        .from("clinical_followup_plans")
-        .delete()
-        .eq("id", id)
-        .eq("doctor_id", doctorId)
-        .select("id")
-        .maybeSingle();
+      const { data, error: removeError } = await client.rpc("delete_clinical_followup_plan", { p_plan_id: plan.id });
       if (removeError) throw removeError;
-      if (!removedPlan) throw new Error("O banco não confirmou a exclusão do planejamento. Verifique as permissões e tente novamente.");
-      setPlans((current) => current.filter((plan) => plan.id !== id));
-      setMessage("Planejamento removido.");
-      await load();
+      const result = data as { archived?: boolean; preserved_confirmed?: number } | null;
+      setPlans((current) => current.filter((item) => item.id !== plan.id));
+      if (editingPlanId === plan.id) setEditingPlanId(null);
+      setMessage(result?.archived
+        ? `Planejamento removido da agenda. ${result.preserved_confirmed || 0} consulta(s) confirmada(s) foram preservadas.`
+        : "Planejamento e datas previstas removidos.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível remover o planejamento.");
     } finally {
@@ -280,7 +287,7 @@ export function ClinicalFollowupPlanner({
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Prévia da sequência</p>
               <p className="mt-1 truncate text-sm font-black text-hpsr-text">{selectedPatient?.name || "Selecione um paciente"}</p>
-              <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{generatedDates.length} consulta{generatedDates.length === 1 ? "" : "s"} · intervalo de {interval()} dias</p>
+              <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{generatedDates.length} data{generatedDates.length === 1 ? "" : "s"} prevista{generatedDates.length === 1 ? "" : "s"} · intervalo de {interval()} dias · não confirma consultas automaticamente</p>
             </div>
             <div className="flex flex-wrap gap-2 sm:justify-end">
               {preview.slice(0, 6).map((date, index) => (
@@ -298,10 +305,13 @@ export function ClinicalFollowupPlanner({
             {message && <p className="rounded-[12px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800"><CheckCircle2 className="mr-2 inline" size={16} />{message}</p>}
             {error && <p className="rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-800">{error}</p>}
           </div>
-          <button disabled={busy || !doctorId} onClick={() => void save()} className="inline-flex min-h-[46px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 text-sm font-black text-white transition hover:brightness-105 disabled:opacity-50">
-            {busy ? <Loader2 className="animate-spin" size={17} /> : <CheckCircle2 size={17} />}
-            Salvar planejamento
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {editingPlanId && <button type="button" disabled={busy} onClick={cancelEditing} className="inline-flex min-h-[46px] items-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 text-sm font-black text-hpsr-wine"><X size={16}/>Cancelar edição</button>}
+            <button disabled={busy || !doctorId} onClick={() => void save()} className="inline-flex min-h-[46px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 text-sm font-black text-white transition hover:brightness-105 disabled:opacity-50">
+              {busy ? <Loader2 className="animate-spin" size={17} /> : editingPlanId ? <Pencil size={17}/> : <CheckCircle2 size={17} />}
+              {editingPlanId ? "Salvar alterações" : "Salvar planejamento"}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -315,8 +325,11 @@ export function ClinicalFollowupPlanner({
             {plans.length ? plans.map((plan) => (
               <div key={plan.id} className="flex items-center gap-3 rounded-[14px] border border-hpsr-border bg-[#fffdf9] p-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#fff4ea] text-hpsr-wine"><Clock3 size={17} /></div>
-                <div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{plan.patient_name}</p><p className="mt-0.5 truncate text-xs font-semibold text-hpsr-muted">{plan.specialty} · {plan.total_consultations || 0} consultas</p><p className="mt-1 text-[11px] text-hpsr-muted">{displayDate(plan.start_date)}{plan.end_date ? ` até ${displayDate(plan.end_date)}` : ""}</p></div>
-                <button aria-label="Remover planejamento" disabled={busy} onClick={() => void remove(plan.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-rose-100 text-rose-700 transition hover:bg-rose-50"><Trash2 size={15} /></button>
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{plan.patient_name}</p><p className="mt-0.5 truncate text-xs font-semibold text-hpsr-muted">{plan.specialty} · {plan.total_consultations || 0} datas previstas</p><p className="mt-1 text-[11px] text-hpsr-muted">{displayDate(plan.start_date)}{plan.end_date ? ` até ${displayDate(plan.end_date)}` : ""}</p></div>
+                <div className="flex shrink-0 gap-1.5">
+                  <button type="button" aria-label="Editar planejamento" disabled={busy} onClick={() => startEditing(plan)} className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-hpsr-border text-hpsr-wine transition hover:bg-[#fff4ea]"><Pencil size={15}/></button>
+                  <button type="button" aria-label="Excluir planejamento" disabled={busy} onClick={() => void remove(plan)} className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-rose-100 text-rose-700 transition hover:bg-rose-50"><Trash2 size={15} /></button>
+                </div>
               </div>
             )) : <p className="rounded-[14px] border border-dashed border-hpsr-border p-4 text-center text-sm text-hpsr-muted">Nenhum acompanhamento cadastrado.</p>}
           </div>

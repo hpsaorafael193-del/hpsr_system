@@ -181,16 +181,16 @@ export const psiquiatria_psicotecnicoModel: IntelligentExamModel = {
           "label": "Apto"
         },
         {
-          "valor": "apto_restricao",
-          "label": "Apto com restrições"
+          "valor": "apto_com_ressalvas",
+          "label": "Apto com ressalvas"
         },
         {
-          "valor": "inapto_temporario",
-          "label": "Inapto temporariamente"
+          "valor": "nao_apto",
+          "label": "Não apto"
         },
         {
-          "valor": "inapto",
-          "label": "Inapto"
+          "valor": "inconclusivo",
+          "label": "Inconclusivo"
         }
       ],
       "referencia": "Conclusão pericial"
@@ -225,49 +225,134 @@ export const psiquiatria_psicotecnicoModel: IntelligentExamModel = {
     "description": "Modelo direto, configurável por perfil e variáveis clínicas relevantes."
   },
   "clinicalContexts": [
-    "Rotina",
-    "Controle",
-    "Rastreamento",
-    "Suspeita clínica",
-    "Acompanhamento",
-    "Personalizado"
+    "Porte de arma",
+    "Pilotagem aérea",
+    "Rotineiro"
   ],
   "profiles": [
     {
-      "id": "normal",
-      "name": "Normal",
+      "id": "apto",
+      "name": "Apto",
       "status": "normal",
-      "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "description": "Resultados psicológicos, físicos, cardíacos e respiratórios compatíveis com o contexto avaliado.",
+      "resultSummary": "Avaliação integrada compatível com aptidão.",
+      "results": {
+        "estado_mental": "Estado mental preservado",
+        "nivel_atencao": "Atenção sustentada e concentração mantidas durante a avaliação",
+        "tempo_reacao": "0,41 s, com respostas consistentes",
+        "controle_emocional": "Controle emocional mantido durante o protocolo",
+        "impulsividade": "Sem impulsividade relevante observada",
+        "capacidade_decisao": "Julgamento e tomada de decisão preservados",
+        "perfil_comportamental": "Cooperativo, estável e responsivo às orientações",
+        "aptidao": "Apto",
+        "impressao": "Funções cognitivas, emocionais e comportamentais preservadas durante o protocolo, sem achados objetivos que comprometam a atividade avaliada.",
+        "condicao_fisica_geral": "Postura estável, marcha independente e tolerância integral ao protocolo",
+        "coordenacao_equilibrio": "Coordenação bilateral preservada e equilíbrio estático e dinâmico estáveis",
+        "forca_mobilidade": "Força global 5/5 e amplitude funcional preservada, sem assimetrias relevantes",
+        "frequencia_cardiaca": "76",
+        "pressao_arterial_sistolica": "118",
+        "pressao_arterial_diastolica": "76",
+        "ritmo_cardiaco": "Ritmo sinusal regular, sem irregularidades observadas",
+        "frequencia_respiratoria": "16",
+        "saturacao_oxigenio": "98",
+        "ausculta_respiratoria": "Murmúrio vesicular presente bilateralmente, sem ruídos adventícios",
+        "expansibilidade_toracica": "Expansão bilateral e simétrica"
+      },
+      "interpretation": "Os achados objetivos permanecem compatíveis com o desempenho funcional exigido pelo contexto selecionado.",
+      "conclusion": "Resultado psicotécnico: Apto."
     },
     {
-      "id": "alterado",
-      "name": "Alterado",
+      "id": "apto_com_ressalvas",
+      "name": "Apto com ressalvas",
+      "status": "contextual",
+      "description": "Aptidão preservada, com achado leve que requer registro e orientação específica.",
+      "resultSummary": "Avaliação compatível com aptidão, com ressalvas descritas.",
+      "results": {
+        "estado_mental": "Estado mental preservado",
+        "nivel_atencao": "Atenção sustentada preservada, com oscilação discreta em tarefa prolongada",
+        "tempo_reacao": "0,49 s, com uma resposta tardia isolada",
+        "controle_emocional": "Leve ansiedade situacional, sem perda de controle",
+        "impulsividade": "Impulsividade leve, sem repercussão funcional durante o protocolo",
+        "capacidade_decisao": "Julgamento preservado, com necessidade de reforço das estratégias de autorregulação",
+        "perfil_comportamental": "Cooperativo, discretamente ansioso e aderente às orientações",
+        "aptidao": "Apto com ressalvas",
+        "impressao": "Desempenho global preservado, com ansiedade situacional e oscilação discreta de resposta, sem comprometimento objetivo suficiente para contraindicar a atividade avaliada.",
+        "condicao_fisica_geral": "Postura estável, marcha independente e tolerância integral ao protocolo",
+        "coordenacao_equilibrio": "Coordenação preservada e equilíbrio estável",
+        "forca_mobilidade": "Força global 5/5 e mobilidade funcional preservada",
+        "frequencia_cardiaca": "92",
+        "pressao_arterial_sistolica": "132",
+        "pressao_arterial_diastolica": "84",
+        "ritmo_cardiaco": "Ritmo sinusal regular, sem irregularidades observadas",
+        "frequencia_respiratoria": "18",
+        "saturacao_oxigenio": "97",
+        "ausculta_respiratoria": "Murmúrio vesicular presente bilateralmente, sem ruídos adventícios",
+        "expansibilidade_toracica": "Expansão bilateral e simétrica"
+      },
+      "interpretation": "O conjunto dos achados permite aptidão, devendo a ressalva registrada ser considerada no acompanhamento e nas orientações relacionadas ao contexto avaliado.",
+      "conclusion": "Resultado psicotécnico: Apto com ressalvas."
+    },
+    {
+      "id": "nao_apto",
+      "name": "Não apto",
       "status": "alterado",
-      "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "description": "Achados objetivos incompatíveis com os requisitos funcionais do contexto avaliado.",
+      "resultSummary": "Avaliação integrada incompatível com aptidão no momento.",
+      "results": {
+        "estado_mental": "Alteração comportamental moderada observada durante o protocolo",
+        "nivel_atencao": "Atenção sustentada reduzida, com quatro perdas de foco registradas",
+        "tempo_reacao": "0,86 s, com respostas inconsistentes",
+        "controle_emocional": "Instabilidade emocional moderada diante de estímulos de pressão",
+        "impulsividade": "Impulsividade elevada, com respostas antecipadas recorrentes",
+        "capacidade_decisao": "Julgamento comprometido em situações simuladas de decisão rápida",
+        "perfil_comportamental": "Agitado e hipervigilante, com dificuldade de manter o padrão solicitado",
+        "aptidao": "Não apto",
+        "impressao": "Foram observadas alterações objetivas de atenção, tempo de reação, autorregulação emocional e tomada de decisão, com impacto funcional para o contexto avaliado.",
+        "condicao_fisica_geral": "Tolerância reduzida ao protocolo, com interrupção por desconforto",
+        "coordenacao_equilibrio": "Oscilação postural em manobra de equilíbrio e coordenação lentificada",
+        "forca_mobilidade": "Força global 4/5, com limitação funcional referida durante a avaliação",
+        "frequencia_cardiaca": "112",
+        "pressao_arterial_sistolica": "152",
+        "pressao_arterial_diastolica": "96",
+        "ritmo_cardiaco": "Taquicardia sinusal persistente durante a avaliação",
+        "frequencia_respiratoria": "24",
+        "saturacao_oxigenio": "93",
+        "ausculta_respiratoria": "Murmúrio vesicular reduzido em bases, sem sibilos audíveis",
+        "expansibilidade_toracica": "Expansão reduzida bilateralmente"
+      },
+      "interpretation": "Os achados psicológicos e funcionais apresentam repercussão objetiva e não são compatíveis com os requisitos do contexto selecionado no momento da avaliação.",
+      "conclusion": "Resultado psicotécnico: Não apto."
     },
     {
-      "id": "indefinido",
-      "name": "Indefinido / limítrofe",
+      "id": "inconclusivo",
+      "name": "Inconclusivo",
       "status": "indefinido",
-      "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
-    },
-    {
-      "id": "personalizado",
-      "name": "Personalizado",
-      "status": "personalizado",
-      "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "description": "Dados insuficientes ou inconsistentes para definição segura da aptidão.",
+      "resultSummary": "Avaliação sem elementos suficientes para conclusão definitiva.",
+      "results": {
+        "estado_mental": "Estado mental preservado na observação inicial",
+        "nivel_atencao": "Desempenho variável entre as etapas, sem padrão reprodutível",
+        "tempo_reacao": "Variação entre 0,39 s e 0,91 s, sem estabilidade de resposta",
+        "controle_emocional": "Resposta emocional oscilante durante tarefas de maior exigência",
+        "impulsividade": "Resultado inconsistente entre entrevista e tarefa psicomotora",
+        "capacidade_decisao": "Dados insuficientes para classificação segura",
+        "perfil_comportamental": "Cooperativo, porém com desempenho irregular ao longo do protocolo",
+        "aptidao": "Inconclusivo",
+        "impressao": "A variabilidade dos resultados e a ausência de reprodutibilidade impedem conclusão segura sobre a aptidão no momento.",
+        "condicao_fisica_geral": "Avaliação física parcialmente concluída por interrupção do protocolo",
+        "coordenacao_equilibrio": "Resultado não reprodutível em duas tentativas",
+        "forca_mobilidade": "Força global estimada em 5/5, com mobilidade preservada nas etapas realizadas",
+        "frequencia_cardiaca": "88",
+        "pressao_arterial_sistolica": "126",
+        "pressao_arterial_diastolica": "82",
+        "ritmo_cardiaco": "Ritmo regular na aferição disponível",
+        "frequencia_respiratoria": "17",
+        "saturacao_oxigenio": "97",
+        "ausculta_respiratoria": "Ausculta incompleta por interrupção da avaliação",
+        "expansibilidade_toracica": "Não concluída de forma reprodutível"
+      },
+      "interpretation": "A inconsistência entre etapas impede estabelecer correlação funcional definitiva, sendo necessária nova avaliação ou complementação dos dados.",
+      "conclusion": "Resultado psicotécnico: Inconclusivo."
     }
   ],
   "variables": [],
@@ -335,7 +420,7 @@ export const psiquiatria_psicotecnicoModel: IntelligentExamModel = {
         "visibleByDefault": true
       }
     ],
-    "defaultProfileId": "normal"
+    "defaultProfileId": "apto"
   },
   "pdfModel": {
     "template": "institutional-a4",

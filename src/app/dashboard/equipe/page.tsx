@@ -520,9 +520,10 @@ export default function TeamPage() {
       const authUserId = row.auth_user_id ? String(row.auth_user_id) : undefined;
       const passport = String(payload.passport || row.passport || "");
       const linkedProfile = (authUserId ? profileById.get(authUserId) : undefined) || profileByPassport.get(passport);
-      const status = (row.status === "Aprovado" || row.status === "Recusado" ? row.status : "Pendente") as StaffRegistrationRequest["status"];
+      const storedStatus = (row.status === "Aprovado" || row.status === "Recusado" ? row.status : "Pendente") as StaffRegistrationRequest["status"];
       const inactiveProfile = linkedProfile ? isInactiveStatus(linkedProfile.access_status) : false;
       const activeApprovedProfile = linkedProfile ? normalizeAccessStatus(linkedProfile.access_status) === "aprovado" : false;
+      const status: StaffRegistrationRequest["status"] = inactiveProfile ? "Aprovado" : storedStatus;
       const historical = Boolean(payload.hiddenAt) || status === "Recusado" || inactiveProfile || (status === "Aprovado" && !activeApprovedProfile);
       return {
         id: String(row.id),
@@ -566,7 +567,7 @@ export default function TeamPage() {
               specialty: String(profile.specialty || "Clínico Geral"),
               requestedRole: String(profile.role || "Médico Clínico"),
               createdAt: String(profile.created_at || new Date().toISOString()),
-              status: rejected ? "Recusado" as const : approved ? "Aprovado" as const : "Pendente" as const,
+              status: rejected ? "Recusado" as const : (approved || inactive) ? "Aprovado" as const : "Pendente" as const,
               historical: inactive || rejected,
               historyReason: inactive ? "Profissional desativado ou removido" : rejected ? "Cadastro recusado" : undefined,
             };
@@ -1073,7 +1074,7 @@ export default function TeamPage() {
               {hasTeamAdminAccess && (<>
               <button type="button" onClick={() => setIsRegistrationRequestsOpen(true)} className="relative inline-flex min-h-[38px] w-full items-center justify-center gap-2 rounded-[16px] border border-hpsr-border bg-white px-3.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0] md:min-h-[46px] md:w-auto md:px-4 md:text-sm">
                 <UserCog size={16}/> Gerenciar médico
-                {registrationRequests.filter((item) => item.status === "Pendente").length > 0 && <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-hpsr-wine px-2 py-0.5 text-[11px] font-black text-white">{registrationRequests.filter((item) => item.status === "Pendente").length}</span>}
+                {registrationRequests.filter((item) => item.status === "Pendente" && !item.hiddenAt && !item.historical).length > 0 && <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-hpsr-wine px-2 py-0.5 text-[11px] font-black text-white">{registrationRequests.filter((item) => item.status === "Pendente" && !item.hiddenAt && !item.historical).length}</span>}
               </button>
 
               <button

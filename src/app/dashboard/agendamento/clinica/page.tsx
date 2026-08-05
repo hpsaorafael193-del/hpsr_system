@@ -35,7 +35,7 @@ import { hpsrConfirm, hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { specialties } from "@/data/mock";
 import { findSpecialtyScheduleConflict } from "@/data/appointment-rules";
-import { isClinicalProfessional } from "@/lib/clinical-scheduling";
+import { isClinicalProfessional, normalizeClinicalPassport } from "@/lib/clinical-scheduling";
 
 const BRAZIL_TIMEZONE = "America/Sao_Paulo";
 
@@ -919,6 +919,15 @@ function NewAppointmentForm({
     }
     if (!physician) {
       setMessage({ type: "error", text: "Selecione o médico responsável." });
+      return;
+    }
+    const duplicateAppointment = appointments.find((item) =>
+      normalizeClinicalPassport(item.passport) === normalizeClinicalPassport(patientPassport) &&
+      item.date === date && item.time === time && item.doctorId === (doctors.find((doctor) => doctor.name === physician)?.id || currentUserProfile.id) &&
+      !["Cancelada", "Cancelado", "Realizada", "Concluída", "Não compareceu"].includes(item.status)
+    );
+    if (duplicateAppointment) {
+      setMessage({ type: "error", text: "Já existe uma consulta ativa deste paciente com o mesmo médico, data e horário." });
       return;
     }
     const client = createClient();
