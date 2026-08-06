@@ -1,8 +1,11 @@
 "use client";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { hpsrAlert, hpsrPrompt } from "@/components/ui/HpsrDialogProvider";
+import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
+import { createClient } from "@/lib/supabase";
+import { isClinicalProfessional } from "@/lib/clinical-scheduling";
 import {
   AlertTriangle,
   BedDouble,
@@ -59,16 +62,71 @@ const bedTypeLabels: Record<BedType, string> = {
   infantil: "Infantil",
 };
 
-const doctors: string[] = [];
 const specialties = ["Clínico Geral", "Obstetra", "Pediatra", "Psicóloga", "Psiquiatra", "Neurologia", "Oftalmologia", "Cardiologia", "Dermatologia", "Nutricionista", "Cirurgião", "Ginecologia"];
-const patients: string[] = [];
+
+type DoctorOption = {
+  id: string;
+  name: string;
+  label: string;
+};
 
 export default function BedsPage() {
+  const { patients, loading: patientsLoading, upsertPatient } = usePatientSelection();
+  const [doctors, setDoctors] = useState<DoctorOption[]>([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(true);
   const [beds, setBeds] = useState<BedRecord[]>(initialBeds);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [selectedVacantBed, setSelectedVacantBed] = useState<BedRecord | null>(null);
   const [selectedOccupiedBed, setSelectedOccupiedBed] = useState<BedRecord | null>(null);
   const [dischargeBed, setDischargeBed] = useState<BedRecord | null>(null);
+
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadDoctors() {
+      const client = createClient();
+      if (!client) {
+        if (active) setDoctorsLoading(false);
+        return;
+      }
+
+      const { data, error } = await client
+        .from("profiles")
+        .select("id,name,role,specialty,crm")
+        .eq("access_status", "Aprovado")
+        .order("name");
+
+      if (!active) return;
+      setDoctorsLoading(false);
+
+      if (error) {
+        console.error("[HPSR] Falha ao carregar médicos da Gestão de Leitos:", error.message);
+        void hpsrAlert(`Não foi possível carregar os médicos responsáveis: ${error.message}`, "Gestão de Leitos");
+        return;
+      }
+
+      const options = (data || [])
+        .filter((row) => isClinicalProfessional(row))
+        .map((row) => {
+          const name = String(row.name || "Médico sem nome").trim();
+          return { id: String(row.id), name, label: /^dr\.?\s|^dra\.?\s/i.test(name) ? name : `Dr. ${name}` };
+        });
+      setDoctors(options);
+    }
+
+    void loadDoctors();
+    return () => { active = false; };
+  }, []);
+
+  const patientOptions = useMemo(
+    () => patients.map((patient) => ({
+      value: patient.passport,
+      label: `${patient.name} · ${patient.passport}`,
+      name: patient.name,
+    })),
+    [patients],
+  );
 
   const occupiedCount = beds.filter((bed) => bed.status === "ocupado").length;
   const freeCount = beds.length - occupiedCount;
@@ -281,6 +339,11 @@ export default function BedsPage() {
           mode="admit"
           onClose={() => setSelectedVacantBed(null)}
           onSave={(record) => { setBeds((current) => current.map((bed) => bed.id === record.id ? record : bed)); setSelectedVacantBed(null); }}
+          patientOptions={patientOptions}
+          patientsLoading={patientsLoading}
+          doctors={doctors}
+          doctorsLoading={doctorsLoading}
+          upsertPatient={upsertPatient}
         />
       )}
 
@@ -290,6 +353,11 @@ export default function BedsPage() {
           mode="edit"
           onClose={() => setSelectedOccupiedBed(null)}
           onSave={(record) => { setBeds((current) => current.map((bed) => bed.id === record.id ? record : bed)); setSelectedOccupiedBed(null); }}
+          patientOptions={patientOptions}
+          patientsLoading={patientsLoading}
+          doctors={doctors}
+          doctorsLoading={doctorsLoading}
+          upsertPatient={upsertPatient}
         />
       )}
 
@@ -304,14 +372,32 @@ export default function BedsPage() {
   );
 }
 
-function AdmissionModal({ bed, mode, onClose, onSave }: { bed: BedRecord; mode: "admit" | "edit"; onClose: () => void; onSave: (record: BedRecord) => void }) {
+function AdmissionModal({
+  bed, mode, onClose, onSave, patientOptions, patientsLoading, doctors, doctorsLoading, upsertPatient,
+}: {
+  bed: BedRecord;
+  mode: "admit" | "edit";
+  onClose: () => void;
+  onSave: (record: BedRecord) => void;
+  patientOptions: Array<{ value: string; label: string; name: string }>;
+  patientsLoading: boolean;
+  doctors: DoctorOption[];
+  doctorsLoading: boolean;
+  upsertPatient: (patient: { name: string; passport: string; age: string; bloodType: string; cityPhone?: string; email?: string }) => Promise<boolean>;
+}) {
   const editing = mode === "edit";
-  const [patientOptions, setPatientOptions] = useState(patients);
 
   async function handleAddPatient() {
     const name = (await hpsrPrompt("Nome completo do novo paciente:", "", "Cadastro rápido"))?.trim();
     if (!name) return;
-    if (!patientOptions.some((item) => item.toLowerCase() === name.toLowerCase())) setPatientOptions((current) => [...current, name]);
+    const passport = (await hpsrPrompt("Documento / passaporte do paciente:", "", "Cadastro rápido"))?.trim().toUpperCase();
+    if (!passport) return;
+    const saved = await upsertPatient({ name, passport, age: "", bloodType: "" });
+    if (!saved) {
+      await hpsrAlert("Não foi possível cadastrar o paciente no Prontuário.", "Gestão de Leitos");
+      return;
+    }
+    await hpsrAlert("Paciente cadastrado e sincronizado com o Prontuário.", "Gestão de Leitos");
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -402,10 +488,10 @@ function AdmissionModal({ bed, mode, onClose, onSave }: { bed: BedRecord; mode: 
 
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 <AdmissionField label="Paciente">
-                  <StyledSelect name="patient" className={admissionInputClass} defaultValue={editing ? bed.patient ?? "" : ""}>
-                    <option value="">Selecione um paciente...</option>
+                  <StyledSelect name="patient" className={admissionInputClass} defaultValue={editing ? bed.patient ?? "" : ""} searchable disabled={patientsLoading}>
+                    <option value="">{patientsLoading ? "Carregando pacientes..." : "Selecione um paciente..."}</option>
                     {patientOptions.map((patient) => (
-                      <option key={patient} value={patient}>{patient}</option>
+                      <option key={patient.value} value={patient.label}>{patient.label}</option>
                     ))}
                   </StyledSelect>
                 </AdmissionField>
@@ -422,10 +508,10 @@ function AdmissionModal({ bed, mode, onClose, onSave }: { bed: BedRecord; mode: 
                 </div>
 
                 <AdmissionField label="Médico Responsável">
-                  <StyledSelect name="doctor" className={admissionInputClass} defaultValue={editing ? bed.doctor ?? "" : ""}>
-                    <option value="">Selecione...</option>
+                  <StyledSelect name="doctor" className={admissionInputClass} defaultValue={editing ? bed.doctor ?? "" : ""} searchable disabled={doctorsLoading}>
+                    <option value="">{doctorsLoading ? "Carregando médicos..." : "Selecione..."}</option>
                     {doctors.map((doctor) => (
-                      <option key={doctor} value={doctor}>{doctor}</option>
+                      <option key={doctor.id} value={doctor.label}>{doctor.label}</option>
                     ))}
                   </StyledSelect>
                 </AdmissionField>
