@@ -67,6 +67,8 @@ export default function ObstetricianPage() {
   const [planningError, setPlanningError] = useState("");
   const [deletingPlanId, setDeletingPlanId] = useState<string | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState("");
+  const [manualPatient, setManualPatient] = useState(false);
+  const [manualPatientData, setManualPatientData] = useState({ name: "", passport: "" });
 
   const calculation = useMemo(() => {
     const safeWeek = Math.max(1, Math.min(TOTAL_GESTATION_WEEKS, Number(currentWeek) || 1));
@@ -157,7 +159,8 @@ export default function ObstetricianPage() {
     setPlanningError("");
     try {
       if (!currentUserProfile.id) throw new Error("Profissional não identificado.");
-      if (!selectedPatient) throw new Error("Selecione uma paciente antes de montar o planejamento.");
+      const planningPatient = manualPatient ? { name: manualPatientData.name.trim(), passport: manualPatientData.passport.trim().toUpperCase() } : selectedPatient;
+      if (!planningPatient?.name || !planningPatient.passport) throw new Error("Selecione uma paciente ou informe nome e documento manualmente.");
       const remainingMilestones = gestationalMilestones.filter((item) => item.week >= calculation.safeWeek);
       if (!remainingMilestones.length) throw new Error("Não há etapas futuras para a semana gestacional informada.");
       const occurrences = remainingMilestones.map((item) => ({
@@ -171,8 +174,8 @@ export default function ObstetricianPage() {
         .insert({
           doctor_id: currentUserProfile.id,
           doctor_name: currentUserProfile.systemName,
-          patient_passport: selectedPatient.passport,
-          patient_name: selectedPatient.name,
+          patient_passport: planningPatient.passport,
+          patient_name: planningPatient.name,
           specialty: "Obstetra",
           frequency: "Personalizada",
           interval_days: Math.max(1, Math.round(calculation.realDaysPerWeek * 4)),
@@ -189,8 +192,8 @@ export default function ObstetricianPage() {
         occurrences.map((item) => ({
           plan_id: plan.id,
           doctor_id: currentUserProfile.id,
-          patient_passport: selectedPatient.passport,
-          patient_name: selectedPatient.name,
+          patient_passport: planningPatient.passport,
+          patient_name: planningPatient.name,
           specialty: "Obstetra",
           planned_date: item.date,
           status: "Planejada",
@@ -200,7 +203,7 @@ export default function ObstetricianPage() {
         await client.from("clinical_followup_plans").delete().eq("id", plan.id);
         throw occurrenceError;
       }
-      setPlanningMessage(`${occurrences.length} etapas adicionadas ao planejamento gestacional de ${selectedPatient.name}.`);
+      setPlanningMessage(`${occurrences.length} etapas adicionadas ao planejamento gestacional de ${planningPatient.name}.`);
       await loadHistory();
     } catch (caught) {
       setPlanningError(caught instanceof Error ? caught.message : "Não foi possível montar o planejamento gestacional.");
@@ -263,13 +266,25 @@ export default function ObstetricianPage() {
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <Field label="Paciente" hint="Selecione a paciente que será acompanhada.">
-              <StyledSelect value={selectedPassport} onChange={(event) => selectPatient(event.target.value)} searchable disabled={loading}>
-                <option value="">{loading ? "Carregando pacientes..." : "Selecionar paciente"}</option>
-                {patients.map((patient) => (
-                  <option key={patient.passport} value={patient.passport}>{patient.name} · {patient.passport}</option>
-                ))}
-              </StyledSelect>
+            <Field label="Paciente" hint="Selecione no Prontuário ou informe os dados manualmente.">
+              <div className="space-y-2">
+                <button type="button" onClick={() => setManualPatient((current) => !current)} className="text-xs font-black text-hpsr-wine">
+                  {manualPatient ? "Usar paciente do Prontuário" : "Informar paciente manualmente"}
+                </button>
+                {manualPatient ? (
+                  <div className="grid gap-2 sm:grid-cols-[1fr_150px]">
+                    <input className={inputClass} value={manualPatientData.name} onChange={(event) => setManualPatientData((current) => ({ ...current, name: event.target.value }))} placeholder="Nome da paciente" />
+                    <input className={inputClass} value={manualPatientData.passport} onChange={(event) => setManualPatientData((current) => ({ ...current, passport: event.target.value }))} placeholder="Documento" />
+                  </div>
+                ) : (
+                  <StyledSelect value={selectedPassport} onChange={(event) => selectPatient(event.target.value)} searchable disabled={loading}>
+                    <option value="">{loading ? "Carregando pacientes..." : "Selecionar paciente"}</option>
+                    {patients.map((patient) => (
+                      <option key={patient.passport} value={patient.passport}>{patient.name} · {patient.passport}</option>
+                    ))}
+                  </StyledSelect>
+                )}
+              </div>
             </Field>
 
             <Field label="Semana gestacional" hint="Informe um valor entre 1 e 40 semanas.">
@@ -303,7 +318,7 @@ export default function ObstetricianPage() {
 
           <button
             type="button"
-            disabled={planning || !selectedPatient}
+            disabled={planning || (manualPatient ? !manualPatientData.name.trim() || !manualPatientData.passport.trim() : !selectedPatient)}
             onClick={() => void createGestationalPlan()}
             className="mt-4 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[17px] bg-hpsr-wine px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(125,35,29,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50"
           >

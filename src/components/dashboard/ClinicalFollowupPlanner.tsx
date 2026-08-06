@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase";
 import { specialties } from "@/data/mock";
 import { normalizeClinicalPassport } from "@/lib/clinical-scheduling";
 import { hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
+import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 
 type Patient = { passport: string; name: string };
 type Plan = {
@@ -48,10 +49,13 @@ export function ClinicalFollowupPlanner({
   embedded?: boolean;
 }) {
   const today = useMemo(() => dateKey(new Date()), []);
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const { patients: sharedPatients } = usePatientSelection();
+  const patients = useMemo<Patient[]>(() => sharedPatients.map((patient) => ({ passport: patient.passport, name: patient.name })), [sharedPatients]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [busy, setBusy] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
+  const [manualPatient, setManualPatient] = useState(false);
+  const [manualPatientData, setManualPatientData] = useState({ name: "", passport: "" });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [form, setForm] = useState({
@@ -69,16 +73,12 @@ export function ClinicalFollowupPlanner({
   async function load() {
     const client = createClient();
     if (!client || !doctorId) return;
-    const [{ data: patientRows }, { data: planRows }] = await Promise.all([
-      client.from("patient_registry").select("passport,name").order("name").limit(500),
-      client
-        .from("clinical_followup_plans")
-        .select("id,patient_name,patient_passport,specialty,frequency,start_date,end_date,total_consultations,status")
-        .eq("doctor_id", doctorId)
-        .neq("status", "Arquivado")
-        .order("created_at", { ascending: false }),
-    ]);
-    setPatients((patientRows || []) as Patient[]);
+    const { data: planRows } = await client
+      .from("clinical_followup_plans")
+      .select("id,patient_name,patient_passport,specialty,frequency,start_date,end_date,total_consultations,status")
+      .eq("doctor_id", doctorId)
+      .neq("status", "Arquivado")
+      .order("created_at", { ascending: false });
     setPlans((planRows || []) as Plan[]);
   }
 
@@ -119,8 +119,10 @@ export function ClinicalFollowupPlanner({
     setMessage("");
     try {
       if (!doctorId) throw new Error("Médico não identificado.");
-      const patient = patients.find((item) => normalizeClinicalPassport(item.passport) === normalizeClinicalPassport(form.passport));
-      if (!patient) throw new Error("Selecione um paciente.");
+      const patient = manualPatient
+        ? { name: manualPatientData.name.trim(), passport: normalizeClinicalPassport(manualPatientData.passport) }
+        : patients.find((item) => normalizeClinicalPassport(item.passport) === normalizeClinicalPassport(form.passport));
+      if (!patient?.name || !patient.passport) throw new Error("Selecione um paciente ou informe nome e documento manualmente.");
       const list = dates();
       if (!list.length) throw new Error("Nenhuma data foi gerada.");
       const client = createClient();
@@ -166,6 +168,9 @@ export function ClinicalFollowupPlanner({
       consultations: String(plan.total_consultations || 1),
       endDate: plan.end_date || plan.start_date,
     }));
+    const patientExists = patients.some((item) => normalizeClinicalPassport(item.passport) === normalizeClinicalPassport(plan.patient_passport));
+    setManualPatient(!patientExists);
+    setManualPatientData({ name: plan.patient_name, passport: plan.patient_passport });
     setMessage("Editando planejamento. As consultas já confirmadas serão preservadas.");
     setError("");
   }
@@ -238,15 +243,27 @@ export function ClinicalFollowupPlanner({
 
       <div className={embedded ? "rounded-[20px] border border-hpsr-border bg-white p-4 shadow-[0_10px_28px_rgba(93,45,24,0.05)] lg:p-5" : "p-4 lg:p-5"}>
         <div className="grid gap-3 lg:grid-cols-12">
-          <label className={`${label} lg:col-span-5`}>
-            Paciente
-            <StyledSelect value={form.passport} onChange={(event) => setForm({ ...form, passport: event.target.value })} className={field}>
-              <option value="">Selecione um paciente</option>
-              {patients.map((patient) => (
-                <option key={patient.passport} value={patient.passport}>{patient.name} · {patient.passport}</option>
-              ))}
-            </StyledSelect>
-          </label>
+          <div className={`${label} lg:col-span-5`}>
+            <div className="flex items-center justify-between gap-2">
+              <span>Paciente</span>
+              <button type="button" onClick={() => setManualPatient((current) => !current)} className="text-[10px] font-black normal-case tracking-normal text-hpsr-wine">
+                {manualPatient ? "Usar Prontuário" : "Informar manualmente"}
+              </button>
+            </div>
+            {manualPatient ? (
+              <div className="mt-1.5 grid gap-2 sm:grid-cols-[1fr_150px]">
+                <input className={field} value={manualPatientData.name} onChange={(event) => setManualPatientData((current) => ({ ...current, name: event.target.value }))} placeholder="Nome do paciente" />
+                <input className={field} value={manualPatientData.passport} onChange={(event) => setManualPatientData((current) => ({ ...current, passport: event.target.value }))} placeholder="Documento" />
+              </div>
+            ) : (
+              <StyledSelect value={form.passport} onChange={(event) => setForm({ ...form, passport: event.target.value })} className={field}>
+                <option value="">Selecione um paciente</option>
+                {patients.map((patient) => (
+                  <option key={patient.passport} value={patient.passport}>{patient.name} · {patient.passport}</option>
+                ))}
+              </StyledSelect>
+            )}
+          </div>
           <label className={`${label} lg:col-span-4`}>
             Especialidade
             <StyledSelect value={form.specialty} onChange={(event) => setForm({ ...form, specialty: event.target.value })} className={field}>

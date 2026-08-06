@@ -386,6 +386,7 @@ function AdmissionModal({
   upsertPatient: (patient: { name: string; passport: string; age: string; bloodType: string; cityPhone?: string; email?: string }) => Promise<boolean>;
 }) {
   const editing = mode === "edit";
+  const [manualPatient, setManualPatient] = useState(false);
 
   async function handleAddPatient() {
     const name = (await hpsrPrompt("Nome completo do novo paciente:", "", "Cadastro rápido"))?.trim();
@@ -488,12 +489,19 @@ function AdmissionModal({
 
               <div className="mt-4 grid gap-3 md:grid-cols-2">
                 <AdmissionField label="Paciente">
-                  <StyledSelect name="patient" className={admissionInputClass} defaultValue={editing ? bed.patient ?? "" : ""} searchable disabled={patientsLoading}>
-                    <option value="">{patientsLoading ? "Carregando pacientes..." : "Selecione um paciente..."}</option>
-                    {patientOptions.map((patient) => (
-                      <option key={patient.value} value={patient.label}>{patient.label}</option>
-                    ))}
-                  </StyledSelect>
+                  <div className="space-y-2">
+                    <button type="button" onClick={() => setManualPatient((current) => !current)} className="text-[11px] font-black text-hpsr-wine">
+                      {manualPatient ? "Selecionar do Prontuário" : "Informar manualmente"}
+                    </button>
+                    {manualPatient ? (
+                      <input name="patient" className={admissionInputClass} defaultValue={editing ? bed.patient ?? "" : ""} placeholder="Nome e documento do paciente" required />
+                    ) : (
+                      <StyledSelect name="patient" className={admissionInputClass} defaultValue={editing ? bed.patient ?? "" : ""} searchable disabled={patientsLoading}>
+                        <option value="">{patientsLoading ? "Carregando pacientes..." : "Selecione um paciente..."}</option>
+                        {patientOptions.map((patient) => (<option key={patient.value} value={patient.label}>{patient.label}</option>))}
+                      </StyledSelect>
+                    )}
+                  </div>
                 </AdmissionField>
 
                 <div className="flex items-end">

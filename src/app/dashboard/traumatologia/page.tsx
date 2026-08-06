@@ -1,10 +1,11 @@
 "use client";
-import { formatPhoneNumber, formatPhoneDisplay } from "@/lib/phone";
+import { formatPhoneNumber } from "@/lib/phone";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
+import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 
 import {
   CalendarClock,
@@ -100,9 +101,20 @@ export default function TraumaPage() {
   const [selectedRecord, setSelectedRecord] = useState<CastRecord | null>(null);
   const [loadingRecords, setLoadingRecords] = useState(true);
   const [savingRecord, setSavingRecord] = useState(false);
-  const [patients, setPatients] = useState<PatientRegistryItem[]>([]);
+  const { patients: sharedPatients, loading: patientsLoading, upsertPatient, selectPatient: selectSharedPatient } = usePatientSelection();
+  const patients = useMemo<PatientRegistryItem[]>(() => sharedPatients.map((patient) => ({
+    name: patient.name,
+    passport: patient.passport,
+    age: patient.age,
+    bloodType: patient.bloodType,
+    cityPhone: patient.cityPhone ?? "",
+    email: patient.email ?? "",
+    followUp: "Clínico",
+  })), [sharedPatients]);
   const [selectedPatientPassport, setSelectedPatientPassport] = useState("");
   const [quickOpen, setQuickOpen] = useState(false);
+  const [manualPatient, setManualPatient] = useState(false);
+  const [manualPatientData, setManualPatientData] = useState({ name: "", passport: "" });
   const [quickSaving, setQuickSaving] = useState(false);
   const [quickPatient, setQuickPatient] = useState<PatientRegistryItem>({
     name: "", passport: "", age: "", bloodType: "", cityPhone: "", email: "", followUp: "Clínico",
@@ -119,17 +131,10 @@ export default function TraumaPage() {
         return;
       }
 
-      const [{ data, error }, { data: patientRows, error: patientError }] = await Promise.all([
-        client
-          .from("cast_records")
-          .select("id, patient, passport, fractures, placed_at, removal_at, status_override")
-          .order("created_at", { ascending: false }),
-        client
-          .from("patient_registry")
-          .select("name,passport,age,blood_type,city_phone,email,follow_up")
-          .order("name", { ascending: true })
-          .limit(500),
-      ]);
+      const { data, error } = await client
+        .from("cast_records")
+        .select("id, patient, passport, fractures, placed_at, removal_at, status_override")
+        .order("created_at", { ascending: false });
 
       if (!active) return;
       setLoadingRecords(false);
@@ -137,18 +142,6 @@ export default function TraumaPage() {
       if (error) {
         await hpsrAlert(`Não foi possível carregar os registros de gesso: ${error.message}`, "Controle de Gesso");
         return;
-      }
-
-      if (!patientError) {
-        setPatients((patientRows || []).map((row) => ({
-          name: String(row.name || ""),
-          passport: String(row.passport || ""),
-          age: String(row.age || ""),
-          bloodType: String(row.blood_type || ""),
-          cityPhone: formatPhoneDisplay(String(row.city_phone || ""), ""),
-          email: String(row.email || ""),
-          followUp: String(row.follow_up || "Clínico"),
-        })));
       }
 
       setRecords(
@@ -222,32 +215,22 @@ export default function TraumaPage() {
       await hpsrAlert("Informe o nome completo e o passaporte do paciente.", "Cadastro rápido");
       return;
     }
-    const client = createClient();
-    if (!client) {
-      await hpsrAlert("Não foi possível conectar ao Supabase.", "Cadastro rápido");
-      return;
-    }
     setQuickSaving(true);
-    const { data: duplicate, error: duplicateError } = await client.from("patient_registry").select("name").eq("passport", patient.passport).maybeSingle();
-    if (duplicateError) { setQuickSaving(false); await hpsrAlert(duplicateError.message, "Não foi possível verificar o passaporte"); return; }
-    if (duplicate) { setQuickSaving(false); await hpsrAlert(`O passaporte já pertence a ${duplicate.name}. Abra o prontuário para editar os dados com segurança.`, "Passaporte já cadastrado"); return; }
-    const { error } = await client.from("patient_registry").insert({
-      passport: patient.passport,
+    const saved = await upsertPatient({
       name: patient.name,
-      age: patient.age || null,
-      blood_type: patient.bloodType || null,
-      city_phone: patient.cityPhone || null,
-      email: patient.email || null,
-      follow_up: patient.followUp,
-      updated_at: new Date().toISOString(),
+      passport: patient.passport,
+      age: patient.age,
+      bloodType: patient.bloodType,
+      cityPhone: patient.cityPhone,
+      email: patient.email,
     });
     setQuickSaving(false);
-    if (error) {
-      await hpsrAlert(error.code === "23505" ? "Este passaporte acabou de ser cadastrado por outro profissional." : `Não foi possível cadastrar o paciente: ${error.message}`, "Cadastro rápido");
+    if (!saved) {
+      await hpsrAlert("Não foi possível salvar o paciente no Prontuário.", "Cadastro rápido");
       return;
     }
-    setPatients((current) => [patient, ...current.filter((item) => item.passport !== patient.passport)].sort((a,b) => a.name.localeCompare(b.name)));
     setSelectedPatientPassport(patient.passport);
+    selectSharedPatient(patient.passport);
     setQuickOpen(false);
     setQuickPatient({ name: "", passport: "", age: "", bloodType: "", cityPhone: "", email: "", followUp: "Clínico" });
   }
@@ -257,8 +240,8 @@ export default function TraumaPage() {
 
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const patient = selectedPatient?.name || "";
-    const passport = selectedPatient?.passport || "";
+    const patient = manualPatient ? manualPatientData.name.trim() : selectedPatient?.name || "";
+    const passport = manualPatient ? manualPatientData.passport.trim().toUpperCase() : selectedPatient?.passport || "";
     const fractures = String(form.get("fractures") ?? "")
       .split(",")
       .map((item) => item.trim())
@@ -393,27 +376,24 @@ export default function TraumaPage() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <StyledSelect
-                    className={inputClass}
-                    value={selectedPatientPassport}
-                    onChange={(event) => selectPatient(event.target.value)}
-                    required
-                  >
-                    <option value="">Selecione o paciente</option>
-                    {patients.map((patient) => (
-                      <option key={patient.passport} value={patient.passport}>{patient.name} · {patient.passport}</option>
-                    ))}
-                  </StyledSelect>
-                  <button
-                    type="button"
-                    onClick={() => setQuickOpen(true)}
-                    title="Cadastro rápido de paciente"
-                    aria-label="Cadastro rápido de paciente"
-                    className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-[13px] border border-hpsr-border bg-white text-hpsr-wine transition hover:bg-[#fff8f0]"
-                  >
-                    <UserPlus size={17} />
-                  </button>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <button type="button" onClick={() => setManualPatient((current) => !current)} className="text-[11px] font-black text-hpsr-wine">
+                      {manualPatient ? "Usar Prontuário" : "Informar manualmente"}
+                    </button>
+                    <button type="button" onClick={() => setQuickOpen(true)} className="inline-flex items-center gap-1 text-[11px] font-black text-hpsr-wine"><UserPlus size={14}/>Cadastro rápido</button>
+                  </div>
+                  {manualPatient ? (
+                    <div className="grid gap-2 sm:grid-cols-[1fr_150px]">
+                      <input className={inputClass} value={manualPatientData.name} onChange={(event) => setManualPatientData((current) => ({ ...current, name: event.target.value }))} placeholder="Nome do paciente" required />
+                      <input className={inputClass} value={manualPatientData.passport} onChange={(event) => setManualPatientData((current) => ({ ...current, passport: event.target.value }))} placeholder="Documento" required />
+                    </div>
+                  ) : (
+                    <StyledSelect className={inputClass} value={selectedPatientPassport} onChange={(event) => { selectPatient(event.target.value); selectSharedPatient(event.target.value); }} required searchable disabled={patientsLoading}>
+                      <option value="">{patientsLoading ? "Carregando pacientes..." : "Selecione o paciente"}</option>
+                      {patients.map((patient) => (<option key={patient.passport} value={patient.passport}>{patient.name} · {patient.passport}</option>))}
+                    </StyledSelect>
+                  )}
                 </div>
 
                 {selectedPatient && (
