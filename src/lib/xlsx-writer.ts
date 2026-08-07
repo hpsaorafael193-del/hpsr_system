@@ -1,3 +1,5 @@
+import JSZip from "@/vendor/jszip.min.js";
+
 export type XlsxCellValue = string | number | boolean | null | undefined;
 export type XlsxSheetDefinition = {
   name: string;
@@ -6,82 +8,23 @@ export type XlsxSheetDefinition = {
   rows: Record<string, XlsxCellValue>[];
 };
 
-type ZipEntry = { name: string; data: Uint8Array; crc: number; offset: number };
+const EXCEL_CELL_TEXT_LIMIT = 32_767;
 
-const encoder = new TextEncoder();
-const sanitizeXmlText = (value: unknown) => String(value ?? "")
-  .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]/g, "");
-
-const xmlEscape = (value: unknown) => sanitizeXmlText(value)
-  .replace(/&/g, "&amp;")
-  .replace(/</g, "&lt;")
-  .replace(/>/g, "&gt;")
-  .replace(/"/g, "&quot;")
-  .replace(/'/g, "&apos;");
-
-function crc32(data: Uint8Array) {
-  let crc = 0xffffffff;
-  for (const byte of data) {
-    crc ^= byte;
-    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
-  }
-  return (crc ^ 0xffffffff) >>> 0;
+function sanitizeXmlText(value: XlsxCellValue) {
+  const text = value == null ? "" : String(value);
+  return text
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, " ")
+    .replace(/\uFFFE|\uFFFF/g, " ")
+    .slice(0, EXCEL_CELL_TEXT_LIMIT);
 }
 
-function u16(value: number) {
-  const output = new Uint8Array(2);
-  new DataView(output.buffer).setUint16(0, value, true);
-  return output;
-}
-
-function u32(value: number) {
-  const output = new Uint8Array(4);
-  new DataView(output.buffer).setUint32(0, value >>> 0, true);
-  return output;
-}
-
-function concat(parts: Uint8Array[]) {
-  const total = parts.reduce((sum, part) => sum + part.length, 0);
-  const output = new Uint8Array(total);
-  let offset = 0;
-  parts.forEach((part) => { output.set(part, offset); offset += part.length; });
-  return output;
-}
-
-function createStoredZip(files: Array<{ name: string; content: string }>) {
-  const localParts: Uint8Array[] = [];
-  const entries: ZipEntry[] = [];
-  let offset = 0;
-
-  files.forEach(({ name, content }) => {
-    const nameBytes = encoder.encode(name);
-    const data = encoder.encode(content);
-    const crc = crc32(data);
-    const header = concat([
-      u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0),
-      u32(crc), u32(data.length), u32(data.length), u16(nameBytes.length), u16(0), nameBytes,
-    ]);
-    localParts.push(header, data);
-    entries.push({ name, data, crc, offset });
-    offset += header.length + data.length;
-  });
-
-  const centralParts: Uint8Array[] = [];
-  entries.forEach((entry) => {
-    const nameBytes = encoder.encode(entry.name);
-    centralParts.push(concat([
-      u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
-      u32(entry.crc), u32(entry.data.length), u32(entry.data.length),
-      u16(nameBytes.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(entry.offset), nameBytes,
-    ]));
-  });
-  const central = concat(centralParts);
-  const local = concat(localParts);
-  const end = concat([
-    u32(0x06054b50), u16(0), u16(0), u16(entries.length), u16(entries.length),
-    u32(central.length), u32(local.length), u16(0),
-  ]);
-  return concat([local, central, end]);
+function xmlEscape(value: XlsxCellValue) {
+  return sanitizeXmlText(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
 function columnName(index: number) {
@@ -95,12 +38,20 @@ function columnName(index: number) {
   return output;
 }
 
-function widthFor(header: string) {
-  if (/descri|observ|hist|dados|itens|motivo|experi|tentativas/i.test(header)) return 38;
-  if (/nome|cargo|especial|depart|servi|exame|titulo/i.test(header)) return 24;
-  if (/data|entrada|saída|saida|atualiza/i.test(header)) return 20;
-  if (/status|resultado|entrevista|comparecimento/i.test(header)) return 20;
-  return 16;
+function displayLength(value: XlsxCellValue) {
+  return sanitizeXmlText(value).replace(/\s+/g, " ").trim().length;
+}
+
+function widthFor(header: string, rows: Record<string, XlsxCellValue>[]) {
+  const sampled = rows.slice(0, 250);
+  const contentMax = sampled.reduce((max, row) => Math.max(max, displayLength(row[header])), displayLength(header));
+  let min = 12;
+  let max = 28;
+  if (/descri|observ|hist|dados|itens|motivo|experi|tentativas|complement/i.test(header)) { min = 24; max = 48; }
+  else if (/nome|cargo|especial|depart|servi|exame|titulo|paciente|profissional/i.test(header)) { min = 18; max = 34; }
+  else if (/data|entrada|saída|saida|atualiza|horário|horario/i.test(header)) { min = 18; max = 23; }
+  else if (/status|resultado|entrevista|comparecimento/i.test(header)) { min = 16; max = 24; }
+  return Math.min(max, Math.max(min, Math.ceil(contentMax * 1.12 + 2)));
 }
 
 function cellXml(value: XlsxCellValue, ref: string, style: number) {
@@ -115,27 +66,33 @@ function sheetXml(sheet: XlsxSheetDefinition) {
     : ["Informação"];
   const lastColumn = columnName(Math.max(0, headers.length - 1));
   const rows: string[] = [];
-  rows.push(`<row r="1" ht="30" customHeight="1">${cellXml(sheet.title, "A1", 1)}</row>`);
-  rows.push(`<row r="2" ht="25" customHeight="1">${cellXml(sheet.subtitle || "", "A2", 2)}</row>`);
+  rows.push(`<row r="1" ht="34" customHeight="1">${cellXml(sheet.title, "A1", 1)}</row>`);
+  rows.push(`<row r="2" ht="30" customHeight="1">${cellXml(sheet.subtitle || "", "A2", 2)}</row>`);
   rows.push(`<row r="3" ht="8" customHeight="1"></row>`);
-  rows.push(`<row r="4" ht="28" customHeight="1">${headers.map((header, index) => cellXml(header, `${columnName(index)}4`, 3)).join("")}</row>`);
+  rows.push(`<row r="4" ht="36" customHeight="1">${headers.map((header, index) => cellXml(header, `${columnName(index)}4`, 3)).join("")}</row>`);
 
   const body = sheet.rows.length ? sheet.rows : [{ Informação: "Nenhum registro disponível." }];
   body.forEach((record, rowIndex) => {
     const excelRow = rowIndex + 5;
     const style = rowIndex % 2 ? 5 : 4;
-    rows.push(`<row r="${excelRow}">${headers.map((header, columnIndex) => cellXml(record[header], `${columnName(columnIndex)}${excelRow}`, style)).join("")}</row>`);
+    rows.push(`<row r="${excelRow}" ht="30" customHeight="1">${headers.map((header, columnIndex) => cellXml(record[header], `${columnName(columnIndex)}${excelRow}`, style)).join("")}</row>`);
   });
 
-  const cols = headers.map((header, index) => `<col min="${index + 1}" max="${index + 1}" width="${widthFor(header)}" customWidth="1"/>`).join("");
+  const cols = headers.map((header, index) => `<col min="${index + 1}" max="${index + 1}" width="${widthFor(header, body)}" bestFit="1" customWidth="1"/>`).join("");
   const lastRow = Math.max(4, body.length + 4);
+  const merges = lastColumn === "A"
+    ? ""
+    : `<mergeCells count="2"><mergeCell ref="A1:${lastColumn}1"/><mergeCell ref="A2:${lastColumn}2"/></mergeCells>`;
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <dimension ref="A1:${lastColumn}${lastRow}"/>
   <sheetViews><sheetView workbookViewId="0"><pane ySplit="4" topLeftCell="A5" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>
+  <sheetFormatPr defaultRowHeight="15"/>
   <cols>${cols}</cols>
   <sheetData>${rows.join("")}</sheetData>
-  <mergeCells count="2"><mergeCell ref="A1:${lastColumn}1"/><mergeCell ref="A2:${lastColumn}2"/></mergeCells>
   <autoFilter ref="A4:${lastColumn}${lastRow}"/>
+  ${merges}
+  <pageMargins left="0.25" right="0.25" top="0.5" bottom="0.5" header="0.2" footer="0.2"/>
   <pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>
 </worksheet>`;
 }
@@ -144,10 +101,10 @@ function stylesXml() {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <fonts count="4">
-    <font><sz val="10"/><name val="Arial"/><color rgb="FF2A211D"/></font>
-    <font><b/><sz val="15"/><name val="Arial"/><color rgb="FFFFFFFF"/></font>
-    <font><sz val="9"/><name val="Arial"/><color rgb="FF6B554A"/></font>
-    <font><b/><sz val="9"/><name val="Arial"/><color rgb="FFFFFFFF"/></font>
+    <font><sz val="11"/><name val="Arial"/><color rgb="FF2A211D"/></font>
+    <font><b/><sz val="17"/><name val="Arial"/><color rgb="FFFFFFFF"/></font>
+    <font><sz val="10"/><name val="Arial"/><color rgb="FF6B554A"/></font>
+    <font><b/><sz val="10"/><name val="Arial"/><color rgb="FFFFFFFF"/></font>
   </fonts>
   <fills count="5">
     <fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>
@@ -184,7 +141,7 @@ function createUniqueSheetName(rawName: string, index: number, usedNames: Set<st
   return candidate;
 }
 
-export function buildXlsxBytes(sheets: XlsxSheetDefinition[]) {
+function buildWorkbookFiles(sheets: XlsxSheetDefinition[]) {
   const usedNames = new Set<string>();
   const safeSheets = (sheets.length ? sheets : [{ name: "Relatório", title: "Relatório", rows: [] }]).map((sheet, index) => ({
     ...sheet,
@@ -201,12 +158,30 @@ export function buildXlsxBytes(sheets: XlsxSheetDefinition[]) {
     { name: "xl/styles.xml", content: stylesXml() },
     ...safeSheets.map((sheet, index) => ({ name: `xl/worksheets/sheet${index + 1}.xml`, content: sheetXml(sheet) })),
   ];
-  return createStoredZip(files);
+  return files;
 }
 
-export function downloadXlsx(filename: string, sheets: XlsxSheetDefinition[]) {
-  const bytes = buildXlsxBytes(sheets);
-  const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+export async function buildXlsxBlob(sheets: XlsxSheetDefinition[]) {
+  const files = buildWorkbookFiles(sheets);
+  const zip = new JSZip();
+  files.forEach(({ name, content }) => zip.file(name, content));
+
+  const blob = await zip.generateAsync({
+    type: "blob",
+    compression: "DEFLATE",
+    compressionOptions: { level: 1 },
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    platform: "DOS",
+  }) as Blob;
+
+  // Reabre o pacote antes do download para garantir que o ZIP XLSX foi montado corretamente.
+  await JSZip.loadAsync(blob);
+  return blob;
+}
+
+export async function downloadXlsx(filename: string, sheets: XlsxSheetDefinition[]) {
+  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  const blob = await buildXlsxBlob(sheets);
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;

@@ -17,6 +17,8 @@ import {
   Plus,
   Search,
   UserRound,
+  UsersRound,
+  History,
   X,
 } from "lucide-react";
 
@@ -29,6 +31,7 @@ type BedRecord = {
   status: BedStatus;
   type: BedType;
   patient?: string;
+  patientPassport?: string;
   admittedAt?: string;
   expectedDischarge?: string;
   doctor?: string;
@@ -46,6 +49,23 @@ type BedRecord = {
   initialDiagnosis?: string;
   treatmentPlan?: string;
   instructions?: string;
+  updatedAt?: string;
+};
+
+type BedHistoryRecord = {
+  id: string;
+  bed_id: string;
+  event_type: string;
+  patient_name?: string | null;
+  patient_passport?: string | null;
+  doctor_name?: string | null;
+  visitor_name?: string | null;
+  visitor_passport?: string | null;
+  visitor_age?: string | null;
+  relation?: string | null;
+  notes?: string | null;
+  payload?: Record<string, unknown> | null;
+  created_at: string;
 };
 
 const initialBeds: BedRecord[] = [
@@ -79,7 +99,8 @@ export default function BedsPage() {
   const [selectedVacantBed, setSelectedVacantBed] = useState<BedRecord | null>(null);
   const [selectedOccupiedBed, setSelectedOccupiedBed] = useState<BedRecord | null>(null);
   const [dischargeBed, setDischargeBed] = useState<BedRecord | null>(null);
-
+  const [bedHistory, setBedHistory] = useState<BedHistoryRecord[]>([]);
+  const [loadingBeds, setLoadingBeds] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -119,6 +140,30 @@ export default function BedsPage() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    async function loadBedData() {
+      const client = createClient();
+      if (!client) { if (active) setLoadingBeds(false); return; }
+      const [{ data: bedRows, error: bedError }, { data: historyRows, error: historyError }] = await Promise.all([
+        client.from("hospital_beds").select("id,status,payload,updated_at").order("id"),
+        client.from("hospital_bed_history").select("id,bed_id,event_type,patient_name,patient_passport,doctor_name,visitor_name,visitor_passport,visitor_age,relation,notes,payload,created_at").order("created_at", { ascending: false }).limit(300),
+      ]);
+      if (!active) return;
+      setLoadingBeds(false);
+      if (bedError) { void hpsrAlert(`Não foi possível carregar os leitos: ${bedError.message}`, "Gestão de Leitos"); return; }
+      if (bedRows?.length) {
+        setBeds(bedRows.map((row) => ({ id: String(row.id), status: row.status === "ocupado" ? "ocupado" : "vago", ...(row.payload as Omit<BedRecord, "id" | "status">), updatedAt: row.updated_at })));
+      }
+      if (historyError) {
+        console.error("[HPSR] Falha ao carregar histórico de leitos:", historyError.message);
+      }
+      setBedHistory((historyRows || []) as BedHistoryRecord[]);
+    }
+    void loadBedData();
+    return () => { active = false; };
+  }, []);
+
   const patientOptions = useMemo(
     () => patients.map((patient) => ({
       value: patient.passport,
@@ -130,6 +175,59 @@ export default function BedsPage() {
 
   const occupiedCount = beds.filter((bed) => bed.status === "ocupado").length;
   const freeCount = beds.length - occupiedCount;
+  const pendingReviewCount = beds.filter((bed) => isReviewPending(bed)).length;
+
+  async function saveBed(record: BedRecord, eventType: "admission" | "update" | "discharge") {
+    const client = createClient();
+    if (!client) return false;
+    const payload = { ...record };
+    delete (payload as Partial<BedRecord>).id;
+    delete (payload as Partial<BedRecord>).status;
+    const { data, error } = await client.rpc("save_hospital_bed_staff", {
+      p_bed_id: record.id,
+      p_status: record.status,
+      p_payload: payload,
+      p_event_type: eventType,
+      p_patient_name: record.patient || null,
+      p_patient_passport: record.patientPassport || null,
+      p_doctor_name: record.doctor || null,
+    });
+    if (error) { await hpsrAlert(`Não foi possível salvar o leito: ${error.message}`, "Gestão de Leitos"); return false; }
+    const historyRow = data && typeof data === "object" && "history" in data
+      ? (data as { history?: BedHistoryRecord }).history
+      : null;
+    if (historyRow) setBedHistory((current) => [historyRow, ...current].slice(0, 300));
+    setBeds((current) => current.map((bed) => bed.id === record.id ? record : bed));
+    return true;
+  }
+
+  async function registerVisit(bed: BedRecord) {
+    if (bed.status !== "ocupado") return;
+    const visitorName = (await hpsrPrompt("Nome completo do visitante:", "", "Registrar visita"))?.trim();
+    if (!visitorName) return;
+    const visitorPassport = (await hpsrPrompt("Passaporte/documento do visitante:", "", "Registrar visita"))?.trim() || "";
+    const visitorAge = (await hpsrPrompt("Idade do visitante:", "", "Registrar visita"))?.trim() || "";
+    const relation = (await hpsrPrompt("Relação com o paciente:", "", "Registrar visita"))?.trim() || "";
+    const notes = (await hpsrPrompt("Observações da visita (opcional):", "", "Registrar visita"))?.trim() || "";
+    const client = createClient();
+    if (!client) return;
+    const { data, error } = await client.rpc("register_hospital_bed_visit_staff", {
+      p_bed_id: bed.id,
+      p_patient_name: bed.patient || null,
+      p_patient_passport: bed.patientPassport || null,
+      p_visitor_name: visitorName,
+      p_visitor_passport: visitorPassport || null,
+      p_visitor_age: visitorAge || null,
+      p_relation: relation || null,
+      p_notes: notes || null,
+    });
+    if (error) { await hpsrAlert(`Não foi possível registrar a visita: ${error.message}`, "Gestão de Leitos"); return; }
+    const historyRow = data && typeof data === "object" && "history" in data
+      ? (data as { history?: BedHistoryRecord }).history
+      : null;
+    if (historyRow) setBedHistory((current) => [historyRow, ...current].slice(0, 300));
+    await hpsrAlert("Visita registrada no histórico do leito.", "Gestão de Leitos");
+  }
 
   function openAdmissionForm(bed: BedRecord) {
     if (bed.status !== "vago") return;
@@ -149,16 +247,11 @@ export default function BedsPage() {
     setDischargeBed(bed);
   }
 
-  function confirmDischarge() {
+  async function confirmDischarge() {
     if (!dischargeBed) return;
-
-    setBeds((currentBeds) =>
-      currentBeds.map((bed) =>
-        bed.id === dischargeBed.id
-          ? { id: bed.id, label: bed.label, type: bed.type, status: "vago" }
-          : bed
-      )
-    );
+    const released: BedRecord = { id: dischargeBed.id, label: dischargeBed.label, type: dischargeBed.type, status: "vago" };
+    const saved = await saveBed(released, "discharge");
+    if (!saved) return;
     setDischargeBed(null);
     setSelectedOccupiedBed(null);
   }
@@ -205,11 +298,12 @@ export default function BedsPage() {
           </div>
         </div>
 
-        <div className="grid gap-3 px-4 py-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-3 px-4 py-3 sm:grid-cols-2 xl:grid-cols-6">
           <BedMetric label="Total de leitos" value={String(beds.length)} tone="neutral" />
+          <BedMetric label="Ocupados" value={String(occupiedCount)} tone="occupied" />
+          <BedMetric label="Reavaliação pendente" value={String(pendingReviewCount)} tone="pending" />
           <BedMetric label="Normais" value="2" tone="neutral" />
-          <BedMetric label="Gestante" value="1" tone="neutral" />
-          <BedMetric label="Infantis" value="2" tone="neutral" />
+          <BedMetric label="Infantis/gestante" value="3" tone="neutral" />
           <BedMetric label="Vagos" value={String(freeCount)} tone="free" />
         </div>
       </section>
@@ -255,6 +349,15 @@ export default function BedsPage() {
                         Editar ficha
                       </button>
                       {occupied ? (
+                        <>
+                        <button
+                          type="button"
+                          onClick={() => { setOpenMenu(null); void registerVisit(bed); }}
+                          className="flex w-full items-center gap-2 border-t border-hpsr-border px-3 py-2.5 text-sm font-bold text-hpsr-text transition hover:bg-[#fff7ef]"
+                        >
+                          <UsersRound size={15} />
+                          Registrar visita
+                        </button>
                         <button
                           type="button"
                           onClick={() => askDischargeConfirmation(bed)}
@@ -263,6 +366,7 @@ export default function BedsPage() {
                           <LogOut size={15} />
                           Dar alta hospitalar
                         </button>
+                        </>
                       ) : (
                         <button
                           type="button"
@@ -294,6 +398,7 @@ export default function BedsPage() {
 
                   {occupied ? (
                     <div className="mt-4 space-y-2">
+                      {isReviewPending(bed) && <p className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-[10px] font-black uppercase tracking-[.08em] text-amber-800"><AlertTriangle size={12} /> Reavaliação pendente</p>}
                       <p className="text-sm font-black uppercase tracking-[0.03em] text-red-700">{bed.patient}</p>
                       <div className="space-y-1 text-xs font-semibold text-hpsr-muted">
                         <p>
@@ -325,11 +430,35 @@ export default function BedsPage() {
                     : "border-emerald-200 bg-white text-emerald-700"
                 }`}>
                   <CalendarClock size={14} className="mr-1 inline-block" />
-                  {occupied ? "Acompanhar previsão de alta" : "Leito liberado"}
+                  {occupied ? (isReviewPending(bed) ? "Prazo encerrado · aguarda decisão médica" : "Acompanhar previsão de alta") : "Leito liberado"}
                 </div>
               </article>
             );
           })}
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-[18px] border border-hpsr-border bg-white/[0.88] shadow-[0_12px_30px_rgba(42,7,0,0.05)]">
+        <div className="flex items-center justify-between gap-3 border-b border-hpsr-border bg-[#fffaf4] px-4 py-3">
+          <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Histórico de leitos</p><h2 className="mt-1 text-lg font-black text-hpsr-text">Internações, altas, atualizações e visitas</h2></div>
+          <History size={20} className="text-hpsr-wine" />
+        </div>
+        <div className="hpsr-touch-scroll max-h-[360px] overflow-y-auto p-3">
+          <div className="space-y-2">
+            {bedHistory.map((item) => item.event_type === "visit" ? (
+              <article key={`visit-${item.id}`} className="rounded-[16px] border border-sky-200 bg-sky-50/60 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-black text-hpsr-text">Visita · {item.visitor_name}</p><span className="text-xs font-bold text-hpsr-muted">{formatDateTime(item.created_at)}</span></div>
+                <p className="mt-1 text-xs font-semibold text-hpsr-muted">{item.patient_name || "Paciente não informado"} · {bedLabelById(beds, item.bed_id)}{item.relation ? ` · ${item.relation}` : ""}</p>
+                {(item.visitor_passport || item.visitor_age || item.notes) && <p className="mt-1 text-xs text-hpsr-muted">{[item.visitor_passport, item.visitor_age ? `${item.visitor_age} anos` : "", item.notes].filter(Boolean).join(" · ")}</p>}
+              </article>
+            ) : (
+              <article key={`event-${item.id}`} className="rounded-[16px] border border-hpsr-border bg-white p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-black text-hpsr-text">{eventLabel(item.event_type)} · {bedLabelById(beds, item.bed_id)}</p><span className="text-xs font-bold text-hpsr-muted">{formatDateTime(item.created_at)}</span></div>
+                <p className="mt-1 text-xs font-semibold text-hpsr-muted">{item.patient_name || "Leito sem paciente"}{item.doctor_name ? ` · ${item.doctor_name}` : ""}</p>
+              </article>
+            ))}
+            {!bedHistory.length && <p className="rounded-[16px] border border-dashed border-hpsr-border p-5 text-center text-sm font-semibold text-hpsr-muted">Nenhuma atividade registrada ainda.</p>}
+          </div>
         </div>
       </section>
 
@@ -338,7 +467,7 @@ export default function BedsPage() {
           bed={selectedVacantBed}
           mode="admit"
           onClose={() => setSelectedVacantBed(null)}
-          onSave={(record) => { setBeds((current) => current.map((bed) => bed.id === record.id ? record : bed)); setSelectedVacantBed(null); }}
+          onSave={async (record) => { if (await saveBed(record, "admission")) setSelectedVacantBed(null); }}
           patientOptions={patientOptions}
           patientsLoading={patientsLoading}
           doctors={doctors}
@@ -352,7 +481,7 @@ export default function BedsPage() {
           bed={selectedOccupiedBed}
           mode="edit"
           onClose={() => setSelectedOccupiedBed(null)}
-          onSave={(record) => { setBeds((current) => current.map((bed) => bed.id === record.id ? record : bed)); setSelectedOccupiedBed(null); }}
+          onSave={async (record) => { if (await saveBed(record, "update")) setSelectedOccupiedBed(null); }}
           patientOptions={patientOptions}
           patientsLoading={patientsLoading}
           doctors={doctors}
@@ -378,7 +507,7 @@ function AdmissionModal({
   bed: BedRecord;
   mode: "admit" | "edit";
   onClose: () => void;
-  onSave: (record: BedRecord) => void;
+  onSave: (record: BedRecord) => void | Promise<void>;
   patientOptions: Array<{ value: string; label: string; name: string }>;
   patientsLoading: boolean;
   doctors: DoctorOption[];
@@ -401,10 +530,13 @@ function AdmissionModal({
     await hpsrAlert("Paciente cadastrado e sincronizado com o Prontuário.", "Gestão de Leitos");
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const patient = String(data.get("patient") || "").trim();
+    const patientValue = String(data.get("patient") || "").trim();
+    const selectedPatient = patientOptions.find((option) => option.value === patientValue);
+    const patient = selectedPatient?.name || patientValue;
+    const patientPassport = selectedPatient?.value || "";
     if (!patient) { void hpsrAlert("Selecione um paciente para continuar.", "Paciente obrigatório"); return; }
     const admissionDate = String(data.get("admittedAt") || "");
     const dischargeDate = String(data.get("expectedDischarge") || "");
@@ -412,6 +544,7 @@ function AdmissionModal({
       ...bed,
       status: "ocupado",
       patient,
+      patientPassport,
       doctor: String(data.get("doctor") || ""),
       specialty: String(data.get("specialty") || ""),
       admittedAt: admissionDate ? new Date(`${admissionDate}T12:00:00`).toLocaleDateString("pt-BR") : bed.admittedAt,
@@ -424,7 +557,7 @@ function AdmissionModal({
       treatmentPlan: String(data.get("treatmentPlan") || ""),
       instructions: String(data.get("instructions") || ""),
     };
-    onSave(record);
+    await onSave(record);
   }
   return (
     <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
@@ -691,21 +824,38 @@ function DischargeConfirmModal({
   );
 }
 
+function isReviewPending(bed: BedRecord) {
+  if (bed.status !== "ocupado" || !bed.expectedDischarge) return false;
+  const value = toDateInputValue(bed.expectedDischarge);
+  if (!value) return false;
+  return new Date(`${value}T23:59:59`).getTime() < Date.now();
+}
+
+function eventLabel(type: string) {
+  return ({ admission: "Internação registrada", update: "Ficha atualizada", discharge: "Alta autorizada" } as Record<string, string>)[type] || type;
+}
+
+function bedLabelById(beds: BedRecord[], id: string) { return beds.find((bed) => bed.id === id)?.label || id; }
+function formatDateTime(value: string) { return new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); }
+
 function toDateInputValue(value?: string) {
   if (!value) return "";
   const [datePart] = value.split(" ");
   const [day, month, year] = datePart.split("/");
   if (!day || !month || !year) return "";
-  return `20${year}-${month}-${day}`;
+  const normalizedYear = year.length === 2 ? `20${year}` : year;
+  return `${normalizedYear}-${month}-${day}`;
 }
 
-function BedMetric({ label, value, tone }: { label: string; value: string; tone: "neutral" | "occupied" | "free" }) {
+function BedMetric({ label, value, tone }: { label: string; value: string; tone: "neutral" | "occupied" | "free" | "pending" }) {
   const toneClass =
     tone === "occupied"
       ? "border-rose-200 bg-rose-50 text-red-700"
       : tone === "free"
         ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-        : "border-hpsr-border bg-white text-hpsr-text";
+        : tone === "pending"
+          ? "border-amber-200 bg-amber-50 text-amber-800"
+          : "border-hpsr-border bg-white text-hpsr-text";
 
   return (
     <div className={`rounded-[16px] border px-4 py-3 ${toneClass}`}>

@@ -35,9 +35,23 @@ export async function GET(request: NextRequest) {
     }
     const passport = String(access.patient_passport || "");
     const { data: patient } = await supabase.from("patient_registry").select("name").eq("passport", passport).maybeSingle();
-    const { data: accessiblePatients } = await supabase.rpc("patient_portal_accessible_patients", { target_passport: passport });
+    const [{ data: accessiblePatients }, { data: pendingLinks }] = await Promise.all([
+      supabase.rpc("patient_portal_accessible_patients", { target_passport: passport }),
+      supabase
+        .from("patient_guardian_links")
+        .select("child_passport,relationship,access_status,patient_registry!patient_guardian_links_child_passport_fkey(name)")
+        .eq("guardian_passport", passport)
+        .eq("access_status", "pending")
+        .eq("portal_access", false),
+    ]);
+    const pendingChildLinks = (pendingLinks || []).map((link: any) => ({
+      passport: String(link.child_passport || ""),
+      name: String(link.patient_registry?.name || "Paciente infantil"),
+      relationship: String(link.relationship || "Responsável legal"),
+      status: "pending",
+    }));
     const passportHint = passport.length > 4 ? `${passport.slice(0, 2)}•••${passport.slice(-2)}` : "••••";
-    return NextResponse.json({ authenticated: true, expiresAt: session.expires_at, passportHint, patientName: patient?.name || "Paciente", accessiblePatients: accessiblePatients || [] });
+    return NextResponse.json({ authenticated: true, expiresAt: session.expires_at, passportHint, patientName: patient?.name || "Paciente", accessiblePatients: accessiblePatients || [], pendingChildLinks });
   } catch (error) {
     console.error("[patient-portal] session", error);
     return NextResponse.json({ authenticated: false });

@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getValidPatientSession } from "@/lib/patient-portal/server";
+import { getValidPatientSession, normalizePassport, resolvePortalPatientPassport } from "@/lib/patient-portal/server";
 import { isClinicalProfessional, profileMatchesClinicalSpecialty } from "@/lib/clinical-scheduling";
 
 export const runtime = "nodejs";
@@ -11,7 +11,13 @@ export async function POST(request: NextRequest) {
     if (!valid) return NextResponse.json({ ok: false, error: "Sessão expirada." }, { status: 401 });
 
     const body = await request.json();
-    const patient = String(body.patient || "").trim();
+    const resolvedPassport = await resolvePortalPatientPassport(request, valid);
+    if (!resolvedPassport) return NextResponse.json({ ok: false, error: "Paciente não autorizado para esta sessão." }, { status: 403 });
+    const patientPassport = normalizePassport(resolvedPassport);
+    const { data: patientRow, error: patientError } = await valid.supabase.from("patient_registry").select("name").eq("passport", patientPassport).maybeSingle();
+    if (patientError) throw patientError;
+    if (!patientRow) return NextResponse.json({ ok: false, error: "Paciente não encontrado no prontuário." }, { status: 404 });
+    const patient = String(patientRow.name || body.patient || "").trim();
     const specialty = String(body.specialty || "").trim();
     const preferredDate = "";
     const preferredPeriod = "";
@@ -35,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     const activeBookingResult = await valid.supabase.rpc("hpsr_patient_has_active_booking", {
-      target_passport: valid.access.patient_passport,
+      target_passport: patientPassport,
       target_specialty: specialty,
       exclude_appointment_id: null,
     });
@@ -68,7 +74,9 @@ export async function POST(request: NextRequest) {
     const id = `HPSR-PAC-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
     const payload = {
       patient,
-      passport: valid.access.patient_passport,
+      passport: patientPassport,
+      requestedByPassport: normalizePassport(valid.access.patient_passport),
+      requestedByRelationship: patientPassport === normalizePassport(valid.access.patient_passport) ? "Titular" : "Responsável",
       specialty,
       preferredDate,
       preferredPeriod,
@@ -90,7 +98,7 @@ export async function POST(request: NextRequest) {
 
     const { error } = await valid.supabase.from("appointments").insert({
       id,
-      passport: valid.access.patient_passport,
+      passport: patientPassport,
       patient,
       status: flowType === "Acompanhamento com especialista" ? "Acompanhamento aguardando confirmação" : "Solicitação enviada",
       payload,
@@ -105,7 +113,7 @@ export async function POST(request: NextRequest) {
       action: "Consulta solicitada",
       description: `Solicitação de ${flowType.toLowerCase()} para ${specialty} criada pelo Portal do Paciente.`,
       actor: patient,
-      reference: valid.access.patient_passport,
+      reference: patientPassport,
       created_at: now,
     });
 

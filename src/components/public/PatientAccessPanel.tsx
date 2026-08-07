@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
-  AlertCircle, CalendarClock, ClipboardPlus, FileHeart,
-  Loader2, LockKeyhole, LogIn, Plus, ShieldCheck, Trash2, UserPlus,
+  AlertCircle, Baby, CalendarClock, ClipboardPlus, FileHeart,
+  Loader2, LockKeyhole, LogIn, Plus, ShieldCheck, Trash2, UserPlus, X,
 } from "lucide-react";
 import { PatientRecordsPanel } from "@/components/public/PatientRecordsPanel";
 import { StyledSelect } from "@/components/ui/StyledSelect";
@@ -16,7 +16,8 @@ import { formatPhoneNumber } from "@/lib/phone";
 type Stage = "checking" | "login" | "register" | "portal";
 type PortalSection = "home" | "appointments" | "request" | "records" | "pending";
 type PortalPatient = { passport: string; name: string; relationship: string; access_type: string };
-type SessionResponse = { authenticated?: boolean; patientName?: string; accessiblePatients?: PortalPatient[] };
+type PendingChildLink = { passport: string; name: string; relationship: string; status: string };
+type SessionResponse = { authenticated?: boolean; patientName?: string; accessiblePatients?: PortalPatient[]; pendingChildLinks?: PendingChildLink[] };
 
 type RegisterForm = {
   name: string;
@@ -44,10 +45,13 @@ export function PatientAccessPanel() {
   const [patientName, setPatientName] = useState("Paciente");
   const [accessiblePatients, setAccessiblePatients] = useState<PortalPatient[]>([]);
   const [selectedPassport, setSelectedPassport] = useState("");
+  const [pendingChildLinks, setPendingChildLinks] = useState<PendingChildLink[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [portalSection, setPortalSection] = useState<PortalSection>("home");
+  const [childOpen, setChildOpen] = useState(false);
+  const [childForm, setChildForm] = useState({ name: "", passport: "", age: "", birthDate: "", bloodType: "", relationship: "Responsável legal" });
 
   const checkSession = useCallback(async () => {
     try {
@@ -59,6 +63,7 @@ export function PatientAccessPanel() {
         setPatientName(data.patientName || "Paciente");
         const profiles = data.accessiblePatients || [];
         setAccessiblePatients(profiles);
+        setPendingChildLinks(data.pendingChildLinks || []);
         setSelectedPassport((current) => profiles.some((item) => item.passport === current) ? current : (profiles[0]?.passport || ""));
         setStage("portal");
         window.dispatchEvent(new Event("hpsr-patient-session-changed"));
@@ -209,6 +214,28 @@ export function PatientAccessPanel() {
     } finally { setBusy(false); }
   }
 
+  async function createChild(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    clearFeedback();
+    setBusy(true);
+    try {
+      const response = await fetch("/api/paciente/dependentes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(childForm),
+      });
+      const data = await response.json();
+      if (response.status === 401) { handleSessionExpired(); return; }
+      if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível cadastrar a criança.");
+      await checkSession();
+      setChildForm({ name: "", passport: "", age: "", birthDate: "", bloodType: "", relationship: "Responsável legal" });
+      setChildOpen(false);
+      setMessage(data.message || "Solicitação enviada. O prontuário foi preparado e o vínculo aguarda uma confirmação médica simples.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Não foi possível cadastrar a criança.");
+    } finally { setBusy(false); }
+  }
+
   async function logout() {
     setBusy(true);
     try {
@@ -263,8 +290,9 @@ export function PatientAccessPanel() {
                   <p className="text-[10px] font-black uppercase tracking-[.15em] text-hpsr-wineLight">Portal do paciente</p>
                   <h2 className="mt-0.5 text-lg font-black text-hpsr-text">Olá, {patientName}</h2>
                 </div>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                 {accessiblePatients.length > 1 && (
-                  <div className="w-full sm:max-w-xs">
+                  <div className="w-full sm:w-72">
                     <StyledSelect
                       aria-label="Prontuário em visualização"
                       className="min-h-[40px] w-full rounded-[12px] border border-hpsr-border bg-white px-3 text-sm font-black text-hpsr-text"
@@ -282,6 +310,8 @@ export function PatientAccessPanel() {
                     </StyledSelect>
                   </div>
                 )}
+                <button type="button" onClick={() => setChildOpen(true)} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine shadow-sm"><Baby size={15}/>Solicitar vínculo de criança</button>
+                </div>
               </div>
 
               <nav className="grid grid-cols-2 gap-2 xl:grid-cols-4" aria-label="Áreas do portal">
@@ -303,6 +333,20 @@ export function PatientAccessPanel() {
             </div>
 
             <div className="p-3.5 sm:p-4">
+              {pendingChildLinks.length > 0 && (
+                <div className="mb-3 rounded-[16px] border border-amber-200 bg-amber-50 p-3.5">
+                  <p className="text-xs font-black uppercase tracking-[.13em] text-amber-800">Vínculos pediátricos aguardando validação</p>
+                  <div className="mt-2 space-y-2">
+                    {pendingChildLinks.map((item) => (
+                      <div key={item.passport} className="rounded-[12px] border border-amber-200/80 bg-white px-3 py-2.5">
+                        <p className="text-sm font-black text-hpsr-text">{item.name}</p>
+                        <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{item.relationship} · {item.passport} · Aguardando confirmação médica</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs font-semibold leading-relaxed text-amber-900">O prontuário já foi localizado ou preparado pelo sistema, mas os dados clínicos só serão liberados após a validação.</p>
+                </div>
+              )}
               {portalSection === "home" && (
                 <div className="rounded-[16px] border border-dashed border-hpsr-border bg-[#fffdf9] px-4 py-8 text-center">
                   <p className="text-sm font-black text-hpsr-text">Escolha uma opção acima para continuar.</p>
@@ -320,6 +364,26 @@ export function PatientAccessPanel() {
             <PatientBookingPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />
           </aside>
         </div>
+      {childOpen && (
+        <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#2a0700]/55 p-0 sm:items-center sm:p-4">
+          <form onSubmit={createChild} className="w-full max-w-lg overflow-hidden rounded-t-[24px] bg-white shadow-2xl sm:rounded-[24px]">
+            <div className="flex items-start justify-between bg-hpsr-wine px-5 py-4 text-white">
+              <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-white/65">Fluxo pediátrico</p><h3 className="mt-1 text-xl font-black">Solicitar vínculo da criança</h3></div>
+              <button type="button" onClick={() => setChildOpen(false)} className="grid h-9 w-9 place-items-center rounded-[11px] border border-white/20 bg-white/10"><X size={17}/></button>
+            </div>
+            <div className="grid gap-3 p-5 sm:grid-cols-2">
+              <Field label="Nome da criança"><input className="portal-input" value={childForm.name} onChange={(e)=>setChildForm((c)=>({...c,name:e.target.value}))} required /></Field>
+              <Field label="Passaporte"><input className="portal-input uppercase" value={childForm.passport} onChange={(e)=>setChildForm((c)=>({...c,passport:e.target.value.toUpperCase()}))} required /></Field>
+              <Field label="Idade"><input className="portal-input" inputMode="numeric" value={childForm.age} onChange={(e)=>setChildForm((c)=>({...c,age:e.target.value.replace(/\D/g,"")}))} required /></Field>
+              <Field label="Data de nascimento"><input type="date" className="portal-input" value={childForm.birthDate} onChange={(e)=>setChildForm((c)=>({...c,birthDate:e.target.value}))} /></Field>
+              <Field label="Tipo sanguíneo"><input className="portal-input uppercase" value={childForm.bloodType} onChange={(e)=>setChildForm((c)=>({...c,bloodType:e.target.value.toUpperCase()}))} /></Field>
+              <Field label="Vínculo"><input className="portal-input" value={childForm.relationship} onChange={(e)=>setChildForm((c)=>({...c,relationship:e.target.value}))} /></Field>
+              <p className="sm:col-span-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] p-3 text-xs font-semibold leading-relaxed text-hpsr-muted">O sistema compara nome e passaporte com o Prontuário. Quando encontra uma criança, prepara o vínculo; quando não encontra, cria o prontuário infantil pendente. A liberação ocorre somente após uma confirmação médica simples.</p>
+            </div>
+            <div className="flex gap-3 border-t border-hpsr-border bg-[#fffaf4] p-4"><button type="button" onClick={()=>setChildOpen(false)} className="min-h-[44px] flex-1 rounded-[13px] border border-hpsr-border bg-white text-sm font-black">Cancelar</button><button disabled={busy} type="submit" className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine text-sm font-black text-white disabled:opacity-50">{busy?<Loader2 size={16} className="animate-spin"/>:<Baby size={16}/>}Enviar para validação</button></div>
+          </form>
+        </div>
+      )}
       </div>
     );
   }

@@ -8,6 +8,7 @@ export type AdministrativeReportData = {
   periodLabel: string;
   generatedBy?: string;
   warnings?: string[];
+  operationalStart?: string;
   profiles?: ReportRecord[];
   activities: ReportRecord[];
   teamMembers: ReportRecord[];
@@ -48,12 +49,66 @@ const countBy = (items: ReportRecord[], getter: (item: ReportRecord) => unknown)
   return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]);
 };
 
-export function exportAdministrativeReport(data: AdministrativeReportData) {
+export async function exportAdministrativeReport(data: AdministrativeReportData) {
   const generatedAt = new Date();
   const generatedLabel = generatedAt.toLocaleString("pt-BR");
   const payload = (row: ReportRecord) => asRecord(row.payload);
 
-  const teamRows = data.teamMembers.map((row) => {
+  const teamSource = (() => {
+    const byKey = new Map<string, ReportRecord>();
+    for (const row of data.teamMembers) {
+      const p = payload(row);
+      const key = normalize(text(row.passport, p.passport, row.id));
+      if (key) byKey.set(key, row);
+    }
+    for (const profile of data.profiles || []) {
+      const key = normalize(text(profile.passport, profile.id));
+      if (!key) continue;
+      const existing = byKey.get(key);
+      if (existing) {
+        const existingPayload = payload(existing);
+        byKey.set(key, {
+          ...profile,
+          ...existing,
+          payload: {
+            name: profile.name,
+            passport: profile.passport,
+            crm: profile.crm,
+            role: profile.role,
+            specialty: profile.specialty,
+            department: profile.department,
+            serviceStatus: profile.service_status,
+            joinedAt: profile.created_at,
+            ...existingPayload,
+          },
+          created_at: text(existing.created_at, profile.created_at),
+          updated_at: text(existing.updated_at, profile.updated_at),
+        });
+      } else {
+        byKey.set(key, {
+          id: profile.id,
+          name: profile.name,
+          passport: profile.passport,
+          hospital_role: profile.role,
+          status: /desativ|inativ|removid/i.test(normalize(text(profile.access_status, profile.service_status))) ? 'Inativo' : 'Ativo',
+          created_at: profile.created_at,
+          updated_at: profile.updated_at,
+          payload: {
+            crm: profile.crm,
+            specialty: profile.specialty,
+            department: profile.department,
+            joinedAt: profile.created_at,
+            serviceStatus: profile.service_status,
+            accessStatus: profile.access_status,
+            source: 'profiles',
+          },
+        });
+      }
+    }
+    return Array.from(byKey.values()).sort((a, b) => new Date(text(a.created_at, 0)).getTime() - new Date(text(b.created_at, 0)).getTime());
+  })();
+
+  const teamRows = teamSource.map((row) => {
     const p = payload(row); const history = Array.isArray(p.history) ? p.history : [];
     const termination = history.slice().reverse().find((item: unknown) => /demit|deslig|encerr/i.test(String(item)));
     const joinedAt = text(p.joinedAt, p.joined_at, row.created_at);
@@ -113,7 +168,7 @@ export function exportAdministrativeReport(data: AdministrativeReportData) {
 
   const appointmentRows = data.appointments.map((row) => { const p = payload(row); return {
     Protocolo: row.id, Paciente: text(row.patient, p.patientName, p.name), Passaporte: text(row.passport, p.passport), Status: text(row.status, p.status),
-    Tipo: text(p.type, p.specialty, p.service), Médico: text(p.doctorName, p.doctor), "Data solicitada": dateText(text(p.requestedAt, p.date, row.created_at)),
+    Tipo: text(p.type, p.specialty, p.service), Médico: text(p.doctorName, p.doctor), "Solicitado por": text(p.requestedByRelationship), "Passaporte do responsável": text(p.requestedByPassport), "Data solicitada": dateText(text(p.requestedAt, p.date, row.created_at)),
     "Data agendada": dateText(text(p.scheduledAt, p.appointmentAt)), "Comparecimento": text(p.attendanceStatus, p.attendance, /nao compareceu/i.test(normalize(row.status)) ? "Não compareceu" : ""),
     Motivo: text(p.reason, p.complaint), Observações: text(p.notes, p.observation), "Última atualização": dateText(row.updated_at),
   }; });
@@ -141,6 +196,60 @@ export function exportAdministrativeReport(data: AdministrativeReportData) {
 
   const activityRows = data.activities.map((row) => ({ Data: dateText(text(row.created_at, row.createdAt)), Módulo: row.module, Ação: row.action, Descrição: row.description, Responsável: row.actor, Referência: row.reference }));
   const movementRows = activityRows.filter((row) => /equipe|membro|cargo|promoc|rebaix|demiss|deslig|contrat|cadastro/i.test(normalize(`${row.Módulo} ${row.Ação} ${row.Descrição}`)));
+
+  const contractsRows = teamRows.map((row) => ({
+    Nome: row.Nome,
+    Passaporte: row.Passaporte,
+    Cargo: row.Cargo,
+    Especialidade: row.Especialidade,
+    Status: row.Status,
+    "Data de entrada": row["Data de entrada"],
+    "Tempo de contrato": row["Tempo de contrato"],
+  }));
+  const promotionRowsFromActivities = movementRows
+    .filter((row) => /promov|promoção|promocao|cargo alterado|cargo atualizado|mudança de cargo|mudanca de cargo/i.test(normalize(`${row.Ação} ${row.Descrição}`)))
+    .map((row) => ({
+      Data: row.Data,
+      Profissional: text(row.Referência),
+      "Cargo anterior": "",
+      "Cargo novo": "",
+      "Registrado por": row.Responsável,
+      Origem: "Atividades do sistema",
+      Detalhes: `${text(row.Ação)}${row.Descrição ? ` — ${row.Descrição}` : ""}`,
+    }));
+
+  const extractHistoryDate = (entry: string) => {
+    const match = entry.match(/(?:em|registrado em)\s+(\d{1,2}\/\d{1,2}\/\d{4}(?:,?\s+\d{1,2}:\d{2}(?::\d{2})?)?)/i);
+    return match?.[1] || "";
+  };
+  const promotionRowsFromTeam = teamSource.flatMap((row) => {
+    const p = payload(row);
+    const history = Array.isArray(p.history) ? p.history.map(String) : [];
+    return history.flatMap((entry) => {
+      const normalizedEntry = normalize(entry);
+      const roleChange = entry.match(/cargo\s+(?:foi\s+)?alterado\s+de\s+(.+?)\s+para\s+(.+?)(?:\s+em\s+|\.|$)/i);
+      const explicitPromotion = /promov|promoção|promocao|especializa|novo contrato de residente/i.test(normalizedEntry);
+      if (!roleChange && !explicitPromotion) return [];
+      return [{
+        Data: extractHistoryDate(entry),
+        Profissional: text(row.name, p.name),
+        Passaporte: text(row.passport, p.passport),
+        "Cargo anterior": roleChange?.[1]?.trim() || "Não informado",
+        "Cargo novo": roleChange?.[2]?.trim() || text(row.hospital_role, p.hospitalRole, p.role),
+        "Registrado por": text(p.updatedBy, p.updated_by),
+        Origem: "Histórico da equipe",
+        Detalhes: entry,
+      }];
+    });
+  });
+
+  const promotionKey = (row: ReportRecord) => normalize(`${row.Profissional}|${row.Passaporte}|${row.Data}|${row["Cargo anterior"]}|${row["Cargo novo"]}|${row.Detalhes}`);
+  const promotionRows = Array.from(
+    new Map([...promotionRowsFromTeam, ...promotionRowsFromActivities].map((row) => [promotionKey(row), row])).values(),
+  ).sort((a, b) => new Date(String(b.Data || 0)).getTime() - new Date(String(a.Data || 0)).getTime());
+  const requestedExitRows = movementRows.filter((row) => /pediu desligamento|solicitou desligamento|pedido de desligamento/i.test(normalize(`${row.Ação} ${row.Descrição}`)));
+  const dismissalRows = movementRows.filter((row) => /demit|desligad|removid|encerramento de contrato/i.test(normalize(`${row.Ação} ${row.Descrição}`)) && !/pediu desligamento|solicitou desligamento|pedido de desligamento/i.test(normalize(`${row.Ação} ${row.Descrição}`)));
+
   const profileNames = new Map((data.profiles || []).map((row) => [String(row.id), text(row.name, row.passport, row.id)]));
   const timeRows = data.timeEntries.map((row) => ({ Profissional: text(row.profile_name, row.user_name, profileNames.get(String(row.user_id)), row.user_id), Status: row.status, Entrada: dateText(row.opened_at), Saída: dateText(row.closed_at), "Tempo trabalhado": secondsText(row.worked_seconds), "Data do registro": dateText(row.created_at) }));
   const auditRows = data.timeAudits.map((row) => ({ Data: dateText(row.created_at), Ação: row.action, Motivo: row.reason, "Profissional afetado": text(profileNames.get(String(row.target_user_id)), row.target_user_id), Responsável: text(profileNames.get(String(row.actor_user_id)), row.actor_user_id), "Dados anteriores": JSON.stringify(row.previous_data || {}), "Novos dados": JSON.stringify(row.new_data || {}) }));
@@ -158,7 +267,7 @@ export function exportAdministrativeReport(data: AdministrativeReportData) {
 
   const statusCount = (pattern: RegExp) => applicationRows.filter((row) => pattern.test(normalize(`${row.Status} ${row["Resultado da triagem"]} ${row.Entrevista} ${row.Comparecimento} ${row["Resultado final"]}`))).length;
   const kpis = [
-    ["Atividades", data.activities.length], ["Equipe", data.teamMembers.length], ["Pacientes", data.patients.length], ["Candidaturas", data.applications.length],
+    ["Atividades", data.activities.length], ["Equipe", teamRows.length], ["Pacientes", data.patients.length], ["Candidaturas", data.applications.length],
     ["Aprovados", statusCount(/aprovado/)], ["Recusados", statusCount(/recusado/)], ["Entrevistas agendadas", statusCount(/agendada/)], ["Compareceram", statusCount(/compareceu/)],
     ["Faltaram", statusCount(/faltou|nao compareceu/)], ["Sem resposta", statusCount(/sem resposta/)], ["Contratados", statusCount(/contratado/) - statusCount(/nao contratado/)], ["Não contratados", statusCount(/nao contratado/)],
     ["Agendamentos", data.appointments.length], ["Registros clínicos", data.clinicalRecords.length], ["Recibos", data.receipts.length], ["Receita", moneyText(data.receipts.reduce((sum, row) => sum + Number(text(row.total, payload(row).total) || 0), 0))],
@@ -181,17 +290,25 @@ export function exportAdministrativeReport(data: AdministrativeReportData) {
   }));
 
   const summaryRows: ReportRecord[] = kpis.map(([Indicador, Valor]) => ({ Indicador, Valor }));
+  summaryRows.unshift({
+    Indicador: "Início da operação registrada",
+    Valor: data.operationalStart ? dateText(data.operationalStart) : "Data mais antiga disponível no banco",
+  });
   summaryRows.push({
     Indicador: "Conteúdo do relatório",
     Valor: "Movimentações, equipe e contratos, candidaturas e entrevistas, cadastros profissionais, pacientes, agendamentos, registros clínicos, exames, finanças, planos e registros de ponto.",
   });
 
-  const subtitle = `${data.periodLabel} · Gerado por ${data.generatedBy || "Direção"} em ${generatedLabel} · Documento interno e confidencial`;
+  const subtitle = `${data.periodLabel} · Histórico preservado desde o início da operação registrada · Gerado por ${data.generatedBy || "Direção"} em ${generatedLabel}`;
   const sheets: XlsxSheetDefinition[] = [
     { name: "Visão geral", title: "HOSPITAL SÃO RAFAEL — RELATÓRIO GERAL DO SISTEMA", subtitle, rows: summaryRows },
     { name: "Movimentações", title: "Todas as movimentações do sistema", subtitle, rows: activityRows },
     { name: "Mov. de equipe", title: "Movimentações de membros e equipe", subtitle, rows: movementRows },
-    { name: "Equipe e contratos", title: "Equipe, cargos e tempo de contrato", subtitle, rows: teamRows },
+    { name: "Equipe atual", title: "Equipe ativa e situação atual", subtitle, rows: teamRows },
+    { name: "Contratações", title: "Contratações e tempo de contrato", subtitle, rows: contractsRows },
+    { name: "Promoções", title: "Histórico de promoções", subtitle, rows: promotionRows },
+    { name: "Desligamentos pedidos", title: "Membros que solicitaram desligamento", subtitle, rows: requestedExitRows },
+    { name: "Demissões", title: "Demissões, remoções e encerramentos", subtitle, rows: dismissalRows },
     { name: "Candidaturas", title: "Formulários, triagem, contatos e entrevistas", subtitle, rows: applicationRows },
     { name: "Cadastros profissionais", title: "Solicitações de cadastro profissional", subtitle, rows: requestRows },
     { name: "Pacientes", title: "Pacientes cadastrados", subtitle, rows: patientRows },
@@ -216,7 +333,7 @@ export function exportAdministrativeReport(data: AdministrativeReportData) {
     },
   ];
 
-  downloadXlsx(`relatorio-geral-hpsr-${generatedAt.toISOString().slice(0, 10)}.xlsx`, sheets);
+  await downloadXlsx(`relatorio-geral-hpsr-${generatedAt.toISOString().slice(0, 10)}.xlsx`, sheets);
 
 }
 

@@ -161,8 +161,9 @@ export default function DirectionPage() {
     if (!client || exportingReport) return;
     setExportingReport(true);
     try {
-      const startTimestamp = getPeriodStart(reportPeriod);
-      const fromIso = startTimestamp ? new Date(startTimestamp).toISOString() : "";
+      // O relatório administrativo sempre cobre todo o histórico disponível.
+      // O filtro de período continua valendo apenas para a visualização do painel.
+      const fromIso = "";
       const reportWarnings: string[] = [];
       const fetchAll = async (table: string, orderColumn = "created_at") => {
         const pageSize = 1000;
@@ -175,11 +176,12 @@ export default function DirectionPage() {
           const page = (data || []) as GenericRecord[];
           rows.push(...page);
           if (page.length < pageSize) break;
+          await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
         }
         return rows;
       };
 
-      const [profileRows, activityRows, teamRows, applicationRows, registrationRows, patientRows, patientAccountRows, patientPortalRows, appointmentRows, clinicalRows, receiptRows, planRows, timeRows, auditRows, bedRows, donationRows, castRows, followupPlanRows, followupOccurrenceRows, guardianRows] = await Promise.all([
+      const [profileRows, activityRows, teamRows, applicationRows, registrationRows, patientRows, patientAccountRows, patientPortalRows, appointmentRows, clinicalRows, receiptRows, planRows, timeRows, auditRows, bedRows, donationRows, castRows, followupPlanRows, followupOccurrenceRows, guardianRows, availabilityRows, slotRows, timeBreakRows, timeSegmentRows, monthlyTimeRows, bedHistoryRows] = await Promise.all([
         fetchAll("profiles"),
         fetchAll("system_activities"),
         fetchAll("team_members"),
@@ -200,10 +202,26 @@ export default function DirectionPage() {
         fetchAll("clinical_followup_plans"),
         fetchAll("clinical_followup_occurrences"),
         fetchAll("patient_guardian_links"),
+        fetchAll("clinical_availability_series"),
+        fetchAll("clinical_appointment_slots"),
+        fetchAll("time_clock_breaks", "started_at"),
+        fetchAll("time_clock_segments", "started_at"),
+        fetchAll("time_clock_monthly_reports", "month_start"),
+        fetchAll("hospital_bed_history"),
       ]);
 
+      const allStartCandidates = [
+        ...profileRows, ...teamRows, ...activityRows, ...applicationRows, ...registrationRows,
+      ].map((row) => row.created_at).filter(Boolean).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+      const anneStart = [...profileRows, ...teamRows]
+        .filter((row) => /\banne\b/i.test(String(row.name || row.payload?.name || "")))
+        .map((row) => row.created_at)
+        .filter(Boolean)
+        .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0];
+
       await exportAdministrativeReport({
-        periodLabel,
+        periodLabel: "Todo o histórico disponível",
+        operationalStart: anneStart || allStartCandidates[0] || "",
         warnings: reportWarnings,
         profiles: profileRows,
         activities: activityRows,
@@ -220,12 +238,18 @@ export default function DirectionPage() {
         timeEntries: timeRows,
         timeAudits: auditRows,
         extraSections: [
-          { name: "Leitos", title: "Situação e movimentações de leitos", rows: bedRows },
+          { name: "Leitos", title: "Situação atual dos leitos", rows: bedRows },
+          { name: "Histórico de leitos", title: "Internações, atualizações, altas e visitas dos leitos", rows: bedHistoryRows },
           { name: "Doações de sangue", title: "Registros de doações de sangue", rows: donationRows },
           { name: "Traumatologia", title: "Registros de gesso e traumatologia", rows: castRows },
           { name: "Acompanhamentos", title: "Planos de acompanhamento clínico", rows: followupPlanRows },
           { name: "Ocorrências acomp.", title: "Ocorrências dos acompanhamentos clínicos", rows: followupOccurrenceRows },
           { name: "Responsáveis", title: "Vínculos de responsáveis por pacientes", rows: guardianRows },
+          { name: "Disponibilidade médica", title: "Séries de disponibilidade publicadas pelos médicos", rows: availabilityRows },
+          { name: "Horários clínicos", title: "Horários clínicos livres, ocupados e encerrados", rows: slotRows },
+          { name: "Pausas do ponto", title: "Pausas registradas durante as jornadas", rows: timeBreakRows },
+          { name: "Segmentos do ponto", title: "Segmentos trabalhados das jornadas", rows: timeSegmentRows },
+          { name: "Fechamentos mensais", title: "Relatórios mensais consolidados de ponto", rows: monthlyTimeRows },
         ],
       });
     } catch (error) {

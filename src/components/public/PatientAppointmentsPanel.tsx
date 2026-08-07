@@ -169,7 +169,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     try {
-      const response = await fetch("/api/paciente/agendar", {
+      const response = await fetch(`/api/paciente/agendar${passport ? `?passport=${encodeURIComponent(passport)}` : ""}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(Object.fromEntries(form.entries())),

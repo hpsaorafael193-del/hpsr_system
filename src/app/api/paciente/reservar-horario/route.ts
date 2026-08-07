@@ -81,6 +81,8 @@ export async function POST(request: NextRequest) {
     const payload = {
       patient: patient.name,
       passport,
+      requestedByPassport: normalizePassport(valid.access.patient_passport),
+      requestedByRelationship: passport === normalizePassport(valid.access.patient_passport) ? "Titular" : "Responsável",
       specialty: slot.specialty,
       physician: slot.doctor_name,
       doctor: slot.doctor_name,

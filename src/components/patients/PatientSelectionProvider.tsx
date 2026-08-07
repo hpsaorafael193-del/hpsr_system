@@ -205,10 +205,17 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
       return false;
     }
 
-    await refreshPatients();
-    notifyPatientRegistryUpdated();
+    setPatients((current) => {
+      const next = current.filter((item) => item.passport !== normalized.passport);
+      next.push(normalized);
+      next.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+      writePatientCache(next);
+      return next;
+    });
+    // O Realtime central fará uma conferência posterior; evitamos uma segunda
+    // leitura completa logo após a gravação.
     return true;
-  }, [refreshPatients]);
+  }, []);
 
   const selectPatient = useCallback((patientOrPassport: SharedPatient | string | null) => {
     const passport = normalizePassport(
