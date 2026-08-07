@@ -76,8 +76,8 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "label": "Evolução Seriada",
       "opcoes": [
         {
-          "valor": "nao_aplicavel",
-          "label": "Não aplicável"
+          "valor": "sem_curva_seriada",
+          "label": "Sem curva seriada neste exame"
         },
         {
           "valor": "adequada",
@@ -92,7 +92,7 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
           "label": "Queda dos níveis"
         }
       ],
-      "referencia": "Não aplicável"
+      "referencia": "Comparar apenas quando houver dosagens seriadas"
     },
     {
       "id": "impressao",
@@ -161,9 +161,9 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "results": {
         "tipo_exame": "Quantitativo",
         "resultado_qualitativo": "Negativo",
-        "beta_hcg_quantitativo": "< 5 mUI/mL",
+        "beta_hcg_quantitativo": "2,1 mUI/mL",
         "correspondencia_gestacional": "Não gestante",
-        "evolucao_seriada": "Não aplicável",
+        "evolucao_seriada": "Sem indicação de curva seriada neste resultado isolado",
         "impressao": "Negativo"
       },
       "interpretation": "Resultado de β-hCG dentro da faixa considerada negativa para o método utilizado. Correlacionar com data da coleta, atraso menstrual, uso de medicações e contexto clínico quando necessário.",
@@ -178,7 +178,7 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "results": {
         "tipo_exame": "Quantitativo",
         "resultado_qualitativo": "Positivo",
-        "beta_hcg_quantitativo": "1.250 mUI/mL",
+        "beta_hcg_quantitativo": "1.248 mUI/mL",
         "correspondencia_gestacional": "Compatível com gestação inicial, conforme correlação clínica",
         "evolucao_seriada": "Avaliar evolução seriada se indicado",
         "impressao": "Positivo"
@@ -212,9 +212,9 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "results": {
         "tipo_exame": "Quantitativo",
         "resultado_qualitativo": "Detectável",
-        "beta_hcg_quantitativo": "A preencher mUI/mL",
-        "correspondencia_gestacional": "Correlacionar com exame anterior e contexto clínico",
-        "evolucao_seriada": "A preencher conforme comparação seriada",
+        "beta_hcg_quantitativo": "186 mUI/mL",
+        "correspondencia_gestacional": "Faixa compatível com gestação muito inicial; interpretar pela evolução seriada",
+        "evolucao_seriada": "Comparar com dosagem anterior em 48–72 horas, conforme indicação clínica",
         "impressao": "Seguimento"
       },
       "interpretation": "A avaliação seriada do β-hCG deve considerar intervalo entre coletas e tendência de elevação, estabilização ou queda dos valores.",
@@ -397,7 +397,7 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "id": "evolucao_seriada",
       "label": "Evolução Seriada",
       "unidade": null,
-      "referencia": "Não aplicável",
+      "referencia": "Comparar apenas quando houver dosagens seriadas",
       "resultPlaceholder": "A preencher",
       "interpretationHint": "Interpretar Evolução Seriada conforme referência, contexto clínico e método utilizado."
     },

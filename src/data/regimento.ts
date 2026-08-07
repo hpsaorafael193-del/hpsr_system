@@ -36,11 +36,11 @@ export const regimentoTitles = [
   {
     "title": "TÍTULO III — DO CONTRATO, ESTÁGIO E ATIVIDADE",
     "articles": [
-      "Art. 10º. Todo recém-contratado inicia no Hospital São Rafael como Estagiário de Enfermagem, com período inicial de estágio de 7 dias.",
+      "Art. 10º. Todo recém-contratado inicia no Hospital São Rafael como Estagiário de Enfermagem, com período inicial de estágio de 15 dias.",
       "Art. 11º. Durante o estágio, o membro deverá atuar sob orientação da equipe responsável, respeitando a hierarquia, as normas internas e as regras da cidade.",
-      "Art. 12º. Durante os 7 dias de estágio, a multa por quebra de contrato, abandono de função, saída sem aviso formal ou infração contratual será de R$ 250.000.",
+      "Art. 12º. Durante os 15 dias de estágio, a multa por quebra de contrato, abandono de função, saída sem aviso formal ou infração contratual será de R$ 250.000.",
       "Art. 13º. Após o período de estágio, a multa contratual passa a ser de R$ 500.000, podendo receber acréscimo conforme cargo, função, responsabilidade, tempo restante de contrato, gravidade da infração e prejuízos causados ao Hospital.",
-      "Art. 14º. A permanência, efetivação ou promoção dependerá da avaliação da Direção, conduta, presença, responsabilidade e desempenho do membro.",
+      "Art. 14º. Ao concluir os 15 dias de estágio, o membro ficará pendente de avaliação da Direção para promoção a Residente ou desligamento, considerando conduta, presença, responsabilidade e desempenho.",
       "Art. 15º. A carga horária seguirá as exigências da cidade, da staff e da Direção do Hospital. Quando houver cobrança formal, a meta será de 2 horas diárias.",
       "Art. 16º. Ausência prolongada, abandono de função, baixa participação ou falta de comunicação com a liderança poderá gerar punições internas."
     ],

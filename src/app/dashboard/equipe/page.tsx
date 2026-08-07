@@ -210,7 +210,7 @@ function getContractInfo(member: TeamMember) {
   const workedDays = daysSince(member.joinedAt);
 
   if (member.hospitalRole === "Estagiário de Enfermagem") {
-    const limit = 7;
+    const limit = 15;
     const remaining = limit - workedDays;
 
     if (remaining <= 0) {
@@ -219,7 +219,7 @@ function getContractInfo(member: TeamMember) {
         tone: "danger" as const,
         workedDays,
         limit,
-        message: "Estagiário cumpriu os 7 dias. Diretoria deve decidir promoção ou desligamento mediante multa.",
+        message: "Estagiário cumpriu os 15 dias. Diretoria deve decidir se será promovido a Residente ou desligado.",
         actions: ["Promover", "Desligar com multa"],
       };
     }
@@ -344,7 +344,7 @@ function memberFromProfile(row: any, supplemental?: Partial<TeamMember>): TeamMe
     history: Array.isArray(supplemental?.history) ? supplemental.history : [],
     clinicalActivity: supplemental?.clinicalActivity,
     contractStatus: supplemental?.contractStatus || "Ativo",
-    contractDurationDays: Number(supplemental?.contractDurationDays || (role === "Estagiário de Enfermagem" ? 7 : 15)),
+    contractDurationDays: role === "Estagiário de Enfermagem" ? 15 : Number(supplemental?.contractDurationDays || 15),
   };
 }
 
@@ -2257,14 +2257,14 @@ function ManageMemberModal({
   function selectDoctor(memberId: string) {
     setSelectedMemberId(memberId);
     const member = members.find((item) => item.id === memberId) || null;
-    setForm(member ? { ...member, contractStatus: member.contractStatus || "Ativo", contractDurationDays: member.contractDurationDays || (member.hospitalRole === "Estagiário de Enfermagem" ? 7 : 15) } : emptyMember);
+    setForm(member ? { ...member, contractStatus: member.contractStatus || "Ativo", contractDurationDays: member.hospitalRole === "Estagiário de Enfermagem" ? 15 : (member.contractDurationDays || 15) } : emptyMember);
   }
 
   const previewAccess = getAccessLevel(form.hospitalRole, form.systemRole);
   const previewCategory = getCategory(form.hospitalRole, form.systemRole);
   const contractHint =
     form?.hospitalRole === "Estagiário de Enfermagem"
-      ? "Estágio inicial de 7 dias com decisão de promoção ou desligamento."
+      ? "Estágio inicial de 15 dias; ao término, a Direção decide entre promoção a Residente ou desligamento."
       : form?.hospitalRole === "Residente"
         ? "Ciclo de 15 dias com avaliação obrigatória no último dia."
         : "Ciclo padrão de 15 dias com revisão de função e desempenho.";

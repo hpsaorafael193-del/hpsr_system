@@ -11,6 +11,7 @@ export type AdaptiveExamConfiguration = {
   clinicalContext: string;
   profileId: string;
   variables: Record<string, string | boolean>;
+  generationSeed?: number;
 };
 
 export type AdaptiveDynamicField = IntelligentClinicalVariable & {
@@ -30,6 +31,7 @@ export type AdaptiveResolvedExam = {
   supportsFutureAttachments: boolean;
   supportsFutureSmartPagination: boolean;
   supportsFutureRenderEngine: boolean;
+  generationSeed: number;
 };
 
 function firstOption(options?: string[]) {
@@ -47,6 +49,7 @@ export function createInitialAdaptiveConfiguration(model: IntelligentExamModel):
     clinicalContext: firstOption(model.clinicalContexts),
     profileId: defaultProfile?.id || "",
     variables: {},
+    generationSeed: 0,
   };
 }
 
@@ -150,6 +153,7 @@ export function resolveAdaptiveExam(model: IntelligentExamModel, configuration: 
     supportsFutureAttachments: model.attachments.mode === "future",
     supportsFutureSmartPagination: true,
     supportsFutureRenderEngine: true,
+    generationSeed: Number(safeConfiguration.generationSeed || 0),
   };
 }
 
@@ -173,8 +177,15 @@ function parsePtNumber(value: string) {
   const clean = value.trim();
   if (!clean) return Number.NaN;
   if (clean.includes(",")) return Number(clean.replace(/\./g, "").replace(",", "."));
-  if (/^\d{1,3}(?:\.\d{3})+$/.test(clean)) return Number(clean.replace(/\./g, ""));
-  return Number(clean.replace(",", "."));
+  if (/^\d{1,3}\.\d{3}$/.test(clean)) {
+    const [integerPart, decimalPart] = clean.split(".");
+    // Em referências brasileiras, 4.000/150.000 representam milhares;
+    // já 1.005/1.030 representam densidade e devem permanecer decimais.
+    if (Number(integerPart) <= 2 && decimalPart !== "000") return Number(clean);
+    return Number(clean.replace(/\./g, ""));
+  }
+  if (/^\d{1,3}(?:\.\d{3}){2,}$/.test(clean)) return Number(clean.replace(/\./g, ""));
+  return Number(clean);
 }
 
 function extractReferenceNumbers(reference: string) {
@@ -187,34 +198,51 @@ function extractReferenceNumbers(reference: string) {
   return matches.map(parsePtNumber).filter((value) => Number.isFinite(value));
 }
 
-function referenceUsesDecimal(reference: string, unit?: string | null) {
-  if (/\d+,\d+/.test(reference)) return true;
-  if (/milh/i.test(unit || "")) return true;
-  if (/g\/dL|fL|pg/i.test(unit || "")) return true;
-  return false;
+function referenceDecimalPlaces(reference: string, unit?: string | null) {
+  const tokens = reference.match(/(?:\d{1,3}(?:\.\d{3})+|\d+(?:[,.]\d+)?)/g) || [];
+  for (const token of tokens) {
+    if (token.includes(",")) return token.split(",")[1]?.length || 0;
+    if (token.includes(".")) {
+      const parsed = parsePtNumber(token);
+      const asThousands = /^\d{1,3}(?:\.\d{3})+$/.test(token) && parsed >= 1000;
+      if (!asThousands) return token.split(".")[1]?.length || 0;
+    }
+  }
+  if (/milh/i.test(unit || "") || /g\/dL|fL|pg/i.test(unit || "")) return 1;
+  return 0;
 }
 
 function formatPtNumber(value: number, reference: string, unit?: string | null) {
-  const rounded = referenceUsesDecimal(reference, unit)
-    ? Number(value.toFixed(1))
-    : Math.round(value);
+  const decimals = referenceDecimalPlaces(reference, unit);
+  const rounded = Number(value.toFixed(decimals));
   return new Intl.NumberFormat("pt-BR", {
-    minimumFractionDigits: referenceUsesDecimal(reference, unit) ? 1 : 0,
-    maximumFractionDigits: referenceUsesDecimal(reference, unit) ? 1 : 0,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
   }).format(rounded);
 }
 
-function randomBetween(min: number, max: number) {
-  return min + Math.random() * (max - min);
+function seedFraction(seed: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 4294967295;
 }
 
-function randomNormalResultFromReference(parameter: IntelligentExamParameter) {
+function deterministicBetween(seed: string, min: number, max: number) {
+  return min + seedFraction(seed) * (max - min);
+}
+
+function randomNormalResultFromReference(parameter: IntelligentExamParameter, seed = parameter.id) {
   const reference = parameter.referencia || "";
   const numbers = extractReferenceNumbers(reference);
+  const parameterText = lowerText(parameter.id, parameter.label);
 
+  if (hasAny(parameterText, ["saturação", "saturacao", "spo2", "sp o2"]) && /%|≥\s*9|>\s*9/.test(reference)) return "98";
   if (/ausente/i.test(reference)) return "Ausente";
   if (/negativo/i.test(reference)) return "Negativo";
-  if (/não\s+aplic[aá]vel/i.test(reference)) return "Não aplicável";
+  if (/não\s+aplic[aá]vel/i.test(reference)) return contextualQualitativeResult(parameter, { id: "normal", name: "Normal", description: "Padrão esperado", status: "normal", resultSummary: "", interpretation: "", conclusion: "" }, "normal");
   if (/normal/i.test(reference)) {
     return contextualQualitativeResult(parameter, {
       id: "normal",
@@ -231,7 +259,7 @@ function randomNormalResultFromReference(parameter: IntelligentExamParameter) {
     const lower = Math.min(numbers[0], numbers[1]);
     const upper = Math.max(numbers[0], numbers[1]);
     const margin = (upper - lower) * 0.18;
-    const value = randomBetween(lower + margin, upper - margin);
+    const value = deterministicBetween(`${seed}:normal-range`, lower + margin, upper - margin);
     return formatPtNumber(value, reference, parameter.unidade);
   }
 
@@ -239,12 +267,12 @@ function randomNormalResultFromReference(parameter: IntelligentExamParameter) {
     const limit = numbers[0];
     const floor = limit > 10 ? limit * 0.18 : 0;
     const ceiling = limit * 0.75;
-    return formatPtNumber(randomBetween(floor, Math.max(floor, ceiling)), reference, parameter.unidade);
+    return formatPtNumber(deterministicBetween(`${seed}:normal-upper`, floor, Math.max(floor, ceiling)), reference, parameter.unidade);
   }
 
   if (/(>|≥)/.test(reference) && numbers.length >= 1) {
     const base = numbers[0];
-    return formatPtNumber(base * randomBetween(1.05, 1.25), reference, parameter.unidade);
+    return formatPtNumber(base * deterministicBetween(`${seed}:normal-lower`, 1.05, 1.25), reference, parameter.unidade);
   }
 
   return contextualQualitativeResult(parameter, {
@@ -267,7 +295,7 @@ function hasAny(text: string, terms: string[]) {
   return terms.some((term) => text.includes(term));
 }
 
-function varyNumericText(value: string, parameter: IntelligentExamParameter, variation = 0.06) {
+function varyNumericText(value: string, parameter: IntelligentExamParameter, variation = 0.06, seed = `${parameter.id}:${value}`) {
   if (!/\d/.test(value)) return value;
   if (/^(positivo|negativo|ausente|presente|normal|alterado|limítrofe|indeterminado)$/i.test(value.trim())) return value;
 
@@ -278,24 +306,26 @@ function varyNumericText(value: string, parameter: IntelligentExamParameter, var
   const numeric = parsePtNumber(original);
   if (!Number.isFinite(numeric) || numeric <= 0) return value;
 
-  const factor = randomBetween(1 - variation, 1 + variation);
+  const factor = deterministicBetween(`${seed}:variation`, 1 - variation, 1 + variation);
   const varied = numeric * factor;
   const formatted = formatPtNumber(varied, parameter.referencia || original, parameter.unidade);
   return value.replace(original, formatted);
 }
 
-function formatResult(value: string, parameter: IntelligentExamParameter) {
-  const varied = varyNumericText(value, parameter);
-  return withUnit(varied, parameter.unidade);
+function formatResult(value: string, parameter: IntelligentExamParameter, _seed = `${parameter.id}:${value}`) {
+  // O valor já foi calculado pelo perfil ou pela referência. Não aplicar uma
+  // segunda variação aqui, pois isso poderia empurrar um resultado normal
+  // para fora da própria faixa de referência.
+  return withUnit(value, parameter.unidade);
 }
 
-function adaptiveExplicitResult(value: string, parameter: IntelligentExamParameter) {
+function adaptiveExplicitResult(value: string, parameter: IntelligentExamParameter, seed: string) {
   // Valores definidos pelo perfil servem como base clínica curada.
   // Cada atualização gera pequena variação coerente, mantendo o mesmo perfil.
-  return varyNumericText(value, parameter, 0.08);
+  return varyNumericText(value, parameter, 0.04, seed);
 }
 
-function alteredNumericFromReference(parameter: IntelligentExamParameter, profile: IntelligentExamProfile, directionHint?: "low" | "high") {
+function alteredNumericFromReference(parameter: IntelligentExamParameter, profile: IntelligentExamProfile, directionHint?: "low" | "high", generationSeed = 0) {
   const reference = parameter.referencia || "";
   const numbers = extractReferenceNumbers(reference);
   const semantic = lowerText(parameter.id, parameter.label, profile.id, profile.name, profile.description);
@@ -311,25 +341,25 @@ function alteredNumericFromReference(parameter: IntelligentExamParameter, profil
     const upper = Math.max(numbers[0], numbers[1]);
     const span = Math.max(upper - lower, Math.abs(upper) * 0.1, 1);
     const value = direction === "low"
-      ? lower - span * randomBetween(0.12, 0.35)
-      : upper + span * randomBetween(0.12, 0.45);
+      ? lower - span * deterministicBetween(`${parameter.id}:${profile.id}:${generationSeed}:alter-low`, 0.12, 0.35)
+      : upper + span * deterministicBetween(`${parameter.id}:${profile.id}:${generationSeed}:alter-high`, 0.12, 0.45);
     return formatPtNumber(Math.max(0, value), reference, parameter.unidade);
   }
 
   if (/(<|≤|ate|até)/i.test(reference) && numbers.length >= 1) {
     const limit = numbers[0];
-    return formatPtNumber(limit * randomBetween(1.15, 1.8), reference, parameter.unidade);
+    return formatPtNumber(limit * deterministicBetween(`${parameter.id}:${profile.id}:${generationSeed}:upper-alter`, 1.15, 1.8), reference, parameter.unidade);
   }
 
   if (/(>|≥)/.test(reference) && numbers.length >= 1) {
     const base = numbers[0];
-    return formatPtNumber(base * randomBetween(0.45, 0.9), reference, parameter.unidade);
+    return formatPtNumber(base * deterministicBetween(`${parameter.id}:${profile.id}:${generationSeed}:lower-alter`, 0.45, 0.9), reference, parameter.unidade);
   }
 
   return contextualQualitativeResult(parameter, profile, "alterado");
 }
 
-function borderlineNumericFromReference(parameter: IntelligentExamParameter, profile: IntelligentExamProfile) {
+function borderlineNumericFromReference(parameter: IntelligentExamParameter, profile: IntelligentExamProfile, generationSeed = 0) {
   const reference = parameter.referencia || "";
   const numbers = extractReferenceNumbers(reference);
   const semantic = lowerText(parameter.id, parameter.label, profile.id, profile.name, profile.description);
@@ -340,19 +370,19 @@ function borderlineNumericFromReference(parameter: IntelligentExamParameter, pro
     const upper = Math.max(numbers[0], numbers[1]);
     const span = Math.max(upper - lower, Math.abs(upper) * 0.1, 1);
     const value = preferLow
-      ? lower - span * randomBetween(0.01, 0.05)
-      : upper + span * randomBetween(0.01, 0.06);
+      ? lower - span * deterministicBetween(`${parameter.id}:${profile.id}:${generationSeed}:border-low`, 0.01, 0.05)
+      : upper + span * deterministicBetween(`${parameter.id}:${profile.id}:${generationSeed}:border-high`, 0.01, 0.06);
     return formatPtNumber(Math.max(0, value), reference, parameter.unidade);
   }
 
   if (/(<|≤|ate|até)/i.test(reference) && numbers.length >= 1) {
     const limit = numbers[0];
-    return formatPtNumber(limit * randomBetween(1.02, 1.1), reference, parameter.unidade);
+    return formatPtNumber(limit * deterministicBetween(`${parameter.id}:${profile.id}:${generationSeed}:border-upper`, 1.02, 1.1), reference, parameter.unidade);
   }
 
   if (/(>|≥)/.test(reference) && numbers.length >= 1) {
     const base = numbers[0];
-    return formatPtNumber(base * randomBetween(0.9, 0.98), reference, parameter.unidade);
+    return formatPtNumber(base * deterministicBetween(`${parameter.id}:${profile.id}:${generationSeed}:border-lower`, 0.9, 0.98), reference, parameter.unidade);
   }
 
   return contextualQualitativeResult(parameter, profile, "limítrofe");
@@ -368,7 +398,7 @@ function qualitativeResultFromReference(parameter: IntelligentExamParameter, pro
     if (reference.includes("ausente")) return "Ausente";
     if (reference.includes("negativo")) return "Negativo";
     if (reference.includes("normal")) return contextualQualitativeResult(parameter, profile, "normal");
-    if (reference.includes("não aplicável")) return "Não aplicável";
+    if (reference.includes("não aplicável")) return contextualQualitativeResult(parameter, profile, "normal");
   }
 
   if (isBorderline) {
@@ -401,6 +431,12 @@ function contextualQualitativeResult(
   const profileText = lowerText(profile.id, profile.name, profile.description);
 
   if (state === "normal") {
+    const rawReference = (parameter.referencia || "").trim();
+    const normalizedReference = rawReference.replace(/^valor de refer[eê]ncia:\s*/i, "").trim();
+    if (normalizedReference && !/\d/.test(normalizedReference) && !/conforme|selecionar|contexto|m[eé]todo|normal\s*\/\s*alterado|alterado\s*\/\s*normal|—|^-$/i.test(normalizedReference)) {
+      const firstExpected = normalizedReference.split(/\s*\/\s*|\s*;\s*/)[0]?.trim();
+      if (firstExpected && firstExpected.length <= 90) return firstExpected;
+    }
     if (hasAny(text, ["hemorrag", "lesão", "lesao", "massa", "nódulo", "nodulo", "cisto", "estenose", "trombo", "derrame", "edema", "calcifica", "vegetação", "vegetacao", "isquemia", "parasita", "bactér", "bacter", "fungo", "secreção", "secrecao"])) return "Ausente";
     if (hasAny(text, ["fluxo", "perfusão", "permeabilidade", "mobilidade", "função", "funcao", "contratilidade", "vitalidade", "resposta", "reflexo", "acuidade"])) return grammaticalForm(parameter, "Preservado", "Preservada", "Preservados", "Preservadas");
     if (hasAny(text, ["contorno", "morfologia", "arquitetura", "estrutura", "parede", "superfície", "superficie", "aspecto", "posição", "posicao", "implantação", "implantacao"])) return grammaticalForm(parameter, "Regular", "Regular", "Regulares", "Regulares");
@@ -445,7 +481,9 @@ function contextualQualitativeResult(
 }
 
 function isGenericResult(value: string) {
-  return /^(alterado|alterada|alterados|alteradas|achado|achados|resultado alterado|exame alterado|a preencher|normal|dentro da refer[eê]ncia|dentro dos limites|sem altera[cç][aã]o|preservado|preservada|adequado|adequada|lim[ií]trofe|indeterminado)$/i.test(value.trim());
+  const normalized = value.trim();
+  if (/^(a preencher|não aplicável|não se aplica|não informado)(?:\b|\s)/i.test(normalized)) return true;
+  return /^(alterado|alterada|alterados|alteradas|achado|achados|resultado alterado|exame alterado|normal|dentro da refer[eê]ncia|dentro dos limites|sem altera[cç][aã]o|preservado|preservada|adequado|adequada|lim[ií]trofe|indeterminado)$/i.test(normalized);
 }
 
 function profileMatchesParameter(parameter: IntelligentExamParameter, profile: IntelligentExamProfile) {
@@ -466,7 +504,9 @@ function shouldUseAlteredResult(model: IntelligentExamModel, parameter: Intellig
   return index >= 0 && index < Math.max(1, Math.ceil(meaningful.length * 0.28));
 }
 
-function laboratoryPatternResult(model: IntelligentExamModel, parameter: IntelligentExamParameter, profile: IntelligentExamProfile) {
+function laboratoryPatternResult(model: IntelligentExamModel, parameter: IntelligentExamParameter, profile: IntelligentExamProfile, generationSeed = 0) {
+  const generationKey = `${model.id}:${profile.id}:${parameter.id}:${generationSeed}`;
+  const preset = (value: string, variation = 0.035) => formatResult(varyNumericText(value, parameter, variation, `${generationKey}:preset`), parameter);
   const text = lowerText(model.id, model.nome, parameter.id, parameter.label, profile.id, profile.name);
   const profileText = lowerText(profile.id, profile.name, profile.description);
 
@@ -476,7 +516,7 @@ function laboratoryPatternResult(model: IntelligentExamModel, parameter: Intelli
   if (model.id === "lab_urina_analise") {
     if (hasAny(profileText, ["itu", "infec"])) {
       if (text.includes("nitrito")) return "Positivo";
-      if (text.includes("leucoc")) return formatResult("25", parameter);
+      if (text.includes("leucoc")) return preset("25");
       if (text.includes("bacter")) return "Presentes";
       if (text.includes("aspecto")) return "Turvo";
       if (text.includes("prote")) return "Traços";
@@ -486,11 +526,11 @@ function laboratoryPatternResult(model: IntelligentExamModel, parameter: Intelli
       if (text.includes("cilind")) return "Hialinos";
     }
     if (profileText.includes("hemat")) {
-      if (text.includes("hemac")) return formatResult("18", parameter);
+      if (text.includes("hemac")) return preset("18");
       if (text.includes("cor")) return "Amarelo escuro";
     }
     if (profileText.includes("lit")) {
-      if (text.includes("hemac")) return formatResult("12", parameter);
+      if (text.includes("hemac")) return preset("12");
       if (text.includes("crist")) return "Presentes";
     }
   }
@@ -517,74 +557,247 @@ function laboratoryPatternResult(model: IntelligentExamModel, parameter: Intelli
       if (text.includes("crescimento")) return "Negativo";
       if (text.includes("micro")) return "Não isolado";
       if (text.includes("colônias") || text.includes("colonias")) return "Sem crescimento significativo";
-      if (text.includes("antibiograma") || text.includes("antibióticos") || text.includes("antibioticos")) return "Não aplicável";
+      if (text.includes("antibiograma")) return "Não realizado por ausência de isolamento bacteriano significativo";
+      if (text.includes("antibióticos") || text.includes("antibioticos")) return "Sem painel de sensibilidade liberado por ausência de isolado significativo";
     }
   }
 
   if (model.id === "lab_metabolismo_ferro") {
     if (hasAny(profileText, ["deficiencia", "deficiência"])) {
-      if (text.includes("ferro_serico") || text.includes("ferro sérico")) return formatResult("32", parameter);
-      if (text.includes("ferritina")) return formatResult("8", parameter);
-      if (text.includes("tibc") || text.includes("capacidade")) return formatResult("480", parameter);
-      if (text.includes("saturacao") || text.includes("saturação")) return formatResult("8", parameter);
+      if (text.includes("ferro_serico") || text.includes("ferro sérico")) return preset("32");
+      if (text.includes("ferritina")) return preset("8");
+      if (text.includes("tibc") || text.includes("capacidade")) return preset("480");
+      if (text.includes("saturacao") || text.includes("saturação")) return preset("8");
     }
     if (hasAny(profileText, ["sobrecarga", "alto", "elevado"])) {
-      if (text.includes("ferro_serico") || text.includes("ferro sérico")) return formatResult("210", parameter);
-      if (text.includes("ferritina")) return formatResult("420", parameter);
-      if (text.includes("tibc") || text.includes("capacidade")) return formatResult("235", parameter);
-      if (text.includes("saturacao") || text.includes("saturação")) return formatResult("68", parameter);
+      if (text.includes("ferro_serico") || text.includes("ferro sérico")) return preset("210");
+      if (text.includes("ferritina")) return preset("420");
+      if (text.includes("tibc") || text.includes("capacidade")) return preset("235");
+      if (text.includes("saturacao") || text.includes("saturação")) return preset("68");
     }
   }
 
   if (model.id === "lab_glicemia" || model.id === "pediatria_glicemia_capilar") {
-    if (hasAny(profileText, ["hipoglic"])) return formatResult("58", parameter);
-    if (hasAny(profileText, ["hiperglic", "alterado", "diabetes"])) return formatResult("148", parameter);
-    if (hasAny(profileText, ["lim", "indef", "pré", "pre"])) return formatResult("108", parameter);
+    if (hasAny(profileText, ["hipoglic"])) return preset("58");
+    if (hasAny(profileText, ["hiperglic", "alterado", "diabetes"])) return preset("148");
+    if (hasAny(profileText, ["lim", "indef", "pré", "pre"])) return preset("108", 0.02);
   }
 
   if (model.id === "lab_hba1c_completa") {
-    if (hasAny(profileText, ["diabetes", "alterado", "elev"])) return formatResult("7,2", parameter);
-    if (hasAny(profileText, ["pré", "pre", "lim", "indef"])) return formatResult("5,9", parameter);
+    if (hasAny(profileText, ["diabetes", "alterado", "elev"])) return preset("7,2", 0.02);
+    if (hasAny(profileText, ["pré", "pre", "lim", "indef"])) return preset("5,9", 0.015);
   }
 
   if (model.id === "lab_funcao_renal_completa") {
     if (hasAny(profileText, ["renal", "azot", "alterado", "insuf"])) {
-      if (text.includes("creatin")) return formatResult("1,8", parameter);
-      if (text.includes("ureia") || text.includes("uréia")) return formatResult("68", parameter);
-      if (text.includes("filtra") || text.includes("tfg")) return formatResult("48", parameter);
+      if (text.includes("creatin")) return preset("1,8");
+      if (text.includes("ureia") || text.includes("uréia")) return preset("68");
+      if (text.includes("filtra") || text.includes("tfg")) return preset("48");
     }
   }
 
   if (model.id === "lab_funcao_hepatica_completa") {
     if (hasAny(profileText, ["hepatocelular", "misto", "alterado"])) {
-      if (hasAny(text, ["tgo", "ast", "tgp", "alt"])) return formatResult("125", parameter);
+      if (hasAny(text, ["tgo", "ast", "tgp", "alt"])) return preset("125");
     }
     if (hasAny(profileText, ["colest", "misto", "alterado"])) {
-      if (hasAny(text, ["gama", "ggt", "fosfatase", "bilirrubina"])) return formatResult(alteredNumericFromReference(parameter, profile, "high"), parameter);
+      if (hasAny(text, ["gama", "ggt", "fosfatase", "bilirrubina"])) return formatResult(alteredNumericFromReference(parameter, profile, "high", generationSeed), parameter);
     }
   }
 
   if (model.id === "lab_eletrolitos_completos") {
-    if (profileText.includes("hiponat")) return text.includes("sodio") || text.includes("na") ? formatResult("128", parameter) : formatResult(randomNormalResultFromReference(parameter), parameter);
-    if (profileText.includes("hipernat")) return text.includes("sodio") || text.includes("na") ? formatResult("151", parameter) : formatResult(randomNormalResultFromReference(parameter), parameter);
-    if (profileText.includes("hipocalem")) return text.includes("potass") || text.includes("k") ? formatResult("3,0", parameter) : formatResult(randomNormalResultFromReference(parameter), parameter);
-    if (profileText.includes("hipercalem")) return text.includes("potass") || text.includes("k") ? formatResult("5,8", parameter) : formatResult(randomNormalResultFromReference(parameter), parameter);
-    if (profileText.includes("hipocalc")) return text.includes("calcio") || text.includes("cálcio") ? formatResult("7,8", parameter) : formatResult(randomNormalResultFromReference(parameter), parameter);
-    if (profileText.includes("hipomagnes")) return text.includes("magnes") ? formatResult("1,3", parameter) : formatResult(randomNormalResultFromReference(parameter), parameter);
+    if (profileText.includes("hiponat")) return text.includes("sodio") || text.includes("na") ? preset("128", 0.01) : formatResult(randomNormalResultFromReference(parameter, generationKey), parameter);
+    if (profileText.includes("hipernat")) return text.includes("sodio") || text.includes("na") ? preset("151", 0.008) : formatResult(randomNormalResultFromReference(parameter, generationKey), parameter);
+    if (profileText.includes("hipocalem")) return text.includes("potass") || text.includes("k") ? preset("3,0", 0.02) : formatResult(randomNormalResultFromReference(parameter, generationKey), parameter);
+    if (profileText.includes("hipercalem")) return text.includes("potass") || text.includes("k") ? preset("5,8", 0.015) : formatResult(randomNormalResultFromReference(parameter, generationKey), parameter);
+    if (profileText.includes("hipocalc")) return text.includes("calcio") || text.includes("cálcio") ? preset("7,8", 0.02) : formatResult(randomNormalResultFromReference(parameter, generationKey), parameter);
+    if (profileText.includes("hipomagnes")) return text.includes("magnes") ? preset("1,3", 0.02) : formatResult(randomNormalResultFromReference(parameter, generationKey), parameter);
   }
 
-  if (profile.status === "normal" || profile.id === "normal") return formatResult(randomNormalResultFromReference(parameter), parameter);
-  if (profile.status === "indefinido" || /lim|indef|inconclus/i.test(profile.id + profile.name)) return formatResult(borderlineNumericFromReference(parameter, profile), parameter);
+  if (profile.status === "normal" || profile.id === "normal") return formatResult(randomNormalResultFromReference(parameter, generationKey), parameter);
+  if (profile.status === "indefinido" || /lim|indef|inconclus/i.test(profile.id + profile.name)) return formatResult(borderlineNumericFromReference(parameter, profile, generationSeed), parameter);
   if (profile.status === "personalizado") return contextualQualitativeResult(parameter, profile, "normal");
 
-  return formatResult(alteredNumericFromReference(parameter, profile), parameter);
+  return formatResult(alteredNumericFromReference(parameter, profile, undefined, generationSeed), parameter);
 }
 
-function resultForParameter(model: IntelligentExamModel, parameter: IntelligentExamParameter, profile: IntelligentExamProfile) {
+
+
+type GuidedRuntimeContext = {
+  adapterValue?: string;
+  clinicalContext?: string;
+  generationSeed?: number;
+};
+
+function guidedRuntimeOverride(
+  model: IntelligentExamModel,
+  parameter: IntelligentExamParameter,
+  profile: IntelligentExamProfile,
+  runtime?: GuidedRuntimeContext,
+) {
+  const parameterText = lowerText(parameter.id, parameter.label);
+  const profileText = lowerText(profile.id, profile.name, profile.description);
+  const adapterValue = runtime?.adapterValue?.trim() || "";
+  const clinicalContext = runtime?.clinicalContext?.trim() || "";
+  const generationSeed = Number(runtime?.generationSeed || 0);
+
+  if (clinicalContext && hasAny(parameterText, ["contexto clínico", "contexto clinico", "indicação clínica", "indicacao clinica", "correlação clínica", "correlacao clinica"])) {
+    return clinicalContext;
+  }
+  if (hasAny(parameterText, ["impressão", "impressao", "classificação", "classificacao"])) {
+    return profile.resultSummary.replace(/[.]$/, "");
+  }
+
+  // O adaptador é uma informação clínica selecionada pelo profissional e deve
+  // prevalecer sobre qualquer texto genérico sugerido pelo motor.
+  if (adapterValue && model.adapter.enabled) {
+    if (parameter.id === model.adapter.id || hasAny(parameterText, ["local examinado", "região examinada", "regiao examinada"])) {
+      return adapterValue;
+    }
+  }
+
+  if (model.id === "lab_beta_hcg_completo") {
+    const values: Record<string, Record<string, string>> = {
+      negativo: {
+        tipo_exame: "Quantitativo",
+        resultado_qualitativo: "Negativo",
+        beta_hcg_quantitativo: `${formatPtNumber(deterministicBetween(`beta:negativo:${generationSeed}`, 0.6, 4.4), "0,0", "mUI/mL")} mUI/mL`,
+        correspondencia_gestacional: "Faixa de não gestante",
+        evolucao_seriada: "Sem indicação de curva seriada neste resultado isolado",
+        impressao: "β-hCG negativo",
+      },
+      positivo: {
+        tipo_exame: "Quantitativo",
+        resultado_qualitativo: "Positivo",
+        beta_hcg_quantitativo: `${formatPtNumber(deterministicBetween(`beta:positivo:${generationSeed}`, 650, 4200), "0", "mUI/mL")} mUI/mL`,
+        correspondencia_gestacional: "Compatível com gestação inicial; correlacionar com idade gestacional",
+        evolucao_seriada: "Controle seriado somente quando clinicamente indicado",
+        impressao: "β-hCG positivo",
+      },
+      indeterminado: {
+        tipo_exame: "Quantitativo",
+        resultado_qualitativo: "Indeterminado",
+        beta_hcg_quantitativo: `${formatPtNumber(deterministicBetween(`beta:indeterminado:${generationSeed}`, 6, 24), "0", "mUI/mL")} mUI/mL`,
+        correspondencia_gestacional: "Faixa limítrofe, sem definição isolada",
+        evolucao_seriada: "Repetir em 48–72 horas conforme avaliação clínica",
+        impressao: "β-hCG em faixa indeterminada",
+      },
+      seguimento: {
+        tipo_exame: "Quantitativo",
+        resultado_qualitativo: "Detectável",
+        beta_hcg_quantitativo: `${formatPtNumber(deterministicBetween(`beta:seguimento:${generationSeed}`, 70, 480), "0", "mUI/mL")} mUI/mL`,
+        correspondencia_gestacional: "Compatível com gestação muito inicial; interpretar pela tendência",
+        evolucao_seriada: "Comparar com dosagem anterior em 48–72 horas",
+        impressao: "β-hCG em seguimento seriado",
+      },
+    };
+    return values[profile.id]?.[parameter.id] || null;
+  }
+
+  if (model.id === "lab_urocultura") {
+    const values: Record<string, Record<string, string>> = {
+      negativa: {
+        crescimento_bacteriano: "Negativo",
+        microorganismo: "Não isolado",
+        contagem_colonias: `${formatPtNumber(deterministicBetween(`uro:negativa:${generationSeed}`, 120, 850), "0", "UFC/mL")} UFC/mL`,
+        antibiograma: "Não realizado por ausência de isolamento bacteriano significativo",
+        antibioticos_testados: "Sem painel de sensibilidade liberado",
+        impressao: "Ausência de crescimento bacteriano significativo",
+      },
+      positiva: {
+        crescimento_bacteriano: "Positivo",
+        microorganismo: "Escherichia coli",
+        contagem_colonias: `${formatPtNumber(deterministicBetween(`uro:positiva:${generationSeed}`, 120000, 280000), "0", "UFC/mL")} UFC/mL`,
+        antibiograma: "Sensibilidade antimicrobiana liberada para o isolado",
+        antibioticos_testados: "Nitrofurantoína: sensível; Ciprofloxacino: sensível; Amoxicilina-clavulanato: resistente",
+        impressao: "Crescimento bacteriano significativo",
+      },
+      contaminacao: {
+        crescimento_bacteriano: "Crescimento misto",
+        microorganismo: "Flora bacteriana mista",
+        contagem_colonias: `${formatPtNumber(deterministicBetween(`uro:contaminacao:${generationSeed}`, 12000, 48000), "0", "UFC/mL")} UFC/mL, flora mista`,
+        antibiograma: "Não liberado devido a crescimento misto",
+        antibioticos_testados: "Painel de sensibilidade não liberado para flora mista",
+        impressao: "Padrão sugestivo de contaminação da amostra",
+      },
+    };
+    return values[profile.id]?.[parameter.id] || null;
+  }
+
+  if (model.id === "img_raio_x_unico") {
+    if (parameter.id === "local_examinado" && adapterValue) return adapterValue;
+    if (parameter.id === "incidencia") {
+      if (/tórax/i.test(adapterValue)) return "PA e perfil";
+      if (/coluna|crânio/i.test(adapterValue)) return "AP e perfil";
+      return "AP e perfil";
+    }
+    if (parameter.id === "lateralidade") {
+      if (/tórax|coluna|crânio/i.test(adapterValue)) return "Exame sem lateralidade específica";
+      return "Lateralidade a confirmar conforme segmento examinado";
+    }
+    if (profileText.includes("fratura com desvio") && parameter.id === "impressao") return "Fratura com desvio";
+  }
+
+  if (model.id === "hormonal_amh") {
+    if (parameter.id === "amh") {
+      if (profile.status === "normal" || profile.id === "normal") return "2,2 ng/mL";
+      if (profile.status === "indefinido") return "0,9 ng/mL";
+      if (hasAny(profileText, ["alto", "elev"])) return "4,6 ng/mL";
+      return "0,4 ng/mL";
+    }
+  }
+
+  if (model.id === "lab_teste_coombs") {
+    if (parameter.id === "tipo_coombs") return adapterValue || "Coombs direto";
+    if (hasAny(parameterText, ["anticorpo", "reação", "reacao"]) && (profile.status === "normal" || profile.id === "normal")) return "Não reagente";
+  }
+
+  if (model.id === "lab_sorologia" && (profile.status === "normal" || profile.id === "normal")) {
+    if (/igm/.test(parameterText)) return "Não reagente";
+    if (/rub[eé]ola.*igg/.test(parameterText)) return "Reagente — padrão compatível com imunidade sorológica";
+    if (/citomegalov[ií]rus.*igg/.test(parameterText)) return "Reagente — contato prévio, sem marcador IgM de fase aguda";
+    if (/toxoplasmose.*igg/.test(parameterText)) return "Não reagente";
+  }
+
+  if (model.id === "geral_exame_toxicologico" && profile.id === "amostra_inadequada") {
+    const substanceIds = new Set(["canabinoides", "cocaina", "anfetaminas", "metanfetaminas", "opiaceos", "benzodiazepinicos", "barbituricos", "metadona", "fenciclidina", "outras_substancias"]);
+    if (substanceIds.has(parameter.id)) return "Resultado não liberado — amostra inadequada";
+  }
+
+  return null;
+}
+
+function psychotechnicalContextNarrative(resolved: AdaptiveResolvedExam, kind: "interpretation" | "conclusion") {
+  const context = resolved.clinicalContext.toLowerCase();
+  const profile = resolved.profile;
+  const aptitude = profile.id === "apto_com_ressalvas" ? "apto com ressalvas" : profile.id === "nao_apto" ? "não apto" : profile.id === "inconclusivo" ? "inconclusivo" : "apto";
+  const positive = profile.id === "apto" || profile.id === "apto_com_ressalvas";
+
+  if (context.includes("porte de arma")) {
+    return kind === "interpretation"
+      ? `${positive ? "O desempenho observado mostrou" : "Foram observadas limitações em"} atenção sustentada, controle de impulsos, regulação emocional, julgamento e tomada de decisão, domínios relevantes para manejo responsável de arma de fogo. O resultado deve ser considerado em conjunto com o protocolo efetivamente aplicado.`
+      : `No contexto de porte de arma, o resultado psicotécnico é ${aptitude}.`;
+  }
+  if (context.includes("pilotagem")) {
+    return kind === "interpretation"
+      ? `${positive ? "O desempenho observado mostrou" : "Foram observadas limitações em"} atenção sustentada, tempo de reação, autorregulação sob pressão, coordenação e tomada de decisão, domínios funcionais relevantes para atividade de pilotagem aérea. O resultado deve ser considerado em conjunto com o protocolo efetivamente aplicado.`
+      : `No contexto de pilotagem aérea, o resultado psicotécnico é ${aptitude}.`;
+  }
+  return kind === "interpretation"
+    ? `${positive ? "O desempenho global permaneceu" : "O desempenho global mostrou-se"} compatível com a avaliação psicotécnica de rotina nos domínios cognitivos, emocionais, comportamentais e funcionais examinados, conforme os achados descritos.`
+    : `No contexto clínico de rotina, o resultado psicotécnico é ${aptitude}.`;
+}
+
+function resultForParameter(model: IntelligentExamModel, parameter: IntelligentExamParameter, profile: IntelligentExamProfile, runtime?: GuidedRuntimeContext) {
+  const generationSeed = Number(runtime?.generationSeed || 0);
+  const generationKey = `${model.id}:${profile.id}:${parameter.id}:${generationSeed}`;
+  const guidedOverride = guidedRuntimeOverride(model, parameter, profile, runtime);
+  if (guidedOverride) return formatResult(guidedOverride, parameter, `${generationKey}:guided`);
+
   const explicitResult = profile.results?.[parameter.id];
 
   if (explicitResult) {
-    const result = adaptiveExplicitResult(explicitResult, parameter);
+    const result = adaptiveExplicitResult(explicitResult, parameter, generationKey);
     if (!isGenericResult(result)) return formatResult(result, parameter);
   }
 
@@ -593,10 +806,10 @@ function resultForParameter(model: IntelligentExamModel, parameter: IntelligentE
   // recebem valores alterados; os demais permanecem dentro da referência.
   if (!shouldUseAlteredResult(model, parameter, profile)) {
     const normalProfile = model.profiles.find((item) => item.id === "normal") || { ...profile, id: "normal", status: "normal" as const, name: "Normal" };
-    return laboratoryPatternResult(model, parameter, normalProfile);
+    return laboratoryPatternResult(model, parameter, normalProfile, generationSeed);
   }
 
-  const result = laboratoryPatternResult(model, parameter, profile);
+  const result = laboratoryPatternResult(model, parameter, profile, generationSeed);
   if (isGenericResult(result)) {
     const state = profile.status === "indefinido" ? "limítrofe" : "alterado";
     return formatResult(contextualQualitativeResult(parameter, profile, state), parameter);
@@ -614,7 +827,7 @@ function tableHtml(headers: string[], rows: string[][]) {
 function parameterRows(resolved: AdaptiveResolvedExam) {
   return resolved.parameters.map((parameter) => [
     parameter.label,
-    resultForParameter(resolved.model, parameter, resolved.profile),
+    resultForParameter(resolved.model, parameter, resolved.profile, resolved),
     parameter.referencia || "Conforme método / contexto clínico",
   ]);
 }
@@ -671,9 +884,11 @@ function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][
 
   if (profile.status === "normal" || profile.id === "normal") {
     const samples = rows.slice(0, 4).map((row) => `${row[0]}: ${row[1]}`).join("; ");
-    return samples
-      ? `Os resultados objetivos demonstram ${samples}. Não foram identificadas discordâncias entre esses parâmetros e as referências informadas.`
-      : `Não foi possível compor a interpretação sem resultados objetivos preenchidos.`;
+    if (!samples) return `Não foi possível compor a interpretação sem resultados objetivos preenchidos.`;
+    const variant = resolved.generationSeed % 3;
+    if (variant === 1) return `Na atualização dos achados, os parâmetros objetivos permaneceram compatíveis com as referências: ${samples}.`;
+    if (variant === 2) return `A nova composição dos achados demonstra ${samples}, mantendo coerência com os limites e padrões técnicos informados.`;
+    return `Os resultados objetivos demonstram ${samples}. Não foram identificadas discordâncias entre esses parâmetros e as referências informadas.`;
   }
 
   if (profile.status === "indefinido") {
@@ -694,13 +909,20 @@ function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
 
   if (profile.status === "normal" || profile.id === "normal") {
     const summary = rows.slice(0, 3).map((row) => `${row[0]} (${row[1]})`).join("; ");
+    const variant = resolved.generationSeed % 3;
+    if (variant === 1) return `${model.nome} com nova amostragem de achados dentro do padrão esperado${summary ? `: ${summary}` : ""}.`;
+    if (variant === 2) return `${model.nome} com achados atualizados e coerentes com as referências do perfil normal${summary ? `: ${summary}` : ""}.`;
     return `${model.nome} com resultados objetivos compatíveis com o perfil selecionado${summary ? `: ${summary}` : ""}.`;
   }
   if (profile.status === "indefinido") {
-    return `${model.nome} com achados discretos ou limítrofes, de significado inespecífico isoladamente. Considerar acompanhamento conforme avaliação médica.`;
+    return resolved.generationSeed % 2
+      ? `${model.nome} com atualização de achados ainda em faixa limítrofe, sem definição isolada. Considerar acompanhamento conforme avaliação médica.`
+      : `${model.nome} com achados discretos ou limítrofes, de significado inespecífico isoladamente. Considerar acompanhamento conforme avaliação médica.`;
   }
   const summary = altered.slice(0, 3).map((row) => `${row[0]} (${row[1]})`).join("; ");
-  return `${model.nome} com alterações tecnicamente demonstradas${summary ? `: ${summary}` : ""}. Correlacionar com o contexto clínico para definição de conduta.`;
+  return resolved.generationSeed % 2
+    ? `${model.nome} com achados atualizados mantendo o padrão alterado selecionado${summary ? `: ${summary}` : ""}. Correlacionar com o contexto clínico para definição de conduta.`
+    : `${model.nome} com alterações tecnicamente demonstradas${summary ? `: ${summary}` : ""}. Correlacionar com o contexto clínico para definição de conduta.`;
 }
 
 function resultSummaryFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
@@ -721,8 +943,14 @@ function resultSummaryFromRows(resolved: AdaptiveResolvedExam, rows: string[][])
     .slice(0, 4)
     .map((row) => `${row[0]}: ${row[1]}`);
 
-  if (!highlighted.length) return `${model.nome}: resultado compatível com o perfil ${profile.name.toLowerCase()}, conforme parâmetros descritos.`;
-  return `${model.nome}: ${highlighted.join("; ")}.`;
+  if (!highlighted.length) {
+    return resolved.generationSeed % 2
+      ? `${model.nome}: achados atualizados permanecem compatíveis com o perfil ${profile.name.toLowerCase()}, conforme parâmetros descritos.`
+      : `${model.nome}: resultado compatível com o perfil ${profile.name.toLowerCase()}, conforme parâmetros descritos.`;
+  }
+  return resolved.generationSeed % 2
+    ? `${model.nome}: atualização dos achados — ${highlighted.join("; ")}.`
+    : `${model.nome}: ${highlighted.join("; ")}.`;
 }
 
 function findingsFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
@@ -789,21 +1017,22 @@ export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
       section("avaliacao_fisica", "4. Avaliação física", tableHtml(["Parâmetro", "Resultado", "Referência"], physicalRows)),
       section("avaliacao_cardiaca", "5. Avaliação cardíaca", tableHtml(["Parâmetro", "Resultado", "Referência"], cardiacRows)),
       section("avaliacao_respiratoria", "6. Avaliação respiratória", tableHtml(["Parâmetro", "Resultado", "Referência"], respiratoryRows)),
-      section("interpretacao", "7. Interpretação", paragraphs(technicalInterpretation(resolved, integratedRows))),
-      section("conclusao", "8. Conclusão", paragraphs(`Resultado de aptidão: ${aptitude}.
-${technicalConclusion(resolved, integratedRows)}`)),
+      section("interpretacao", "7. Interpretação", paragraphs(`${psychotechnicalContextNarrative(resolved, "interpretation")}
+${profile.interpretation}`)),
+      section("conclusao", "8. Conclusão", paragraphs(`${psychotechnicalContextNarrative(resolved, "conclusion")}
+${profile.conclusion}`)),
     ].join("");
   }
   if (model.id === "geral_exame_toxicologico") {
     const substanceIds = new Set(["canabinoides", "cocaina", "anfetaminas", "metanfetaminas", "opiaceos", "benzodiazepinicos", "barbituricos", "metadona", "fenciclidina", "outras_substancias"]);
     const substanceRows = resolved.parameters.filter((parameter) => substanceIds.has(parameter.id)).map((parameter) => [
       parameter.label,
-      resultForParameter(model, parameter, profile),
+      resultForParameter(model, parameter, profile, resolved),
       (parameter.referencia || "Conforme método").replace(/^Valor de corte:\s*/i, ""),
     ]);
     const qualityRows = resolved.parameters.filter((parameter) => !substanceIds.has(parameter.id)).map((parameter) => [
       parameter.label,
-      resultForParameter(model, parameter, profile),
+      resultForParameter(model, parameter, profile, resolved),
       parameter.referencia || "Conforme método",
     ]);
     const material = resolved.adapterValue || "A informar";

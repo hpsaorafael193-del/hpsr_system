@@ -152,8 +152,16 @@ export const lab_uroculturaModel: IntelligentExamModel = {
       "status": "normal",
       "description": "Sem crescimento bacteriano significativo.",
       "resultSummary": "Urocultura sem crescimento bacteriano significativo.",
-      "interpretation": "Ausência de crescimento bacteriano significativo nas condições analisadas.",
-      "conclusion": "Urocultura negativa."
+      "results": {
+        "crescimento_bacteriano": "Negativo",
+        "microorganismo": "Não isolado",
+        "contagem_colonias": "< 1.000 UFC/mL",
+        "antibiograma": "Não realizado por ausência de isolamento bacteriano significativo",
+        "antibioticos_testados": "Sem painel de sensibilidade liberado",
+        "impressao": "Ausência de crescimento bacteriano significativo"
+      },
+      "interpretation": "Ausência de crescimento bacteriano significativo nas condições analisadas. Contagens muito baixas devem ser correlacionadas com sintomas, método de coleta e eventual uso prévio de antimicrobianos.",
+      "conclusion": "Urocultura negativa para crescimento bacteriano significativo."
     },
     {
       "id": "positiva",
@@ -181,9 +189,9 @@ export const lab_uroculturaModel: IntelligentExamModel = {
       "results": {
         "crescimento_bacteriano": "Crescimento misto",
         "microorganismo": "Flora mista",
-        "contagem_colonias": "< 100.000 UFC/mL",
-        "antibiograma": "Não realizado / não aplicável",
-        "antibioticos_testados": "Não aplicável",
+        "contagem_colonias": "10.000–50.000 UFC/mL, flora mista",
+        "antibiograma": "Não liberado devido a crescimento misto",
+        "antibioticos_testados": "Painel de sensibilidade não liberado para flora mista",
         "impressao": "Sugestivo de contaminação da amostra"
       },
       "interpretation": "Crescimento misto ou contagem baixa pode indicar contaminação da amostra, recomendando nova coleta quando clinicamente indicado.",
@@ -342,7 +350,7 @@ export const lab_uroculturaModel: IntelligentExamModel = {
       "id": "contagem_colonias",
       "label": "Contagem de Colônias",
       "unidade": "UFC/mL",
-      "referencia": "≥ 100.000",
+      "referencia": "Interpretação quantitativa conforme coleta e contexto; ≥ 100.000 UFC/mL é limiar clássico de crescimento significativo",
       "resultPlaceholder": "A preencher",
       "interpretationHint": "Interpretar Contagem de Colônias conforme referência, contexto clínico e método utilizado."
     },

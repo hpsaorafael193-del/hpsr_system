@@ -34,8 +34,8 @@ export const lab_funcao_renal_completaModel: IntelligentExamModel = {
       "label": "Estágio de Doença Renal Crônica (DRC)",
       "opcoes": [
         {
-          "valor": "nao_aplicavel",
-          "label": "Não aplicável"
+          "valor": "sem_classificacao_isolada",
+          "label": "Sem classificação de DRC pelo exame isolado"
         },
         {
           "valor": "estagio_1",
@@ -62,7 +62,7 @@ export const lab_funcao_renal_completaModel: IntelligentExamModel = {
           "label": "Estágio 5"
         }
       ],
-      "referencia": "Não aplicável"
+      "referencia": "Classificação depende de TFG, cronicidade e contexto clínico"
     },
     {
       "id": "relacao_ureia_creatinina",
@@ -321,7 +321,7 @@ export const lab_funcao_renal_completaModel: IntelligentExamModel = {
       "id": "estagio_drc",
       "label": "Estágio de Doença Renal Crônica (DRC)",
       "unidade": null,
-      "referencia": "Não aplicável",
+      "referencia": "Classificação depende de TFG, cronicidade e contexto clínico",
       "resultPlaceholder": "A preencher",
       "interpretationHint": "Interpretar Estágio de Doença Renal Crônica (DRC) conforme referência, contexto clínico e método utilizado."
     },

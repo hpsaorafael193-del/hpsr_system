@@ -58,6 +58,7 @@ import {
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { ClinicalHistoryButton } from "@/components/dashboard/ClinicalHistoryButton";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { normalizeXrayKey, resolveXrayAttachmentAsset } from "@/lib/xray-attachment-resolver";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { createClient } from "@/lib/supabase";
 import { registerSystemActivity } from "@/lib/administrative-storage";
@@ -390,59 +391,10 @@ function safeFileName(value: string) {
 
 
 
-function normalizeXrayKey(value: string) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
-
-function resolveXrayAttachmentAsset(region: string, profileId: string) {
-  const key = normalizeXrayKey(region).replace(/[^a-z0-9]+/g, "_");
-  const profile = normalizeXrayKey(profileId).replace(/[^a-z0-9]+/g, "_");
-  const regionFolder = key.includes("torax")
-    ? "torax"
-    : key.includes("coluna")
-      ? "coluna"
-      : key.includes("cranio")
-        ? "cranio"
-        : key.includes("ombro")
-          ? "ombro"
-          : key.includes("joelho")
-            ? "joelho"
-            : key.includes("perna") || key.includes("coxa") || key.includes("canela")
-              ? "perna_coxa_canela"
-              : key.includes("braco") || key.includes("antebraco") || key.includes("cotovelo")
-                ? "braco_antebraco"
-                : key === "pe" || key.includes("pe_")
-                  ? "pe"
-                  : "torax";
-
-  const fileByRegion: Record<string, Record<string, string>> = {
-    braco_antebraco: { normal: "braco_antebraco_normal.jpg", trauma: "braco_antebraco_trauma.jpg", fratura: "braco_antebraco_fratura_radio_ulna.jpg", luxacao: "braco_antebraco_luxacao_cotovelo_lateral_leve.jpg" },
-    coluna: { normal: "coluna_normal_frontal.jpg", trauma: "coluna_trauma_frontal.jpg", fratura: "coluna_fratura_vertebral_frontal.jpg", luxacao: "coluna_luxacao_desalinhamento_frontal.jpg" },
-    cranio: { normal: "cranio_normal.jpg", trauma: "cranio_trauma.jpg", fratura: "cranio_fratura_craniana.jpg", luxacao: "cranio_luxacao_temporomandibular_mandibula.jpg" },
-    joelho: { normal: "joelho_normal.jpg", trauma: "joelho_trauma.jpg", fratura: "joelho_fratura_plato_tibial.jpg", luxacao: "joelho_luxacao_patelar.jpg" },
-    ombro: { normal: "ombro_normal.jpg", trauma: "ombro_trauma.jpg", fratura: "ombro_fratura_umero_proximal.jpg", luxacao: "ombro_luxacao_glenoumeral.jpg" },
-    pe: { normal: "pe_normal.jpg", trauma: "pe_trauma.jpg", fratura: "pe_fratura_metatarsos.jpg", luxacao: "pe_luxacao_desalinhamento.jpg" },
-    perna_coxa_canela: { normal: "perna_normal.jpg", trauma: "perna_trauma.jpg", fratura: "perna_fratura_tibia_fibula.webp" },
-    torax: { normal: "torax_normal.jpg", trauma: "torax_trauma.jpg", fratura: "torax_fratura_multiplas_costelas.jpg" },
-  };
-
-  const requestedProfile = profile.includes("fratura")
-    ? "fratura"
-    : profile.includes("luxacao") || profile.includes("sublux")
-      ? "luxacao"
-      : profile.includes("trauma")
-        ? "trauma"
-        : "normal";
-  const file = fileByRegion[regionFolder]?.[requestedProfile]
-    || fileByRegion[regionFolder]?.trauma
-    || fileByRegion[regionFolder]?.normal
-    || fileByRegion.torax.normal;
-  return `/anexos/raio-x/${regionFolder}/${file}`;
-}
-
 function createXrayAttachmentImage(region: string, _profileName: string, profileId: string) {
   return resolveXrayAttachmentAsset(region, profileId);
 }
+
 
 function resolvePsychotechnicalAttachmentAsset(profileId: string, profileName: string) {
   const profile = normalizeXrayKey(`${profileId} ${profileName}`).replace(/[^a-z0-9]+/g, "_");
@@ -1489,10 +1441,16 @@ export default function ExamesPage() {
   }
 
   function refreshFindings() {
-    if (!resolvedExam) return;
-    const generated = renderAdaptiveExamReport(resolvedExam);
+    if (!selectedExam || !adaptiveConfig) return;
+    const nextConfig: AdaptiveExamConfiguration = {
+      ...adaptiveConfig,
+      generationSeed: Number(adaptiveConfig.generationSeed || 0) + 1,
+    };
+    const refreshedExam = resolveAdaptiveExam(selectedExam, nextConfig);
+    const generated = renderAdaptiveExamReport(refreshedExam);
     const current = editorRef.current?.innerHTML || editorHtmlRef.current;
     const merged = mergeAutomaticBlocks(current, generated);
+    setAdaptiveConfig(nextConfig);
     setEditorContent(merged, { moveCaretToEnd: true });
   }
 
@@ -2418,6 +2376,10 @@ export default function ExamesPage() {
             {smartConfigOpen && (
               <Panel title="Modo guiado">
                 <div className="space-y-3">
+                  <div className="rounded-[13px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold leading-relaxed text-amber-950">
+                    O modo guiado sugere achados coerentes com o perfil e as referências do exame. Confirme os dados efetivamente obtidos no paciente antes de liberar o laudo.
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2 rounded-[15px] border border-[#e0c7b0] bg-white/70 p-2.5">
                     <div>
                       <FieldLabel>Exame</FieldLabel>

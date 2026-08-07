@@ -227,7 +227,7 @@ export const psiquiatria_psicotecnicoModel: IntelligentExamModel = {
   "clinicalContexts": [
     "Porte de arma",
     "Pilotagem aérea",
-    "Rotineiro"
+    "Rotina"
   ],
   "profiles": [
     {

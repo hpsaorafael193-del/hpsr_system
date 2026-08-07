@@ -301,6 +301,14 @@ export const img_raio_x_unicoModel: IntelligentExamModel = {
       "status": "normal",
       "description": "Sem alterações radiográficas agudas.",
       "resultSummary": "Exame radiográfico sem alterações agudas evidentes.",
+      "results": {
+        "qualidade_tecnica": "Adequada",
+        "alinhamento": "Eixo e alinhamento preservados",
+        "estrutura_ossea": "Corticais íntegras, sem solução de continuidade",
+        "espaco_articular": "Espaços articulares preservados",
+        "partes_moles": "Sem aumento de volume ou corpo estranho radiopaco",
+        "impressao": "Sem alterações radiográficas agudas"
+      },
       "interpretation": "Ausência de sinais radiográficos de fratura, luxação ou alteração óssea aguda no segmento examinado.",
       "conclusion": "Radiografia sem alterações agudas significativas."
     },
@@ -308,8 +316,16 @@ export const img_raio_x_unicoModel: IntelligentExamModel = {
       "id": "trauma",
       "name": "Trauma",
       "status": "alterado",
-      "description": "Modelo para avaliação pós-trauma.",
-      "resultSummary": "Exame radiográfico orientado por contexto traumático.",
+      "description": "Trauma de partes moles sem evidência radiográfica de fratura.",
+      "resultSummary": "Aumento discreto de partes moles, sem fratura ou luxação.",
+      "results": {
+        "qualidade_tecnica": "Adequada",
+        "alinhamento": "Alinhamento preservado",
+        "estrutura_ossea": "Corticais íntegras, sem fratura identificável",
+        "espaco_articular": "Congruência articular preservada",
+        "partes_moles": "Aumento discreto de volume/edema de partes moles",
+        "impressao": "Trauma de partes moles sem alteração óssea aguda"
+      },
       "interpretation": "Avaliar alinhamento, corticais ósseas, partes moles e congruência articular.",
       "conclusion": "Achados a correlacionar com mecanismo do trauma e exame físico."
     },
@@ -317,10 +333,35 @@ export const img_raio_x_unicoModel: IntelligentExamModel = {
       "id": "fratura",
       "name": "Fratura",
       "status": "alterado",
-      "description": "Achado compatível com solução de continuidade óssea.",
-      "resultSummary": "Exame radiográfico com achado compatível com fratura.",
+      "description": "Achado compatível com solução de continuidade óssea sem desvio significativo.",
+      "resultSummary": "Fratura sem desvio significativo no segmento avaliado.",
+      "results": {
+        "qualidade_tecnica": "Adequada",
+        "alinhamento": "Alinhamento global mantido",
+        "estrutura_ossea": "Traço de fratura com solução de continuidade cortical, sem desvio significativo",
+        "espaco_articular": "Congruência articular preservada",
+        "partes_moles": "Edema adjacente de partes moles",
+        "impressao": "Fratura sem desvio significativo"
+      },
       "interpretation": "Presença de solução de continuidade óssea, com ou sem desvio, conforme segmento examinado.",
       "conclusion": "Achados compatíveis com fratura no segmento avaliado."
+    },
+    {
+      "id": "fratura_com_desvio",
+      "name": "Fratura com desvio",
+      "status": "alterado",
+      "description": "Fratura com perda do alinhamento anatômico entre os fragmentos.",
+      "resultSummary": "Fratura com desvio dos fragmentos no segmento avaliado.",
+      "results": {
+        "qualidade_tecnica": "Adequada",
+        "alinhamento": "Desvio do eixo ósseo no foco de fratura",
+        "estrutura_ossea": "Traço de fratura com desvio dos fragmentos",
+        "espaco_articular": "Avaliação da congruência articular preservada fora do foco traumático",
+        "partes_moles": "Edema de partes moles adjacentes",
+        "impressao": "Fratura com desvio"
+      },
+      "interpretation": "Solução de continuidade óssea associada a desalinhamento dos fragmentos, devendo a magnitude e direção do desvio ser descritas conforme a incidência disponível.",
+      "conclusion": "Achados compatíveis com fratura com desvio no segmento avaliado."
     },
     {
       "id": "luxacao",

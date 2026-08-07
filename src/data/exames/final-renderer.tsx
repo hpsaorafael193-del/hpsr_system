@@ -1,5 +1,6 @@
 import type { CSSProperties, RefObject } from "react";
 import type { AdaptiveResolvedExam } from "./adaptive-engine";
+import { resolveXrayAttachmentAsset } from "@/lib/xray-attachment-resolver";
 
 export type RenderAttachmentFile = {
   id: string;
@@ -303,52 +304,6 @@ function textOnly(html: string) {
 
 function lower(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
-
-function resolveXrayAttachmentAsset(region: string, profileId: string) {
-  const key = lower(region).replace(/[^a-z0-9]+/g, "_");
-  const profile = lower(profileId).replace(/[^a-z0-9]+/g, "_");
-  const regionFolder = key.includes("torax")
-    ? "torax"
-    : key.includes("coluna")
-      ? "coluna"
-      : key.includes("cranio")
-        ? "cranio"
-        : key.includes("ombro")
-          ? "ombro"
-          : key.includes("joelho")
-            ? "joelho"
-            : key.includes("perna") || key.includes("coxa") || key.includes("canela")
-              ? "perna_coxa_canela"
-              : key.includes("braco") || key.includes("antebraco") || key.includes("cotovelo")
-                ? "braco_antebraco"
-                : key === "pe" || key.includes("pe_")
-                  ? "pe"
-                  : "torax";
-
-  const fileByRegion: Record<string, Record<string, string>> = {
-    braco_antebraco: { normal: "braco_antebraco_normal.jpg", trauma: "braco_antebraco_trauma.jpg", fratura: "braco_antebraco_fratura_radio_ulna.jpg", luxacao: "braco_antebraco_luxacao_cotovelo_lateral_leve.jpg" },
-    coluna: { normal: "coluna_normal_frontal.jpg", trauma: "coluna_trauma_frontal.jpg", fratura: "coluna_fratura_vertebral_frontal.jpg", luxacao: "coluna_luxacao_desalinhamento_frontal.jpg" },
-    cranio: { normal: "cranio_normal.jpg", trauma: "cranio_trauma.jpg", fratura: "cranio_fratura_craniana.jpg", luxacao: "cranio_luxacao_temporomandibular_mandibula.jpg" },
-    joelho: { normal: "joelho_normal.jpg", trauma: "joelho_trauma.jpg", fratura: "joelho_fratura_plato_tibial.jpg", luxacao: "joelho_luxacao_patelar.jpg" },
-    ombro: { normal: "ombro_normal.jpg", trauma: "ombro_trauma.jpg", fratura: "ombro_fratura_umero_proximal.jpg", luxacao: "ombro_luxacao_glenoumeral.jpg" },
-    pe: { normal: "pe_normal.jpg", trauma: "pe_trauma.jpg", fratura: "pe_fratura_metatarsos.jpg", luxacao: "pe_luxacao_desalinhamento.jpg" },
-    perna_coxa_canela: { normal: "perna_normal.jpg", trauma: "perna_trauma.jpg", fratura: "perna_fratura_tibia_fibula.webp" },
-    torax: { normal: "torax_normal.jpg", trauma: "torax_trauma.jpg", fratura: "torax_fratura_multiplas_costelas.jpg" },
-  };
-
-  const requestedProfile = profile.includes("fratura")
-    ? "fratura"
-    : profile.includes("luxacao") || profile.includes("sublux")
-      ? "luxacao"
-      : profile.includes("trauma")
-        ? "trauma"
-        : "normal";
-  const file = fileByRegion[regionFolder]?.[requestedProfile]
-    || fileByRegion[regionFolder]?.trauma
-    || fileByRegion[regionFolder]?.normal
-    || fileByRegion.torax.normal;
-  return `/anexos/raio-x/${regionFolder}/${file}`;
 }
 
 

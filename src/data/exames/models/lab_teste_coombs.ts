@@ -67,14 +67,15 @@ export const lab_teste_coombsModel: IntelligentExamModel = {
     }
   ],
   "adapter": {
-    "id": "padrao",
-    "label": "Sem adaptador obrigatório",
-    "kind": "none",
-    "enabled": false,
+    "id": "tipo_coombs",
+    "label": "Tipo de Coombs",
+    "kind": "type",
+    "enabled": true,
     "options": [
-      "Padrão"
+      "Direto",
+      "Indireto"
     ],
-    "description": "Modelo direto, configurável por perfil e variáveis clínicas relevantes."
+    "description": "O tipo selecionado direciona os achados e a interpretação inicial do exame."
   },
   "clinicalContexts": [
     "Rotina",

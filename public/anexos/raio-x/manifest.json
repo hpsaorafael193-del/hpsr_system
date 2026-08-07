@@ -1,50 +1,74 @@
 {
-  "braco_antebraco": [
-    "braco_antebraco_fratura_radio_ulna.jpg",
-    "braco_antebraco_luxacao_cotovelo_lateral_leve.jpg",
-    "braco_antebraco_normal.jpg",
-    "braco_antebraco_trauma.jpg"
-  ],
-  "coluna": [
-    "coluna_fratura_vertebral_frontal.jpg",
-    "coluna_luxacao_desalinhamento_frontal.jpg",
-    "coluna_normal_frontal.jpg",
-    "coluna_trauma_frontal.jpg"
-  ],
-  "cranio": [
-    "cranio_fratura_craniana.jpg",
-    "cranio_luxacao_temporomandibular_mandibula.jpg",
-    "cranio_normal.jpg",
-    "cranio_trauma.jpg"
-  ],
-  "joelho": [
-    "joelho_fratura_plato_tibial.jpg",
-    "joelho_luxacao_patelar.jpg",
-    "joelho_normal.jpg",
-    "joelho_trauma.jpg"
-  ],
-  "ombro": [
-    "ombro_fratura_umero_proximal.jpg",
-    "ombro_luxacao_glenoumeral.jpg",
-    "ombro_normal.jpg",
-    "ombro_trauma.jpg"
-  ],
-  "pe": [
-    "pe_fratura_metatarsos.jpg",
-    "pe_luxacao_desalinhamento.jpg",
-    "pe_normal.jpg",
-    "pe_trauma.jpg"
-  ],
-  "perna_coxa_canela": [
-    "perna_fratura_femur.jpg",
-    "perna_fratura_tibia_fibula.jpg",
-    "perna_normal.jpg",
-    "perna_trauma.jpg"
-  ],
-  "torax": [
-    "torax_fratura_multiplas_costelas.jpg",
-    "torax_normal.jpg",
-    "torax_pneumotorax_traumatico.jpg",
-    "torax_trauma.jpg"
-  ]
+  "torax": {
+    "normal": "torax_normal.jpg",
+    "trauma": "torax_trauma.jpg",
+    "fratura": "torax_fratura.png",
+    "fratura_com_desvio": "torax_fratura.png",
+    "luxacao": "torax_luxacao.png",
+    "degenerativo": "torax_degenerativo.png",
+    "pos_operatorio": "torax_pos_operatorio.png"
+  },
+  "coluna": {
+    "normal": "coluna_normal_frontal.jpg",
+    "trauma": "coluna_trauma_frontal.jpg",
+    "fratura": "coluna_fratura_vertebral_frontal.jpg",
+    "fratura_com_desvio": "coluna_fratura_desvio.png",
+    "luxacao": "coluna_luxacao_desalinhamento_frontal.jpg",
+    "degenerativo": "coluna_degenerativo.png",
+    "pos_operatorio": "coluna_pos_operatorio.png"
+  },
+  "cranio": {
+    "normal": "cranio_normal.jpg",
+    "trauma": "cranio_trauma.jpg",
+    "fratura": "cranio_fratura_linear.png",
+    "fratura_com_desvio": "cranio_fratura_linear.png",
+    "luxacao": "cranio_luxacao_temporomandibular_mandibula.jpg",
+    "degenerativo": "cranio_normal.jpg",
+    "pos_operatorio": "cranio_normal.jpg"
+  },
+  "ombro": {
+    "normal": "ombro_normal.jpg",
+    "trauma": "ombro_trauma.jpg",
+    "fratura": "ombro_fratura_umero_proximal.jpg",
+    "fratura_com_desvio": "ombro_fratura_desvio.png",
+    "luxacao": "ombro_luxacao_glenoumeral.jpg",
+    "degenerativo": "ombro_normal.jpg",
+    "pos_operatorio": "ombro_normal.jpg"
+  },
+  "joelho": {
+    "normal": "joelho_normal.jpg",
+    "trauma": "joelho_trauma.jpg",
+    "fratura": "joelho_fratura_plato_tibial.jpg",
+    "fratura_com_desvio": "joelho_fratura_desvio.png",
+    "luxacao": "joelho_luxacao_patelar.jpg",
+    "degenerativo": "joelho_normal.jpg",
+    "pos_operatorio": "joelho_normal.jpg"
+  },
+  "perna_coxa_canela": {
+    "normal": "perna_normal.jpg",
+    "trauma": "perna_trauma.jpg",
+    "fratura": "perna_fratura_tibia_fibula.jpg",
+    "fratura_com_desvio": "perna_fratura_femur.jpg",
+    "luxacao": "perna_luxacao.png",
+    "degenerativo": "perna_normal.jpg",
+    "pos_operatorio": "perna_pos_operatorio.png"
+  },
+  "braco_antebraco": {
+    "normal": "braco_antebraco_normal.jpg",
+    "trauma": "braco_antebraco_trauma.jpg",
+    "fratura": "braco_antebraco_fratura_radio_ulna.jpg",
+    "fratura_com_desvio": "braco_antebraco_fratura_desvio.png",
+    "luxacao": "braco_antebraco_luxacao_cotovelo_lateral_leve.jpg",
+    "degenerativo": "braco_antebraco_normal.jpg",
+    "pos_operatorio": "braco_antebraco_normal.jpg"
+  },
+  "pe": {
+    "normal": "pe_normal.jpg",
+    "trauma": "pe_trauma.jpg",
+    "fratura": "pe_fratura_metatarsos.jpg",
+    "fratura_com_desvio": "pe_fratura_metatarsos.jpg",
+    "luxacao": "pe_luxacao_desalinhamento.jpg",
+    "degenerativo": "pe_normal.jpg",
+    "pos_operatorio": "pe_normal.jpg"
+  }
 }
