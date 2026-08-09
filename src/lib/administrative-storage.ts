@@ -1,3 +1,4 @@
+import { brazilIso } from "@/lib/brazil-datetime";
 import { mirrorRecord, removeRecord } from "@/lib/data-bridge";
 export const RECEIPTS_STORAGE_KEY = "hpsr-financial-receipts";
 export const SYSTEM_ACTIVITY_STORAGE_KEY = "hpsr-system-activity-log";
@@ -69,7 +70,7 @@ export function readFinancialReceipts(): FinancialReceipt[] {
 }
 
 export async function saveFinancialReceipt(receipt: FinancialReceipt) {
-  const result = await mirrorRecord("financial_receipts", { id: receipt.id, number: receipt.number, total: receipt.total, payload: receipt, created_at: receipt.createdAt, updated_at: new Date().toISOString() });
+  const result = await mirrorRecord("financial_receipts", { id: receipt.id, number: receipt.number, total: receipt.total, payload: receipt, created_at: receipt.createdAt, updated_at: brazilIso() });
   if (!result.synced) return result;
   if (typeof window !== "undefined") {
     const current = readFinancialReceipts();
@@ -104,7 +105,7 @@ export function saveFinancialPlanEntry(entry: FinancialPlanEntry) {
   const current = readFinancialPlanEntries();
   const next = [entry, ...current.filter((item) => item.id !== entry.id)];
   window.localStorage.setItem(PLAN_FINANCIAL_STORAGE_KEY, JSON.stringify(next));
-  void mirrorRecord("financial_plan_entries", { id: entry.id, plan_id: entry.planId, plan_name: entry.planName, holder_passport: entry.holderPassport, value: entry.value, payload: entry, created_at: entry.createdAt, updated_at: new Date().toISOString() });
+  void mirrorRecord("financial_plan_entries", { id: entry.id, plan_id: entry.planId, plan_name: entry.planName, holder_passport: entry.holderPassport, value: entry.value, payload: entry, created_at: entry.createdAt, updated_at: brazilIso() });
 }
 
 export function removeFinancialPlanEntry(id: string) {
@@ -124,7 +125,7 @@ export function readSystemActivities(): SystemActivity[] {
 export async function registerSystemActivity(activity: Omit<SystemActivity, "id" | "createdAt"> & { id?: string; createdAt?: string }) {
   const item: SystemActivity = {
     id: activity.id || `activity-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    createdAt: activity.createdAt || new Date().toISOString(),
+    createdAt: activity.createdAt || brazilIso(),
     module: activity.module,
     action: activity.action,
     description: activity.description,

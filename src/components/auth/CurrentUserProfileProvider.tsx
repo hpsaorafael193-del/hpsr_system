@@ -1,4 +1,6 @@
 "use client";
+
+import { brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneDisplay } from "@/lib/phone";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
@@ -145,7 +147,7 @@ export function CurrentUserProfileProvider({ children }: { children: React.React
     if (changes.cityPhone !== undefined) payload.city_phone = changes.cityPhone.trim() || null;
     if (changes.email !== undefined) payload.email = changes.email.trim() || null;
     if (changes.serviceStatus !== undefined) payload.service_status = changes.serviceStatus;
-    payload.updated_at = new Date().toISOString();
+    payload.updated_at = brazilIso();
 
     const { error } = await client.from("profiles").update(payload).eq("id", user.id);
     if (error) return { ok: false, error: error.message };

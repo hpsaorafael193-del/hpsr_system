@@ -1,4 +1,6 @@
 "use client";
+
+import { brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneNumber } from "@/lib/phone";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
@@ -42,7 +44,7 @@ export default function SchedulePage() {
     event.preventDefault();
 
     const form = new FormData(event.currentTarget);
-    const now = new Date().toISOString();
+    const now = brazilIso();
     const passport = String(form.get("passport") ?? "").trim();
 
     const newAppointment: PublicAppointment = {

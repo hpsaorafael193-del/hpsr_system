@@ -1,5 +1,7 @@
 "use client";
 
+import { brazilDate } from "@/lib/brazil-datetime";
+
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { FormEvent, useState, type ReactNode } from "react";
 import {
@@ -182,7 +184,7 @@ function createInitialForm(): ProcedureFormState {
     passport: "",
     procedureType: "procedimento-geral",
     room: "Sala Cirúrgica 01",
-    date: new Date().toISOString().slice(0, 10),
+    date: brazilDate(),
     start: "18:00",
     observations: "",
     professionals: [{ name: "", passport: "" }],

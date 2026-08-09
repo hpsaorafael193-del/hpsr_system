@@ -193,12 +193,11 @@ export function ClinicalFollowupPlanner({
     try {
       const { data, error: removeError } = await client.rpc("delete_clinical_followup_plan", { p_plan_id: plan.id });
       if (removeError) throw removeError;
-      const result = data as { archived?: boolean; preserved_confirmed?: number } | null;
+      const result = data as { deleted?: boolean; preserved_appointments?: number; deleted_occurrences?: number } | null;
+      if (!result?.deleted) throw new Error("O banco não confirmou a exclusão do planejamento.");
       setPlans((current) => current.filter((item) => item.id !== plan.id));
       if (editingPlanId === plan.id) setEditingPlanId(null);
-      setMessage(result?.archived
-        ? `Planejamento removido da agenda. ${result.preserved_confirmed || 0} consulta(s) confirmada(s) foram preservadas.`
-        : "Planejamento e datas previstas removidos.");
+      setMessage(`Planejamento removido. ${result.preserved_appointments || 0} consulta(s) já realizada(s) ou vinculada(s) foram preservadas no histórico.`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível remover o planejamento.");
     } finally {

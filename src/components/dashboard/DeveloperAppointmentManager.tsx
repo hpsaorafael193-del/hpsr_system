@@ -1,5 +1,7 @@
 "use client";
 
+import { brazilIso } from "@/lib/brazil-datetime";
+
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarClock,
@@ -155,7 +157,7 @@ export function DeveloperAppointmentManager({ doctorId, doctorName, canViewAll =
     setError("");
     const now = new Date();
     now.setDate(now.getDate() - 1);
-    const from = now.toISOString();
+    const from = brazilIso(now);
     let planQuery = client
       .from("clinical_followup_plans")
       .select("id,doctor_id,doctor_name,patient_name,patient_passport,specialty,frequency,start_date,end_date,total_consultations,status")
@@ -210,7 +212,7 @@ export function DeveloperAppointmentManager({ doctorId, doctorName, canViewAll =
       if (appointmentError) throw appointmentError;
     }
     if (slotIds.length) {
-      const now = new Date().toISOString();
+      const now = brazilIso();
       const { error: occurrenceError } = await client
         .from("clinical_followup_occurrences")
         .update({ status: "Aguardando abertura", slot_id: null, appointment_id: null, updated_at: now })
@@ -221,7 +223,7 @@ export function DeveloperAppointmentManager({ doctorId, doctorName, canViewAll =
 
   async function removePlan(plan: Plan) {
     const confirmed = await hpsrConfirm(
-      `O planejamento de ${plan.patient_name}, criado por ${plan.doctor_name}, será removido. Consultas já vinculadas a esse planejamento também serão desfeitas.`,
+      `O planejamento de ${plan.patient_name}, criado por ${plan.doctor_name}, será removido. Consultas reais já vinculadas permanecerão no histórico.`,
       "Excluir planejamento clínico?",
     );
     if (!confirmed) return;
@@ -231,43 +233,12 @@ export function DeveloperAppointmentManager({ doctorId, doctorName, canViewAll =
     setError("");
     setMessage("");
     try {
-      const { data: occurrences, error: occurrenceReadError } = await client
-        .from("clinical_followup_occurrences")
-        .select("slot_id,appointment_id")
-        .eq("plan_id", plan.id);
-      if (occurrenceReadError) throw occurrenceReadError;
-      const slotIds = [...new Set((occurrences || []).map((row: any) => row.slot_id).filter(Boolean))] as string[];
-      const appointmentIds = [...new Set((occurrences || []).map((row: any) => row.appointment_id).filter(Boolean))] as string[];
-      await releaseAppointmentLinks(slotIds, appointmentIds);
-      if (slotIds.length) {
-        const { error: releaseError } = await client
-          .from("clinical_appointment_slots")
-          .update({ status: "Disponível", patient_passport: null, patient_name: null, appointment_id: null, booked_at: null, updated_at: new Date().toISOString() })
-          .in("id", slotIds);
-        if (releaseError) throw releaseError;
-      }
-      const { error: occurrenceDeleteError } = await client
-        .from("clinical_followup_occurrences")
-        .delete()
-        .eq("plan_id", plan.id);
-      if (occurrenceDeleteError) throw occurrenceDeleteError;
-
-      let removePlanQuery = client
-        .from("clinical_followup_plans")
-        .delete({ count: "exact" })
-        .eq("id", plan.id);
-      if (!effectiveViewAll) removePlanQuery = removePlanQuery.eq("doctor_id", doctorId);
-      const { count: removedCount, error: removeError } = await removePlanQuery;
+      const { data, error: removeError } = await client.rpc("delete_clinical_followup_plan", { p_plan_id: plan.id });
       if (removeError) throw removeError;
-      if (!removedCount) {
-        throw new Error(
-          effectiveViewAll
-            ? "O planejamento não foi excluído. Aplique a migração de permissões da versão 0.5.83 no Supabase e tente novamente."
-            : "O planejamento não foi excluído porque não pertence ao médico logado ou já não existe."
-        );
-      }
+      const result = data as { deleted?: boolean; preserved_appointments?: number } | null;
+      if (!result?.deleted) throw new Error("O banco não confirmou a exclusão do planejamento.");
       setPlans((current) => current.filter((item) => item.id !== plan.id));
-      setMessage("Planejamento removido do gerenciamento de consultas.");
+      setMessage(`Planejamento removido. ${result.preserved_appointments || 0} consulta(s) vinculada(s) foram preservadas.`);
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível excluir o planejamento.");

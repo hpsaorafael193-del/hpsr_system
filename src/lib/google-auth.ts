@@ -1,3 +1,4 @@
+import { brazilIso } from "@/lib/brazil-datetime";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase";
 import { setLoginPersistence } from "@/lib/auth-persistence";
 
@@ -17,7 +18,7 @@ export async function startGoogleAuth(mode: GoogleAuthMode, registrationData?: G
     if (!registrationData?.name.trim() || !registrationData.passport.trim() || !registrationData.crm.trim()) {
       return { ok: false, error: "Preencha nome, passaporte e CRM antes de continuar com Google." };
     }
-    sessionStorage.setItem("hpsr-google-registration", JSON.stringify({ ...registrationData, createdAt: new Date().toISOString(), status: "Pendente" }));
+    sessionStorage.setItem("hpsr-google-registration", JSON.stringify({ ...registrationData, createdAt: brazilIso(), status: "Pendente" }));
   }
 
   if (mode === "login") setLoginPersistence(rememberConnected);

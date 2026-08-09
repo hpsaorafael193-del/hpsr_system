@@ -1,3 +1,4 @@
+import { brazilIso } from "@/lib/brazil-datetime";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession, normalizePassport } from "@/lib/patient-portal/server";
 
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
       }, { status: 409 });
     }
 
-    const now = new Date().toISOString();
+    const now = brazilIso();
     if (!existing) {
       const { error: patientError } = await valid.supabase.from("patient_registry").insert({
         passport,

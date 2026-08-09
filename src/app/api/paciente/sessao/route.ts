@@ -1,3 +1,4 @@
+import { brazilIso } from "@/lib/brazil-datetime";
 import { NextRequest, NextResponse } from "next/server";
 import { getPatientSessionCookieName, getServiceClient, hashPatientSecret } from "@/lib/patient-portal/server";
 
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
     const lastSeenAt = session.last_seen_at ? new Date(session.last_seen_at).getTime() : 0;
     if (!lastSeenAt || Date.now() - lastSeenAt >= 10 * 60 * 1000) {
-      await supabase.from("patient_portal_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", session.id);
+      await supabase.from("patient_portal_sessions").update({ last_seen_at: brazilIso() }).eq("id", session.id);
     }
     const passport = String(access.patient_passport || "");
     const { data: patient } = await supabase.from("patient_registry").select("name").eq("passport", passport).maybeSingle();

@@ -1,5 +1,7 @@
 "use client";
 
+import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
+
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
@@ -225,7 +227,7 @@ function resolvePanelIcon(title: string): LucideIcon {
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return brazilDate();
 }
 
 function nowHHMM() {
@@ -237,7 +239,7 @@ function nowHHMM() {
 
 function createProtocol() {
   const now = new Date();
-  const date = now.toISOString().slice(0, 10).replace(/-/g, "");
+  const date = brazilDate(now).replace(/-/g, "");
   const random = Math.floor(1000 + Math.random() * 9000);
   return `EX-${date}-${random}`;
 }
@@ -1051,7 +1053,7 @@ export default function ExamesPage() {
     autosaveTimer.current = setTimeout(() => {
       const html =
         htmlOverride ?? editorRef.current?.innerHTML ?? editorHtmlRef.current;
-      const savedAt = new Date().toISOString();
+      const savedAt = brazilIso();
       saveDraft({
         patient,
         doctor,
@@ -1082,7 +1084,7 @@ export default function ExamesPage() {
 
   function flushDraftNow() {
     const html = editorRef.current?.innerHTML ?? editorHtmlRef.current;
-    const savedAt = new Date().toISOString();
+    const savedAt = brazilIso();
     saveDraft({
       patient,
       doctor,
@@ -1601,7 +1603,7 @@ export default function ExamesPage() {
       if (patient.name.trim().toLowerCase() === doctor.name.trim().toLowerCase()) throw new Error("Paciente e médico responsável não podem ser o mesmo registro.");
       syncEditorFromDom();
       const document = buildPreviewDocument();
-      const savedAt = new Date().toISOString();
+      const savedAt = brazilIso();
       const html = editorRef.current?.innerHTML || editorHtmlRef.current;
 
       try {
@@ -1655,7 +1657,7 @@ export default function ExamesPage() {
           patient_passport: patient.passport || null,
           record_type: "Exame",
           is_confidential: isConfidential,
-          released_at: isConfidential ? null : new Date().toISOString(),
+          released_at: isConfidential ? null : brazilIso(),
           payload,
         });
         if (error) throw error;

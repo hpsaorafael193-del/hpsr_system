@@ -1,3 +1,4 @@
+import { brazilIso } from "@/lib/brazil-datetime";
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession, normalizePassport, resolvePortalPatientPassport } from "@/lib/patient-portal/server";
@@ -57,7 +58,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "A confirmação deste horário foi encerrada 24 horas antes da consulta." }, { status: 409 });
     }
 
-    const now = new Date().toISOString();
+    const now = brazilIso();
     const appointmentId = `HPSR-AGENDA-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
     const { data: reserved, error: reserveError } = await valid.supabase
       .from("clinical_appointment_slots")
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
       presenceConfirmed: true,
       doctorNotification: "Horário escolhido e confirmado pelo paciente",
       doctorNotificationUnread: true,
-      bookingCutoffAt: cutoffAt.toISOString(),
+      bookingCutoffAt: brazilIso(cutoffAt),
       createdAt: now,
       updatedAt: now,
     };
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest) {
         patient_name: null,
         appointment_id: null,
         booked_at: null,
-        updated_at: new Date().toISOString(),
+        updated_at: brazilIso(),
       }).eq("id", slotId).eq("appointment_id", appointmentId);
       throw appointmentError;
     }

@@ -1,5 +1,7 @@
 "use client";
 
+import { brazilIso } from "@/lib/brazil-datetime";
+
 import Link from "next/link";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -271,7 +273,7 @@ export default function ClinicalSchedulePage() {
       return;
     }
 
-    const now = new Date().toISOString();
+    const now = brazilIso();
     const payload = {
       ...((currentRow?.payload || {}) as Record<string, unknown>),
       cancellationReason: "Consulta excluída da Agenda Clínica",
@@ -294,6 +296,31 @@ export default function ClinicalSchedulePage() {
       return;
     }
 
+    await loadAppointments();
+  }
+
+  async function handleDeleteOldAppointment(appointment: Appointment) {
+    const confirmed = await hpsrConfirm(
+      `Excluir definitivamente a consulta antiga de ${appointment.patient}, em ${appointment.date.split("-").reverse().join("/")} às ${appointment.time}? Ela será removida da agenda, mas a ação continuará registrada na auditoria do sistema.`,
+      "Excluir consulta antiga?"
+    );
+    if (!confirmed) return;
+
+    const client = createClient();
+    if (!client) {
+      await hpsrAlert("Não foi possível acessar o banco de dados.", "Falha ao excluir consulta");
+      return;
+    }
+
+    const { data, error } = await client.rpc("delete_clinical_appointment", { p_appointment_id: appointment.id });
+    if (error) {
+      await hpsrAlert(error.message, "Falha ao excluir consulta");
+      return;
+    }
+    if (!(data as { deleted?: boolean } | null)?.deleted) {
+      await hpsrAlert("O banco não confirmou a exclusão da consulta.", "Consulta não excluída");
+      return;
+    }
     await loadAppointments();
   }
 
@@ -656,7 +683,7 @@ export default function ClinicalSchedulePage() {
             {completedDoctorAppointments.length ? completedDoctorAppointments.map((appointment) => (
               <article key={`completed-${appointment.id}`} className="flex flex-col gap-3 rounded-[15px] border border-hpsr-border bg-[#fffdf9] p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-black", statusClasses(appointment.status))}>{appointment.status}</span><span className="text-xs font-semibold text-hpsr-muted">{appointment.date.split("-").reverse().join("/")} às {appointment.time}</span></div><p className="mt-2 truncate text-sm font-black text-hpsr-text">{appointment.patient}</p><p className="mt-1 truncate text-xs font-semibold text-hpsr-muted">{appointment.specialty} · {appointment.physician} · Passaporte {appointment.passport}</p></div>
-                <div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => setModal({ mode: "patient", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Ver dados</button><button type="button" onClick={() => setModal({ mode: "reschedule", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Editar/Reagendar</button></div>
+                <div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => setModal({ mode: "patient", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Ver dados</button><button type="button" onClick={() => setModal({ mode: "reschedule", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Editar/Reagendar</button><button type="button" onClick={() => void handleDeleteOldAppointment(appointment)} className="inline-flex items-center gap-1.5 rounded-[11px] border border-rose-200 bg-white px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-50"><Trash2 size={14} />Excluir</button></div>
               </article>
             )) : <div className="rounded-[15px] border border-dashed border-hpsr-border p-6 text-center text-sm text-hpsr-muted">Nenhuma consulta finalizada encontrada.</div>}
           </div>
@@ -871,7 +898,7 @@ function NewAppointmentForm({
       setMessage({ type: "error", text: "Não foi possível conectar ao Supabase." });
       return;
     }
-    const now = new Date().toISOString();
+    const now = brazilIso();
     const { data: duplicate, error: duplicateError } = await client.from("patient_registry").select("name").eq("passport", normalizedPassport).maybeSingle();
     if (duplicateError) { setMessage({ type: "error", text: `Não foi possível verificar o passaporte: ${duplicateError.message}` }); return; }
     if (duplicate) { setMessage({ type: "error", text: `Passaporte já cadastrado para ${duplicate.name}. Abra o prontuário para editar ou substituir os dados com confirmação.` }); return; }
@@ -932,7 +959,7 @@ function NewAppointmentForm({
     }
     const client = createClient();
     if (!client) return;
-    const now = new Date().toISOString();
+    const now = brazilIso();
     const id = `appointment-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const selectedDoctor = doctors.find((doctor) => doctor.name === physician);
     const payload = { patient: patientName, passport: patientPassport, specialty, physician, doctor: physician, doctorId: selectedDoctor?.id || currentUserProfile.id, date, preferredDate: date, time, source: "clinical_schedule", createdAt: now, updatedAt: now };
@@ -1068,7 +1095,7 @@ function OpenAttendanceForm({ appointment, onClose, onChanged }: { appointment: 
       if (readError) throw readError;
       if (!currentRow) throw new Error("A consulta não foi encontrada no banco de dados.");
 
-      const now = new Date().toISOString();
+      const now = brazilIso();
       const currentPayload = (currentRow.payload || {}) as Record<string, unknown>;
       const payload = {
         ...currentPayload,
@@ -1209,8 +1236,8 @@ function RescheduleForm({
     if (!client) return;
     const { data: row, error: readError } = await client.from("appointments").select("payload").eq("id", appointment.id).maybeSingle();
     if (readError) { setMessage({ type: "error", text: readError.message }); return; }
-    const payload = { ...((row?.payload || {}) as Record<string, unknown>), proposedDate: date, proposedTime: time, rescheduleReason: reason || notes || "Reagendamento solicitado pelo médico", rescheduleNotes: notes, physician: appointment.physician, doctor: appointment.physician, updatedAt: new Date().toISOString() };
-    const { error } = await client.from("appointments").update({ status: "Reagendamento solicitado", payload, updated_at: new Date().toISOString() }).eq("id", appointment.id);
+    const payload = { ...((row?.payload || {}) as Record<string, unknown>), proposedDate: date, proposedTime: time, rescheduleReason: reason || notes || "Reagendamento solicitado pelo médico", rescheduleNotes: notes, physician: appointment.physician, doctor: appointment.physician, updatedAt: brazilIso() };
+    const { error } = await client.from("appointments").update({ status: "Reagendamento solicitado", payload, updated_at: brazilIso() }).eq("id", appointment.id);
     if (error) { setMessage({ type: "error", text: error.message }); return; }
     setMessage({ type: "success", text: "Proposta enviada ao Portal do Paciente para aceitar, recusar, informar disponibilidade ou desistir." });
   }

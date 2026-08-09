@@ -1,5 +1,7 @@
 "use client";
 
+import { brazilDate } from "@/lib/brazil-datetime";
+
 import {
   Baby,
   Beaker,
@@ -71,7 +73,7 @@ function addDays(dateValue: string, days: number) {
   if (!dateValue) return "";
   const date = new Date(`${dateValue}T12:00:00`);
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  return brazilDate(date);
 }
 
 function formatDate(dateValue: string) {
@@ -525,7 +527,7 @@ function ObstetricsTool() {
   const { selectedPatient } = usePatientSelection();
   const [currentWeek, setCurrentWeek] = useState(1);
   const [durationDays, setDurationDays] = useState(60);
-  const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState(() => brazilDate());
   const [planType, setPlanType] = useState<"short" | "long">("short");
 
   const result = useMemo(() => {
@@ -611,7 +613,7 @@ function ObstetricsTool() {
 
 function GynecologyTool() {
   const { selectedPatient } = usePatientSelection();
-  const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState(() => brazilDate());
   const [responsible, setResponsible] = useState("");
   const [notes, setNotes] = useState("");
 

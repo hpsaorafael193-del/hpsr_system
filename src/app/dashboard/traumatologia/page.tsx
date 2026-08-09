@@ -1,4 +1,6 @@
 "use client";
+
+import { brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneNumber } from "@/lib/phone";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
@@ -304,7 +306,7 @@ export default function TraumaPage() {
         placed_at: updatedRecord.placedAt,
         removal_at: updatedRecord.removalAt,
         status_override: updatedRecord.statusOverride || null,
-        updated_at: new Date().toISOString(),
+        updated_at: brazilIso(),
       })
       .eq("id", updatedRecord.id);
 

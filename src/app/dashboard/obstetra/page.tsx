@@ -1,5 +1,7 @@
 "use client";
 
+import { brazilDate } from "@/lib/brazil-datetime";
+
 import { Baby, CalendarDays, CheckCircle2, Clock3, Gauge, HeartPulse, History, Loader2, Sparkles, Stethoscope, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
@@ -37,7 +39,7 @@ function addDays(dateValue: string, days: number) {
   if (!dateValue) return "";
   const date = new Date(`${dateValue}T12:00:00`);
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  return brazilDate(date);
 }
 
 function formatDate(dateValue: string) {
@@ -59,7 +61,7 @@ export default function ObstetricianPage() {
   const { patients, selectedPassport, selectedPatient, selectPatient, loading } = usePatientSelection();
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const [currentWeek, setCurrentWeek] = useState(1);
-  const [referenceDate, setReferenceDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [referenceDate, setReferenceDate] = useState(() => brazilDate());
   const [realDurationDays, setRealDurationDays] = useState(DEFAULT_REAL_DURATION_DAYS);
   const [plans, setPlans] = useState<GestationalPlan[]>([]);
   const [planning, setPlanning] = useState(false);

@@ -1,3 +1,4 @@
+import { brazilDate } from "@/lib/brazil-datetime";
 import { downloadXlsx, type XlsxSheetDefinition } from "@/lib/xlsx-writer";
 
 export type AdministrativeMember = { name: string; passport?: string; crm?: string; hospitalRole?: string; specialty?: string; department?: string; joinedAt?: string; history?: string[]; };
@@ -32,7 +33,7 @@ const text = (...values: unknown[]): string => {
   return value === undefined || value === null ? "" : String(value);
 };
 const listText = (value: unknown) => Array.isArray(value) ? value.map((item) => typeof item === "object" ? JSON.stringify(item) : String(item)).join(" | ") : String(value ?? "");
-const dateText = (value: unknown) => { if (!value) return ""; const date = new Date(String(value)); return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("pt-BR"); };
+const dateText = (value: unknown) => { if (!value) return ""; const date = new Date(String(value)); return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }); };
 const moneyText = (value: unknown) => Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const durationText = (from: unknown, to?: unknown) => {
   if (!from) return "";
@@ -51,7 +52,7 @@ const countBy = (items: ReportRecord[], getter: (item: ReportRecord) => unknown)
 
 export async function exportAdministrativeReport(data: AdministrativeReportData) {
   const generatedAt = new Date();
-  const generatedLabel = generatedAt.toLocaleString("pt-BR");
+  const generatedLabel = generatedAt.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
   const payload = (row: ReportRecord) => asRecord(row.payload);
 
   const teamSource = (() => {
@@ -333,7 +334,7 @@ export async function exportAdministrativeReport(data: AdministrativeReportData)
     },
   ];
 
-  await downloadXlsx(`relatorio-geral-hpsr-${generatedAt.toISOString().slice(0, 10)}.xlsx`, sheets);
+  await downloadXlsx(`relatorio-geral-hpsr-${brazilDate(generatedAt)}.xlsx`, sheets);
 
 }
 

@@ -1,4 +1,6 @@
 "use client";
+
+import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneNumber, formatPhoneDisplay } from "@/lib/phone";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
@@ -91,7 +93,7 @@ function formatDate(value: string) {
 }
 
 function todayIso() {
-  return new Date().toISOString().slice(0, 10);
+  return brazilDate();
 }
 
 function statusClasses(status: PatientRecord["status"]) {
@@ -539,7 +541,7 @@ export default function RecordsPage() {
   }) {
     const normalizedPassport = data.passport.trim().toUpperCase();
     const existingPatient = patients.find((patient) => patient.passport.trim().toUpperCase() === normalizedPassport);
-    const createdAt = new Date().toISOString();
+    const createdAt = brazilIso();
 
     const nextPatient: PatientRecord = {
       id: existingPatient?.id || `pac-${normalizedPassport}`,
@@ -659,7 +661,7 @@ export default function RecordsPage() {
       blood_type: data.bloodType || null,
       city_phone: data.cityPhone.trim() || null,
       follow_up: normalizePatientFollowUp(data.followUp),
-      updated_at: new Date().toISOString(),
+      updated_at: brazilIso(),
     }).eq("passport", selectedPatient.passport);
     if (error) return void hpsrAlert(error.message, "Não foi possível editar o paciente");
     setIsEditPatientOpen(false);
@@ -677,7 +679,7 @@ export default function RecordsPage() {
     if (!selectedPatient) return;
 
     const recordDate = todayIso();
-    const createdAt = new Date().toISOString();
+    const createdAt = brazilIso();
     const newEvent: TimelineEvent = {
       id: `evt-${Date.now()}`,
       patientPassport: selectedPatient.passport,
@@ -1587,7 +1589,7 @@ function SavedExamViewer({
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Registro salvo no prontuário</p>
             <h3 className="truncate text-lg font-black text-hpsr-text sm:text-xl">{exam.title}</h3>
-            <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{exam.patientName} · {exam.doctorName}{exam.savedAt ? ` · ${new Date(exam.savedAt).toLocaleString("pt-BR")}` : ""}</p>
+            <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{exam.patientName} · {exam.doctorName}{exam.savedAt ? ` · ${new Date(exam.savedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : ""}</p>
           </div>
           <div className="flex items-center gap-2">
             <button type="button" disabled={exam.loading} onClick={onDownload} className="inline-flex h-10 items-center gap-2 rounded-[13px] border border-hpsr-border bg-[#fff8f0] px-3 text-xs font-black text-hpsr-wine disabled:opacity-50"><Download size={15} /> Baixar</button>

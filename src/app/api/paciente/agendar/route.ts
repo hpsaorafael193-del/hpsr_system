@@ -1,3 +1,4 @@
+import { brazilIso } from "@/lib/brazil-datetime";
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession, normalizePassport, resolvePortalPatientPassport } from "@/lib/patient-portal/server";
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest) {
       verifiedDoctorName = String(doctor.name || requestedDoctorName);
     }
 
-    const now = new Date().toISOString();
+    const now = brazilIso();
     const id = `HPSR-PAC-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
     const payload = {
       patient,

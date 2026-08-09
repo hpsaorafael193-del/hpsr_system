@@ -59,8 +59,7 @@ export function PatientBookingPanel({ onSessionExpired, onBooked, passport }: { 
   useEffect(() => { void load(true); }, [load]);
 
   const grouped = useMemo(() => slots.reduce<Record<string, Slot[]>>((acc, slot) => {
-    const key = new Date(slot.starts_at).toLocaleDateString("pt-BR", {
-      timeZone: "America/Sao_Paulo",
+    const key = new Date(slot.starts_at).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo",
       weekday: "long",
       day: "2-digit",
       month: "long",

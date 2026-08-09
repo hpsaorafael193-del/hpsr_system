@@ -1,3 +1,4 @@
+import { brazilIso } from "@/lib/brazil-datetime";
 import { NextRequest, NextResponse } from "next/server";
 import {
   generateSessionToken,
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     const token = generateSessionToken();
     const fingerprint = requestFingerprint(request);
-    const sessionExpiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    const sessionExpiresAt = brazilIso(new Date(Date.now() + 2 * 60 * 60 * 1000));
 
     const { error: sessionError } = await supabase.from("patient_portal_sessions").insert({
       portal_access_id: access.id,

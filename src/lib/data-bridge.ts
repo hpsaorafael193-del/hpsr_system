@@ -1,3 +1,4 @@
+import { brazilIso } from "@/lib/brazil-datetime";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase";
 
 export type SyncResult = { synced: boolean; error?: string };
@@ -24,5 +25,5 @@ export async function removeRecord(table: string, id: string): Promise<SyncResul
 }
 
 export function normalizeForDatabase<T extends Record<string, unknown>>(record: T) {
-  return { ...record, updated_at: new Date().toISOString() };
+  return { ...record, updated_at: brazilIso() };
 }

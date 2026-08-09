@@ -1,4 +1,6 @@
 "use client";
+
+import { brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneNumber } from "@/lib/phone";
 
 import { FormEvent, ReactNode, useEffect, useState } from "react";
@@ -72,7 +74,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
         role: currentUserProfile.role,
         systemRole: currentUserProfile.systemRole,
         email: currentUserProfile.email,
-        createdAt: new Date().toISOString(),
+        createdAt: brazilIso(),
       }));
       onClose();
       router.push("/dashboard");
@@ -176,7 +178,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       crm: form.crm.trim(),
       specialty: "Clínico Geral",
       requestedRole: "Estagiário de Enfermagem",
-      createdAt: new Date().toISOString(),
+      createdAt: brazilIso(),
       status: "Pendente",
     };
 

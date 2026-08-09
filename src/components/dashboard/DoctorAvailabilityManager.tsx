@@ -1,10 +1,13 @@
 "use client";
 
+import { brazilIso } from "@/lib/brazil-datetime";
+
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState } from "react";
 import { CalendarPlus2, CheckCircle2, Clock3, Gauge, Loader2, Repeat2, Stethoscope, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { specialties } from "@/data/mock";
+import { hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 
 const field = "mt-1.5 min-h-[46px] w-full rounded-[14px] border border-hpsr-border bg-white px-3.5 text-sm font-bold text-hpsr-text outline-none transition focus:border-hpsr-wine focus:ring-2 focus:ring-hpsr-wineLight/20";
 const label = "text-[11px] font-black uppercase tracking-[0.11em] text-hpsr-muted";
@@ -107,8 +110,8 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
             doctor_id: doctorId,
             doctor_name: doctorName,
             specialty: form.specialty,
-            starts_at: start.toISOString(),
-            ends_at: finish.toISOString(),
+            starts_at: brazilIso(start),
+            ends_at: brazilIso(finish),
             status: "Disponível",
           });
           minute += duration;
@@ -141,21 +144,31 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
   }
 
   async function removeSeries(id: string) {
+    const confirmed = await hpsrConfirm(
+      "Excluir esta agenda publicada? Horários livres serão removidos. Consultas já reservadas ou realizadas serão preservadas no histórico.",
+      "Excluir agenda publicada"
+    );
+    if (!confirmed) return;
+
     const client = createClient();
     if (!client) return;
     setBusy(true);
     setError("");
-    const { data: occupied } = await client.from("clinical_appointment_slots").select("id").eq("series_id", id).eq("status", "Ocupado").limit(1);
-    if (occupied?.length) {
-      setError("A sequência possui consulta reservada. Os horários ocupados foram preservados.");
+    setMessage("");
+    try {
+      const { data, error: rpcError } = await client.rpc("delete_clinical_availability_series", { p_series_id: id });
+      if (rpcError) throw rpcError;
+      const result = (data || {}) as { deleted?: boolean; deleted_free_slots?: number; preserved_occupied_slots?: number };
+      if (!result.deleted) throw new Error("O banco não confirmou a exclusão da agenda publicada.");
+      const preserved = Number(result.preserved_occupied_slots || 0);
+      const removed = Number(result.deleted_free_slots || 0);
+      setMessage(`Agenda removida. ${removed} horário${removed === 1 ? "" : "s"} livre${removed === 1 ? "" : "s"} removido${removed === 1 ? "" : "s"}${preserved ? ` e ${preserved} consulta${preserved === 1 ? "" : "s"} preservada${preserved === 1 ? "" : "s"}.` : "."}`);
+      await load();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Não foi possível remover a agenda publicada.");
+    } finally {
       setBusy(false);
-      return;
     }
-    const { error: slotsError } = await client.from("clinical_appointment_slots").delete().eq("series_id", id).eq("status", "Disponível");
-    const { error: seriesError } = await client.from("clinical_availability_series").delete().eq("id", id).eq("doctor_id", doctorId);
-    if (slotsError || seriesError) setError(slotsError?.message || seriesError?.message || "Não foi possível remover a sequência.");
-    await load();
-    setBusy(false);
   }
 
   return (

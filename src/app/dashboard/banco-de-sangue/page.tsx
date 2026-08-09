@@ -1,4 +1,6 @@
 "use client";
+
+import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneNumber, formatPhoneDisplay } from "@/lib/phone";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -144,7 +146,7 @@ const resultConfig: Record<ResultKey, Omit<Analysis, "reasons" | "missing">> = {
 };
 
 function today() {
-  return new Date().toISOString().slice(0, 10);
+  return brazilDate();
 }
 
 function createInitialForm(responsibleDoctor = ""): DonorForm {
@@ -414,7 +416,7 @@ export default function BloodBankPage() {
 
     const record: DonationRecord = {
       id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now()),
-      createdAt: new Date().toISOString(),
+      createdAt: brazilIso(),
       form,
       analysis,
     };
@@ -650,7 +652,7 @@ export default function BloodBankPage() {
                     <div>
                       <h3 className="text-base font-black text-hpsr-text">{record.form.nome || "Sem nome"}</h3>
                       <p className="mt-1 text-sm font-semibold text-hpsr-muted">
-                        Passaporte {record.form.passaporte || "—"} · {new Date(record.createdAt).toLocaleString("pt-BR")}
+                        Passaporte {record.form.passaporte || "—"} · {new Date(record.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2 lg:justify-end">
@@ -695,7 +697,7 @@ function FichaCard({ record }: { record: DonationRecord }) {
         <InfoLine label="Peso" value={record.form.peso ? `${record.form.peso} kg` : "—"} />
         <InfoLine label="Telefone" value={formatPhoneDisplay(record.form.telefone)} />
         <InfoLine label="Médico" value={record.form.medicoResponsavel || "—"} />
-        <InfoLine label="Data" value={new Date(record.createdAt).toLocaleString("pt-BR")} />
+        <InfoLine label="Data" value={new Date(record.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} />
       </div>
       <div className="mt-4 rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3">
         <p className="text-[10px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">Motivos</p>

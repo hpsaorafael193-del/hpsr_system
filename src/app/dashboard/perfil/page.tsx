@@ -1,4 +1,6 @@
 "use client";
+
+import { brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneNumber } from "@/lib/phone";
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
@@ -245,7 +247,7 @@ export default function PerfilPage() {
 
       const { error } = await client.from("profiles").update({
         signature_path: storagePath,
-        updated_at: new Date().toISOString(),
+        updated_at: brazilIso(),
       }).eq("id", userId);
       if (error) {
         localStorage.setItem(`hpsr-profile-signature-png:${userId}`, image);
@@ -273,7 +275,7 @@ export default function PerfilPage() {
     const signaturePath = currentUserProfile.signaturePath;
     const { error } = await client.from("profiles").update({
       signature_path: null,
-      updated_at: new Date().toISOString(),
+      updated_at: brazilIso(),
     }).eq("id", userId);
     if (!error && signaturePath && !signaturePath.startsWith("data:") && !/^https?:\/\//i.test(signaturePath)) {
       await client.storage.from("signatures").remove([signaturePath]);
@@ -524,7 +526,7 @@ export default function PerfilPage() {
                       <div className="min-w-0">
                         <p className="truncate text-sm font-black text-hpsr-text">{item.action}</p>
                         <p className="mt-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">
-                          {item.module} · {new Date(item.createdAt).toLocaleString("pt-BR")}
+                          {item.module} · {new Date(item.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                         </p>
                       </div>
                       <span className="shrink-0 rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-wine transition group-open:bg-hpsr-wine group-open:text-white">

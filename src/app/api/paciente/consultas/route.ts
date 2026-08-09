@@ -1,3 +1,4 @@
+import { brazilIso } from "@/lib/brazil-datetime";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession, resolvePortalPatientPassport } from "@/lib/patient-portal/server";
 
@@ -74,7 +75,7 @@ export async function PATCH(request: NextRequest) {
     if (!body.id || !body.action) return NextResponse.json({ ok: false, error: "Ação inválida." }, { status: 400 });
     const { data: row, error: readError } = await valid.supabase.from("appointments").select("id,passport,payload,status").eq("id", body.id).eq("passport", targetPassport).maybeSingle();
     if (readError || !row) return NextResponse.json({ ok: false, error: "Consulta não encontrada." }, { status: 404 });
-    const payload = { ...((row.payload || {}) as Record<string, unknown>), patientResponseAt: new Date().toISOString() } as Record<string, unknown>;
+    const payload = { ...((row.payload || {}) as Record<string, unknown>), patientResponseAt: brazilIso() } as Record<string, unknown>;
     let status = String(row.status || "");
     if (body.action === "accept_reschedule") {
       status = "Reagendamento aceito";
@@ -116,7 +117,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "Esta solicitação de reagendamento já foi respondida ou não está mais disponível." }, { status: 409 });
     }
     payload.status = status;
-    const updatedAt = new Date().toISOString();
+    const updatedAt = brazilIso();
     const { data: updated, error } = await valid.supabase.from("appointments").update({ status, payload, updated_at: updatedAt }).eq("id", body.id).eq("passport", targetPassport).select("id,status").maybeSingle();
     if (!error && !updated) return NextResponse.json({ ok: false, error: "O banco não confirmou a resposta da consulta." }, { status: 409 });
     if (error) throw error;

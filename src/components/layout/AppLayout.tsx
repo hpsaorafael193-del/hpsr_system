@@ -6,15 +6,18 @@ import { Sidebar } from "./Sidebar";
 import { MobileSidebar } from "./MobileSidebar";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "./UserMenu";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 
 const SIDEBAR_COLLAPSED_KEY = "hpsr-sidebar-collapsed";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { profile: currentUserProfile } = useCurrentUserProfile();
   const isTraumatologyFixedPage = pathname === "/dashboard/traumatologia";
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [hasPendingAppointmentRequest, setHasPendingAppointmentRequest] = useState(false);
 
   useEffect(() => {
     setCollapsed(window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true");
@@ -45,10 +48,75 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
   }, [collapsed, hydrated]);
 
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+    const client = createClient();
+    if (!client) return;
+    let active = true;
+
+    const pendingMarkers = [
+      "solicit",
+      "acompanhamento aguardando confirmacao",
+      "em analise",
+      "aguardando ajuste",
+      "pendente",
+      "nova proposta do paciente",
+      "reagendamento recusado",
+      "disponibilidade informada",
+      "desistencia solicitada",
+    ];
+
+    const refreshPending = async () => {
+      const { data, error } = await client
+        .from("appointments")
+        .select("status,payload")
+        .order("created_at", { ascending: false })
+        .limit(120);
+      if (!active || error) return;
+
+      const isManager =
+        ["Total", "Diretor Técnico / Dev"].includes(currentUserProfile.accessLevel) ||
+        ["Diretora", "Vice Diretor", "Diretor Clínico"].includes(currentUserProfile.role);
+
+      const pending = (data || []).some((row: any) => {
+        const payload = (row.payload || {}) as Record<string, unknown>;
+        const normalizedStatus = String(row.status || "")
+          .trim()
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+        if (!pendingMarkers.some((marker) => normalizedStatus.includes(marker))) return false;
+
+        const flowType = String(payload.flowType || "");
+        const requestedDoctorId = String(payload.requestedDoctorId || "");
+        const targeted = flowType === "Acompanhamento com especialista" && Boolean(requestedDoctorId);
+        return !targeted || requestedDoctorId === currentUserProfile.id || isManager;
+      });
+      setHasPendingAppointmentRequest(pending);
+    };
+
+    void refreshPending();
+    const channel = client
+      .channel("sidebar-appointment-request-indicator")
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => void refreshPending())
+      .subscribe();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") void refreshPending();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      active = false;
+      document.removeEventListener("visibilitychange", handleVisibility);
+      void client.removeChannel(channel);
+    };
+  }, [currentUserProfile.accessLevel, currentUserProfile.id, currentUserProfile.role]);
+
   return (
     <div className="hpsr-dashboard-shell hpsr-compact-type min-h-dvh overflow-x-hidden bg-hpsr-bg text-hpsr-text">
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((v) => !v)} />
-      <MobileSidebar />
+      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((v) => !v)} hasPendingAppointmentRequest={hasPendingAppointmentRequest} />
+      <MobileSidebar hasPendingAppointmentRequest={hasPendingAppointmentRequest} />
 
       <main
         className={cn(

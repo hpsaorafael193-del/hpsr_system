@@ -92,9 +92,9 @@ export default function DirectionPage() {
 
   const unified = useMemo(() => {
     const derived: SystemActivity[] = [
-      ...staffRequests.map((item) => ({ id: `staff-${item.id}`, createdAt: item.createdAt || new Date(0).toISOString(), module: "Cadastros médicos", action: `Solicitação ${item.status || "Pendente"}`, description: `${item.name || "Profissional"} solicitou acesso como ${item.requestedRole || "cargo não informado"}.`, reference: item.passport })),
-      ...applications.map((item) => ({ id: `application-${item.protocol}`, createdAt: item.createdAt || new Date(0).toISOString(), module: "Candidaturas", action: item.status || "Em análise", description: `${item.name || "Candidato"} · ${item.desiredRole || "cargo não informado"}.`, reference: item.protocol })),
-      ...appointments.map((item, index) => ({ id: `appointment-${item.id || index}`, createdAt: item.createdAt || item.requestedAt || new Date(0).toISOString(), module: "Agendamentos", action: item.status || "Solicitação recebida", description: `${item.patientName || item.name || "Paciente"} · ${item.specialty || item.type || "Atendimento"}.`, reference: item.passport })),
+      ...staffRequests.map((item) => ({ id: `staff-${item.id}`, createdAt: item.createdAt || "1970-01-01T00:00:00-03:00", module: "Cadastros médicos", action: `Solicitação ${item.status || "Pendente"}`, description: `${item.name || "Profissional"} solicitou acesso como ${item.requestedRole || "cargo não informado"}.`, reference: item.passport })),
+      ...applications.map((item) => ({ id: `application-${item.protocol}`, createdAt: item.createdAt || "1970-01-01T00:00:00-03:00", module: "Candidaturas", action: item.status || "Em análise", description: `${item.name || "Candidato"} · ${item.desiredRole || "cargo não informado"}.`, reference: item.protocol })),
+      ...appointments.map((item, index) => ({ id: `appointment-${item.id || index}`, createdAt: item.createdAt || item.requestedAt || "1970-01-01T00:00:00-03:00", module: "Agendamentos", action: item.status || "Solicitação recebida", description: `${item.patientName || item.name || "Paciente"} · ${item.specialty || item.type || "Atendimento"}.`, reference: item.passport })),
     ];
     const q = search.trim().toLowerCase();
     const periodStart = getPeriodStart(reportPeriod);
@@ -340,7 +340,7 @@ function getPeriodStart(period: string) {
 function formatDateTime(value?: string) {
   if (!value) return "";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("pt-BR");
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
 
@@ -435,7 +435,7 @@ function ActivityPiePanel({
 
 function ActivityRow({ item }: { item: SystemActivity }) {
   return <article className="grid gap-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5 transition hover:border-[#c79b7d] sm:grid-cols-[128px_1fr_auto] sm:items-center">
-    <div><p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{item.module}</p><p className="mt-1 text-[10px] text-hpsr-muted">{new Date(item.createdAt).getTime() ? new Date(item.createdAt).toLocaleString("pt-BR") : "Data não registrada"}</p></div>
+    <div><p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{item.module}</p><p className="mt-1 text-[10px] text-hpsr-muted">{new Date(item.createdAt).getTime() ? new Date(item.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Data não registrada"}</p></div>
     <div className="min-w-0"><p className="truncate text-xs font-black text-hpsr-text" title={item.action}>{item.action}</p><p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-hpsr-muted">{item.description}</p></div>
     {item.reference && <span className="max-w-[150px] truncate rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[9px] font-black text-hpsr-wine" title={item.reference}>{item.reference}</span>}
   </article>;

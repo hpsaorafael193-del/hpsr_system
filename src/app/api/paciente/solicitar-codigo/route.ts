@@ -1,3 +1,4 @@
+import { brazilIso } from "@/lib/brazil-datetime";
 import { NextRequest, NextResponse } from "next/server";
 import {
   generateAccessCode,
@@ -224,8 +225,8 @@ export async function POST(request: NextRequest) {
 
     const code = generateAccessCode();
     const fingerprint = requestFingerprint(request);
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-    const resendAt = new Date(Date.now() + 60 * 1000).toISOString();
+    const expiresAt = brazilIso(new Date(Date.now() + 15 * 60 * 1000));
+    const resendAt = brazilIso(new Date(Date.now() + 60 * 1000));
 
     const { data: createdCode, error: insertError } = await supabase
       .from("patient_access_codes")

@@ -8,7 +8,7 @@ import { adminNavigation, mainNavigation, toolsNavigation } from "@/data/navigat
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { DeveloperCreditsModal } from "./DeveloperCreditsModal";
 
-export function MobileSidebar() {
+export function MobileSidebar({ hasPendingAppointmentRequest = false }: { hasPendingAppointmentRequest?: boolean }) {
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const [open, setOpen] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
@@ -68,14 +68,15 @@ export function MobileSidebar() {
                     {group.items.map((item: any) => {
                       const Icon = item.icon;
                       const hasChildren = Array.isArray(item.children) && item.children.length > 0;
+                      const notifyPending = item.href === "/dashboard/agendamento" && hasPendingAppointmentRequest;
                       return (
                         <div key={item.href}>
                           <Link
                             onClick={() => !hasChildren && setOpen(false)}
                             href={item.href}
-                            className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-orange-50/95 hover:bg-white/10 hover:text-white"
+                            className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-orange-50/95 hover:bg-white/10 hover:text-white ${notifyPending ? "border border-red-300/30 bg-red-500/10 shadow-[0_0_16px_rgba(239,68,68,0.2)]" : ""}`}
                           >
-                            <Icon size={19} />
+                            <span className="relative shrink-0"><Icon size={19} />{notifyPending && <span className="absolute -right-1.5 -top-1.5 h-2.5 w-2.5 rounded-full border border-white/80 bg-red-500 shadow-[0_0_9px_rgba(239,68,68,0.85)]" />}</span>
                             <span className="min-w-0 flex-1 truncate">{item.label}</span>
                             {hasChildren && <ChevronDown size={15} />}
                           </Link>

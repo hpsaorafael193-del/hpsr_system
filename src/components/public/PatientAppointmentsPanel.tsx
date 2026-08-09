@@ -35,7 +35,7 @@ const fieldClass = "min-h-[44px] w-full rounded-[14px] border border-hpsr-border
 function formatDate(value: string) {
   if (!value) return "A definir";
   const date = value.includes("T") ? new Date(value) : new Date(`${value}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("pt-BR");
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
 type PatientAppointmentsView = "scheduled" | "request" | "pending";

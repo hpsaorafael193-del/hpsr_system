@@ -1,5 +1,7 @@
 "use client";
 
+import { addBrazilDays, brazilDate } from "@/lib/brazil-datetime";
+
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { hpsrAlert, hpsrPrompt } from "@/components/ui/HpsrDialogProvider";
@@ -547,8 +549,8 @@ function AdmissionModal({
       patientPassport,
       doctor: String(data.get("doctor") || ""),
       specialty: String(data.get("specialty") || ""),
-      admittedAt: admissionDate ? new Date(`${admissionDate}T12:00:00`).toLocaleDateString("pt-BR") : bed.admittedAt,
-      expectedDischarge: dischargeDate ? new Date(`${dischargeDate}T12:00:00`).toLocaleDateString("pt-BR") : bed.expectedDischarge,
+      admittedAt: admissionDate ? new Date(`${admissionDate}T12:00:00`).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : bed.admittedAt,
+      expectedDischarge: dischargeDate ? new Date(`${dischargeDate}T12:00:00`).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }) : bed.expectedDischarge,
       admissionReason: String(data.get("admissionReason") || ""),
       admissionCondition: String(data.get("admissionCondition") || ""),
       generalState: String(data.get("generalState") || ""),
@@ -667,11 +669,11 @@ function AdmissionModal({
                 </AdmissionField>
 
                 <AdmissionField label="Data de Entrada">
-                  <input name="admittedAt" type="date" className={admissionInputClass} defaultValue={editing ? toDateInputValue(bed.admittedAt) : new Date().toISOString().slice(0,10)} />
+                  <input name="admittedAt" type="date" className={admissionInputClass} defaultValue={editing ? toDateInputValue(bed.admittedAt) : brazilDate()} />
                 </AdmissionField>
 
                 <AdmissionField label="Previsão de Alta">
-                  <input name="expectedDischarge" type="date" className={admissionInputClass} defaultValue={editing ? toDateInputValue(bed.expectedDischarge) : new Date(Date.now()+2*86400000).toISOString().slice(0,10)} />
+                  <input name="expectedDischarge" type="date" className={admissionInputClass} defaultValue={editing ? toDateInputValue(bed.expectedDischarge) : addBrazilDays(2)} />
                 </AdmissionField>
 
                 <AdmissionField label="Motivo da Internação" className="md:col-span-2">
@@ -836,7 +838,7 @@ function eventLabel(type: string) {
 }
 
 function bedLabelById(beds: BedRecord[], id: string) { return beds.find((bed) => bed.id === id)?.label || id; }
-function formatDateTime(value: string) { return new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); }
+function formatDateTime(value: string) { return new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }); }
 
 function toDateInputValue(value?: string) {
   if (!value) return "";

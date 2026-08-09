@@ -1,3 +1,4 @@
+import { brazilIso } from "@/lib/brazil-datetime";
 import { NextRequest, NextResponse } from "next/server";
 import { generateSessionToken, getPatientSessionCookieName, getServiceClient, hashPatientSecret, requestFingerprint } from "@/lib/patient-portal/server";
 
@@ -42,13 +43,13 @@ export async function POST(request: NextRequest) {
     const { error: sessionError } = await supabase.from("patient_portal_sessions").insert({
       portal_access_id: portalAccess.id,
       token_hash: hashPatientSecret(token),
-      expires_at: expiresAt.toISOString(),
+      expires_at: brazilIso(expiresAt),
       request_ip_hash: fingerprint.ipHash,
       user_agent: fingerprint.userAgent,
     });
     if (sessionError) throw sessionError;
 
-    await supabase.from("patient_accounts").update({ last_login_at: new Date().toISOString() }).eq("user_id", authData.user.id);
+    await supabase.from("patient_accounts").update({ last_login_at: brazilIso() }).eq("user_id", authData.user.id);
     const response = NextResponse.json({ ok: true });
     response.cookies.set(getPatientSessionCookieName(), token, {
       httpOnly: true,

@@ -76,7 +76,7 @@ function downloadReceipt(receipt: FinancialReceipt) {
   ctx.font = "700 24px Arial";
   ctx.fillText(receipt.number, width - 70, 88);
   ctx.font = "500 18px Arial";
-  ctx.fillText(new Date(receipt.createdAt).toLocaleString("pt-BR"), width - 70, 126);
+  ctx.fillText(new Date(receipt.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }), width - 70, 126);
   ctx.textAlign = "left";
   ctx.fillStyle = "#32150f";
   ctx.font = "700 24px Arial";
@@ -234,8 +234,8 @@ export default function FinancePage() {
         <div className="mt-4 max-h-[520px] overflow-y-auto pr-1">
           <div className="grid gap-3">
           {filteredPlans.map((entry) => <article key={entry.id} className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">{entry.planName}</p><h3 className="mt-1 text-lg font-black text-hpsr-text">{entry.holderName}</h3><p className="mt-1 text-xs text-hpsr-muted">Passaporte {entry.holderPassport} · Cadastrado em {new Date(entry.createdAt).toLocaleString("pt-BR")}</p></div><div className="text-right"><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">Plano cadastrado</span><p className="mt-3 text-xl font-black text-hpsr-text">{planMoney(entry.value)}</p></div></div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-4"><Mini label="Ativação" value={new Date(`${entry.activatedAt}T12:00:00`).toLocaleDateString("pt-BR")}/><Mini label="Validade" value={new Date(`${entry.expiresAt}T12:00:00`).toLocaleDateString("pt-BR")}/><Mini label="Dependentes" value={String(entry.dependentsCount)}/><Mini label="Registrado por" value={entry.registeredBy}/></div>
+            <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">{entry.planName}</p><h3 className="mt-1 text-lg font-black text-hpsr-text">{entry.holderName}</h3><p className="mt-1 text-xs text-hpsr-muted">Passaporte {entry.holderPassport} · Cadastrado em {new Date(entry.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</p></div><div className="text-right"><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">Plano cadastrado</span><p className="mt-3 text-xl font-black text-hpsr-text">{planMoney(entry.value)}</p></div></div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-4"><Mini label="Ativação" value={new Date(`${entry.activatedAt}T12:00:00`).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}/><Mini label="Validade" value={new Date(`${entry.expiresAt}T12:00:00`).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}/><Mini label="Dependentes" value={String(entry.dependentsCount)}/><Mini label="Registrado por" value={entry.registeredBy}/></div>
           </article>)}
           {!filteredPlans.length && <div className="rounded-[16px] border border-dashed border-hpsr-border p-8 text-center"><Handshake className="mx-auto text-hpsr-wineLight"/><p className="mt-3 font-black text-hpsr-text">Nenhum convênio registrado.</p><p className="mt-1 text-sm text-hpsr-muted">Os próximos planos cadastrados aparecerão aqui automaticamente com o valor da modalidade.</p></div>}
           </div>
@@ -249,7 +249,7 @@ export default function FinancePage() {
         <div className="mt-4 max-h-[520px] overflow-y-auto pr-1">
           <div className="grid gap-3">
           {filtered.map((receipt) => <article key={receipt.id} className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">{receipt.number}</p><h3 className="mt-1 text-lg font-black text-hpsr-text">{money(receipt.total)}</h3><p className="mt-1 text-xs text-hpsr-muted">{new Date(receipt.createdAt).toLocaleString("pt-BR")} · {receipt.issuedBy} · {receipt.convenio}</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">Salvo</span></div>
+            <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">{receipt.number}</p><h3 className="mt-1 text-lg font-black text-hpsr-text">{money(receipt.total)}</h3><p className="mt-1 text-xs text-hpsr-muted">{new Date(receipt.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} · {receipt.issuedBy} · {receipt.convenio}</p></div><span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">Salvo</span></div>
             <div className="mt-3 grid gap-2 sm:grid-cols-3"><Mini label="Itens" value={String(receipt.items.length)}/><Mini label="Unidades" value={String(receipt.totalUnits)}/><Mini label="Desconto" value={`${receipt.discountPercent}%`}/></div>
             <div className="mt-3 flex flex-wrap gap-2"><button onClick={()=>downloadReceipt(receipt)} className="inline-flex items-center gap-2 rounded-xl bg-hpsr-wine px-3 py-2 text-xs font-black text-white"><Download size={14}/>Baixar recibo</button><button onClick={()=>removeReceipt(receipt)} className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-700"><Trash2 size={14}/>Excluir</button></div>
           </article>)}

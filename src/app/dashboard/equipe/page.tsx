@@ -1,4 +1,6 @@
 "use client";
+
+import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneDisplay } from "@/lib/phone";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
@@ -175,7 +177,7 @@ function formatDate(value: string) {
 function formatDateTime(value: string) {
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString("pt-BR", {
+  return parsed.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo",
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -336,7 +338,7 @@ function memberFromProfile(row: any, supplemental?: Partial<TeamMember>): TeamMe
     cityPhone: formatPhoneDisplay(String(row.city_phone || supplemental?.cityPhone || ""), ""),
     email: String(row.email || supplemental?.email || ""),
     radio: String(row.discord || supplemental?.radio || ""),
-    joinedAt: String((supplemental?.joinedAt || row.created_at || new Date().toISOString()).slice(0, 10)),
+    joinedAt: String((supplemental?.joinedAt || row.created_at || brazilIso()).slice(0, 10)),
     serviceStatus: (row.service_status || supplemental?.serviceStatus || "Fora de serviço") as ServiceStatus,
     permissions: Array.isArray(supplemental?.permissions) ? supplemental.permissions : getDefaultPermissions(role, systemRole),
     warnings: Number(supplemental?.warnings || 0),
@@ -536,7 +538,7 @@ export default function TeamPage() {
         crm: String(payload.crm || linkedProfile?.crm || ""),
         specialty: String(payload.specialty || linkedProfile?.specialty || "Clínico Geral"),
         requestedRole: String(payload.requestedRole || row.requested_role || linkedProfile?.role || "Estagiário de Enfermagem"),
-        createdAt: String(payload.createdAt || row.created_at || new Date().toISOString()),
+        createdAt: String(payload.createdAt || row.created_at || brazilIso()),
         status,
         hiddenAt: payload.hiddenAt ? String(payload.hiddenAt) : undefined,
         historical,
@@ -566,7 +568,7 @@ export default function TeamPage() {
               crm: String(profile.crm || ""),
               specialty: String(profile.specialty || "Clínico Geral"),
               requestedRole: String(profile.role || "Médico Clínico"),
-              createdAt: String(profile.created_at || new Date().toISOString()),
+              createdAt: String(profile.created_at || brazilIso()),
               status: rejected ? "Recusado" as const : (approved || inactive) ? "Aprovado" as const : "Pendente" as const,
               historical: inactive || rejected,
               historyReason: inactive ? "Profissional desativado ou removido" : rejected ? "Cadastro recusado" : undefined,
@@ -650,8 +652,8 @@ export default function TeamPage() {
       const requests = [...(byUserResult.data || []), ...(byPassportResult.data || [])]
         .filter((request, index, all) => all.findIndex((item) => item.id === request.id) === index);
       for (const request of requests) {
-        const payload = { ...((request.payload || {}) as Record<string, unknown>), hiddenAt: new Date().toISOString(), hiddenBy: currentUserProfile.systemName, hiddenReason: reason || "Profissional removido da equipe" };
-        await client.from("staff_registration_requests").update({ payload, updated_at: new Date().toISOString() }).eq("id", request.id);
+        const payload = { ...((request.payload || {}) as Record<string, unknown>), hiddenAt: brazilIso(), hiddenBy: currentUserProfile.systemName, hiddenReason: reason || "Profissional removido da equipe" };
+        await client.from("staff_registration_requests").update({ payload, updated_at: brazilIso() }).eq("id", request.id);
       }
     }
 
@@ -726,7 +728,7 @@ export default function TeamPage() {
   async function submitAdministrativeAction() {
     if (!pendingAdministrativeAction) return;
     const { member, action, value } = pendingAdministrativeAction;
-    const timestamp = new Date().toLocaleString("pt-BR");
+    const timestamp = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
     const trimmedValue = value.trim();
 
     if ((action === "Registrar conduta" || action === "Aplicar advertência" || action === "Desligar") && !trimmedValue) return;
@@ -815,13 +817,13 @@ export default function TeamPage() {
   async function setRegistrationRequestHidden(request: StaffRegistrationRequest, hidden: boolean) {
     const client = createClient();
     if (!client || request.id.startsWith("profile-")) {
-      setRegistrationRequests((current) => current.map((item) => item.id === request.id ? { ...item, hiddenAt: hidden ? new Date().toISOString() : undefined } : item));
+      setRegistrationRequests((current) => current.map((item) => item.id === request.id ? { ...item, hiddenAt: hidden ? brazilIso() : undefined } : item));
       return;
     }
     const { data: row, error: readError } = await client.from("staff_registration_requests").select("payload").eq("id", request.id).maybeSingle();
     if (readError) { await hpsrAlert(readError.message, "Erro ao atualizar histórico"); return; }
-    const payload = { ...((row?.payload || {}) as Record<string, unknown>), hiddenAt: hidden ? new Date().toISOString() : null, hiddenBy: hidden ? currentUserProfile.systemName : null };
-    const { error } = await client.from("staff_registration_requests").update({ payload, updated_at: new Date().toISOString() }).eq("id", request.id);
+    const payload = { ...((row?.payload || {}) as Record<string, unknown>), hiddenAt: hidden ? brazilIso() : null, hiddenBy: hidden ? currentUserProfile.systemName : null };
+    const { error } = await client.from("staff_registration_requests").update({ payload, updated_at: brazilIso() }).eq("id", request.id);
     if (error) { await hpsrAlert(error.message, "Erro ao atualizar histórico"); return; }
     setRegistrationRequests((current) => current.map((item) => item.id === request.id ? { ...item, hiddenAt: hidden ? String(payload.hiddenAt) : undefined } : item));
   }
@@ -844,7 +846,7 @@ export default function TeamPage() {
               specialty: request.specialty || "Clínico Geral",
               passport: request.passport || null,
               crm: request.crm || null,
-              updated_at: new Date().toISOString(),
+              updated_at: brazilIso(),
             })
             .eq("id", request.authUserId)
         : await client.rpc("decide_staff_registration", {
@@ -867,7 +869,7 @@ export default function TeamPage() {
         status: decision,
         payload: { ...request, status: decision },
         created_at: request.createdAt,
-        updated_at: new Date().toISOString(),
+        updated_at: brazilIso(),
       });
       if (client && !sync.synced) {
         setRegistrationRequestError(sync.error || "Não foi possível atualizar a solicitação no banco.");
@@ -891,12 +893,12 @@ export default function TeamPage() {
         cityPhone: request.cityPhone,
         email: request.email,
         radio: "193",
-        joinedAt: new Date().toISOString().slice(0, 10),
+        joinedAt: brazilDate(),
         serviceStatus: "Fora de serviço",
         permissions: getDefaultPermissions(role, ""),
         warnings: 0,
         suspensions: 0,
-        history: [`Cadastro público aprovado em ${new Date().toLocaleString("pt-BR")}`],
+        history: [`Cadastro público aprovado em ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}`],
       };
       setMembers((current) => [newMember, ...current]);
     }
@@ -925,7 +927,7 @@ export default function TeamPage() {
       return;
     }
 
-    const timestamp = new Date().toLocaleString("pt-BR");
+    const timestamp = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
     const history = [...existing.history];
     if (existing.specialty !== updatedMember.specialty) history.unshift(`Especialidades alteradas em ${timestamp}: ${updatedMember.specialty}`);
     if (existing.joinedAt !== updatedMember.joinedAt || existing.contractDurationDays !== updatedMember.contractDurationDays || existing.contractStatus !== updatedMember.contractStatus) {
@@ -961,7 +963,7 @@ export default function TeamPage() {
       desired_role: application.desiredRole,
       status,
       payload: updatedApplication,
-      updated_at: new Date().toISOString(),
+      updated_at: brazilIso(),
     });
     if (!sync.synced) {
       void hpsrAlert(sync.error || "Não foi possível atualizar a candidatura.", "Erro no Supabase");
@@ -987,7 +989,7 @@ export default function TeamPage() {
       desired_role: application.desiredRole,
       status: application.status,
       payload: application,
-      updated_at: new Date().toISOString(),
+      updated_at: brazilIso(),
     });
     if (!sync.synced) {
       void hpsrAlert(sync.error || "Não foi possível salvar a candidatura.", "Erro no Supabase");
@@ -1507,7 +1509,7 @@ function ApplicationAnalysisModal({
       ...draft,
       status: "Aprovado",
       triageDecision: "Aprovado" as const,
-      decisionAt: new Date().toISOString(),
+      decisionAt: brazilIso(),
       interviewStatus: draft.interviewStatus || "Não agendada",
     };
     setDraft(next);
@@ -1519,7 +1521,7 @@ function ApplicationAnalysisModal({
       ...draft,
       status: "Recusado",
       triageDecision: "Recusado" as const,
-      decisionAt: new Date().toISOString(),
+      decisionAt: brazilIso(),
       interviewStatus: "Não agendada" as const,
       interviewResult: "Pendente" as const,
     };
@@ -2251,7 +2253,7 @@ function ManageMemberModal({
     return hasMedicalRole || hasMedicalIdentity || member.systemRole === "Diretor Técnico / Dev";
   }), [members]);
   const [selectedMemberId, setSelectedMemberId] = useState("");
-  const emptyMember: TeamMember = { id: "", name: "", passport: "", crm: "", hospitalRole: "Médico Clínico", systemRole: "", accessLevel: "Clínico", category: "Corpo Médico", department: "Hospital São Rafael", specialty: "Clínico Geral", cityPhone: "", email: "", radio: "193", joinedAt: new Date().toISOString().slice(0, 10), serviceStatus: "Fora de serviço", permissions: [], warnings: 0, suspensions: 0, history: [], contractStatus: "Ativo", contractDurationDays: 15 };
+  const emptyMember: TeamMember = { id: "", name: "", passport: "", crm: "", hospitalRole: "Médico Clínico", systemRole: "", accessLevel: "Clínico", category: "Corpo Médico", department: "Hospital São Rafael", specialty: "Clínico Geral", cityPhone: "", email: "", radio: "193", joinedAt: brazilDate(), serviceStatus: "Fora de serviço", permissions: [], warnings: 0, suspensions: 0, history: [], contractStatus: "Ativo", contractDurationDays: 15 };
   const [form, setForm] = useState<TeamMember>(emptyMember);
 
   function selectDoctor(memberId: string) {

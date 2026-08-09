@@ -1,5 +1,7 @@
 "use client";
 
+import { brazilDate, brazilIso, brazilMonth } from "@/lib/brazil-datetime";
+
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import {
@@ -125,7 +127,7 @@ type RegisterDraft = {
   dependents: DependentDraft[];
 };
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const todayIso = () => brazilDate();
 
 const initialRegisterDraft = (): RegisterDraft => ({
   name: "",
@@ -217,7 +219,7 @@ function financialRowToInsurancePlan(row: FinancialPlanRow): Patient | null {
     dependentsList,
     holderAge: numberValue(storedPlan.holderAge),
     financialEntryId: row.id,
-    financialCreatedAt: row.created_at || stringValue(payload.createdAt, new Date().toISOString()),
+    financialCreatedAt: row.created_at || stringValue(payload.createdAt, brazilIso()),
     financialValue: numberValue(row.value) ?? numberValue(payload.value),
   };
 
@@ -247,7 +249,7 @@ function parseIsoDate(value: string) {
 }
 
 function toIsoDate(date: Date) {
-  return date.toISOString().slice(0, 10);
+  return brazilDate(date);
 }
 
 function formatDate(value: string) {
@@ -352,7 +354,7 @@ export default function InsurancePage() {
   const [modal, setModal] = useState<ModalState>(null);
   const [insurancePlans, setInsurancePlans] = useState<Patient[]>(() => purgeOldClosedPlans(normalizeExpiredPlans(patients)));
   const [reportPlans, setReportPlans] = useState<Patient[]>(patients);
-  const [reportMonth, setReportMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [reportMonth, setReportMonth] = useState(() => brazilMonth());
   const [plansLoading, setPlansLoading] = useState(true);
   const [plansLoadError, setPlansLoadError] = useState("");
   const [registerDraft, setRegisterDraft] = useState<RegisterDraft>(() => initialRegisterDraft());
@@ -425,7 +427,7 @@ export default function InsurancePage() {
   async function persistInsurancePlan(plan: Patient, registeredBy = currentUserProfile.systemName): Promise<boolean> {
     const selectedPlan = plans.find((item) => item.name === plan.plan);
     const entryId = plan.financialEntryId || plan.id;
-    const createdAt = plan.financialCreatedAt || new Date().toISOString();
+    const createdAt = plan.financialCreatedAt || brazilIso();
     const entry: FinancialPlanEntry = {
       id: entryId,
       createdAt,
@@ -461,7 +463,7 @@ export default function InsurancePage() {
       value: entry.value,
       payload: entry,
       created_at: entry.createdAt,
-      updated_at: new Date().toISOString(),
+      updated_at: brazilIso(),
     }, { onConflict: "id" });
 
     if (error) {
@@ -519,7 +521,7 @@ export default function InsurancePage() {
     }
 
     const planId = `plan-${Date.now()}`;
-    const createdAt = new Date().toISOString();
+    const createdAt = brazilIso();
     const newPlan: Patient = {
       id: planId,
       passport: draft.passport.trim(),
@@ -2105,7 +2107,7 @@ function MonthlyPlansReport({
     };
   }, [monthPlans]);
 
-  const monthLabel = month ? new Date(`${month}-01T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" }) : "Mês selecionado";
+  const monthLabel = month ? new Date(`${month}-01T12:00:00`).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", month: "long", year: "numeric" }) : "Mês selecionado";
   const money = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const topPlan = summary.byPlan.find((item) => item.total > 0);
   const totalPeople = summary.holders + summary.dependents;
@@ -2205,7 +2207,7 @@ function MonthlyPlansReport({
 
       <text x="${paddingX}" y="${summaryTop}" font-size="14" font-weight="700" letter-spacing="2.2" fill="#6d1f0f">HPSR · CONVÊNIOS</text>
       <text x="${paddingX}" y="${summaryTop + 36}" font-size="34" font-weight="800" fill="#171717">Relatório mensal de convênios</text>
-      <text x="${paddingX}" y="${summaryTop + 64}" font-size="14" fill="#6d5146">Período: ${escapeXml(monthLabel)} · Gerado em ${escapeXml(new Date().toLocaleString('pt-BR'))}</text>
+      <text x="${paddingX}" y="${summaryTop + 64}" font-size="14" fill="#6d5146">Período: ${escapeXml(monthLabel)} · Gerado em ${escapeXml(new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }))}</text>
       <line x1="${paddingX}" y1="${summaryTop + 82}" x2="${width - paddingX}" y2="${summaryTop + 82}" stroke="#7a2b17" stroke-width="3" />
 
       ${metricCards.map((item, index) => {

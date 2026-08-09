@@ -9,6 +9,7 @@ import {
   FileSearch,
   FileText,
   Handshake,
+  HeartHandshake,
   Home,
   Landmark,
   WalletCards,
@@ -30,6 +31,7 @@ export const mainNavigation = [
     ],
   },
   { label: "Convênios", href: "/dashboard/convenios", icon: Handshake },
+  { label: "Parcerias", href: "/dashboard/parcerias", icon: HeartHandshake },
   { label: "Guia Farmacêutico", href: "/dashboard/guia-farmaceutico", icon: Pill },
 ];
 

@@ -1,4 +1,6 @@
 "use client";
+
+import { brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneNumber } from "@/lib/phone";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
@@ -127,7 +129,7 @@ function LoginContent() {
       resolvedAuthUserId = data.user.id;
     }
 
-    const createdAt = new Date().toISOString();
+    const createdAt = brazilIso();
     const item: Request = {
       id: `staff-${Date.now()}`,
       authUserId: resolvedAuthUserId,

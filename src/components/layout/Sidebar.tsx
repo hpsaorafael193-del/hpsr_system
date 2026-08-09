@@ -10,7 +10,7 @@ import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvi
 import { cn } from "@/lib/utils";
 import { DeveloperCreditsModal } from "./DeveloperCreditsModal";
 
-export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+export function Sidebar({ collapsed, onToggle, hasPendingAppointmentRequest = false }: { collapsed: boolean; onToggle: () => void; hasPendingAppointmentRequest?: boolean }) {
   const pathname = usePathname();
   const [creditsOpen, setCreditsOpen] = useState(false);
   const { profile: currentUserProfile } = useCurrentUserProfile();
@@ -53,7 +53,7 @@ export function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle:
       )}
 
       <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6">
-        <SidebarGroup title="Principal" items={mainNavigation} collapsed={collapsed} pathname={pathname} />
+        <SidebarGroup title="Principal" items={mainNavigation} collapsed={collapsed} pathname={pathname} hasPendingAppointmentRequest={hasPendingAppointmentRequest} />
         <SidebarGroup title="Ferramentas" items={visibleToolsNavigation} collapsed={collapsed} pathname={pathname} />
         {visibleAdminNavigation.length > 0 && (
           <SidebarGroup title="Administração" items={visibleAdminNavigation} collapsed={collapsed} pathname={pathname} />
@@ -83,11 +83,13 @@ function SidebarGroup({
   items,
   collapsed,
   pathname,
+  hasPendingAppointmentRequest = false,
 }: {
   title: string;
   items: any[];
   collapsed: boolean;
   pathname: string;
+  hasPendingAppointmentRequest?: boolean;
 }) {
   return (
     <div>
@@ -103,6 +105,7 @@ function SidebarGroup({
           const hasChildren = Array.isArray(item.children) && item.children.length > 0;
           const active = pathname === item.href || (hasChildren && pathname.startsWith(item.href + "/"));
           const showChildren = hasChildren && active && !collapsed;
+          const notifyPending = item.href === "/dashboard/agendamento" && hasPendingAppointmentRequest;
 
           return (
             <div key={item.href}>
@@ -114,10 +117,11 @@ function SidebarGroup({
                   active
                     ? "bg-[#fffaf4] text-hpsr-wine"
                     : "text-orange-50/90 hover:bg-white/10 hover:text-white",
-                  collapsed && "justify-center"
+                  collapsed && "justify-center",
+                  notifyPending && !active && "border border-red-300/35 bg-red-500/10 shadow-[0_0_18px_rgba(239,68,68,0.22)] animate-[pulse_2.4s_ease-in-out_infinite]"
                 )}
               >
-                <Icon size={19} />
+                <span className="relative shrink-0"><Icon size={19} />{notifyPending && <span className="absolute -right-1.5 -top-1.5 h-2.5 w-2.5 rounded-full border border-white/80 bg-red-500 shadow-[0_0_9px_rgba(239,68,68,0.85)]" />}</span>
                 {!collapsed && (
                   <>
                     <span className="flex-1">{item.label}</span>

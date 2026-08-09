@@ -46,7 +46,7 @@ export function ApplicationHistoryModal({ items, onClose, onOpenAnalysis }: { it
               return <article key={item.protocol || item.id || `${item.passport}-${index}`} className="rounded-[15px] border border-hpsr-border bg-white p-3">
                 <div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-sm font-black text-hpsr-text">{item.name || "Candidato"}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">Passaporte: {item.passport || "Não informado"} · {role}</p></div><span className="rounded-full bg-[#fff1e5] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{item.status || "Em análise"}</span></div>
                 <div className="mt-2 grid gap-1 text-[11px] text-hpsr-muted sm:grid-cols-3"><span>Triagem: <strong>{item.triageDecision || "Pendente"}</strong></span><span>Entrevista: <strong>{item.interviewStatus || "Não agendada"}</strong></span><span>Resultado: <strong>{item.interviewResult || "Pendente"}</strong></span></div>
-                {createdAt && <p className="mt-2 text-[10px] text-hpsr-muted">Enviado em {new Date(createdAt).toLocaleString("pt-BR")}</p>}
+                {createdAt && <p className="mt-2 text-[10px] text-hpsr-muted">Enviado em {new Date(createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</p>}
                 {onOpenAnalysis && <button type="button" onClick={() => onOpenAnalysis(item)} className="mt-3 rounded-[12px] border border-hpsr-border bg-[#fff8f0] px-3 py-2 text-xs font-black text-hpsr-wine">Ver informações</button>}
               </article>;
             })}

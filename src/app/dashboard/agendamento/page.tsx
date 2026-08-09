@@ -1,5 +1,7 @@
 "use client";
 
+import { brazilDate, brazilIso, brazilMonth } from "@/lib/brazil-datetime";
+
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -244,7 +246,7 @@ export default function AppointmentsPage() {
       proposedDate: details?.proposedDate || request.proposedDate,
       proposedTime: details?.proposedTime || request.proposedTime,
       rescheduleReason: details?.reason || request.rescheduleReason,
-      updatedAt: new Date().toISOString(),
+      updatedAt: brazilIso(),
     };
 
     const client = createClient();
@@ -258,7 +260,7 @@ export default function AppointmentsPage() {
         const dates = Array.from({ length: 9 }, (_, index) => {
           const date = new Date(`${startDate}T12:00:00`);
           date.setDate(date.getDate() + index * 7);
-          return date.toISOString().slice(0, 10);
+          return brazilDate(date);
         });
         const { data: plan, error: planError } = await client.from("clinical_followup_plans").insert({
           doctor_id: currentUserProfile.id,
@@ -393,11 +395,11 @@ export default function AppointmentsPage() {
   }, [pendingRequests, searchTerm]);
 
   const loggedDoctorConsultationsToday = visibleAppointments.filter(
-    (item) => item.date === new Date().toISOString().slice(0, 10) && item.doctor === currentUserProfile.systemName
+    (item) => item.date === brazilDate() && item.doctor === currentUserProfile.systemName
   );
   const pendingScheduleChanges = reschedules.filter((item) => item.next === "A definir" || item.feeAlert);
   const monthlyDoctorConsultations = visibleAppointments.filter(
-    (item) => item.date.startsWith(new Date().toISOString().slice(0, 7)) && item.doctor === currentUserProfile.systemName
+    (item) => item.date.startsWith(brazilMonth()) && item.doctor === currentUserProfile.systemName
   );
 
   return (

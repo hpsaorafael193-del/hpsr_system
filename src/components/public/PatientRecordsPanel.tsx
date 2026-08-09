@@ -18,7 +18,7 @@ type PatientRecord = {
 };
 
 function formatDate(value: string) {
-  return new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  return new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
 }
 
 export function PatientRecordsPanel({ onSessionExpired, passport }: { onSessionExpired?: () => void; passport?: string }) {

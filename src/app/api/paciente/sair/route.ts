@@ -1,3 +1,4 @@
+import { brazilIso } from "@/lib/brazil-datetime";
 import { NextRequest, NextResponse } from "next/server";
 import { getPatientSessionCookieName, getServiceClient, hashPatientSecret } from "@/lib/patient-portal/server";
 
@@ -8,7 +9,7 @@ export async function POST(request: NextRequest) {
   if (token) {
     try {
       const supabase = getServiceClient();
-      await supabase.from("patient_portal_sessions").update({ revoked_at: new Date().toISOString() }).eq("token_hash", hashPatientSecret(token));
+      await supabase.from("patient_portal_sessions").update({ revoked_at: brazilIso() }).eq("token_hash", hashPatientSecret(token));
     } catch (error) {
       console.error("[patient-portal] logout", error);
     }

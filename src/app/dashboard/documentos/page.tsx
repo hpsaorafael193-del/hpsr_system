@@ -1,5 +1,7 @@
 "use client";
 
+import { brazilIso } from "@/lib/brazil-datetime";
+
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -146,7 +148,7 @@ const categoryLabels: Record<DocumentCategory | "todos", string> = {
 function brDate(value?: string) {
   const date = value ? new Date(`${value}T00:00:00`) : new Date();
   if (Number.isNaN(date.getTime())) return "__/__/____";
-  return date.toLocaleDateString("pt-BR");
+  return date.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 }
 
 function escapeHtml(value: string) {
@@ -585,7 +587,7 @@ export default function DocumentsPage() {
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
 
-  const today = useMemo(() => new Date().toLocaleDateString("pt-BR"), []);
+  const today = useMemo(() => new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }), []);
   const selectedModel = useMemo(
     () =>
       documentModels.find((model) => model.id === selectedModelId) ||
@@ -762,7 +764,7 @@ export default function DocumentsPage() {
     const html = normalizeEditorHtml(
       editorRef.current?.innerHTML || editorHtml || generatedHtml,
     );
-    const savedAt = new Date().toISOString();
+    const savedAt = brazilIso();
     const draft: SavedDocumentDraft = {
       patient,
       doctor,
@@ -1511,7 +1513,7 @@ export default function DocumentsPage() {
       saveDraft(true);
 
       const pages = buildDocumentPages();
-      const savedAt = new Date().toISOString();
+      const savedAt = brazilIso();
       const renderedImages: string[] = [];
       for (let index = 0; index < pages.length; index += 1) {
         const canvas = await renderDocumentCanvas(pages[index], index, pages.length);

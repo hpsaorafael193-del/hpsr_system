@@ -1,5 +1,7 @@
 "use client";
 
+import { brazilDateTimeInput, brazilIso } from "@/lib/brazil-datetime";
+
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState } from "react";
 import { Activity, Clock3, Download, History, RefreshCw, ShieldCheck, Square, UsersRound } from "lucide-react";
@@ -44,7 +46,7 @@ export function TimeClockAdministrativeReport() {
   const closedEntries = useMemo(() => data.entries.filter((entry) => Boolean(entry.closedAt)), [data.entries]);
 
   async function setClosedAt(entry: Entry) {
-    const initial = toLocalDateTimeInput(entry.closedAt || new Date().toISOString());
+    const initial = toLocalDateTimeInput(entry.closedAt || brazilIso());
     const value = window.prompt(
       entry.closedAt ? "Novo horário de encerramento (AAAA-MM-DDTHH:mm):" : "Horário em que o ponto deve ser encerrado (AAAA-MM-DDTHH:mm):",
       initial,
@@ -57,7 +59,7 @@ export function TimeClockAdministrativeReport() {
     setLoading(true); setError("");
     const result = await client.rpc("admin_set_time_clock_closed_at", {
       p_entry_id: entry.id,
-      p_closed_at: parsed.toISOString(),
+      p_closed_at: brazilIso(parsed),
     });
     if (result.error) setError(result.error.message || "Não foi possível atualizar o encerramento do ponto.");
     else await load();
@@ -122,9 +124,8 @@ function normalizeNumbers(item: any) { return { ...item, position: Number(item.p
 function formatDuration(seconds: number) { const safe = Math.max(0, Math.floor(seconds || 0)); const h = Math.floor(safe / 3600); const m = Math.floor((safe % 3600) / 60); return `${h}h ${String(m).padStart(2, "0")}min`; }
 function toLocalDateTimeInput(value: string) {
   const date = new Date(value);
-  const offset = date.getTimezoneOffset();
-  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
+  return brazilDateTimeInput(date);
 }
-function formatDateTime(value?: string | null) { return value ? new Date(value).toLocaleString("pt-BR") : "—"; }
+function formatDateTime(value?: string | null) { return value ? new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "—"; }
 function formatMonth(value: string) { const [year, month] = value.slice(0, 7).split("-").map(Number); return new Intl.DateTimeFormat("pt-BR", { month: "long", year: "numeric" }).format(new Date(year, month - 1, 1)); }
 

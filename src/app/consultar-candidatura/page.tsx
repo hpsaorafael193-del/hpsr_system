@@ -34,7 +34,7 @@ function statusMessage(item: Application) {
     return "A equipe tentou contato para a entrevista, mas ainda não recebeu retorno.";
   }
   if (item.interviewStatus === "Agendada") {
-    return `Sua entrevista foi agendada${item.interviewAt ? ` para ${new Date(item.interviewAt).toLocaleString("pt-BR")}` : ""}.`;
+    return `Sua entrevista foi agendada${item.interviewAt ? ` para ${new Date(item.interviewAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : ""}.`;
   }
   if (item.triageDecision === "Aprovado" || item.status === "Aprovado" || item.status === "entrevista") {
     return "Você foi aprovado na triagem. Um médico entrará em contato pelo Discord para marcar a entrevista.";

@@ -1,5 +1,7 @@
 "use client";
 
+import { brazilIso } from "@/lib/brazil-datetime";
+
 import { useMemo, useState, type ReactNode } from "react";
 import {
   BadgePercent,
@@ -190,7 +192,7 @@ const tabs: Array<{ id: CategoryId; label: string; icon: ReactNode; products: Pr
 const convenioOptions: Array<{ id: ConvenioId; title: string; description: string; discount: number; icon: ReactNode }> = [
   { id: "sem", title: "Sem Convênio", description: "Sem desconto", discount: 0, icon: <BadgePercent size={17} /> },
   { id: "plano", title: "Plano Médico", description: "20% de desconto", discount: 0.2, icon: <Handshake size={17} /> },
-  { id: "parceria", title: "Parceria", description: "10% de desconto", discount: 0.10, icon: <CheckCircle2 size={17} /> },
+  { id: "parceria", title: "Parceria", description: "15% de desconto", discount: 0.15, icon: <CheckCircle2 size={17} /> },
 ];
 
 function formatCurrency(valueInCents: number) {
@@ -287,7 +289,7 @@ export default function CalculatorPage() {
     const receipt: FinancialReceipt = {
       id: `receipt-${createdAt.getTime()}`,
       number: `HPSR-${createdAt.getFullYear()}${String(createdAt.getMonth() + 1).padStart(2, "0")}${String(createdAt.getDate()).padStart(2, "0")}-${String(createdAt.getTime()).slice(-6)}`,
-      createdAt: createdAt.toISOString(),
+      createdAt: brazilIso(createdAt),
       issuedBy: currentUserProfile.signatureName || currentUserProfile.systemName,
       issuerCrm: currentUserProfile.crm,
       convenio: isPmSale ? `${selectedConvenio.title} · Venda para PM` : selectedConvenio.title,
@@ -345,7 +347,7 @@ export default function CalculatorPage() {
     context.font = "700 24px Arial";
     context.fillText(receipt.number, width - 70, 88);
     context.font = "500 18px Arial";
-    context.fillText(new Date(receipt.createdAt).toLocaleString("pt-BR"), width - 70, 126);
+    context.fillText(new Date(receipt.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }), width - 70, 126);
     context.textAlign = "left";
 
     context.fillStyle = "#32150f";

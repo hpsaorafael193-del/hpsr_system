@@ -1,3 +1,4 @@
+import { brazilIso } from "@/lib/brazil-datetime";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession, normalizePassport, resolvePortalPatientPassport } from "@/lib/patient-portal/server";
 import { CLINICAL_BOOKING_CUTOFF_MS } from "@/lib/clinical-scheduling";
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
         .maybeSingle(),
       valid.supabase.rpc("patient_portal_available_slots", {
         target_passport: passport,
-        cutoff_at: cutoff.toISOString(),
+        cutoff_at: brazilIso(cutoff),
         max_rows: MAX_SLOTS,
       }),
     ]);
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
       patientName: String(patientResult.data?.name || ""),
       allowedSpecialties,
       diagnostics: { reason },
-      window: { cutoffAt: cutoff.toISOString(), eligible: slots.length > 0 },
+      window: { cutoffAt: brazilIso(cutoff), eligible: slots.length > 0 },
     });
   } catch (error) {
     console.error("[patient-portal] available slots", error);

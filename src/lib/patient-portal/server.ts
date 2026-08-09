@@ -1,3 +1,4 @@
+import { brazilIso } from "@/lib/brazil-datetime";
 import "server-only";
 import { createHash, randomBytes, randomInt } from "crypto";
 import { createClient } from "@supabase/supabase-js";
@@ -109,7 +110,7 @@ export async function getValidPatientSession(request: Request) {
 
   const lastSeenAt = session.last_seen_at ? new Date(session.last_seen_at).getTime() : 0;
   if (!lastSeenAt || Date.now() - lastSeenAt >= 10 * 60 * 1000) {
-    await supabase.from("patient_portal_sessions").update({ last_seen_at: new Date().toISOString() }).eq("id", session.id);
+    await supabase.from("patient_portal_sessions").update({ last_seen_at: brazilIso() }).eq("id", session.id);
   }
   return { supabase, session, access };
 }
