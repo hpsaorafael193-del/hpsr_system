@@ -1520,6 +1520,9 @@ export default function ExamesPage() {
         } else {
           setAttachments((current) => [...current, ...items]);
         }
+        // O anexo manual deve ficar visível imediatamente após o upload,
+        // inclusive em exames que não possuem anexo automático.
+        setAttachmentEditorOpen(true);
         setSaveStatus("Salvando...");
       })
       .catch(() => {
@@ -1584,7 +1587,7 @@ export default function ExamesPage() {
       reportHtml: html,
       manualAttachments: attachments,
       resolvedExam,
-      automaticAttachments: effectiveAutomaticAttachment ? [effectiveAutomaticAttachment] : undefined,
+      automaticAttachments: effectiveAutomaticAttachment ? [effectiveAutomaticAttachment] : [],
     });
     return document;
   }
@@ -2039,7 +2042,7 @@ export default function ExamesPage() {
       context.fillStyle = "#5b1809";
       context.font = "12px Georgia";
 
-      if (pageIndex === 0) {
+      if (page.type === "report" && pageIndex === 0) {
         context.fillStyle = "#5b1809";
         context.font = "700 19px Arial";
         context.fillText("HOSPITAL SÃO RAFAEL", 42, 34);
@@ -2658,22 +2661,22 @@ export default function ExamesPage() {
                       </button>
                     </div>
 
-                    {effectiveAutomaticAttachment ? (
+                    {effectiveAutomaticAttachment && (
                       <div className="rounded-[18px] border border-[#d7c3b8] bg-white p-4">
                         <div className="flex items-start gap-3">
                           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white">
                             <Scan size={20} />
                           </span>
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm font-black text-hpsr-text">{effectiveAutomaticAttachment?.title}</p>
-                            <p className="mt-1 text-xs font-semibold text-hpsr-muted">{effectiveAutomaticAttachment?.subtitle}</p>
+                            <p className="text-sm font-black text-hpsr-text">{effectiveAutomaticAttachment.title}</p>
+                            <p className="mt-1 text-xs font-semibold text-hpsr-muted">{effectiveAutomaticAttachment.subtitle}</p>
                           </div>
                         </div>
                         <div className="mt-4 rounded-[18px] border border-[#1f2937]/20 bg-[#050505] p-2">
-                          {effectiveAutomaticAttachment?.imageUrl ? (
+                          {effectiveAutomaticAttachment.imageUrl ? (
                             <img
-                              src={effectiveAutomaticAttachment?.imageUrl}
-                              alt={effectiveAutomaticAttachment?.title || "Anexo"}
+                              src={effectiveAutomaticAttachment.imageUrl}
+                              alt={effectiveAutomaticAttachment.title || "Anexo"}
                               className="block aspect-[4/3] w-full rounded-[14px] object-contain"
                             />
                           ) : (
@@ -2683,12 +2686,51 @@ export default function ExamesPage() {
                           )}
                         </div>
                         <p className="mt-3 rounded-[14px] border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] font-semibold leading-relaxed text-hpsr-muted">
-                          A página de anexo usa apenas uma imagem centralizada. O texto técnico do exame permanece no laudo principal.
+                          Anexo automático do exame. O texto técnico permanece no laudo principal.
                         </p>
                       </div>
-                    ) : (
+                    )}
+
+                    {attachments.length > 0 && (
+                      <div className="mt-3 space-y-3">
+                        {attachments.map((attachment, index) => (
+                          <div key={attachment.id} className="rounded-[18px] border border-[#d7c3b8] bg-white p-4">
+                            <div className="mb-3 flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-black uppercase tracking-[0.08em] text-hpsr-muted">Anexo manual · página {index + 1}</p>
+                                <p className="mt-1 truncate text-sm font-black text-hpsr-text">{attachment.name}</p>
+                                <p className="mt-0.5 text-[11px] font-semibold text-hpsr-muted">{attachment.size}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeAttachment(attachment.id)}
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-red-200 bg-white text-red-700 hover:bg-red-50"
+                                aria-label={`Remover ${attachment.name}`}
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                            <div className="rounded-[18px] border border-[#1f2937]/20 bg-[#050505] p-2">
+                              {/^data:image\//i.test(attachment.url) ? (
+                                <img
+                                  src={attachment.url}
+                                  alt={attachment.name}
+                                  className="block max-h-[420px] w-full rounded-[14px] object-contain"
+                                />
+                              ) : (
+                                <div className="flex aspect-[4/3] items-center justify-center rounded-[14px] border border-dashed border-white/30 px-4 text-center text-xs font-semibold text-white/70">
+                                  Este arquivo não possui uma imagem visualizável.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {!effectiveAutomaticAttachment && attachments.length === 0 && (
                       <div className="rounded-[16px] border border-blue-200 bg-white/80 px-4 py-4 text-sm font-semibold text-hpsr-muted">
-                        {attachmentOverrideActive && attachments.length > 0 ? "O anexo automático foi substituído por anexo manual. Use a lista à esquerda para revisar os arquivos enviados." : "Nenhum anexo automático disponível para o exame atual. Use a área Anexos à esquerda para adicionar arquivos manualmente."}
+                        Nenhum anexo disponível para o exame atual. Use a área Anexos à esquerda para adicionar uma imagem manualmente.
                       </div>
                     )}
                   </div>
