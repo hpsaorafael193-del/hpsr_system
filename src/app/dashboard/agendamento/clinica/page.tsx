@@ -1037,8 +1037,8 @@ function ExportReportForm({ onClose }: { onClose: () => void }) {
           </StyledSelect>
         </Field>
         <Field label="Formato">
-          <StyledSelect className={inputClass} defaultValue="pdf">
-            <option value="pdf">PDF</option>
+          <StyledSelect className={inputClass} defaultValue="png">
+            <option value="png">PNG / imagem</option>
             <option value="csv">CSV</option>
             <option value="xlsx">Planilha</option>
           </StyledSelect>

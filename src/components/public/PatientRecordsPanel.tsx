@@ -143,9 +143,9 @@ export function PatientRecordsPanel({ onSessionExpired, passport }: { onSessionE
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   {record.type.toLowerCase().includes("exame") ? <Stethoscope size={17} className="shrink-0 text-hpsr-wine" /> : <FileText size={17} className="shrink-0 text-hpsr-wine" />}
-                  <h3 className="truncate font-black text-hpsr-text">{record.title}</h3>
+                  <h3 className="min-w-0 break-words font-black leading-snug text-hpsr-text [overflow-wrap:anywhere]">{record.title}</h3>
                 </div>
-                <p className="mt-1 text-xs font-semibold text-hpsr-muted">{record.type} · {formatDate(record.createdAt)} · {record.doctor}</p>
+                <p className="mt-1 break-words text-xs font-semibold leading-relaxed text-hpsr-muted [overflow-wrap:anywhere]">{record.type} · {formatDate(record.createdAt)} · {record.doctor}</p>
                 {record.protocol && <p className="mt-1 text-[11px] font-bold text-hpsr-wineLight">Protocolo: {record.protocol}</p>}
               </div>
               <div className="flex flex-wrap gap-2 sm:flex-nowrap">

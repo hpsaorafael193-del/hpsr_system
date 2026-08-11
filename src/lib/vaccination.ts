@@ -11,12 +11,24 @@ export type VaccinationApplication = {
   dose: string;
   date: string;
   lot: string;
-  observation?: string;
   doctorName: string;
   doctorCrm: string;
   signatureImage?: string | null;
   createdAt: string;
   createdBy?: string;
+};
+
+export type VaccinationSlotContentLayout = {
+  left: number;
+  top: number;
+  width: number;
+  lineGap: number;
+};
+
+export type VaccinationStampLayout = {
+  centerX: number;
+  centerY: number;
+  radius: number;
 };
 
 export type CardSlot = {
@@ -26,7 +38,29 @@ export type CardSlot = {
   width: number;
   height: number;
   stampScale?: number;
+  contentLayout?: VaccinationSlotContentLayout;
+  stampLayout?: VaccinationStampLayout;
   aliases?: string[];
+};
+
+export type VaccinationIdentityField = {
+  mode: "line" | "box";
+  startX: number;
+  endX: number;
+  lineY?: number;
+  top?: number;
+  bottom?: number;
+  fontSize: number;
+  minFontSize?: number;
+  color?: string;
+  weight?: string;
+};
+
+export type VaccinationIdentityLayout = {
+  name: VaccinationIdentityField;
+  passport: VaccinationIdentityField;
+  birthDate?: VaccinationIdentityField;
+  guardians?: VaccinationIdentityField;
 };
 
 export type VaccinationCardDefinition = {
@@ -34,6 +68,31 @@ export type VaccinationCardDefinition = {
   height: number;
   template: string;
   slots: CardSlot[];
+  identity: VaccinationIdentityLayout;
+};
+
+const adultIdentity: VaccinationIdentityLayout = {
+  name: { mode: "line", startX: 11.8, endX: 52.1, lineY: 25.05, fontSize: 20, minFontSize: 13 },
+  passport: { mode: "line", startX: 14.7, endX: 52.1, lineY: 29.38, fontSize: 20, minFontSize: 13 },
+  birthDate: { mode: "line", startX: 20.7, endX: 52.1, lineY: 33.72, fontSize: 20, minFontSize: 13 },
+};
+
+const elderlyIdentity: VaccinationIdentityLayout = {
+  name: { mode: "line", startX: 9.0, endX: 61.4, lineY: 26.15, fontSize: 20, minFontSize: 13 },
+  passport: { mode: "line", startX: 11.6, endX: 36.6, lineY: 31.05, fontSize: 20, minFontSize: 13 },
+  birthDate: { mode: "line", startX: 51.0, endX: 61.4, lineY: 31.05, fontSize: 20, minFontSize: 12 },
+};
+
+const childIdentity: VaccinationIdentityLayout = {
+  name: { mode: "box", startX: 30.7, endX: 80.0, top: 6.45, bottom: 9.55, fontSize: 18, minFontSize: 12, color: "#ffffff", weight: "800" },
+  passport: { mode: "box", startX: 30.7, endX: 80.0, top: 10.75, bottom: 13.95, fontSize: 17, minFontSize: 12, color: "#ffffff", weight: "800" },
+  birthDate: { mode: "box", startX: 42.2, endX: 80.0, top: 15.25, bottom: 18.25, fontSize: 16, minFontSize: 11, color: "#ffffff", weight: "800" },
+  guardians: { mode: "box", startX: 43.8, endX: 80.0, top: 19.45, bottom: 22.65, fontSize: 14, minFontSize: 10, color: "#ffffff", weight: "800" },
+};
+
+const pregnantIdentity: VaccinationIdentityLayout = {
+  name: { mode: "line", startX: 12.2, endX: 39.3, lineY: 23.35, fontSize: 16, minFontSize: 11, color: "#672614" },
+  passport: { mode: "line", startX: 16.5, endX: 39.3, lineY: 27.25, fontSize: 16, minFontSize: 11, color: "#672614" },
 };
 
 const adultSlots: CardSlot[] = [
@@ -45,15 +104,20 @@ const adultSlots: CardSlot[] = [
   { id: "a6", left: 66.6, top: 64.0, width: 29.1, height: 23.4 },
 ];
 
+const childShortContent: VaccinationSlotContentLayout = { left: 5.5, top: 7, width: 54, lineGap: 17 };
+const childRegularContent: VaccinationSlotContentLayout = { left: 5.5, top: 8, width: 54, lineGap: 18 };
+const childShortStamp: VaccinationStampLayout = { centerX: 79.5, centerY: 70, radius: 15 };
+const childRegularStamp: VaccinationStampLayout = { centerX: 79, centerY: 72, radius: 17 };
+
 const childSlots: CardSlot[] = [
-  { id: "c1", left: 31.2, top: 35.8, width: 18.0, height: 10.0, stampScale: 0.78 },
-  { id: "c2", left: 50.3, top: 35.8, width: 18.0, height: 10.0, stampScale: 0.78 },
-  { id: "c3", left: 31.2, top: 46.0, width: 18.0, height: 14.7, stampScale: 0.78 },
-  { id: "c4", left: 50.3, top: 46.0, width: 18.0, height: 14.7, stampScale: 0.78 },
-  { id: "c5", left: 31.2, top: 60.9, width: 18.0, height: 15.0, stampScale: 0.78 },
-  { id: "c6", left: 50.3, top: 60.9, width: 18.0, height: 15.0, stampScale: 0.78 },
-  { id: "c7", left: 31.2, top: 76.1, width: 18.0, height: 13.1, stampScale: 0.78 },
-  { id: "c8", left: 50.3, top: 76.1, width: 18.0, height: 13.1, stampScale: 0.78 },
+  { id: "c1", left: 31.2, top: 35.8, width: 18.0, height: 10.0, contentLayout: childShortContent, stampLayout: childShortStamp },
+  { id: "c2", left: 50.3, top: 35.8, width: 18.0, height: 10.0, contentLayout: childShortContent, stampLayout: childShortStamp },
+  { id: "c3", left: 31.2, top: 46.0, width: 18.0, height: 14.7, contentLayout: childRegularContent, stampLayout: childRegularStamp },
+  { id: "c4", left: 50.3, top: 46.0, width: 18.0, height: 14.7, contentLayout: childRegularContent, stampLayout: childRegularStamp },
+  { id: "c5", left: 31.2, top: 60.9, width: 18.0, height: 15.0, contentLayout: childRegularContent, stampLayout: childRegularStamp },
+  { id: "c6", left: 50.3, top: 60.9, width: 18.0, height: 15.0, contentLayout: childRegularContent, stampLayout: childRegularStamp },
+  { id: "c7", left: 31.2, top: 76.1, width: 18.0, height: 13.1, contentLayout: childRegularContent, stampLayout: childRegularStamp },
+  { id: "c8", left: 50.3, top: 76.1, width: 18.0, height: 13.1, contentLayout: childRegularContent, stampLayout: childRegularStamp },
 ];
 
 const pregnantSlots: CardSlot[] = [
@@ -68,14 +132,15 @@ const pregnantSlots: CardSlot[] = [
 ];
 
 export function getVaccinationCardDefinition(group: VaccinationGroup, adultVariant: AdultCardVariant = "masculino"): VaccinationCardDefinition {
-  if (group === "crianca") return { width: 1122, height: 1402, template: "/vacinacao/caderneta-crianca.png", slots: childSlots };
-  if (group === "gestante") return { width: 1448, height: 1086, template: "/vacinacao/caderneta-gestante.png", slots: pregnantSlots };
-  if (group === "idoso") return { width: 1448, height: 1086, template: "/vacinacao/caderneta-idoso.png", slots: adultSlots };
+  if (group === "crianca") return { width: 1122, height: 1402, template: "/vacinacao/caderneta-crianca.png", slots: childSlots, identity: childIdentity };
+  if (group === "gestante") return { width: 1448, height: 1086, template: "/vacinacao/caderneta-gestante.png", slots: pregnantSlots, identity: pregnantIdentity };
+  if (group === "idoso") return { width: 1448, height: 1086, template: "/vacinacao/caderneta-idoso.png", slots: adultSlots, identity: elderlyIdentity };
   return {
     width: 1448,
     height: 1086,
     template: adultVariant === "feminino" ? "/vacinacao/caderneta-adulto-feminino.png" : "/vacinacao/caderneta-adulto-masculino.png",
     slots: adultSlots,
+    identity: adultIdentity,
   };
 }
 
@@ -141,5 +206,25 @@ export const commonVaccines = [
   "Influenza",
   "COVID-19",
 ];
+
+
+export function generateVaccinationLot() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  try {
+    const cryptoApi = globalThis.crypto;
+    if (cryptoApi?.getRandomValues) {
+      const bytes = new Uint8Array(7);
+      cryptoApi.getRandomValues(bytes);
+      const random = Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("");
+      return `VX-${random}`;
+    }
+  } catch {}
+
+  let fallback = "";
+  for (let index = 0; index < 7; index += 1) {
+    fallback += alphabet[Math.floor(Math.random() * alphabet.length)] || "X";
+  }
+  return `VX-${fallback}`;
+}
 
 export const doseOptions = ["Dose única", "1ª dose", "2ª dose", "3ª dose", "Reforço", "1º reforço", "2º reforço", "Dose adicional"];

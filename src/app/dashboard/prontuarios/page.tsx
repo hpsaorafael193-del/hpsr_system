@@ -303,6 +303,9 @@ export default function RecordsPage() {
       }
 
       for (const row of (recordsResult.data || []) as any[]) {
+        const recordType = String(row.record_type || "").toLowerCase();
+        const recognizedRecord = ["exame", "documento", "prescrição", "prescricao", "procedimento", "observação", "observacao", "consulta"].some((type) => recordType.includes(type));
+        if (!recognizedRecord) continue;
         const passport = String(row.patient_passport || "").trim();
         if (!passport) continue;
         const registeredPatient = patientMap.get(passport);
@@ -311,16 +314,17 @@ export default function RecordsPage() {
             lastVisit: String(row.created_at || "").slice(0, 10),
           });
         }
-        const recordType = String(row.record_type || "").toLowerCase();
-        const kind: TimelineEvent["type"] = recordType.includes("exame")
-          ? "Exame"
-          : recordType.includes("document")
-            ? "Documento"
-          : recordType.includes("prescri")
-            ? "Prescrição"
-            : recordType.includes("proced")
-              ? "Procedimento"
-              : "Observação";
+        const kind: TimelineEvent["type"] = recordType.includes("consulta")
+          ? "Consulta"
+          : recordType.includes("exame")
+            ? "Exame"
+            : recordType.includes("document")
+              ? "Documento"
+              : recordType.includes("prescri")
+                ? "Prescrição"
+                : recordType.includes("proced")
+                  ? "Procedimento"
+                  : "Observação";
         events.push({
           id: row.id,
           patientPassport: passport,
@@ -740,7 +744,7 @@ export default function RecordsPage() {
   }
 
   return (
-    <div className="hpsr-page gap-2 xl:h-[calc(100dvh-2.4rem)] xl:min-h-0 xl:overflow-hidden">
+    <div className="hpsr-page min-w-0 gap-2 [overflow-wrap:anywhere] xl:h-[calc(100dvh-2.4rem)] xl:min-h-0 xl:overflow-hidden">
       <PageHeader
         eyebrow="Prontuários"
         title="Prontuários"
@@ -881,13 +885,13 @@ export default function RecordsPage() {
                         className="min-w-0 flex-1 text-left"
                       >
                         <div className="flex min-w-0 items-center gap-2">
-                          <p className="truncate text-sm font-black text-hpsr-text">{patient.name}</p>
+                          <p className="break-words [overflow-wrap:anywhere] text-sm font-black leading-snug text-hpsr-text">{patient.name}</p>
                           <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-black ${statusClasses(patient.status)}`}>
                             {patient.followUp === "Rotina" ? "Rotineiro" : "Em acompanhamento"}
                           </span>
                           {patient.triageStatus === "Pendente" && <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-black text-amber-800">Pendente</span>}
                         </div>
-                        <p className="mt-1 truncate text-[11px] font-semibold text-hpsr-muted">
+                        <p className="mt-1 break-words [overflow-wrap:anywhere] text-[11px] font-semibold leading-relaxed text-hpsr-muted">
                           Passaporte {patient.passport} · {patient.age} anos · {patient.bloodType}
                         </p>
                       </button>
@@ -932,7 +936,7 @@ export default function RecordsPage() {
                   <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
-                        <h2 className="min-w-0 break-words text-[clamp(1.35rem,2.2vw,2rem)] font-black leading-tight text-hpsr-text">{selectedPatient.name}</h2>
+                        <h2 className="min-w-0 break-words text-[clamp(1.35rem,2.2vw,2rem)] font-black leading-tight text-hpsr-text [overflow-wrap:anywhere]">{selectedPatient.name}</h2>
                         <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black ${statusClasses(selectedPatient.status)}`}>
                           {selectedPatient.status}
                         </span>
@@ -941,7 +945,7 @@ export default function RecordsPage() {
                       <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                         <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
                           <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Passaporte</p>
-                          <p className="mt-0.5 truncate text-xs font-black text-hpsr-text">{selectedPatient.passport}</p>
+                          <p className="mt-0.5 break-words [overflow-wrap:anywhere] text-xs font-black leading-snug text-hpsr-text">{selectedPatient.passport}</p>
                         </div>
                         <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
                           <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Idade</p>
@@ -953,7 +957,7 @@ export default function RecordsPage() {
                         </div>
                         <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
                           <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Telefone</p>
-                          <p className="mt-0.5 truncate text-xs font-black text-hpsr-text">{formatPhoneDisplay(selectedPatient.cityPhone, "Não informado")}</p>
+                          <p className="mt-0.5 break-words [overflow-wrap:anywhere] text-xs font-black leading-snug text-hpsr-text">{formatPhoneDisplay(selectedPatient.cityPhone, "Não informado")}</p>
                         </div>
                       </div>
                     </div>
@@ -1144,7 +1148,7 @@ function PendingPatientsModal({
               <div className="rounded-[16px] border border-dashed border-hpsr-border bg-[#fffaf4] p-5 text-center text-sm font-semibold text-hpsr-muted">Nenhum novo cadastro aguardando classificação.</div>
             ) : patients.map((patient) => (
               <button key={patient.passport} type="button" onClick={() => { setSelectedPassport(patient.passport); setClassification("rotineiro"); setSelectedSpecialties([]); }} className={`mb-2 w-full rounded-[14px] border p-3 text-left transition ${selectedPassport === patient.passport ? "border-hpsr-wine bg-[#fff3e9]" : "border-hpsr-border bg-white hover:bg-[#fffaf4]"}`}>
-                <p className="truncate text-sm font-black text-hpsr-text">{patient.name}</p>
+                <p className="break-words [overflow-wrap:anywhere] text-sm font-black leading-snug text-hpsr-text">{patient.name}</p>
                 <p className="mt-1 text-xs font-semibold text-hpsr-muted">Passaporte {patient.passport}</p>
               </button>
             ))}
@@ -1543,7 +1547,7 @@ function FilteredEventsTab({
 
 function EventCard({ event, onDelete, onOpen }: { event: TimelineEvent; onDelete?: (event: TimelineEvent) => void; onOpen?: (event: TimelineEvent) => void }) {
   return (
-    <article className="rounded-[16px] border border-hpsr-border bg-white p-3.5 transition hover:bg-[#fffdf9]">
+    <article className="min-w-0 rounded-[16px] border border-hpsr-border bg-white p-3.5 transition [overflow-wrap:anywhere] hover:bg-[#fffdf9]">
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -1555,15 +1559,15 @@ function EventCard({ event, onDelete, onOpen }: { event: TimelineEvent; onDelete
               {event.status}
             </span>
           </div>
-          <h3 className="mt-3 text-lg font-black text-hpsr-text">{event.title}</h3>
-          <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">{event.summary}</p>
+          <h3 className="mt-3 break-words text-lg font-black leading-snug text-hpsr-text [overflow-wrap:anywhere]">{event.title}</h3>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-hpsr-muted [overflow-wrap:anywhere]">{event.summary}</p>
         </div>
 
         <div className="flex flex-col gap-2 lg:min-w-[210px]">
         <div className="rounded-[16px] border border-hpsr-border bg-[#fff8f0] px-3 py-2 text-sm">
           <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Registro</p>
           <p className="mt-1 font-black text-hpsr-text">{formatDate(event.date)}</p>
-          <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{event.doctor}</p>
+          <p className="mt-0.5 break-words text-xs font-semibold leading-relaxed text-hpsr-muted [overflow-wrap:anywhere]">{event.doctor}</p>
         </div>
         {onOpen && (event.type === "Exame" || event.type === "Documento") && <button type="button" onClick={() => onOpen(event)} className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-hpsr-wine/20 bg-[#fff3e8] px-3 py-2 text-xs font-black text-hpsr-wine transition hover:bg-[#ffead8]"><Eye size={14} /> Visualizar {event.type.toLowerCase()}</button>}
         {onDelete && (event.type === "Exame" || event.type === "Documento") && <button type="button" onClick={() => onDelete(event)} className="rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">Excluir {event.type.toLowerCase()}</button>}
@@ -1588,7 +1592,7 @@ function SavedExamViewer({
         <header className="flex flex-wrap items-center justify-between gap-3 border-b border-hpsr-border bg-white px-4 py-3 sm:px-5">
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Registro salvo no prontuário</p>
-            <h3 className="truncate text-lg font-black text-hpsr-text sm:text-xl">{exam.title}</h3>
+            <h3 className="break-words [overflow-wrap:anywhere] text-lg font-black leading-tight text-hpsr-text sm:text-xl">{exam.title}</h3>
             <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{exam.patientName} · {exam.doctorName}{exam.savedAt ? ` · ${new Date(exam.savedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : ""}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -1629,7 +1633,7 @@ function GeneralMetric({ label, value, icon }: { label: string; value: string; i
     <div className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">{label}</p>
+          <p className="break-words [overflow-wrap:anywhere] text-[9px] font-black uppercase leading-snug tracking-[0.12em] text-hpsr-wineLight">{label}</p>
           <p className="mt-0.5 text-base font-black leading-none text-hpsr-text">{value}</p>
         </div>
         <span className="shrink-0 text-hpsr-wine">{icon}</span>
@@ -1642,7 +1646,7 @@ function PatientCardInfo({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[16px] border border-hpsr-border bg-white/[0.86] px-3 py-2">
       <p className="text-[9px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{label}</p>
-      <p className="mt-1 truncate text-xs font-black text-hpsr-text">{value}</p>
+      <p className="mt-1 break-words [overflow-wrap:anywhere] text-xs font-black leading-snug text-hpsr-text">{value}</p>
     </div>
   );
 }
@@ -1651,7 +1655,7 @@ function InfoPill({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3">
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{label}</p>
-      <p className="mt-1 text-sm font-black text-hpsr-text">{value}</p>
+      <p className="mt-1 break-words text-sm font-black leading-snug text-hpsr-text [overflow-wrap:anywhere]">{value}</p>
     </div>
   );
 }

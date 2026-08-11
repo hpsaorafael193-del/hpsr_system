@@ -165,11 +165,28 @@ export default function DirectionPage() {
       // O filtro de período continua valendo apenas para a visualização do painel.
       const fromIso = "";
       const reportWarnings: string[] = [];
+      const reportColumns: Record<string, string> = {
+        profiles: "id,name,passport,crm,role,specialty,department,service_status,access_status,created_at,updated_at",
+        system_activities: "created_at,module,action,description,actor,reference",
+        team_members: "id,name,passport,hospital_role,status,payload,created_at,updated_at",
+        staff_applications: "id,name,passport,desired_role,status,payload,created_at,updated_at",
+        staff_registration_requests: "id,name,passport,requested_role,status,payload,created_at,updated_at",
+        patient_registry: "name,passport,birth_date,age,blood_type,city_phone,created_at,updated_at,created_by",
+        patient_accounts: "patient_passport,email",
+        patient_portal_access: "patient_passport,email",
+        appointments: "id,patient,passport,status,payload,created_at,updated_at",
+        clinical_records: "id,patient_passport,record_type,payload,created_by,created_at,updated_at",
+        financial_receipts: "number,total,payload,created_at",
+        financial_plan_entries: "plan_name,holder_passport,value,payload,created_at",
+        time_clock_entries: "user_id,status,opened_at,closed_at,worked_seconds,created_at",
+        time_clock_audit: "created_at,action,reason,target_user_id,actor_user_id,previous_data,new_data",
+      };
       const fetchAll = async (table: string, orderColumn = "created_at") => {
         const pageSize = 1000;
         const rows: GenericRecord[] = [];
+        const columns = reportColumns[table] || "*"; // Seções extras preservam todos os campos do relatório histórico.
         for (let offset = 0; ; offset += pageSize) {
-          let query: any = client.from(table).select("*").order(orderColumn, { ascending: false }).range(offset, offset + pageSize - 1);
+          let query: any = client.from(table).select(columns).order(orderColumn, { ascending: false }).range(offset, offset + pageSize - 1);
           if (fromIso && orderColumn !== "month_start") query = query.gte(orderColumn, fromIso);
           const { data, error } = await query;
           if (error) { reportWarnings.push(`${table}: ${error.message}`); break; }

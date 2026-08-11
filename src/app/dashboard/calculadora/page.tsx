@@ -224,14 +224,15 @@ export default function CalculatorPage() {
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
 
   const selectedConvenio = convenioOptions.find((option) => option.id === convenio) ?? convenioOptions[0];
+  const usesPmPricing = isPmSale && convenio === "sem";
 
-  const getEffectivePrice = (product: Product) => isPmSale && product.precoPm ? product.precoPm : product.preco;
+  const getEffectivePrice = (product: Product) => usesPmPricing && product.precoPm ? product.precoPm : product.preco;
 
   const selectedItems = useMemo(() =>
     allProducts
-      .map((product) => ({ product, quantity: cart[product.id] || 0, unitPrice: isPmSale && product.precoPm ? product.precoPm : product.preco }))
+      .map((product) => ({ product, quantity: cart[product.id] || 0, unitPrice: usesPmPricing && product.precoPm ? product.precoPm : product.preco }))
       .filter((item) => item.quantity > 0),
-    [cart, isPmSale]
+    [cart, usesPmPricing]
   );
 
   const subtotal = selectedItems.reduce((total, item) => total + item.unitPrice * item.quantity, 0);
@@ -292,7 +293,11 @@ export default function CalculatorPage() {
       createdAt: brazilIso(createdAt),
       issuedBy: currentUserProfile.signatureName || currentUserProfile.systemName,
       issuerCrm: currentUserProfile.crm,
-      convenio: isPmSale ? `${selectedConvenio.title} · Venda para PM` : selectedConvenio.title,
+      convenio: isPmSale
+        ? convenio === "sem"
+          ? "Sem Convênio · Venda para PM"
+          : `${selectedConvenio.title} · PM com convênio`
+        : selectedConvenio.title,
       discountPercent: Math.round(selectedConvenio.discount * 100),
       subtotal,
       discountValue,
@@ -532,7 +537,7 @@ export default function CalculatorPage() {
                   onChangeQuantity={updateQuantity}
                   onClear={clearProduct}
                   getPrice={getEffectivePrice}
-                  isPmSale={isPmSale}
+                  isPmSale={usesPmPricing}
                 />
               ) : (
                 <ProductGrid
@@ -543,7 +548,7 @@ export default function CalculatorPage() {
                   onChangeQuantity={updateQuantity}
                   onClear={clearProduct}
                   getPrice={getEffectivePrice}
-                  isPmSale={isPmSale}
+                  isPmSale={usesPmPricing}
                 />
               )}
             </div>
@@ -632,6 +637,12 @@ export default function CalculatorPage() {
                     </button>
                   ))}
                 </div>
+
+                {isPmSale && convenio !== "sem" && (
+                  <div className="mt-2 rounded-[12px] border border-blue-200 bg-blue-50 px-3 py-2 text-[10px] font-bold leading-relaxed text-blue-900">
+                    Convênio selecionado: o cálculo usa o valor normal dos itens e aplica somente o desconto do convênio. O valor especial de PM não é acumulado.
+                  </div>
+                )}
 
                 <div className="hpsr-calculadora-scroll-region mt-3 flex min-h-0 flex-1 flex-col overflow-hidden border-t border-dashed border-[#cfbda9] pt-3">
                   <div className="mb-2 flex items-center justify-between gap-3">

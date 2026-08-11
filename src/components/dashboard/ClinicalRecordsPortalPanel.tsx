@@ -28,6 +28,7 @@ export function ClinicalRecordsPortalPanel({ passport }: { passport: string }) {
       .from("clinical_records")
       .select("id,record_type,created_at,is_confidential,released_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle")
       .eq("patient_passport", passport)
+      .in("record_type", ["Exame", "Documento"])
       .order("created_at", { ascending: false });
     if (loadError) setError(loadError.message);
     else setRecords((data || []) as ClinicalRecord[]);
@@ -52,7 +53,7 @@ export function ClinicalRecordsPortalPanel({ passport }: { passport: string }) {
   if (loading) return <div className="rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-4 text-center"><Loader2 className="mx-auto animate-spin text-hpsr-wine" /></div>;
 
   return (
-    <section className="mt-4 rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3.5">
+    <section className="mt-4 min-w-0 rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3.5 [overflow-wrap:anywhere]">
       <div className="flex items-center gap-2"><Lock size={17} className="text-hpsr-wine" /><div><h3 className="font-black text-hpsr-text">Acesso no Portal do Paciente</h3><p className="text-xs font-semibold text-hpsr-muted">Controle individual de sigilo para cada exame e documento.</p></div></div>
       {error && <p className="mt-3 rounded-[12px] border border-rose-200 bg-rose-50 p-2 text-xs font-bold text-rose-800">{error}</p>}
       <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto pr-1">
@@ -60,7 +61,7 @@ export function ClinicalRecordsPortalPanel({ passport }: { passport: string }) {
           const title = record.exam_name || record.document_title || record.title || record.record_type;
           return (
             <article key={record.id} className="flex flex-col gap-3 rounded-[14px] border border-hpsr-border bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0"><div className="flex items-center gap-2"><FileText size={16} className="shrink-0 text-hpsr-wine" /><p className="truncate font-black text-hpsr-text">{title}</p></div><p className="mt-1 text-xs font-semibold text-hpsr-muted">{record.record_type} · {new Date(record.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</p><span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black ${record.is_confidential ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>{record.is_confidential ? <EyeOff size={12} /> : <Eye size={12} />}{record.is_confidential ? "Em sigilo" : "Liberado ao paciente"}</span></div>
+              <div className="min-w-0"><div className="flex min-w-0 items-start gap-2"><FileText size={16} className="mt-0.5 shrink-0 text-hpsr-wine" /><p className="min-w-0 break-words font-black leading-snug text-hpsr-text [overflow-wrap:anywhere]">{title}</p></div><p className="mt-1 break-words text-xs font-semibold leading-relaxed text-hpsr-muted [overflow-wrap:anywhere]">{record.record_type} · {new Date(record.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</p><span className={`mt-2 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black ${record.is_confidential ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>{record.is_confidential ? <EyeOff size={12} /> : <Eye size={12} />}{record.is_confidential ? "Em sigilo" : "Liberado ao paciente"}</span></div>
               <button type="button" disabled={busyId === record.id} onClick={() => toggleConfidentiality(record)} className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-[12px] px-3 py-2 text-xs font-black text-white disabled:opacity-50 ${record.is_confidential ? "bg-emerald-700" : "bg-hpsr-wine"}`}>{busyId === record.id ? <Loader2 className="animate-spin" size={14} /> : record.is_confidential ? <Unlock size={14} /> : <Lock size={14} />}{record.is_confidential ? "Liberar para paciente" : "Colocar em sigilo"}</button>
             </article>
           );

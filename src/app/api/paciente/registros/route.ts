@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
         .select("id,patient_passport,record_type,payload,created_at,updated_at,is_confidential,released_at")
         .eq("id", recordId)
         .eq("patient_passport", targetPassport)
+        .in("record_type", ["Exame", "Documento"])
         .eq("is_confidential", false)
         .not("released_at", "is", null)
         .maybeSingle();
@@ -62,6 +63,7 @@ export async function GET(request: NextRequest) {
       .from("clinical_records")
       .select("id,record_type,created_at,updated_at,is_confidential,released_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,protocol:payload->>protocol")
       .eq("patient_passport", targetPassport)
+      .in("record_type", ["Exame", "Documento"])
       .eq("is_confidential", false)
       .not("released_at", "is", null)
       .order("created_at", { ascending: false })

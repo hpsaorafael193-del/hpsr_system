@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase";
 
 export async function readSupabaseRows<T>(
   table: string,
-  columns = "*",
+  columns: string,
   orderColumn = "created_at",
 ): Promise<{ data: T[]; error?: string; configured: boolean }> {
   const client = createClient();
