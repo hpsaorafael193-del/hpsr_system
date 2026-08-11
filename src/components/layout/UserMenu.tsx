@@ -173,19 +173,42 @@ export function UserMenu() {
 
   useEffect(() => {
     void loadNotifications();
-    if (!canUseMedicalNotifications) return;
-    const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") void loadNotifications();
+    if (!canUseMedicalNotifications || !currentUserProfile.id) return;
+    const client = createClient();
+    if (!client) return;
+
+    let refreshTimer: number | null = null;
+    const scheduleRefresh = () => {
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = null;
+        if (document.visibilityState === "visible") void loadNotifications();
+      }, 900);
     };
-    const interval = window.setInterval(refreshWhenVisible, 120000);
-    window.addEventListener("focus", refreshWhenVisible);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
+    const isPotentiallyRelevant = (payload: any) => {
+      const row = payload.new || payload.old || {};
+      const data = (row.payload || {}) as Record<string, unknown>;
+      const userId = String(currentUserProfile.id);
+      const requestedDoctorId = String(data.requestedDoctorId || "");
+      const doctorId = String(data.doctorId || "");
+      const specialty = String(data.specialty || "");
+      if (requestedDoctorId === userId || doctorId === userId) return true;
+      if (!requestedDoctorId && currentUserProfile.specialty && specialty === String(currentUserProfile.specialty)) return true;
+      return payload.eventType === "DELETE";
+    };
+
+    const channel = client
+      .channel(`medical-notifications-${currentUserProfile.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, (payload: any) => {
+        if (isPotentiallyRelevant(payload)) scheduleRefresh();
+      })
+      .subscribe();
+
     return () => {
-      window.clearInterval(interval);
-      window.removeEventListener("focus", refreshWhenVisible);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      if (refreshTimer !== null) window.clearTimeout(refreshTimer);
+      void client.removeChannel(channel);
     };
-  }, [canUseMedicalNotifications, loadNotifications]);
+  }, [canUseMedicalNotifications, currentUserProfile.id, currentUserProfile.specialty, loadNotifications]);
 
   const unreadNotificationCount = notifications.filter((item) => item.unread).length;
 

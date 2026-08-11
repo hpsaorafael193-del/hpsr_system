@@ -101,14 +101,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => void refreshPending())
       .subscribe();
 
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") void refreshPending();
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-
     return () => {
       active = false;
-      document.removeEventListener("visibilitychange", handleVisibility);
       void client.removeChannel(channel);
     };
   }, [currentUserProfile.accessLevel, currentUserProfile.id, currentUserProfile.role]);

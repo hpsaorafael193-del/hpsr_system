@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, Loader2, Minus, Plus, RefreshCw, ShieldCheck, Syringe, Trash2 } from "lucide-react";
+import { Check, Download, Loader2, Minus, Plus, RefreshCw, Search, ShieldCheck, Syringe, Trash2, UserRound } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
@@ -38,6 +38,20 @@ function formatDate(value: string) {
   if (!value) return "—";
   const [y, m, d] = value.split("-");
   return y && m && d ? `${d}/${m}/${y}` : value;
+}
+
+function ageFromBirthDate(value?: string) {
+  if (!value) return "";
+  const [birthYear, birthMonth, birthDay] = value.split("-").map(Number);
+  const [todayYear, todayMonth, todayDay] = brazilDate().split("-").map(Number);
+  if (!birthYear || !birthMonth || !birthDay || !todayYear || !todayMonth || !todayDay) return "";
+  let age = todayYear - birthYear;
+  if (todayMonth < birthMonth || (todayMonth === birthMonth && todayDay < birthDay)) age -= 1;
+  return age >= 0 ? String(age) : "";
+}
+
+function resolveRegisteredPatientGroup(patient: { age?: string; birthDate?: string }) {
+  return suggestVaccinationGroup(patient.age?.trim() || ageFromBirthDate(patient.birthDate));
 }
 
 function parseVaccineRow(row: any): VaccinationApplication | null {
@@ -350,6 +364,7 @@ export default function VaccinationPage() {
   const { profile } = useCurrentUserProfile();
   const [patientName, setPatientName] = useState("");
   const [patientPassport, setPatientPassport] = useState("");
+  const [patientPickerOpen, setPatientPickerOpen] = useState(false);
   const [group, setGroup] = useState<VaccinationGroup>("adulto");
   const [adultVariant, setAdultVariant] = useState<AdultCardVariant>("masculino");
   const [vaccine, setVaccine] = useState("");
@@ -370,8 +385,11 @@ export default function VaccinationPage() {
     if (!selectedPatient) return;
     setPatientName(selectedPatient.name);
     setPatientPassport(selectedPatient.passport);
-    setGroup(suggestVaccinationGroup(selectedPatient.age));
-  }, [selectedPatient?.passport]);
+    if (selectedPatient.birthDate) setBirthDate(selectedPatient.birthDate);
+    const detectedGroup = resolveRegisteredPatientGroup(selectedPatient);
+    setGroup(detectedGroup);
+    if (detectedGroup === "adulto" && selectedPatient.sex) setAdultVariant(selectedPatient.sex === "Feminino" ? "feminino" : "masculino");
+  }, [selectedPatient?.passport, selectedPatient?.age, selectedPatient?.birthDate, selectedPatient?.sex]);
 
   useEffect(() => {
     setPreviewZoom(100);
@@ -418,15 +436,28 @@ export default function VaccinationPage() {
     [availableDoctors, selectedDoctorId],
   );
 
+  const filteredPatients = useMemo(() => {
+    const query = patientName.trim().toLocaleLowerCase("pt-BR");
+    if (!query) return patients;
+    return patients.filter((patient) => `${patient.name} ${patient.passport}`.toLocaleLowerCase("pt-BR").includes(query));
+  }, [patients, patientName]);
+
+  function choosePatient(patient: (typeof patients)[number]) {
+    setPatientName(patient.name);
+    setPatientPassport(patient.passport);
+    setPatientPickerOpen(false);
+    selectPatient(patient.passport);
+  }
+
   function handlePatientEntry(value: string) {
-    const exact = patients.find((patient) => `${patient.name} · ${patient.passport}` === value);
+    setPatientName(value);
+    setPatientPickerOpen(true);
+    const exact = patients.find((patient) => patient.name.toLocaleLowerCase("pt-BR") === value.trim().toLocaleLowerCase("pt-BR"));
     if (exact) {
-      setPatientName(exact.name);
       setPatientPassport(exact.passport);
       selectPatient(exact.passport);
       return;
     }
-    setPatientName(value);
     if (selectedPatient && value !== selectedPatient.name) {
       selectPatient(null);
       setPatientPassport("");
@@ -460,12 +491,19 @@ export default function VaccinationPage() {
     setLoading(true);
     const [recordsResult, registryResult, guardianResult] = await Promise.all([
       client.from("clinical_records").select("id,patient_passport,payload,created_at,created_by").eq("patient_passport", passport).eq("record_type", "Vacina").order("created_at", { ascending: true }),
-      client.from("patient_registry").select("birth_date").eq("passport", passport).maybeSingle(),
+      client.from("patient_registry").select("age,birth_date,sex").eq("passport", passport).maybeSingle(),
       client.from("patient_guardian_links").select("guardian_passport,relationship").eq("child_passport", passport).eq("access_status", "authorized"),
     ]);
     if (recordsResult.error) await hpsrAlert(recordsResult.error.message, "Não foi possível carregar o histórico vacinal");
     setHistory((recordsResult.data || []).map(parseVaccineRow).filter(Boolean) as VaccinationApplication[]);
-    setBirthDate(String((registryResult.data as any)?.birth_date || ""));
+    const registryPatient = registryResult.data as any;
+    const registryBirthDate = String(registryPatient?.birth_date || "");
+    setBirthDate(registryBirthDate);
+    const detectedGroup = resolveRegisteredPatientGroup({ age: String(registryPatient?.age || ""), birthDate: registryBirthDate });
+    setGroup(detectedGroup);
+    if (detectedGroup === "adulto" && (registryPatient?.sex === "Masculino" || registryPatient?.sex === "Feminino")) {
+      setAdultVariant(registryPatient.sex === "Feminino" ? "feminino" : "masculino");
+    }
     const linked = (guardianResult.data || []) as any[];
     if (linked.length) {
       const passports = linked.map((row) => String(row.guardian_passport || "")).filter(Boolean);
@@ -604,16 +642,64 @@ export default function VaccinationPage() {
     <div className="hpsr-page gap-3">
       <PageHeader eyebrow="Vacinação" title="Vacinação" description="Registro de aplicações, histórico e caderneta automática por paciente." />
 
-      <div className="grid items-stretch gap-3 2xl:grid-cols-[390px_minmax(0,1fr)]">
+      <div className="grid items-stretch gap-3 2xl:grid-cols-[470px_minmax(0,1fr)]">
         <aside className="space-y-3 2xl:h-full">
           <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-soft">
             <div className="flex items-center gap-2"><Syringe size={18} className="text-hpsr-wine"/><h2 className="font-black text-hpsr-text">Registrar vacina</h2></div>
             <div className="mt-4 space-y-3">
-              <label className="block text-xs font-black text-hpsr-muted">Paciente
-                <input list="vaccination-patients" value={patientName} onChange={(e) => handlePatientEntry(e.target.value)} className={`${inputClass} mt-1`} placeholder={patientsLoading ? "Carregando pacientes..." : "Digite ou selecione um paciente"} />
-                <datalist id="vaccination-patients">{patients.map((p) => <option key={p.passport} value={`${p.name} · ${p.passport}`}/>)}</datalist>
-                <span className="mt-1 block text-[10px] font-semibold leading-relaxed text-hpsr-muted">Selecione alguém do prontuário ou digite um nome novo.</span>
-              </label>
+              <div className="relative">
+                <label className="block text-xs font-black text-hpsr-muted">Paciente</label>
+                <div className="relative mt-1">
+                  <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-hpsr-muted" />
+                  <input
+                    value={patientName}
+                    onFocus={() => setPatientPickerOpen(true)}
+                    onBlur={() => window.setTimeout(() => setPatientPickerOpen(false), 120)}
+                    onChange={(e) => handlePatientEntry(e.target.value)}
+                    className={`${inputClass} pl-9 pr-10`}
+                    placeholder={patientsLoading ? "Carregando pacientes..." : "Busque ou digite um paciente"}
+                    autoComplete="off"
+                  />
+                  {selectedPassport && patientName.trim() && (
+                    <span className="pointer-events-none absolute right-3 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check size={12}/></span>
+                  )}
+                </div>
+                {patientPickerOpen && !patientsLoading && (
+                  <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-[15px] border border-hpsr-border bg-white shadow-[0_18px_45px_rgba(84,42,25,.16)]">
+                    <div className="flex items-center justify-between gap-3 border-b border-hpsr-border/70 bg-[#fffaf5] px-3 py-2">
+                      <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wine">Pacientes do prontuário</p>
+                      <span className="rounded-full border border-hpsr-border bg-white px-2 py-0.5 text-[9px] font-black text-hpsr-muted">{filteredPatients.length}/{patients.length}</span>
+                    </div>
+                    <div className="max-h-[310px] overflow-y-auto p-1.5">
+                      {filteredPatients.length ? filteredPatients.map((patient) => {
+                        const active = patient.passport === selectedPassport;
+                        return (
+                          <button
+                            key={patient.passport}
+                            type="button"
+                            onMouseDown={(event) => event.preventDefault()}
+                            onClick={() => choosePatient(patient)}
+                            className={`flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left transition ${active ? "bg-[#f7ebe3] text-hpsr-wine" : "text-hpsr-text hover:bg-[#fff8f3]"}`}
+                          >
+                            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[11px] ${active ? "bg-hpsr-wine text-white" : "bg-[#f5eee7] text-hpsr-wine"}`}><UserRound size={16}/></span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-black">{patient.name}</span>
+                              <span className="mt-0.5 block truncate text-[11px] font-semibold text-hpsr-muted">Passaporte {patient.passport}{patient.age ? ` · ${patient.age} anos` : ""}{patient.sex ? ` · ${patient.sex}` : ""}</span>
+                            </span>
+                            {active && <Check size={15} className="shrink-0"/>}
+                          </button>
+                        );
+                      }) : (
+                        <div className="px-3 py-4 text-center">
+                          <p className="text-xs font-bold text-hpsr-text">Nenhum paciente encontrado</p>
+                          <p className="mt-1 text-[10px] font-semibold text-hpsr-muted">Continue digitando para usar este nome como novo paciente.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <span className="mt-1.5 block text-[10px] font-semibold leading-relaxed text-hpsr-muted">Selecione alguém do prontuário ou continue digitando para um paciente novo.</span>
+              </div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <label className="block text-xs font-black text-hpsr-muted">Passaporte
                   <input value={patientPassport} onChange={(e) => handlePassportEntry(e.target.value)} className={`${inputClass} mt-1`} placeholder="Digite o passaporte" />
@@ -623,36 +709,40 @@ export default function VaccinationPage() {
                 </label>}
               </div>
               <p className="rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-[10px] font-semibold leading-relaxed text-hpsr-muted">Se o passaporte ainda não existir no prontuário, o cadastro mínimo do paciente será criado automaticamente quando a vacina for registrada.</p>
-              <label className="block text-xs font-black text-hpsr-muted">Grupo da caderneta
-                <StyledSelect value={group} onChange={(e) => setGroup(e.target.value as VaccinationGroup)} className={`${inputClass} mt-1`}>
-                  <option value="adulto">Adulto</option><option value="crianca">Criança</option><option value="gestante">Gestante</option><option value="idoso">Idoso</option>
-                </StyledSelect>
-              </label>
-              {group === "adulto" && <label className="block text-xs font-black text-hpsr-muted">Modelo adulto
-                <StyledSelect value={adultVariant} onChange={(e) => setAdultVariant(e.target.value as AdultCardVariant)} className={`${inputClass} mt-1`}><option value="masculino">Masculino</option><option value="feminino">Feminino</option></StyledSelect>
-              </label>}
+              <div className={`grid gap-2 ${group === "adulto" ? "sm:grid-cols-2" : "grid-cols-1"}`}>
+                <label className="block text-xs font-black text-hpsr-muted">Grupo da caderneta
+                  <StyledSelect value={group} onChange={(e) => setGroup(e.target.value as VaccinationGroup)} className={`${inputClass} mt-1`}>
+                    <option value="adulto">Adulto</option><option value="crianca">Criança</option><option value="gestante">Gestante</option><option value="idoso">Idoso</option>
+                  </StyledSelect>
+                </label>
+                {group === "adulto" && <label className="block text-xs font-black text-hpsr-muted">Modelo adulto
+                  <StyledSelect value={adultVariant} onChange={(e) => setAdultVariant(e.target.value as AdultCardVariant)} className={`${inputClass} mt-1`}><option value="masculino">Masculino</option><option value="feminino">Feminino</option></StyledSelect>
+                </label>}
+              </div>
               {group === "crianca" && <label className="block text-xs font-black text-hpsr-muted">Responsável
                 <input value={guardians} onChange={(e) => setGuardians(e.target.value)} className={`${inputClass} mt-1`} placeholder="Digite o nome do responsável" />
                 <span className="mt-1 block text-[10px] font-semibold leading-relaxed text-hpsr-muted">Quando houver responsável autorizado no prontuário, o sistema preenche automaticamente. O nome pode ser ajustado ou digitado manualmente para esta caderneta.</span>
               </label>}
-              <label className="block text-xs font-black text-hpsr-muted">Vacina
-                {group === "gestante" ? (
-                  <StyledSelect value={vaccine} onChange={(e) => { const next = e.target.value; setVaccine(next); const doses = getPregnantDoseOptions(next); if (doses.length) setDose(doses[0]); }} className={`${inputClass} mt-1`}>
-                    {pregnantVaccines.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
+              <div className="grid gap-2 sm:grid-cols-2">
+                <label className="block text-xs font-black text-hpsr-muted">Vacina
+                  {group === "gestante" ? (
+                    <StyledSelect value={vaccine} onChange={(e) => { const next = e.target.value; setVaccine(next); const doses = getPregnantDoseOptions(next); if (doses.length) setDose(doses[0]); }} className={`${inputClass} mt-1`}>
+                      {pregnantVaccines.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
+                    </StyledSelect>
+                  ) : (
+                    <>
+                      <input list="vaccines" value={vaccine} onChange={(e) => setVaccine(e.target.value)} className={`${inputClass} mt-1`} placeholder="Digite ou selecione" />
+                      <datalist id="vaccines">{commonVaccines.map((item) => <option key={item} value={item}/>)}</datalist>
+                    </>
+                  )}
+                </label>
+                <label className="block text-xs font-black text-hpsr-muted">Dose
+                  <StyledSelect value={dose} onChange={(e) => setDose(e.target.value)} className={`${inputClass} mt-1`}>
+                    {(group === "gestante" ? pregnantDoseOptions : doseOptions).map((item) => <option key={item}>{item}</option>)}
                   </StyledSelect>
-                ) : (
-                  <>
-                    <input list="vaccines" value={vaccine} onChange={(e) => setVaccine(e.target.value)} className={`${inputClass} mt-1`} placeholder="Digite ou selecione" />
-                    <datalist id="vaccines">{commonVaccines.map((item) => <option key={item} value={item}/>)}</datalist>
-                  </>
-                )}
-              </label>
-              <label className="block text-xs font-black text-hpsr-muted">Dose
-                <StyledSelect value={dose} onChange={(e) => setDose(e.target.value)} className={`${inputClass} mt-1`}>
-                  {(group === "gestante" ? pregnantDoseOptions : doseOptions).map((item) => <option key={item}>{item}</option>)}
-                </StyledSelect>
-                {group === "gestante" && <span className="mt-1 block text-[10px] font-semibold leading-relaxed text-hpsr-muted">A aplicação será posicionada automaticamente no espaço correspondente desta vacina e dose no modelo gestante.</span>}
-              </label>
+                  {group === "gestante" && <span className="mt-1 block text-[10px] font-semibold leading-relaxed text-hpsr-muted">A aplicação será posicionada automaticamente no espaço correspondente desta vacina e dose no modelo gestante.</span>}
+                </label>
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <label className="block text-xs font-black text-hpsr-muted">Data<input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputClass} mt-1`} /></label>
                 <label className="block text-xs font-black text-hpsr-muted">Lote
@@ -675,7 +765,7 @@ export default function VaccinationPage() {
         </aside>
 
         <main className="min-w-0 space-y-3 2xl:flex 2xl:h-full 2xl:min-h-0 2xl:flex-col 2xl:space-y-0 2xl:gap-3">
-          <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-soft print:border-0 print:p-0 print:shadow-none 2xl:flex 2xl:min-h-0 2xl:flex-1 2xl:flex-col">
+          <section className="rounded-[20px] border border-hpsr-border bg-white p-4 shadow-soft print:border-0 print:p-0 print:shadow-none 2xl:flex 2xl:min-h-0 2xl:flex-1 2xl:flex-col">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 print:hidden">
               <div><h2 className="font-black text-hpsr-text">Caderneta gerada</h2><p className="text-xs font-semibold text-hpsr-muted">O histórico é a fonte de verdade; a caderneta é montada automaticamente.</p></div>
               <div className="flex flex-wrap items-center gap-2">
@@ -689,22 +779,25 @@ export default function VaccinationPage() {
                 <button onClick={exportCard} disabled={!patientName.trim() || !patientPassport.trim()} className="inline-flex items-center gap-2 rounded-[12px] bg-hpsr-wine px-3 py-2 text-xs font-black text-white disabled:opacity-50"><Download size={15}/>Baixar PNG</button>
               </div>
             </div>
-            <div className="2xl:flex 2xl:min-h-0 2xl:flex-1 2xl:items-center 2xl:justify-center">
+            <div className="flex items-center justify-center 2xl:min-h-0 2xl:flex-1">
               {patientName.trim() && patientPassport.trim() ? (
-                <div className={`grid ${group === "crianca" ? "h-[370px]" : "h-[330px]"} w-full place-items-center justify-items-center overflow-auto rounded-[16px] border border-hpsr-border/70 bg-[#f8f5f1] p-3 2xl:h-auto 2xl:w-fit 2xl:max-w-full 2xl:min-h-0`}>
+                <div className={`grid ${group === "crianca" ? "h-[390px] 2xl:h-[405px]" : "h-[340px] 2xl:h-[370px]"} w-full place-items-center justify-items-center overflow-auto rounded-[17px] border border-hpsr-border/70 bg-gradient-to-b from-[#fbf8f4] to-[#f5eee7] p-3 2xl:w-fit 2xl:max-w-full`}>
                   <CardPreview group={group} adultVariant={adultVariant} applications={groupHistory} patientName={patientName.trim()} passport={patientPassport.trim().toUpperCase()} birthDate={birthDate} guardians={guardians} page={page} zoom={previewZoom} />
                 </div>
-              ) : <div className={`grid ${group === "crianca" ? "h-[370px]" : "h-[330px]"} w-full place-items-center rounded-[16px] border border-dashed border-hpsr-border bg-[#fffaf4] text-sm font-bold text-hpsr-muted 2xl:h-auto 2xl:min-h-[280px] 2xl:w-full`}>Informe nome e passaporte para gerar a caderneta.</div>}
+              ) : <div className={`grid ${group === "crianca" ? "h-[390px] 2xl:h-[405px]" : "h-[340px] 2xl:h-[370px]"} w-full place-items-center rounded-[17px] border border-dashed border-hpsr-border bg-gradient-to-b from-[#fffaf5] to-[#f8f1ea] px-6 text-center text-sm font-bold text-hpsr-muted`}>Informe nome e passaporte para gerar a caderneta.</div>}
             </div>
             {pageCount > 1 && <div className="mt-3 flex justify-center gap-2 print:hidden"><button disabled={page===0} onClick={()=>setPage(p=>Math.max(0,p-1))} className="rounded-[10px] border border-hpsr-border px-3 py-2 text-xs font-black disabled:opacity-40">Anterior</button><button disabled={page>=pageCount-1} onClick={()=>setPage(p=>Math.min(pageCount-1,p+1))} className="rounded-[10px] border border-hpsr-border px-3 py-2 text-xs font-black disabled:opacity-40">Próxima</button></div>}
           </section>
 
-          <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-soft print:hidden 2xl:flex 2xl:h-[150px] 2xl:shrink-0 2xl:flex-col">
-            <h2 className="shrink-0 font-black text-hpsr-text">Histórico de vacinação</h2>
-            <div className="mt-3 max-h-[260px] space-y-2 overflow-y-auto pr-1 2xl:min-h-0 2xl:max-h-none 2xl:flex-1">
+          <section className="flex h-[190px] flex-col rounded-[20px] border border-hpsr-border bg-white p-4 shadow-soft print:hidden 2xl:shrink-0">
+            <div className="flex shrink-0 items-center justify-between gap-3">
+              <div><h2 className="font-black text-hpsr-text">Histórico de vacinação</h2><p className="mt-0.5 text-[10px] font-semibold text-hpsr-muted">Registros do paciente selecionado</p></div>
+              <span className="rounded-full border border-hpsr-border bg-[#fff8f3] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{history.length} {history.length === 1 ? "registro" : "registros"}</span>
+            </div>
+            <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
               {loading ? <div className="grid place-items-center py-8"><Loader2 className="animate-spin text-hpsr-wine"/></div> : history.length ? history.slice().reverse().map((item) => {
                 const canDelete = !item.createdBy || item.createdBy === profile.id || profile.accessLevel === "Total";
-                return <article key={item.id} className="flex flex-col gap-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-black text-hpsr-text">{item.vaccine} · {item.dose}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">{formatDate(item.date)}{item.lot ? ` · Lote ${item.lot}` : ""} · {item.doctorName} · CRM {item.doctorCrm}</p></div>{canDelete && <button onClick={() => void removeApplication(item)} className="inline-flex items-center justify-center gap-1 rounded-[11px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700"><Trash2 size={14}/>Excluir</button>}</article>;
+                return <article key={item.id} className="flex flex-col gap-2 rounded-[13px] border border-hpsr-border/80 bg-[#fffaf6] px-3 py-2.5 transition hover:border-hpsr-wine/20 hover:bg-white sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="truncate text-sm font-black text-hpsr-text">{item.vaccine} · {item.dose}</p><p className="mt-0.5 break-words text-[11px] font-semibold text-hpsr-muted">{formatDate(item.date)}{item.lot ? ` · Lote ${item.lot}` : ""} · {item.doctorName} · CRM {item.doctorCrm}</p></div>{canDelete && <button onClick={() => void removeApplication(item)} className="inline-flex shrink-0 items-center justify-center gap-1 rounded-[10px] border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11px] font-black text-rose-700 transition hover:bg-rose-100"><Trash2 size={13}/>Excluir</button>}</article>;
               }) : <p className="rounded-[14px] border border-dashed border-hpsr-border p-4 text-center text-sm font-semibold text-hpsr-muted">Nenhuma vacina registrada para este paciente.</p>}
             </div>
           </section>

@@ -49,6 +49,7 @@ type PatientRecord = {
   passport: string;
   age: string;
   bloodType: string;
+  sex?: "Masculino" | "Feminino" | "";
   cityPhone: string;
   birthDate?: string;
   status: "Ativo" | "Em acompanhamento" | "Arquivado";
@@ -86,6 +87,30 @@ const tabs: Array<{ id: RecordTab; label: string; icon: ReactNode }> = [
 const initialPatients: PatientRecord[] = [];
 
 const initialTimelineEvents: TimelineEvent[] = [];
+
+const PRONTUARIO_CACHE_KEY = "hpsr-prontuario-session-cache-v1";
+const PRONTUARIO_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function readProntuarioCache(): { savedAt: number; patients: PatientRecord[]; timelineEvents: TimelineEvent[] } | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const parsed = JSON.parse(window.sessionStorage.getItem(PRONTUARIO_CACHE_KEY) || "null");
+    if (!parsed || !Array.isArray(parsed.patients) || !Array.isArray(parsed.timelineEvents)) return null;
+    return { savedAt: Number(parsed.savedAt || 0), patients: parsed.patients, timelineEvents: parsed.timelineEvents };
+  } catch {
+    window.sessionStorage.removeItem(PRONTUARIO_CACHE_KEY);
+    return null;
+  }
+}
+
+function writeProntuarioCache(patients: PatientRecord[], timelineEvents: TimelineEvent[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(PRONTUARIO_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), patients, timelineEvents }));
+  } catch {
+    // O cache é apenas uma otimização local; o Supabase permanece a fonte de verdade.
+  }
+}
 
 function formatDate(value: string) {
   if (!value.includes("-")) return value;
@@ -130,7 +155,7 @@ function eventIcon(type: TimelineEvent["type"]) {
 
 export default function RecordsPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
-  const { patients: sharedPatients, loading: sharedPatientsLoading, selectedPassport: sharedSelectedPassport, selectPatient: selectSharedPatient, refreshPatients: refreshSharedPatients } = usePatientSelection();
+  const { patients: sharedPatients, loading: sharedPatientsLoading, selectedPassport: sharedSelectedPassport, selectPatient: selectSharedPatient } = usePatientSelection();
   const [patients, setPatients] = useState<PatientRecord[]>(initialPatients);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>(initialTimelineEvents);
   const [searchTerm, setSearchTerm] = useState("");
@@ -176,8 +201,9 @@ export default function RecordsPage() {
           passport: patient.passport,
           age: patient.age || existing?.age || "—",
           bloodType: patient.bloodType || existing?.bloodType || "—",
+          sex: patient.sex || existing?.sex || "",
           cityPhone: patient.cityPhone || existing?.cityPhone || "Não informado",
-          birthDate: existing?.birthDate,
+          birthDate: patient.birthDate || existing?.birthDate,
           status: existing?.status || "Ativo",
           followUp: normalizePatientFollowUp(existing?.followUp),
           portalSpecialties: existing?.portalSpecialties || [],
@@ -200,6 +226,12 @@ export default function RecordsPage() {
   }, [timelineEvents]);
 
   useEffect(() => {
+    if (isLoadingPatients || patients.length === 0) return;
+    const timer = window.setTimeout(() => writeProntuarioCache(patients, timelineEvents), 250);
+    return () => window.clearTimeout(timer);
+  }, [isLoadingPatients, patients, timelineEvents]);
+
+  useEffect(() => {
     const client = createClient();
     if (!client) return;
     const supabase = client;
@@ -211,7 +243,7 @@ export default function RecordsPage() {
       const requestId = ++loadRequestRef.current;
       setIsLoadingPatients(true);
       const [registryResult, recordsResult, appointmentsResult, portalResult] = await Promise.all([
-        supabase.from("patient_registry").select("passport,name,age,birth_date,blood_type,city_phone,email,follow_up,portal_specialties,created_at,updated_at").order("created_at", { ascending: false }),
+        supabase.from("patient_registry").select("passport,name,age,birth_date,sex,blood_type,city_phone,email,follow_up,portal_specialties,created_at,updated_at").order("created_at", { ascending: false }),
         supabase.from("clinical_records").select("id,patient_passport,record_type,created_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,summary:payload->>summary").order("created_at", { ascending: false }),
         supabase.from("appointments").select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,doctor_name:payload->>doctor,reason:payload->>reason,notes:payload->>notes").order("created_at", { ascending: false }),
         supabase.from("patient_portal_access").select("id,patient_passport,email,access_enabled,triage_status,schedule_assignments,created_at").order("created_at", { ascending: false }),
@@ -243,6 +275,7 @@ export default function RecordsPage() {
           passport,
           age: source.age && source.age !== "—" ? source.age : current?.age || "—",
           bloodType: source.bloodType && source.bloodType !== "—" ? source.bloodType : current?.bloodType || "—",
+          sex: source.sex || current?.sex || "",
           cityPhone: source.cityPhone && source.cityPhone !== "Não informado" ? source.cityPhone : current?.cityPhone || "Não informado",
           birthDate: source.birthDate || current?.birthDate || "",
           status: source.status || current?.status || "Ativo",
@@ -260,6 +293,7 @@ export default function RecordsPage() {
           name: row.name || `Paciente ${row.passport}`,
           age: row.age || "—",
           bloodType: row.blood_type || "—",
+          sex: row.sex === "Masculino" || row.sex === "Feminino" ? row.sex : "",
           cityPhone: formatPhoneDisplay(row.city_phone, "Não informado"),
           birthDate: row.birth_date || "",
           status: normalizePatientFollowUp(row.follow_up) === "Rotina" ? "Ativo" : "Em acompanhamento",
@@ -355,31 +389,168 @@ export default function RecordsPage() {
       setIsLoadingPatients(false);
     }
 
-    void loadPatients();
-
-    const handleVisibilityOrFocus = () => {
-      if (typeof document !== "undefined" && document.hidden) return;
+    const cached = refreshKey === 0 ? readProntuarioCache() : null;
+    const cacheIsFresh = Boolean(cached && Date.now() - cached.savedAt < PRONTUARIO_CACHE_TTL_MS);
+    if (cacheIsFresh && cached) {
+      setPatients(cached.patients);
+      setTimelineEvents(cached.timelineEvents);
+      setIsLoadingPatients(false);
+    } else {
       void loadPatients();
-      void refreshSharedPatients();
+    }
+
+    const updateLastVisit = (passport: string, dateValue: unknown) => {
+      const date = String(dateValue || "").slice(0, 10);
+      if (!passport || !date) return;
+      setPatients((current) => current.map((patient) => patient.passport === passport
+        ? { ...patient, lastVisit: [patient.lastVisit, date].filter(Boolean).sort().at(-1) || date }
+        : patient));
     };
-    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
-    window.addEventListener("focus", handleVisibilityOrFocus);
+
+    const clinicalEventFromRow = (row: any): TimelineEvent | null => {
+      const recordType = String(row?.record_type || "").toLowerCase();
+      const recognized = ["exame", "vacina", "documento", "prescrição", "prescricao", "procedimento", "observação", "observacao", "consulta"].some((type) => recordType.includes(type));
+      if (!recognized) return null;
+      const payload = (row?.payload || {}) as Record<string, any>;
+      const passport = String(row?.patient_passport || "").trim();
+      if (!passport) return null;
+      const kind: TimelineEvent["type"] = recordType.includes("consulta")
+        ? "Consulta"
+        : recordType.includes("vacin")
+          ? "Vacina"
+          : recordType.includes("exame")
+            ? "Exame"
+            : recordType.includes("document")
+              ? "Documento"
+              : recordType.includes("prescri")
+                ? "Prescrição"
+                : recordType.includes("proced")
+                  ? "Procedimento"
+                  : "Observação";
+      return {
+        id: String(row.id),
+        patientPassport: passport,
+        type: kind,
+        title: String(payload.examName || payload.documentTitle || payload.title || row.record_type || "Registro clínico"),
+        date: String(row.created_at || row.updated_at || "").slice(0, 10),
+        doctor: String(payload?.doctor?.name || payload.doctorName || "Equipe médica"),
+        status: "Concluído",
+        summary: String(payload.summary || "Registro armazenado no prontuário."),
+      };
+    };
+
+    const appointmentEventFromRow = (row: any): TimelineEvent | null => {
+      const passport = String(row?.passport || "").trim();
+      if (!passport) return null;
+      const payload = (row?.payload || {}) as Record<string, any>;
+      const specialty = String(payload.specialty || "").trim();
+      return {
+        id: `appointment-${row.id}`,
+        patientPassport: passport,
+        type: "Consulta",
+        title: specialty ? `Consulta · ${specialty}` : "Consulta agendada",
+        date: String(payload.preferredDate || row.created_at || row.updated_at || "").slice(0, 10),
+        doctor: String(payload.doctor || "Equipe médica"),
+        status: String(row.status || "Agendada"),
+        summary: String(payload.reason || payload.notes || "Consulta registrada no sistema."),
+      };
+    };
+
+    const applyPatientRegistryChange = (payload: any) => {
+      if (payload.eventType === "DELETE") {
+        const passport = String(payload.old?.passport || "").trim();
+        if (passport) setPatients((current) => current.filter((patient) => patient.passport !== passport));
+        return;
+      }
+      const row = payload.new || {};
+      const passport = String(row.passport || "").trim();
+      if (!passport) return;
+      setPatients((current) => {
+        const previousPassport = String(payload.old?.passport || "").trim();
+        const existing = current.find((patient) => patient.passport === passport) || current.find((patient) => patient.passport === previousPassport);
+        const next: PatientRecord = {
+          id: existing?.id || `pac-${passport}`,
+          name: String(row.name || existing?.name || `Paciente ${passport}`),
+          passport,
+          age: String(row.age || existing?.age || "—"),
+          bloodType: String(row.blood_type || existing?.bloodType || "—"),
+          sex: row.sex === "Masculino" || row.sex === "Feminino" ? row.sex : existing?.sex || "",
+          cityPhone: formatPhoneDisplay(row.city_phone, existing?.cityPhone || "Não informado"),
+          birthDate: String(row.birth_date || existing?.birthDate || ""),
+          status: existing?.status === "Arquivado" ? "Arquivado" : normalizePatientFollowUp(row.follow_up) === "Rotina" ? "Ativo" : "Em acompanhamento",
+          followUp: normalizePatientFollowUp(row.follow_up || existing?.followUp),
+          portalSpecialties: Array.isArray(row.portal_specialties) ? row.portal_specialties.map(String) : existing?.portalSpecialties || [],
+          triageStatus: existing?.triageStatus || "Classificado",
+          scheduleAssignments: existing?.scheduleAssignments || [],
+          lastVisit: String(row.updated_at || row.created_at || existing?.lastVisit || "").slice(0, 10),
+          alerts: existing?.alerts || [],
+        };
+        return [...current.filter((patient) => patient.passport !== passport && (!previousPassport || patient.passport !== previousPassport)), next].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+      });
+    };
+
+    const applyClinicalRecordChange = (payload: any) => {
+      const row = payload.new || payload.old || {};
+      const id = String(row.id || "");
+      if (payload.eventType === "DELETE") {
+        if (id) setTimelineEvents((current) => current.filter((event) => event.id !== id));
+        return;
+      }
+      const event = clinicalEventFromRow(row);
+      if (!event) {
+        if (id) setTimelineEvents((current) => current.filter((item) => item.id !== id));
+        return;
+      }
+      setTimelineEvents((current) => [event, ...current.filter((item) => item.id !== event.id)]);
+      updateLastVisit(event.patientPassport, row.created_at || row.updated_at);
+    };
+
+    const applyAppointmentChange = (payload: any) => {
+      const row = payload.new || payload.old || {};
+      const eventId = row.id ? `appointment-${row.id}` : "";
+      if (payload.eventType === "DELETE") {
+        if (eventId) setTimelineEvents((current) => current.filter((event) => event.id !== eventId));
+        return;
+      }
+      const event = appointmentEventFromRow(row);
+      if (!event) return;
+      setTimelineEvents((current) => [event, ...current.filter((item) => item.id !== event.id)]);
+      updateLastVisit(event.patientPassport, row.updated_at || row.created_at);
+    };
+
+    const applyPortalChange = (payload: any) => {
+      const row = payload.new || payload.old || {};
+      const passport = String(row.patient_passport || "").trim();
+      if (!passport) return;
+      setPatients((current) => current.map((patient) => {
+        if (patient.passport !== passport) return patient;
+        if (payload.eventType === "DELETE") {
+          return { ...patient, status: patient.followUp === "Rotina" ? "Ativo" : "Em acompanhamento", triageStatus: "Classificado", scheduleAssignments: [], alerts: patient.alerts.filter((alert) => alert !== "Acesso ao portal desativado") };
+        }
+        const enabled = Boolean(row.access_enabled);
+        return {
+          ...patient,
+          status: enabled ? (patient.followUp === "Rotina" ? "Ativo" : "Em acompanhamento") : "Arquivado",
+          triageStatus: row.triage_status === "Pendente" ? "Pendente" : "Classificado",
+          scheduleAssignments: normalizeScheduleAssignments(row.schedule_assignments),
+          alerts: enabled ? patient.alerts.filter((alert) => alert !== "Acesso ao portal desativado") : Array.from(new Set([...patient.alerts, "Acesso ao portal desativado"])),
+        };
+      }));
+    };
 
     const channel = client
       .channel("prontuarios-sync")
-      .on("postgres_changes", { event: "*", schema: "public", table: "patient_registry" }, loadPatients)
-      .on("postgres_changes", { event: "*", schema: "public", table: "clinical_records" }, loadPatients)
-      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, loadPatients)
-      .on("postgres_changes", { event: "*", schema: "public", table: "patient_portal_access" }, loadPatients)
+      .on("postgres_changes", { event: "*", schema: "public", table: "patient_registry" }, applyPatientRegistryChange)
+      .on("postgres_changes", { event: "*", schema: "public", table: "clinical_records" }, applyClinicalRecordChange)
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, applyAppointmentChange)
+      .on("postgres_changes", { event: "*", schema: "public", table: "patient_portal_access" }, applyPortalChange)
       .subscribe();
 
     return () => {
       active = false;
-      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
-      window.removeEventListener("focus", handleVisibilityOrFocus);
       void client.removeChannel(channel);
     };
-  }, [refreshKey, refreshSharedPatients]);
+  }, [refreshKey]);
 
   function refreshRecords() {
     if (isLoadingPatients || sharedPatientsLoading) return;
@@ -544,6 +715,7 @@ export default function RecordsPage() {
     passport: string;
     age: string;
     birthDate?: string;
+    sex: string;
     bloodType: string;
     cityPhone: string;
     followUp: string;
@@ -558,6 +730,7 @@ export default function RecordsPage() {
       passport: normalizedPassport,
       age: data.age.trim() || "—",
       bloodType: data.bloodType || "—",
+      sex: data.sex === "Masculino" || data.sex === "Feminino" ? data.sex : "",
       cityPhone: data.cityPhone.trim() || "Não informado",
       birthDate: data.birthDate || "",
       status: normalizePatientFollowUp(data.followUp) === "Rotina" ? "Ativo" : "Em acompanhamento",
@@ -601,6 +774,7 @@ export default function RecordsPage() {
         name: nextPatient.name,
         age: nextPatient.age === "—" ? null : nextPatient.age,
         birth_date: data.birthDate || null,
+        sex: nextPatient.sex || null,
         blood_type: nextPatient.bloodType === "—" ? null : nextPatient.bloodType,
         city_phone: nextPatient.cityPhone === "Não informado" ? null : nextPatient.cityPhone,
         follow_up: normalizePatientFollowUp(nextPatient.followUp),
@@ -616,6 +790,7 @@ export default function RecordsPage() {
         name: nextPatient.name,
         age: nextPatient.age === "—" ? null : nextPatient.age,
         birth_date: data.birthDate || null,
+        sex: nextPatient.sex || null,
         blood_type: nextPatient.bloodType === "—" ? null : nextPatient.bloodType,
         city_phone: nextPatient.cityPhone === "Não informado" ? null : nextPatient.cityPhone,
         email: null,
@@ -629,7 +804,6 @@ export default function RecordsPage() {
       }
     }
 
-    await refreshSharedPatients();
     notifyPatientRegistryUpdated();
 
     setPatients((currentPatients) => {
@@ -642,6 +816,8 @@ export default function RecordsPage() {
       passport: nextPatient.passport,
       age: nextPatient.age,
       bloodType: nextPatient.bloodType,
+      sex: nextPatient.sex,
+      birthDate: nextPatient.birthDate,
       cityPhone: nextPatient.cityPhone,
     });
     setSearchTerm("");
@@ -649,7 +825,7 @@ export default function RecordsPage() {
     setIsRegisterOpen(false);
   }
 
-  async function handleEditPatient(data: { name: string; passport: string; age: string; birthDate: string; bloodType: string; cityPhone: string; followUp: string }) {
+  async function handleEditPatient(data: { name: string; passport: string; age: string; birthDate: string; sex: string; bloodType: string; cityPhone: string; followUp: string }) {
     if (!selectedPatient) return;
     const client = createClient();
     if (!client) return void hpsrAlert("Não foi possível conectar ao Supabase.", "Edição não salva");
@@ -667,16 +843,27 @@ export default function RecordsPage() {
       name: data.name.trim(),
       age: data.age.trim() || null,
       birth_date: data.birthDate || null,
+      sex: data.sex === "Masculino" || data.sex === "Feminino" ? data.sex : null,
       blood_type: data.bloodType || null,
       city_phone: data.cityPhone.trim() || null,
       follow_up: normalizePatientFollowUp(data.followUp),
       updated_at: brazilIso(),
     }).eq("passport", selectedPatient.passport);
     if (error) return void hpsrAlert(error.message, "Não foi possível editar o paciente");
+    setPatients((current) => current.map((patient) => patient.passport === selectedPatient.passport ? {
+      ...patient,
+      name: data.name.trim(),
+      passport: nextPassport,
+      age: data.age.trim() || "—",
+      birthDate: data.birthDate || "",
+      sex: data.sex === "Masculino" || data.sex === "Feminino" ? data.sex : "",
+      bloodType: data.bloodType || "—",
+      cityPhone: formatPhoneDisplay(data.cityPhone, "Não informado"),
+      followUp: normalizePatientFollowUp(data.followUp),
+    } : patient));
     setIsEditPatientOpen(false);
     setSelectedPassport(nextPassport);
     selectSharedPatient(nextPassport);
-    await refreshSharedPatients();
     notifyPatientRegistryUpdated();
   }
 
@@ -947,7 +1134,7 @@ export default function RecordsPage() {
                         </span>
                       </div>
 
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
                         <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
                           <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Passaporte</p>
                           <p className="mt-0.5 break-words [overflow-wrap:anywhere] text-xs font-black leading-snug text-hpsr-text">{selectedPatient.passport}</p>
@@ -955,6 +1142,10 @@ export default function RecordsPage() {
                         <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
                           <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Idade</p>
                           <p className="mt-0.5 text-xs font-black text-hpsr-text">{selectedPatient.age} anos</p>
+                        </div>
+                        <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
+                          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Sexo</p>
+                          <p className="mt-0.5 text-xs font-black text-hpsr-text">{selectedPatient.sex || "Não informado"}</p>
                         </div>
                         <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
                           <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Tipo sanguíneo</p>
@@ -1216,6 +1407,7 @@ function CreatePatientModal({
     name: string;
     passport: string;
     age: string;
+    sex: string;
     bloodType: string;
     cityPhone: string;
     followUp: string;
@@ -1226,6 +1418,7 @@ function CreatePatientModal({
     passport: "",
     age: "",
     birthDate: "",
+    sex: "",
     bloodType: "A+",
     cityPhone: "",
     followUp: "Rotina",
@@ -1269,7 +1462,10 @@ function CreatePatientModal({
                 <ModalField label="Passaporte" required><input required className={modalInputClass} value={form.passport} onChange={(event) => updateField("passport", event.target.value)} placeholder="Ex.: 876" /></ModalField>
                 <ModalField label="Idade"><input className={modalInputClass} value={form.age} onChange={(event) => updateField("age", event.target.value)} placeholder="Ex.: 22" /></ModalField>
               </div>
-              <ModalField label="Data de nascimento"><input type="date" className={modalInputClass} value={form.birthDate} onChange={(event) => updateField("birthDate", event.target.value)} /></ModalField>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <ModalField label="Data de nascimento"><input type="date" className={modalInputClass} value={form.birthDate} onChange={(event) => updateField("birthDate", event.target.value)} /></ModalField>
+                <ModalField label="Sexo"><StyledSelect className={modalInputClass} value={form.sex} onChange={(event) => updateField("sex", event.target.value)}><option value="">Não informado</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option></StyledSelect></ModalField>
+              </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <ModalField label="Tipo sanguíneo"><StyledSelect className={modalInputClass} value={form.bloodType} onChange={(event) => updateField("bloodType", event.target.value)}><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></StyledSelect></ModalField>
                 <ModalField label="Telefone na cidade"><input className={modalInputClass} value={form.cityPhone} onChange={(event) => updateField("cityPhone", formatPhoneNumber(event.target.value))} inputMode="numeric" maxLength={13} placeholder="(055) 626-323" /></ModalField>
@@ -1300,11 +1496,11 @@ function CreatePatientModal({
 }
 
 
-function EditPatientModal({ patient, onClose, onSave }: { patient: PatientRecord; onClose: () => void; onSave: (data: { name: string; passport: string; age: string; birthDate: string; bloodType: string; cityPhone: string; followUp: string }) => void | Promise<void> }) {
-  const [form, setForm] = useState({ name: patient.name, passport: patient.passport, age: patient.age === "—" ? "" : patient.age, birthDate: patient.birthDate || "", bloodType: patient.bloodType === "—" ? "" : patient.bloodType, cityPhone: patient.cityPhone === "Não informado" ? "" : patient.cityPhone, followUp: normalizePatientFollowUp(patient.followUp) });
+function EditPatientModal({ patient, onClose, onSave }: { patient: PatientRecord; onClose: () => void; onSave: (data: { name: string; passport: string; age: string; birthDate: string; sex: string; bloodType: string; cityPhone: string; followUp: string }) => void | Promise<void> }) {
+  const [form, setForm] = useState({ name: patient.name, passport: patient.passport, age: patient.age === "—" ? "" : patient.age, birthDate: patient.birthDate || "", sex: patient.sex || "", bloodType: patient.bloodType === "—" ? "" : patient.bloodType, cityPhone: patient.cityPhone === "Não informado" ? "" : patient.cityPhone, followUp: normalizePatientFollowUp(patient.followUp) });
   const [saving, setSaving] = useState(false);
   async function submit(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); setSaving(true); try { await onSave(form); } finally { setSaving(false); } }
-  return <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3"><button type="button" aria-label="Fechar edição" onClick={onClose} className="absolute inset-0 bg-[#2a0700]/45" /><form onSubmit={submit} className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[720px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf4] shadow-[0_28px_90px_rgba(42,7,0,0.28)]"><div className="bg-[linear-gradient(135deg,#2a0700_0%,#672614_52%,#9d6b4f_100%)] px-5 py-4 text-white"><div className="flex items-start justify-between gap-3"><div><span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]"><Pencil size={14}/>Dados cadastrais</span><h2 className="mt-3 text-xl font-black">Editar paciente</h2><p className="mt-1 text-sm text-white/80">O histórico clínico será preservado.</p></div><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-white/25 bg-white/10"><X size={18}/></button></div></div><div className="min-h-0 overflow-y-auto p-4 sm:p-5"><section className="grid gap-3 rounded-[18px] border border-hpsr-border bg-white p-4"><ModalField label="Nome" required><input className={modalInputClass} value={form.name} onChange={e=>setForm(c=>({...c,name:e.target.value}))}/></ModalField><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Passaporte" required><input className={modalInputClass} value={form.passport} onChange={e=>setForm(c=>({...c,passport:e.target.value.toUpperCase()}))}/></ModalField><ModalField label="Idade"><input className={modalInputClass} value={form.age} onChange={e=>setForm(c=>({...c,age:e.target.value}))}/></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Data de nascimento"><input type="date" className={modalInputClass} value={form.birthDate} onChange={e=>setForm(c=>({...c,birthDate:e.target.value}))}/></ModalField><ModalField label="Tipo sanguíneo"><input className={modalInputClass} value={form.bloodType} onChange={e=>setForm(c=>({...c,bloodType:e.target.value.toUpperCase()}))}/></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Telefone"><input className={modalInputClass} value={form.cityPhone} onChange={e=>setForm(c=>({...c,cityPhone:formatPhoneNumber(e.target.value)}))}/></ModalField><ModalField label="Acompanhamento"><StyledSelect className={modalInputClass} value={form.followUp} onChange={e=>setForm(c=>({...c,followUp:e.target.value as "Rotina" | "Clínico" | "Especializado"}))}><option>Rotina</option><option>Clínico</option><option>Especializado</option></StyledSelect></ModalField></div></section></div><div className="flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white px-5 py-3.5 sm:flex-row sm:justify-end"><button type="button" onClick={onClose} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black">Cancelar</button><button disabled={saving} type="submit" className="rounded-[16px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-60">{saving?"Salvando...":"Salvar alterações"}</button></div></form></div>;
+  return <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3"><button type="button" aria-label="Fechar edição" onClick={onClose} className="absolute inset-0 bg-[#2a0700]/45" /><form onSubmit={submit} className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[720px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf4] shadow-[0_28px_90px_rgba(42,7,0,0.28)]"><div className="bg-[linear-gradient(135deg,#2a0700_0%,#672614_52%,#9d6b4f_100%)] px-5 py-4 text-white"><div className="flex items-start justify-between gap-3"><div><span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]"><Pencil size={14}/>Dados cadastrais</span><h2 className="mt-3 text-xl font-black">Editar paciente</h2><p className="mt-1 text-sm text-white/80">O histórico clínico será preservado.</p></div><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-white/25 bg-white/10"><X size={18}/></button></div></div><div className="min-h-0 overflow-y-auto p-4 sm:p-5"><section className="grid gap-3 rounded-[18px] border border-hpsr-border bg-white p-4"><ModalField label="Nome" required><input className={modalInputClass} value={form.name} onChange={e=>setForm(c=>({...c,name:e.target.value}))}/></ModalField><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Passaporte" required><input className={modalInputClass} value={form.passport} onChange={e=>setForm(c=>({...c,passport:e.target.value.toUpperCase()}))}/></ModalField><ModalField label="Idade"><input className={modalInputClass} value={form.age} onChange={e=>setForm(c=>({...c,age:e.target.value}))}/></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Data de nascimento"><input type="date" className={modalInputClass} value={form.birthDate} onChange={e=>setForm(c=>({...c,birthDate:e.target.value}))}/></ModalField><ModalField label="Sexo"><StyledSelect className={modalInputClass} value={form.sex} onChange={e=>setForm(c=>({...c,sex:e.target.value}))}><option value="">Não informado</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option></StyledSelect></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Tipo sanguíneo"><input className={modalInputClass} value={form.bloodType} onChange={e=>setForm(c=>({...c,bloodType:e.target.value.toUpperCase()}))}/></ModalField><ModalField label="Telefone"><input className={modalInputClass} value={form.cityPhone} onChange={e=>setForm(c=>({...c,cityPhone:formatPhoneNumber(e.target.value)}))}/></ModalField></div><ModalField label="Acompanhamento"><StyledSelect className={modalInputClass} value={form.followUp} onChange={e=>setForm(c=>({...c,followUp:e.target.value as "Rotina" | "Clínico" | "Especializado"}))}><option>Rotina</option><option>Clínico</option><option>Especializado</option></StyledSelect></ModalField></section></div><div className="flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white px-5 py-3.5 sm:flex-row sm:justify-end"><button type="button" onClick={onClose} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black">Cancelar</button><button disabled={saving} type="submit" className="rounded-[16px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-60">{saving?"Salvando...":"Salvar alterações"}</button></div></form></div>;
 }
 
 function PortalSpecialtiesModal({ patient, onClose, onSaved }: { patient: PatientRecord; onClose: () => void; onSaved: () => void }) {

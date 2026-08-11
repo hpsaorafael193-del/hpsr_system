@@ -3,13 +3,14 @@ import { formatPhoneDisplay } from "@/lib/phone";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase";
-import { notifyPatientRegistryUpdated, subscribePatientRegistryUpdated } from "@/lib/patient-sync";
 
 export type SharedPatient = {
   name: string;
   passport: string;
   age: string;
   bloodType: string;
+  birthDate?: string;
+  sex?: "Masculino" | "Feminino" | "";
   cityPhone?: string;
   email?: string;
 };
@@ -19,6 +20,8 @@ type PatientRegistryRow = {
   name: string | null;
   age: string | null;
   blood_type: string | null;
+  birth_date: string | null;
+  sex: string | null;
   city_phone: string | null;
   email: string | null;
   created_at: string | null;
@@ -37,6 +40,7 @@ type PatientSelectionContextValue = {
 const PatientSelectionContext = createContext<PatientSelectionContextValue | null>(null);
 const SELECTED_PATIENT_KEY = "hpsr-selected-patient";
 const PATIENT_CACHE_KEY = "hpsr-patients-cache";
+const PATIENT_CACHE_TTL_MS = 5 * 60 * 1000;
 
 function text(value: unknown) {
   return String(value ?? "").trim();
@@ -54,6 +58,8 @@ function normalizePatient(input: Partial<SharedPatient>): SharedPatient | null {
     passport,
     age: text(input.age),
     bloodType: text(input.bloodType),
+    birthDate: text(input.birthDate),
+    sex: text(input.sex) === "Feminino" ? "Feminino" : text(input.sex) === "Masculino" ? "Masculino" : "",
     cityPhone: text(input.cityPhone),
     email: text(input.email),
   };
@@ -61,10 +67,23 @@ function normalizePatient(input: Partial<SharedPatient>): SharedPatient | null {
 
 function writePatientCache(patients: SharedPatient[]) {
   try {
-    localStorage.setItem(PATIENT_CACHE_KEY, JSON.stringify(patients));
+    localStorage.setItem(PATIENT_CACHE_KEY, JSON.stringify({ savedAt: Date.now(), patients }));
   } catch {
     // Cache é apenas uma otimização. Falhas locais nunca bloqueiam o banco.
   }
+}
+
+function readPatientCache(): { savedAt: number; patients: SharedPatient[] } {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PATIENT_CACHE_KEY) || "null");
+    if (Array.isArray(parsed)) return { savedAt: 0, patients: parsed.map(normalizePatient).filter(Boolean) as SharedPatient[] };
+    if (parsed && Array.isArray(parsed.patients)) {
+      return { savedAt: Number(parsed.savedAt || 0), patients: parsed.patients.map(normalizePatient).filter(Boolean) as SharedPatient[] };
+    }
+  } catch {
+    localStorage.removeItem(PATIENT_CACHE_KEY);
+  }
+  return { savedAt: 0, patients: [] };
 }
 
 export function PatientSelectionProvider({ children }: { children: React.ReactNode }) {
@@ -73,18 +92,12 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
   const [selectedPassport, setSelectedPassport] = useState("");
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
   const lastRefreshAtRef = useRef(0);
-  const refreshQueuedRef = useRef<number | null>(null);
 
   useEffect(() => {
-    try {
-      const cached = JSON.parse(localStorage.getItem(PATIENT_CACHE_KEY) || "[]") as SharedPatient[];
-      if (Array.isArray(cached)) {
-        setPatients(cached.map(normalizePatient).filter(Boolean) as SharedPatient[]);
-      }
-      setSelectedPassport(normalizePassport(localStorage.getItem(SELECTED_PATIENT_KEY)));
-    } catch {
-      localStorage.removeItem(PATIENT_CACHE_KEY);
-    }
+    const cached = readPatientCache();
+    if (cached.patients.length) setPatients(cached.patients);
+    if (cached.savedAt) lastRefreshAtRef.current = cached.savedAt;
+    setSelectedPassport(normalizePassport(localStorage.getItem(SELECTED_PATIENT_KEY)));
   }, []);
 
   const refreshPatients = useCallback(async () => {
@@ -114,6 +127,8 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
           name: row.name ?? undefined,
           age: row.age ?? undefined,
           bloodType: row.blood_type ?? undefined,
+          birthDate: row.birth_date ?? undefined,
+          sex: row.sex === "Feminino" || row.sex === "Masculino" ? row.sex : undefined,
           cityPhone: formatPhoneDisplay(row.city_phone ?? undefined, ""),
           email: row.email ?? undefined,
         }))
@@ -140,46 +155,53 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
   }, []);
 
   useEffect(() => {
-    const requestRefresh = (force = false) => {
-      const elapsed = Date.now() - lastRefreshAtRef.current;
-      if (force || elapsed >= 5000) {
-        void refreshPatients();
-        return;
-      }
-      if (refreshQueuedRef.current !== null) return;
-      refreshQueuedRef.current = window.setTimeout(() => {
-        refreshQueuedRef.current = null;
-        void refreshPatients();
-      }, 5000 - elapsed);
-    };
-
-    requestRefresh(true);
-    const unsubscribeLocal = subscribePatientRegistryUpdated(() => requestRefresh());
-    const handleVisibilityOrFocus = () => {
-      if (typeof document !== "undefined" && document.hidden) return;
-      requestRefresh();
-    };
-    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
-    window.addEventListener("focus", handleVisibilityOrFocus);
+    const cacheIsFresh = Date.now() - lastRefreshAtRef.current < PATIENT_CACHE_TTL_MS;
+    if (!cacheIsFresh) void refreshPatients();
+    else setLoading(false);
 
     const client = createClient();
-    if (!client) {
-      return () => {
-        unsubscribeLocal();
-        document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
-        window.removeEventListener("focus", handleVisibilityOrFocus);
-        if (refreshQueuedRef.current !== null) window.clearTimeout(refreshQueuedRef.current);
-      };
-    }
+    if (!client) return;
+
     const channel = client
       .channel("shared-patient-selection")
-      .on("postgres_changes", { event: "*", schema: "public", table: "patient_registry" }, () => requestRefresh())
+      .on("postgres_changes", { event: "*", schema: "public", table: "patient_registry" }, (payload: any) => {
+        if (payload.eventType === "DELETE") {
+          const passport = normalizePassport(payload.old?.passport);
+          if (!passport) return;
+          setPatients((current) => {
+            const next = current.filter((item) => item.passport !== passport);
+            writePatientCache(next);
+            return next;
+          });
+          return;
+        }
+
+        const row = (payload.new || {}) as PatientRegistryRow;
+        const normalized = normalizePatient({
+          passport: row.passport ?? undefined,
+          name: row.name ?? undefined,
+          age: row.age ?? undefined,
+          bloodType: row.blood_type ?? undefined,
+          birthDate: row.birth_date ?? undefined,
+          sex: row.sex === "Feminino" || row.sex === "Masculino" ? row.sex : undefined,
+          cityPhone: formatPhoneDisplay(row.city_phone ?? undefined, ""),
+          email: row.email ?? undefined,
+        });
+        if (!normalized) return;
+        setPatients((current) => {
+          const previousPassport = normalizePassport(payload.old?.passport);
+          const existing = current.find((item) => item.passport === normalized.passport) || current.find((item) => item.passport === previousPassport);
+          const next = current.filter((item) => item.passport !== normalized.passport && (!previousPassport || item.passport !== previousPassport));
+          next.push({ ...existing, ...normalized });
+          next.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+          writePatientCache(next);
+          return next;
+        });
+        lastRefreshAtRef.current = Date.now();
+      })
       .subscribe();
+
     return () => {
-      unsubscribeLocal();
-      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
-      window.removeEventListener("focus", handleVisibilityOrFocus);
-      if (refreshQueuedRef.current !== null) window.clearTimeout(refreshQueuedRef.current);
       void client.removeChannel(channel);
     };
   }, [refreshPatients]);
@@ -206,8 +228,15 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
     }
 
     setPatients((current) => {
+      const existing = current.find((item) => item.passport === normalized.passport);
+      const merged: SharedPatient = {
+        ...existing,
+        ...normalized,
+        birthDate: normalized.birthDate || existing?.birthDate || "",
+        sex: normalized.sex || existing?.sex || "",
+      };
       const next = current.filter((item) => item.passport !== normalized.passport);
-      next.push(normalized);
+      next.push(merged);
       next.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
       writePatientCache(next);
       return next;
