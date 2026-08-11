@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Download, Eye, FileText, Loader2, RefreshCcw, Stethoscope, X } from "lucide-react";
+import { AlertTriangle, Download, Eye, FileText, Loader2, RefreshCcw, Stethoscope, Syringe, X } from "lucide-react";
 
 type PatientRecord = {
   id: string;
@@ -25,7 +25,7 @@ export function PatientRecordsPanel({ onSessionExpired, passport }: { onSessionE
   const [records, setRecords] = useState<PatientRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeType, setActiveType] = useState<"Todos" | "Exame" | "Documento">("Todos");
+  const [activeType, setActiveType] = useState<"Todos" | "Exame" | "Vacina" | "Documento">("Todos");
   const [selected, setSelected] = useState<PatientRecord | null>(null);
   const [pendingMultiDownload, setPendingMultiDownload] = useState<{ pages: string[]; safeName: string } | null>(null);
 
@@ -116,7 +116,7 @@ export function PatientRecordsPanel({ onSessionExpired, passport }: { onSessionE
   }
 
   if (loading) {
-    return <div className="rounded-[24px] border border-hpsr-border bg-white/85 p-6 text-center"><Loader2 className="mx-auto animate-spin text-hpsr-wine" /><p className="mt-3 text-sm font-bold text-hpsr-muted">Carregando exames e documentos liberados...</p></div>;
+    return <div className="rounded-[24px] border border-hpsr-border bg-white/85 p-6 text-center"><Loader2 className="mx-auto animate-spin text-hpsr-wine" /><p className="mt-3 text-sm font-bold text-hpsr-muted">Carregando registros clínicos liberados...</p></div>;
   }
 
   return (
@@ -124,11 +124,11 @@ export function PatientRecordsPanel({ onSessionExpired, passport }: { onSessionE
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Área liberada</p>
-          <h2 className="text-xl font-black text-hpsr-text">Meus exames e documentos</h2>
+          <h2 className="text-xl font-black text-hpsr-text">Meus registros clínicos</h2>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1">
           <button type="button" onClick={() => void loadRecords()} className="shrink-0 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine"><RefreshCcw className="mr-1.5 inline" size={14} />Atualizar</button>
-          {(["Todos", "Exame", "Documento"] as const).map((type) => (
+          {(["Todos", "Exame", "Vacina", "Documento"] as const).map((type) => (
             <button key={type} type="button" onClick={() => setActiveType(type)} className={`shrink-0 rounded-[12px] border px-3 py-2 text-xs font-black ${activeType === type ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-wine"}`}>{type}</button>
           ))}
         </div>
@@ -142,7 +142,7 @@ export function PatientRecordsPanel({ onSessionExpired, passport }: { onSessionE
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  {record.type.toLowerCase().includes("exame") ? <Stethoscope size={17} className="shrink-0 text-hpsr-wine" /> : <FileText size={17} className="shrink-0 text-hpsr-wine" />}
+                  {record.type.toLowerCase().includes("exame") ? <Stethoscope size={17} className="shrink-0 text-hpsr-wine" /> : record.type.toLowerCase().includes("vacin") ? <Syringe size={17} className="shrink-0 text-hpsr-wine" /> : <FileText size={17} className="shrink-0 text-hpsr-wine" />}
                   <h3 className="min-w-0 break-words font-black leading-snug text-hpsr-text [overflow-wrap:anywhere]">{record.title}</h3>
                 </div>
                 <p className="mt-1 break-words text-xs font-semibold leading-relaxed text-hpsr-muted [overflow-wrap:anywhere]">{record.type} · {formatDate(record.createdAt)} · {record.doctor}</p>
@@ -155,7 +155,7 @@ export function PatientRecordsPanel({ onSessionExpired, passport }: { onSessionE
             </div>
           </article>
         ))}
-        {!visibleRecords.length && !error && <div className="rounded-[16px] border border-dashed border-hpsr-border bg-[#fff8f0] p-6 text-center"><FileText className="mx-auto text-hpsr-wine" /><p className="mt-3 font-black text-hpsr-text">Nenhum registro liberado</p><p className="mt-1 text-sm text-hpsr-muted">Exames e documentos em sigilo não aparecem no portal.</p></div>}
+        {!visibleRecords.length && !error && <div className="rounded-[16px] border border-dashed border-hpsr-border bg-[#fff8f0] p-6 text-center"><FileText className="mx-auto text-hpsr-wine" /><p className="mt-3 font-black text-hpsr-text">Nenhum registro liberado</p><p className="mt-1 text-sm text-hpsr-muted">Exames, vacinas e documentos em sigilo não aparecem no portal.</p></div>}
       </div>
 
       {pendingMultiDownload && (

@@ -14,7 +14,9 @@ import {
   commonVaccines,
   doseOptions,
   generateVaccinationLot,
+  getPregnantDoseOptions,
   getVaccinationCardDefinition,
+  pregnantVaccines,
   suggestVaccinationGroup,
   type AdultCardVariant,
   type VaccinationApplication,
@@ -120,13 +122,6 @@ async function renderVaccinationCard({
   const brown = "#5a260f";
   const blue = "#1d58a7";
   const px = (percent: number, axis: "x" | "y") => percent / 100 * (axis === "x" ? canvas.width : canvas.height);
-  const write = (value: string, x: number, y: number, size: number, color = brown, weight = "700", maxWidth?: number) => {
-    ctx.fillStyle = color;
-    ctx.font = `${weight} ${size}px Arial, sans-serif`;
-    ctx.textBaseline = "top";
-    ctx.textAlign = "left";
-    ctx.fillText(value || "", x, y, maxWidth);
-  };
   const writeFitted = (value: string, x: number, y: number, maxWidth: number, preferredSize: number, minimumSize: number, color = brown, weight = "700") => {
     const content = value || "";
     if (!content) return;
@@ -146,6 +141,26 @@ async function renderVaccinationCard({
       rendered = `${rendered}…`;
     }
     ctx.fillText(rendered, x, y);
+  };
+  const writeCenteredFitted = (value: string, centerX: number, y: number, maxWidth: number, preferredSize: number, minimumSize: number, color = blue, weight = "800") => {
+    const content = value || "";
+    if (!content) return;
+    let size = preferredSize;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = color;
+    while (size > minimumSize) {
+      ctx.font = `${weight} ${size}px Arial, sans-serif`;
+      if (ctx.measureText(content).width <= maxWidth) break;
+      size -= 1;
+    }
+    ctx.font = `${weight} ${size}px Arial, sans-serif`;
+    let rendered = content;
+    if (ctx.measureText(rendered).width > maxWidth) {
+      while (rendered.length > 1 && ctx.measureText(`${rendered}…`).width > maxWidth) rendered = rendered.slice(0, -1);
+      rendered = `${rendered}…`;
+    }
+    ctx.fillText(rendered, centerX, y);
   };
 
   const writeIdentityField = (value: string, field: VaccinationIdentityField) => {
@@ -167,18 +182,23 @@ async function renderVaccinationCard({
       size -= 1;
     }
     ctx.font = `${weight} ${size}px Arial, sans-serif`;
+    let rendered = content;
+    if (ctx.measureText(rendered).width > availableWidth) {
+      while (rendered.length > 1 && ctx.measureText(`${rendered}…`).width > availableWidth) rendered = rendered.slice(0, -1);
+      rendered = `${rendered}…`;
+    }
 
     if (field.mode === "line" && typeof field.lineY === "number") {
       ctx.textBaseline = "alphabetic";
       const baselineY = px(field.lineY, "y") - Math.max(2, size * .12);
-      ctx.fillText(content, startX, baselineY);
+      ctx.fillText(rendered, startX, baselineY);
       return;
     }
 
     const top = px(field.top || 0, "y");
     const bottom = px(field.bottom || field.top || 0, "y");
     ctx.textBaseline = "middle";
-    ctx.fillText(content, startX, top + Math.max(1, bottom - top) / 2);
+    ctx.fillText(rendered, startX, top + Math.max(1, bottom - top) / 2);
   };
 
   writeIdentityField(patientName, definition.identity.name);
@@ -197,30 +217,39 @@ async function renderVaccinationCard({
 
     if (group === "adulto" || group === "idoso") {
       const vx = x + w * .21;
-      write(app.vaccine, vx, y + h * .04, Math.max(11, w * .035), brown, "800", w * .74);
-      write(app.dose, vx, y + h * .18, Math.max(11, w * .035), brown, "700", w * .74);
-      write(formatDate(app.date), vx, y + h * .32, Math.max(11, w * .035), brown, "700", w * .74);
-      write(app.lot || "—", vx, y + h * .46, Math.max(11, w * .035), brown, "700", w * .74);
+      const fieldWidth = w * .74;
+      const primarySize = Math.max(11, w * .035);
+      writeFitted(app.vaccine, vx, y + h * .04, fieldWidth, primarySize, 9, brown, "800");
+      writeFitted(app.dose, vx, y + h * .18, fieldWidth, primarySize, 9, brown, "700");
+      writeFitted(formatDate(app.date), vx, y + h * .32, fieldWidth, primarySize, 9, brown, "700");
+      writeFitted(app.lot || "—", vx, y + h * .46, fieldWidth, primarySize, 9, brown, "700");
     } else if (group === "crianca" && slot.contentLayout) {
       const layout = slot.contentLayout;
       const textX = x + w * (layout.left / 100);
       const textWidth = w * (layout.width / 100);
       const startY = y + h * (layout.top / 100);
       const gap = h * (layout.lineGap / 100);
-      const preferred = Math.max(10, Math.min(14, w * .057));
+      const compactSlot = h < w * .78;
+      const preferred = compactSlot ? Math.max(11, Math.min(15, w * .061)) : Math.max(11, Math.min(15, w * .059));
       const secondary = Math.max(9, preferred - 1);
       writeFitted(app.vaccine, textX, startY, textWidth, preferred, 8, brown, "800");
       writeFitted(app.dose, textX, startY + gap, textWidth, secondary, 8, brown, "700");
       writeFitted(formatDate(app.date), textX, startY + gap * 2, textWidth, secondary, 8, brown, "700");
       writeFitted(`Lote ${app.lot || "—"}`, textX, startY + gap * 3, textWidth, Math.max(8, secondary - 1), 7, brown, "700");
-    } else {
-      write(app.vaccine, x + w * .05, y + h * .05, Math.max(10, w * .04), brown, "800", w * .55);
-      write(app.dose, x + w * .05, y + h * .20, Math.max(9, w * .036), brown, "700", w * .55);
-      write(formatDate(app.date), x + w * .05, y + h * .34, Math.max(9, w * .036), brown, "700", w * .55);
-      if (app.lot) write(`Lote ${app.lot}`, x + w * .05, y + h * .48, Math.max(8, w * .032), brown, "700", w * .55);
+    } else if (group === "gestante" && slot.contentLayout) {
+      // O modelo obstetra já contém o nome da vacina e o número/tipo da dose.
+      // Cada slot possui seu próprio mapa para que data e lote fiquem alinhados
+      // ao espaço correspondente, sem invadir o marcador impresso da dose.
+      const layout = slot.contentLayout;
+      const textX = x + w * (layout.left / 100);
+      const textWidth = w * (layout.width / 100);
+      const startY = y + h * (layout.top / 100);
+      const gap = h * (layout.lineGap / 100);
+      writeFitted(formatDate(app.date), textX, startY, textWidth, Math.max(12, w * .038), 9, brown, "800");
+      if (app.lot) writeFitted(`Lote ${app.lot}`, textX, startY + gap, textWidth, Math.max(10, w * .031), 8, brown, "700");
     }
 
-    const configuredStamp = group === "crianca" ? slot.stampLayout : undefined;
+    const configuredStamp = (group === "crianca" || group === "gestante") ? slot.stampLayout : undefined;
     const radius = configuredStamp
       ? Math.min(w, h) * (configuredStamp.radius / 100)
       : Math.min(w, h) * ((slot.stampScale || 1) < 1 ? .195 : .218);
@@ -232,28 +261,26 @@ async function renderVaccinationCard({
     ctx.strokeStyle = blue;
     ctx.fillStyle = blue;
     ctx.globalAlpha = .86;
-    ctx.lineWidth = Math.max(2, radius * .04);
-    ctx.setLineDash([radius * .12, radius * .06]);
+    ctx.lineWidth = Math.max(3, radius * .075);
+    ctx.setLineDash([radius * .18, radius * .055]);
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
     if (logo) {
       ctx.globalAlpha = .72;
-      ctx.drawImage(logo, -radius * .22, -radius * .44, radius * .44, radius * .44);
+      ctx.drawImage(logo, -radius * .31, -radius * .56, radius * .62, radius * .62);
     }
     ctx.globalAlpha = .88;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = `800 ${Math.max(group === "crianca" ? 6 : 7, radius * (group === "crianca" ? .17 : .15))}px Arial, sans-serif`;
-    ctx.fillText(app.doctorName.slice(0, 28), 0, radius * .08, radius * 1.55);
-    ctx.font = `800 ${Math.max(group === "crianca" ? 6 : 7, radius * (group === "crianca" ? .16 : .14))}px Arial, sans-serif`;
-    ctx.fillText(`CRM ${app.doctorCrm}`, 0, radius * .67, radius * 1.5);
+    const doctorPreferred = Math.max(group === "crianca" ? 7 : 8, radius * (group === "crianca" ? .22 : .20));
+    const crmPreferred = Math.max(group === "crianca" ? 7 : 8, radius * (group === "crianca" ? .20 : .18));
+    writeCenteredFitted(app.doctorName, 0, radius * .10, radius * 1.72, doctorPreferred, group === "crianca" ? 6 : 7, blue, "900");
+    writeCenteredFitted(`CRM ${app.doctorCrm}`, 0, radius * .70, radius * 1.68, crmPreferred, group === "crianca" ? 6 : 7, blue, "900");
     if (app.signatureImage) {
       const signature = await loadCanvasImage(app.signatureImage).catch(() => null);
       if (signature) {
         ctx.globalAlpha = .78;
-        ctx.drawImage(signature, -radius * .55, radius * .22, radius * 1.1, radius * .30);
+        ctx.drawImage(signature, -radius * .68, radius * .22, radius * 1.36, radius * .42);
       }
     }
     ctx.restore();
@@ -284,7 +311,7 @@ function CardPreview({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderVersionRef = useRef(0);
   const def = getVaccinationCardDefinition(group, adultVariant);
-  const basePreviewHeight = group === "crianca" ? 330 : 290;
+  const basePreviewHeight = group === "crianca" ? 650 : 560;
   const previewHeight = Math.round(basePreviewHeight * (zoom / 100));
   const previewWidth = Math.round(previewHeight * (def.width / def.height));
 
@@ -349,6 +376,18 @@ export default function VaccinationPage() {
   useEffect(() => {
     setPreviewZoom(100);
   }, [group]);
+
+  useEffect(() => {
+    if (group !== "gestante") return;
+    const firstVaccine = pregnantVaccines[0];
+    const configured = pregnantVaccines.find((item) => item.name === vaccine);
+    if (!configured) {
+      setVaccine(firstVaccine.name);
+      setDose(firstVaccine.doses[0]);
+      return;
+    }
+    if (!(configured.doses as readonly string[]).includes(dose)) setDose(configured.doses[0]);
+  }, [group, vaccine, dose]);
 
   useEffect(() => {
     const currentDoctor: DoctorOption = {
@@ -443,6 +482,7 @@ export default function VaccinationPage() {
   useEffect(() => { void loadHistory(); }, [selectedPassport]);
 
   const groupHistory = useMemo(() => history.filter((item) => item.group === group), [history, group]);
+  const pregnantDoseOptions = useMemo(() => getPregnantDoseOptions(vaccine), [vaccine]);
   const def = getVaccinationCardDefinition(group, adultVariant);
   const pageCount = Math.max(1, Math.ceil(groupHistory.length / def.slots.length));
   useEffect(() => setPage(Math.max(0, pageCount - 1)), [group, selectedPassport, pageCount]);
@@ -458,6 +498,10 @@ export default function VaccinationPage() {
     if (!selectedDoctor.signatureImage) return void hpsrAlert("O médico responsável precisa ter uma assinatura cadastrada para compor o carimbo.", "Assinatura obrigatória");
     const duplicate = history.some((item) => item.vaccine.trim().toLowerCase() === vaccine.trim().toLowerCase() && item.dose === dose && item.date === date);
     if (duplicate) return void hpsrAlert("Já existe uma aplicação desta vacina, nesta dose e nesta data para o paciente.", "Aplicação duplicada");
+    if (group === "gestante") {
+      const sameGestationalSlot = history.some((item) => item.group === "gestante" && item.vaccine.trim().toLowerCase() === vaccine.trim().toLowerCase() && item.dose === dose);
+      if (sameGestationalSlot) return void hpsrAlert("Este espaço da caderneta gestante já possui uma aplicação registrada.", "Dose já registrada");
+    }
 
     const resolvedLot = lot.trim() || generateVaccinationLot();
     const client = createClient();
@@ -560,8 +604,8 @@ export default function VaccinationPage() {
     <div className="hpsr-page gap-3">
       <PageHeader eyebrow="Vacinação" title="Vacinação" description="Registro de aplicações, histórico e caderneta automática por paciente." />
 
-      <div className="grid gap-3 2xl:grid-cols-[390px_minmax(0,1fr)]">
-        <aside className="space-y-3">
+      <div className="grid items-stretch gap-3 2xl:grid-cols-[390px_minmax(0,1fr)]">
+        <aside className="space-y-3 2xl:h-full">
           <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-soft">
             <div className="flex items-center gap-2"><Syringe size={18} className="text-hpsr-wine"/><h2 className="font-black text-hpsr-text">Registrar vacina</h2></div>
             <div className="mt-4 space-y-3">
@@ -592,11 +636,22 @@ export default function VaccinationPage() {
                 <span className="mt-1 block text-[10px] font-semibold leading-relaxed text-hpsr-muted">Quando houver responsável autorizado no prontuário, o sistema preenche automaticamente. O nome pode ser ajustado ou digitado manualmente para esta caderneta.</span>
               </label>}
               <label className="block text-xs font-black text-hpsr-muted">Vacina
-                <input list="vaccines" value={vaccine} onChange={(e) => setVaccine(e.target.value)} className={`${inputClass} mt-1`} placeholder="Digite ou selecione" />
-                <datalist id="vaccines">{commonVaccines.map((item) => <option key={item} value={item}/>)}</datalist>
+                {group === "gestante" ? (
+                  <StyledSelect value={vaccine} onChange={(e) => { const next = e.target.value; setVaccine(next); const doses = getPregnantDoseOptions(next); if (doses.length) setDose(doses[0]); }} className={`${inputClass} mt-1`}>
+                    {pregnantVaccines.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
+                  </StyledSelect>
+                ) : (
+                  <>
+                    <input list="vaccines" value={vaccine} onChange={(e) => setVaccine(e.target.value)} className={`${inputClass} mt-1`} placeholder="Digite ou selecione" />
+                    <datalist id="vaccines">{commonVaccines.map((item) => <option key={item} value={item}/>)}</datalist>
+                  </>
+                )}
               </label>
               <label className="block text-xs font-black text-hpsr-muted">Dose
-                <StyledSelect value={dose} onChange={(e) => setDose(e.target.value)} className={`${inputClass} mt-1`}>{doseOptions.map((item) => <option key={item}>{item}</option>)}</StyledSelect>
+                <StyledSelect value={dose} onChange={(e) => setDose(e.target.value)} className={`${inputClass} mt-1`}>
+                  {(group === "gestante" ? pregnantDoseOptions : doseOptions).map((item) => <option key={item}>{item}</option>)}
+                </StyledSelect>
+                {group === "gestante" && <span className="mt-1 block text-[10px] font-semibold leading-relaxed text-hpsr-muted">A aplicação será posicionada automaticamente no espaço correspondente desta vacina e dose no modelo gestante.</span>}
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <label className="block text-xs font-black text-hpsr-muted">Data<input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputClass} mt-1`} /></label>
@@ -619,32 +674,34 @@ export default function VaccinationPage() {
           </section>
         </aside>
 
-        <main className="min-w-0 space-y-3">
-          <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-soft print:border-0 print:p-0 print:shadow-none">
+        <main className="min-w-0 space-y-3 2xl:flex 2xl:h-full 2xl:min-h-0 2xl:flex-col 2xl:space-y-0 2xl:gap-3">
+          <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-soft print:border-0 print:p-0 print:shadow-none 2xl:flex 2xl:min-h-0 2xl:flex-1 2xl:flex-col">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 print:hidden">
               <div><h2 className="font-black text-hpsr-text">Caderneta gerada</h2><p className="text-xs font-semibold text-hpsr-muted">O histórico é a fonte de verdade; a caderneta é montada automaticamente.</p></div>
               <div className="flex flex-wrap items-center gap-2">
                 {pageCount > 1 && <span className="text-xs font-black text-hpsr-muted">Página {page + 1}/{pageCount}</span>}
                 <div className="inline-flex items-center rounded-[12px] border border-hpsr-border bg-[#fffaf4] p-1" aria-label="Zoom da pré-visualização">
-                  <button type="button" onClick={() => setPreviewZoom((value) => Math.max(75, value - 8))} className="grid h-7 w-7 place-items-center rounded-[8px] text-hpsr-wine hover:bg-white" title="Diminuir prévia"><Minus size={14}/></button>
+                  <button type="button" onClick={() => setPreviewZoom((value) => Math.max(65, value - 8))} className="grid h-7 w-7 place-items-center rounded-[8px] text-hpsr-wine hover:bg-white" title="Diminuir prévia"><Minus size={14}/></button>
                   <button type="button" onClick={() => setPreviewZoom(100)} className="min-w-[48px] px-1 text-[11px] font-black text-hpsr-muted" title="Restaurar tamanho compacto">{previewZoom}%</button>
-                  <button type="button" onClick={() => setPreviewZoom((value) => Math.min(108, value + 8))} className="grid h-7 w-7 place-items-center rounded-[8px] text-hpsr-wine hover:bg-white" title="Aumentar prévia"><Plus size={14}/></button>
+                  <button type="button" onClick={() => setPreviewZoom((value) => Math.min(140, value + 8))} className="grid h-7 w-7 place-items-center rounded-[8px] text-hpsr-wine hover:bg-white" title="Aumentar prévia"><Plus size={14}/></button>
                 </div>
                 <button onClick={() => void loadHistory()} className="rounded-[12px] border border-hpsr-border bg-white p-2 text-hpsr-wine"><RefreshCw size={16}/></button>
                 <button onClick={exportCard} disabled={!patientName.trim() || !patientPassport.trim()} className="inline-flex items-center gap-2 rounded-[12px] bg-hpsr-wine px-3 py-2 text-xs font-black text-white disabled:opacity-50"><Download size={15}/>Baixar PNG</button>
               </div>
             </div>
-            {patientName.trim() && patientPassport.trim() ? (
-              <div className={`grid ${group === "crianca" ? "h-[370px]" : "h-[330px]"} place-items-center justify-items-center overflow-hidden rounded-[16px] border border-hpsr-border/70 bg-[#f8f5f1] p-3`}>
-                <CardPreview group={group} adultVariant={adultVariant} applications={groupHistory} patientName={patientName.trim()} passport={patientPassport.trim().toUpperCase()} birthDate={birthDate} guardians={guardians} page={page} zoom={previewZoom} />
-              </div>
-            ) : <div className={`grid ${group === "crianca" ? "h-[370px]" : "h-[330px]"} place-items-center rounded-[16px] border border-dashed border-hpsr-border bg-[#fffaf4] text-sm font-bold text-hpsr-muted`}>Informe nome e passaporte para gerar a caderneta.</div>}
+            <div className="2xl:flex 2xl:min-h-0 2xl:flex-1 2xl:items-center 2xl:justify-center">
+              {patientName.trim() && patientPassport.trim() ? (
+                <div className={`grid ${group === "crianca" ? "h-[370px]" : "h-[330px]"} w-full place-items-center justify-items-center overflow-auto rounded-[16px] border border-hpsr-border/70 bg-[#f8f5f1] p-3 2xl:h-auto 2xl:w-fit 2xl:max-w-full 2xl:min-h-0`}>
+                  <CardPreview group={group} adultVariant={adultVariant} applications={groupHistory} patientName={patientName.trim()} passport={patientPassport.trim().toUpperCase()} birthDate={birthDate} guardians={guardians} page={page} zoom={previewZoom} />
+                </div>
+              ) : <div className={`grid ${group === "crianca" ? "h-[370px]" : "h-[330px]"} w-full place-items-center rounded-[16px] border border-dashed border-hpsr-border bg-[#fffaf4] text-sm font-bold text-hpsr-muted 2xl:h-auto 2xl:min-h-[280px] 2xl:w-full`}>Informe nome e passaporte para gerar a caderneta.</div>}
+            </div>
             {pageCount > 1 && <div className="mt-3 flex justify-center gap-2 print:hidden"><button disabled={page===0} onClick={()=>setPage(p=>Math.max(0,p-1))} className="rounded-[10px] border border-hpsr-border px-3 py-2 text-xs font-black disabled:opacity-40">Anterior</button><button disabled={page>=pageCount-1} onClick={()=>setPage(p=>Math.min(pageCount-1,p+1))} className="rounded-[10px] border border-hpsr-border px-3 py-2 text-xs font-black disabled:opacity-40">Próxima</button></div>}
           </section>
 
-          <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-soft print:hidden">
-            <h2 className="font-black text-hpsr-text">Histórico de vacinação</h2>
-            <div className="mt-3 max-h-[260px] space-y-2 overflow-y-auto pr-1">
+          <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-soft print:hidden 2xl:flex 2xl:h-[150px] 2xl:shrink-0 2xl:flex-col">
+            <h2 className="shrink-0 font-black text-hpsr-text">Histórico de vacinação</h2>
+            <div className="mt-3 max-h-[260px] space-y-2 overflow-y-auto pr-1 2xl:min-h-0 2xl:max-h-none 2xl:flex-1">
               {loading ? <div className="grid place-items-center py-8"><Loader2 className="animate-spin text-hpsr-wine"/></div> : history.length ? history.slice().reverse().map((item) => {
                 const canDelete = !item.createdBy || item.createdBy === profile.id || profile.accessLevel === "Total";
                 return <article key={item.id} className="flex flex-col gap-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-black text-hpsr-text">{item.vaccine} · {item.dose}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">{formatDate(item.date)}{item.lot ? ` · Lote ${item.lot}` : ""} · {item.doctorName} · CRM {item.doctorCrm}</p></div>{canDelete && <button onClick={() => void removeApplication(item)} className="inline-flex items-center justify-center gap-1 rounded-[11px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700"><Trash2 size={14}/>Excluir</button>}</article>;

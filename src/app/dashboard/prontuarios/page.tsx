@@ -39,7 +39,7 @@ import { createClient } from "@/lib/supabase";
 import { ClinicalRecordsPortalPanel } from "@/components/dashboard/ClinicalRecordsPortalPanel";
 import { specialties } from "@/data/mock";
 
-type RecordTab = "geral" | "timeline" | "consultas" | "exames" | "documentos" | "prescricoes" | "procedimentos" | "observacoes";
+type RecordTab = "geral" | "timeline" | "consultas" | "exames" | "vacinas" | "documentos" | "prescricoes" | "procedimentos" | "observacoes";
 type PatientFilter = "all" | "mine" | "routine";
 type ScheduleAssignment = { doctor_id: string; doctor_name: string; specialty: string };
 
@@ -63,7 +63,7 @@ type PatientRecord = {
 type TimelineEvent = {
   id: string;
   patientPassport: string;
-  type: "Consulta" | "Exame" | "Documento" | "Prescrição" | "Procedimento" | "Observação";
+  type: "Consulta" | "Exame" | "Vacina" | "Documento" | "Prescrição" | "Procedimento" | "Observação";
   title: string;
   date: string;
   doctor: string;
@@ -76,6 +76,7 @@ const tabs: Array<{ id: RecordTab; label: string; icon: ReactNode }> = [
   { id: "timeline", label: "Linha do Tempo", icon: <FileClock size={15} /> },
   { id: "consultas", label: "Consultas", icon: <Stethoscope size={15} /> },
   { id: "exames", label: "Exames", icon: <FileText size={15} /> },
+  { id: "vacinas", label: "Vacinas", icon: <Syringe size={15} /> },
   { id: "documentos", label: "Documentos", icon: <Archive size={15} /> },
   { id: "prescricoes", label: "Prescrições", icon: <Pill size={15} /> },
   { id: "procedimentos", label: "Procedimentos", icon: <Syringe size={15} /> },
@@ -114,6 +115,8 @@ function eventIcon(type: TimelineEvent["type"]) {
       return <Stethoscope size={17} className={classes} />;
     case "Exame":
       return <FileText size={17} className={classes} />;
+    case "Vacina":
+      return <Syringe size={17} className={classes} />;
     case "Documento":
       return <Archive size={17} className={classes} />;
     case "Prescrição":
@@ -304,7 +307,7 @@ export default function RecordsPage() {
 
       for (const row of (recordsResult.data || []) as any[]) {
         const recordType = String(row.record_type || "").toLowerCase();
-        const recognizedRecord = ["exame", "documento", "prescrição", "prescricao", "procedimento", "observação", "observacao", "consulta"].some((type) => recordType.includes(type));
+        const recognizedRecord = ["exame", "vacina", "documento", "prescrição", "prescricao", "procedimento", "observação", "observacao", "consulta"].some((type) => recordType.includes(type));
         if (!recognizedRecord) continue;
         const passport = String(row.patient_passport || "").trim();
         if (!passport) continue;
@@ -316,15 +319,17 @@ export default function RecordsPage() {
         }
         const kind: TimelineEvent["type"] = recordType.includes("consulta")
           ? "Consulta"
-          : recordType.includes("exame")
-            ? "Exame"
-            : recordType.includes("document")
-              ? "Documento"
-              : recordType.includes("prescri")
-                ? "Prescrição"
-                : recordType.includes("proced")
-                  ? "Procedimento"
-                  : "Observação";
+          : recordType.includes("vacin")
+            ? "Vacina"
+            : recordType.includes("exame")
+              ? "Exame"
+              : recordType.includes("document")
+                ? "Documento"
+                : recordType.includes("prescri")
+                  ? "Prescrição"
+                  : recordType.includes("proced")
+                    ? "Procedimento"
+                    : "Observação";
         events.push({
           id: row.id,
           patientPassport: passport,
@@ -1023,6 +1028,7 @@ export default function RecordsPage() {
                 {activeTab === "timeline" && <TimelineTab events={patientEvents} />}
                 {activeTab === "consultas" && <FilteredEventsTab events={patientEvents} type="Consulta" empty="Nenhuma consulta registrada." />}
                 {activeTab === "exames" && <ExamsTab events={patientEvents} onDelete={deleteClinicalRecord} onOpen={openSavedExam} />}
+                {activeTab === "vacinas" && <FilteredEventsTab events={patientEvents} type="Vacina" empty="Nenhuma vacina registrada." />}
                 {activeTab === "documentos" && <FilteredEventsTab events={patientEvents} type="Documento" empty="Nenhum documento vinculado." onDelete={deleteClinicalRecord} onOpen={openSavedExam} />}
                 {activeTab === "prescricoes" && <FilteredEventsTab events={patientEvents} type="Prescrição" empty="Nenhuma prescrição registrada." />}
                 {activeTab === "procedimentos" && <FilteredEventsTab events={patientEvents} type="Procedimento" empty="Nenhum procedimento registrado." />}

@@ -15,6 +15,7 @@ import {
   WalletCards,
   Pill,
   Stethoscope,
+  Syringe,
   Users,
 } from "lucide-react";
 
@@ -42,6 +43,7 @@ export const toolsNavigation = [
   { label: "Traumatologia", href: "/dashboard/traumatologia", icon: Bone },
   { label: "Banco de Sangue", href: "/dashboard/banco-de-sangue", icon: Droplets },
   { label: "Obstetra", href: "/dashboard/obstetra", icon: Baby },
+  { label: "Vacinação", href: "/dashboard/vacinacao", icon: Syringe },
   { label: "Gestão de Leitos", href: "/dashboard/gestao-de-leitos", icon: Bed },
   { label: "Financeiro", href: "/dashboard/financeiro", icon: WalletCards },
 ];

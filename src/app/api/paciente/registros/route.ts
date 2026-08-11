@@ -25,7 +25,8 @@ function safeRecord(record: any) {
     html: sanitizeClinicalHtml(
       payload.finalHtml || payload.reportHtml || payload.documentHtml || payload.html || payload.editorHtml ||
       (payload.examName ? `<section><h2>${String(payload.examName)}</h2>${payload.patient?.name ? `<p><strong>Paciente:</strong> ${String(payload.patient.name)}</p>` : ""}${payload.doctor?.name ? `<p><strong>Médico responsável:</strong> ${String(payload.doctor.name)}</p>` : ""}<p>${String(payload.summary || payload.conclusion || "O exame foi salvo, mas o conteúdo formatado não foi incluído neste registro antigo.")}</p></section>` : "") ||
-      (payload.documentTitle ? `<section><h2>${String(payload.documentTitle)}</h2>${payload.patient?.name ? `<p><strong>Paciente:</strong> ${String(payload.patient.name)}</p>` : ""}${payload.doctor?.name ? `<p><strong>Médico responsável:</strong> ${String(payload.doctor.name)}</p>` : ""}<p>${String(payload.summary || "O documento foi salvo, mas o conteúdo formatado não foi incluído neste registro antigo.")}</p></section>` : "")
+      (payload.documentTitle ? `<section><h2>${String(payload.documentTitle)}</h2>${payload.patient?.name ? `<p><strong>Paciente:</strong> ${String(payload.patient.name)}</p>` : ""}${payload.doctor?.name ? `<p><strong>Médico responsável:</strong> ${String(payload.doctor.name)}</p>` : ""}<p>${String(payload.summary || "O documento foi salvo, mas o conteúdo formatado não foi incluído neste registro antigo.")}</p></section>` : "") ||
+      (record.record_type === "Vacina" && payload.vaccine ? `<section><h2>${String(payload.title || "Registro de vacinação")}</h2><p><strong>Vacina:</strong> ${String(payload.vaccine.name || "—")}</p><p><strong>Dose:</strong> ${String(payload.vaccine.dose || "—")}</p><p><strong>Data:</strong> ${String(payload.vaccine.date || "—")}</p>${payload.vaccine.lot ? `<p><strong>Lote:</strong> ${String(payload.vaccine.lot)}</p>` : ""}${payload.doctor?.name ? `<p><strong>Médico responsável:</strong> ${String(payload.doctor.name)}${payload.doctor?.crm ? ` · CRM ${String(payload.doctor.crm)}` : ""}</p>` : ""}</section>` : "")
     ),
     previewImage: typeof payload.previewImage === "string" ? payload.previewImage : null,
     previewImages: Array.isArray(payload.previewImages)
@@ -50,7 +51,7 @@ export async function GET(request: NextRequest) {
         .select("id,patient_passport,record_type,payload,created_at,updated_at,is_confidential,released_at")
         .eq("id", recordId)
         .eq("patient_passport", targetPassport)
-        .in("record_type", ["Exame", "Documento"])
+        .in("record_type", ["Exame", "Documento", "Vacina"])
         .eq("is_confidential", false)
         .not("released_at", "is", null)
         .maybeSingle();
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
       .from("clinical_records")
       .select("id,record_type,created_at,updated_at,is_confidential,released_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,protocol:payload->>protocol")
       .eq("patient_passport", targetPassport)
-      .in("record_type", ["Exame", "Documento"])
+      .in("record_type", ["Exame", "Documento", "Vacina"])
       .eq("is_confidential", false)
       .not("released_at", "is", null)
       .order("created_at", { ascending: false })

@@ -41,6 +41,7 @@ export type CardSlot = {
   contentLayout?: VaccinationSlotContentLayout;
   stampLayout?: VaccinationStampLayout;
   aliases?: string[];
+  doseAliases?: string[];
 };
 
 export type VaccinationIdentityField = {
@@ -84,10 +85,12 @@ const elderlyIdentity: VaccinationIdentityLayout = {
 };
 
 const childIdentity: VaccinationIdentityLayout = {
-  name: { mode: "box", startX: 30.7, endX: 80.0, top: 6.45, bottom: 9.55, fontSize: 18, minFontSize: 12, color: "#ffffff", weight: "800" },
-  passport: { mode: "box", startX: 30.7, endX: 80.0, top: 10.75, bottom: 13.95, fontSize: 17, minFontSize: 12, color: "#ffffff", weight: "800" },
-  birthDate: { mode: "box", startX: 42.2, endX: 80.0, top: 15.25, bottom: 18.25, fontSize: 16, minFontSize: 11, color: "#ffffff", weight: "800" },
-  guardians: { mode: "box", startX: 43.8, endX: 80.0, top: 19.45, bottom: 22.65, fontSize: 14, minFontSize: 10, color: "#ffffff", weight: "800" },
+  // O template infantil não possui linhas de preenchimento: cada valor começa
+  // imediatamente após o respectivo rótulo impresso e permanece na mesma linha visual.
+  name: { mode: "box", startX: 30.8, endX: 78.0, top: 7.55, bottom: 9.45, fontSize: 18, minFontSize: 12, color: "#ffffff", weight: "800" },
+  passport: { mode: "box", startX: 36.2, endX: 78.0, top: 10.95, bottom: 12.95, fontSize: 17, minFontSize: 12, color: "#ffffff", weight: "800" },
+  birthDate: { mode: "box", startX: 50.3, endX: 78.0, top: 14.25, bottom: 16.35, fontSize: 16, minFontSize: 11, color: "#ffffff", weight: "800" },
+  guardians: { mode: "box", startX: 40.0, endX: 78.0, top: 17.45, bottom: 19.65, fontSize: 15, minFontSize: 10, color: "#ffffff", weight: "800" },
 };
 
 const pregnantIdentity: VaccinationIdentityLayout = {
@@ -104,10 +107,10 @@ const adultSlots: CardSlot[] = [
   { id: "a6", left: 66.6, top: 64.0, width: 29.1, height: 23.4 },
 ];
 
-const childShortContent: VaccinationSlotContentLayout = { left: 5.5, top: 7, width: 54, lineGap: 17 };
-const childRegularContent: VaccinationSlotContentLayout = { left: 5.5, top: 8, width: 54, lineGap: 18 };
-const childShortStamp: VaccinationStampLayout = { centerX: 79.5, centerY: 70, radius: 15 };
-const childRegularStamp: VaccinationStampLayout = { centerX: 79, centerY: 72, radius: 17 };
+const childShortContent: VaccinationSlotContentLayout = { left: 4.5, top: 5, width: 59, lineGap: 21 };
+const childRegularContent: VaccinationSlotContentLayout = { left: 4.5, top: 6, width: 59, lineGap: 17 };
+const childShortStamp: VaccinationStampLayout = { centerX: 82, centerY: 58, radius: 22 };
+const childRegularStamp: VaccinationStampLayout = { centerX: 80, centerY: 69, radius: 18.5 };
 
 const childSlots: CardSlot[] = [
   { id: "c1", left: 31.2, top: 35.8, width: 18.0, height: 10.0, contentLayout: childShortContent, stampLayout: childShortStamp },
@@ -120,15 +123,20 @@ const childSlots: CardSlot[] = [
   { id: "c8", left: 50.3, top: 76.1, width: 18.0, height: 13.1, contentLayout: childRegularContent, stampLayout: childRegularStamp },
 ];
 
+const pregnantDoseContent: VaccinationSlotContentLayout = { left: 39, top: 31, width: 53, lineGap: 19 };
+const pregnantDoseStamp: VaccinationStampLayout = { centerX: 72, centerY: 73, radius: 17.5 };
+const pregnantLargeContent: VaccinationSlotContentLayout = { left: 8, top: 31, width: 52, lineGap: 18 };
+const pregnantLargeStamp: VaccinationStampLayout = { centerX: 76, centerY: 66, radius: 20 };
+
 const pregnantSlots: CardSlot[] = [
-  { id: "hb1", left: 4.5, top: 37.5, width: 27.5, height: 18.0, aliases: ["hepatite b"] },
-  { id: "hb2", left: 4.5, top: 56.0, width: 27.5, height: 18.0, aliases: ["hepatite b"] },
-  { id: "hb3", left: 4.5, top: 74.5, width: 27.5, height: 18.0, aliases: ["hepatite b"] },
-  { id: "dt1", left: 35.0, top: 37.5, width: 27.5, height: 18.0, aliases: ["dt", "dupla adulto", "difteria tetano", "difteria tétano"] },
-  { id: "dt2", left: 35.0, top: 56.0, width: 27.5, height: 18.0, aliases: ["dt", "dupla adulto", "difteria tetano", "difteria tétano"] },
-  { id: "dt3", left: 35.0, top: 74.5, width: 27.5, height: 18.0, aliases: ["dt", "dupla adulto", "difteria tetano", "difteria tétano"] },
-  { id: "dtpa", left: 68.0, top: 36.5, width: 27.0, height: 25.5, aliases: ["dtpa"] },
-  { id: "influenza", left: 68.0, top: 63.5, width: 27.0, height: 27.5, aliases: ["influenza", "gripe"] },
+  { id: "hb1", left: 4.5, top: 37.5, width: 27.5, height: 18.0, contentLayout: pregnantDoseContent, stampLayout: pregnantDoseStamp, aliases: ["hepatite b"], doseAliases: ["1ª dose", "1a dose", "1 dose"] },
+  { id: "hb2", left: 4.5, top: 56.0, width: 27.5, height: 18.0, contentLayout: pregnantDoseContent, stampLayout: pregnantDoseStamp, aliases: ["hepatite b"], doseAliases: ["2ª dose", "2a dose", "2 dose"] },
+  { id: "hb3", left: 4.5, top: 74.5, width: 27.5, height: 18.0, contentLayout: pregnantDoseContent, stampLayout: pregnantDoseStamp, aliases: ["hepatite b"], doseAliases: ["3ª dose", "3a dose", "3 dose"] },
+  { id: "dt1", left: 35.0, top: 37.5, width: 27.5, height: 18.0, contentLayout: pregnantDoseContent, stampLayout: pregnantDoseStamp, aliases: ["dt", "dupla adulto"], doseAliases: ["1ª dose", "1a dose", "1 dose"] },
+  { id: "dt2", left: 35.0, top: 56.0, width: 27.5, height: 18.0, contentLayout: pregnantDoseContent, stampLayout: pregnantDoseStamp, aliases: ["dt", "dupla adulto"], doseAliases: ["2ª dose", "2a dose", "2 dose"] },
+  { id: "dt3", left: 35.0, top: 74.5, width: 27.5, height: 18.0, contentLayout: pregnantDoseContent, stampLayout: pregnantDoseStamp, aliases: ["dt", "dupla adulto"], doseAliases: ["3ª dose", "3a dose", "3 dose"] },
+  { id: "dtpa", left: 68.0, top: 36.5, width: 27.0, height: 25.5, contentLayout: pregnantLargeContent, stampLayout: pregnantLargeStamp, aliases: ["dtpa"], doseAliases: ["dose única", "dose unica"] },
+  { id: "influenza", left: 68.0, top: 63.5, width: 27.0, height: 27.5, contentLayout: pregnantLargeContent, stampLayout: pregnantLargeStamp, aliases: ["influenza", "gripe"], doseAliases: ["dose única", "dose unica"] },
 ];
 
 export function getVaccinationCardDefinition(group: VaccinationGroup, adultVariant: AdultCardVariant = "masculino"): VaccinationCardDefinition {
@@ -159,16 +167,22 @@ export function assignApplicationsToSlots(applications: VaccinationApplication[]
   const remaining: VaccinationApplication[] = [];
 
   for (const application of applications) {
-    const normalized = normalizeVaccineText(application.vaccine);
-    const matched = slots.find((slot) =>
-      !result.has(slot.id) && slot.aliases?.some((alias) => normalized.includes(normalizeVaccineText(alias))),
-    );
+    const normalizedVaccine = normalizeVaccineText(application.vaccine);
+    const normalizedDose = normalizeVaccineText(application.dose);
+    const matched = slots.find((slot) => {
+      if (result.has(slot.id) || !slot.aliases?.length) return false;
+      const vaccineMatches = slot.aliases.some((alias) => normalizedVaccine === normalizeVaccineText(alias));
+      const doseMatches = !slot.doseAliases?.length || slot.doseAliases.some((alias) => normalizedDose === normalizeVaccineText(alias));
+      return vaccineMatches && doseMatches;
+    });
     if (matched) result.set(matched.id, application);
     else remaining.push(application);
   }
 
+  // Modelos livres (Adulto, Infantil e Idoso) recebem aplicações em sequência.
+  // Slots pré-definidos, como os da Gestante, nunca recebem uma vacina desconhecida.
   for (const application of remaining) {
-    const next = slots.find((slot) => !result.has(slot.id));
+    const next = slots.find((slot) => !result.has(slot.id) && !slot.aliases?.length);
     if (!next) break;
     result.set(next.id, application);
   }
@@ -206,6 +220,18 @@ export const commonVaccines = [
   "Influenza",
   "COVID-19",
 ];
+
+export const pregnantVaccines = [
+  { name: "Hepatite B", doses: ["1ª dose", "2ª dose", "3ª dose"] },
+  { name: "dT", doses: ["1ª dose", "2ª dose", "3ª dose"] },
+  { name: "dTpa", doses: ["Dose única"] },
+  { name: "Influenza", doses: ["Dose única"] },
+] as const;
+
+export function getPregnantDoseOptions(vaccine: string) {
+  const normalized = normalizeVaccineText(vaccine);
+  return pregnantVaccines.find((item) => normalizeVaccineText(item.name) === normalized)?.doses || [];
+}
 
 
 export function generateVaccinationLot() {

@@ -28,7 +28,7 @@ export function ClinicalRecordsPortalPanel({ passport }: { passport: string }) {
       .from("clinical_records")
       .select("id,record_type,created_at,is_confidential,released_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle")
       .eq("patient_passport", passport)
-      .in("record_type", ["Exame", "Documento"])
+      .in("record_type", ["Exame", "Documento", "Vacina"])
       .order("created_at", { ascending: false });
     if (loadError) setError(loadError.message);
     else setRecords((data || []) as ClinicalRecord[]);
@@ -54,7 +54,7 @@ export function ClinicalRecordsPortalPanel({ passport }: { passport: string }) {
 
   return (
     <section className="mt-4 min-w-0 rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3.5 [overflow-wrap:anywhere]">
-      <div className="flex items-center gap-2"><Lock size={17} className="text-hpsr-wine" /><div><h3 className="font-black text-hpsr-text">Acesso no Portal do Paciente</h3><p className="text-xs font-semibold text-hpsr-muted">Controle individual de sigilo para cada exame e documento.</p></div></div>
+      <div className="flex items-center gap-2"><Lock size={17} className="text-hpsr-wine" /><div><h3 className="font-black text-hpsr-text">Acesso no Portal do Paciente</h3><p className="text-xs font-semibold text-hpsr-muted">Controle individual de sigilo para cada exame, vacina e documento.</p></div></div>
       {error && <p className="mt-3 rounded-[12px] border border-rose-200 bg-rose-50 p-2 text-xs font-bold text-rose-800">{error}</p>}
       <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto pr-1">
         {records.map((record) => {
