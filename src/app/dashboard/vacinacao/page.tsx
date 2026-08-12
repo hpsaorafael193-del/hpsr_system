@@ -301,6 +301,29 @@ async function renderVaccinationCard({
   }
 }
 
+function getPreviewMetrics(
+  group: VaccinationGroup,
+  adultVariant: AdultCardVariant,
+  zoom: number,
+  viewport?: { width: number; height: number },
+) {
+  const definition = getVaccinationCardDefinition(group, adultVariant);
+
+  if (viewport && viewport.width > 0 && viewport.height > 0) {
+    const fitScale = Math.min(viewport.width / definition.width, viewport.height / definition.height);
+    const scaled = Math.max(0.1, fitScale * (zoom / 100));
+    return {
+      previewWidth: Math.round(definition.width * scaled),
+      previewHeight: Math.round(definition.height * scaled),
+    };
+  }
+
+  const basePreviewHeight = group === "crianca" ? 650 : 560;
+  const previewHeight = Math.round(basePreviewHeight * (zoom / 100));
+  const previewWidth = Math.round(previewHeight * (definition.width / definition.height));
+  return { previewWidth, previewHeight };
+}
+
 function CardPreview({
   group,
   adultVariant,
@@ -311,6 +334,7 @@ function CardPreview({
   guardians,
   page,
   zoom,
+  viewport,
 }: {
   group: VaccinationGroup;
   adultVariant: AdultCardVariant;
@@ -321,13 +345,11 @@ function CardPreview({
   guardians: string;
   page: number;
   zoom: number;
+  viewport?: { width: number; height: number };
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderVersionRef = useRef(0);
-  const def = getVaccinationCardDefinition(group, adultVariant);
-  const basePreviewHeight = group === "crianca" ? 650 : 560;
-  const previewHeight = Math.round(basePreviewHeight * (zoom / 100));
-  const previewWidth = Math.round(previewHeight * (def.width / def.height));
+  const { previewWidth, previewHeight } = getPreviewMetrics(group, adultVariant, zoom, viewport);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -378,6 +400,8 @@ export default function VaccinationPage() {
   const [guardians, setGuardians] = useState("");
   const [page, setPage] = useState(0);
   const [previewZoom, setPreviewZoom] = useState(100);
+  const previewViewportRef = useRef<HTMLDivElement>(null);
+  const [previewViewport, setPreviewViewport] = useState({ width: 0, height: 0 });
   const [availableDoctors, setAvailableDoctors] = useState<DoctorOption[]>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
 
@@ -524,6 +548,28 @@ export default function VaccinationPage() {
   const def = getVaccinationCardDefinition(group, adultVariant);
   const pageCount = Math.max(1, Math.ceil(groupHistory.length / def.slots.length));
   useEffect(() => setPage(Math.max(0, pageCount - 1)), [group, selectedPassport, pageCount]);
+
+  useEffect(() => {
+    const node = previewViewportRef.current;
+    if (!node) return;
+
+    const updatePreviewViewport = () => {
+      const styles = window.getComputedStyle(node);
+      const paddingX = Number.parseFloat(styles.paddingLeft || "0") + Number.parseFloat(styles.paddingRight || "0");
+      const paddingY = Number.parseFloat(styles.paddingTop || "0") + Number.parseFloat(styles.paddingBottom || "0");
+      setPreviewViewport({
+        width: Math.max(0, node.clientWidth - paddingX),
+        height: Math.max(0, node.clientHeight - paddingY),
+      });
+    };
+
+    updatePreviewViewport();
+    const observer = new ResizeObserver(updatePreviewViewport);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [group, patientName, patientPassport]);
+
+  const previewMetrics = getPreviewMetrics(group, adultVariant, previewZoom, previewViewport);
 
   async function saveApplication() {
     const normalizedName = patientName.trim();
@@ -779,12 +825,17 @@ export default function VaccinationPage() {
                 <button onClick={exportCard} disabled={!patientName.trim() || !patientPassport.trim()} className="inline-flex items-center gap-2 rounded-[12px] bg-hpsr-wine px-3 py-2 text-xs font-black text-white disabled:opacity-50"><Download size={15}/>Baixar PNG</button>
               </div>
             </div>
-            <div className="flex items-center justify-center 2xl:min-h-0 2xl:flex-1">
+            <div className="flex min-h-0 flex-1 items-center justify-center">
               {patientName.trim() && patientPassport.trim() ? (
-                <div className={`grid ${group === "crianca" ? "h-[390px] 2xl:h-[405px]" : "h-[340px] 2xl:h-[370px]"} w-full place-items-center justify-items-center overflow-auto rounded-[17px] border border-hpsr-border/70 bg-gradient-to-b from-[#fbf8f4] to-[#f5eee7] p-3 2xl:w-fit 2xl:max-w-full`}>
-                  <CardPreview group={group} adultVariant={adultVariant} applications={groupHistory} patientName={patientName.trim()} passport={patientPassport.trim().toUpperCase()} birthDate={birthDate} guardians={guardians} page={page} zoom={previewZoom} />
+                <div
+                  ref={previewViewportRef}
+                  className={`w-full overflow-auto rounded-[17px] border border-hpsr-border/70 bg-gradient-to-b from-[#fbf8f4] to-[#f5eee7] p-3 ${group === "crianca" ? "h-[390px] 2xl:h-full" : "h-[340px] 2xl:h-full"}`}
+                >
+                  <div className="grid min-h-full place-items-center justify-items-center">
+                    <CardPreview group={group} adultVariant={adultVariant} applications={groupHistory} patientName={patientName.trim()} passport={patientPassport.trim().toUpperCase()} birthDate={birthDate} guardians={guardians} page={page} zoom={previewZoom} viewport={previewViewport} />
+                  </div>
                 </div>
-              ) : <div className={`grid ${group === "crianca" ? "h-[390px] 2xl:h-[405px]" : "h-[340px] 2xl:h-[370px]"} w-full place-items-center rounded-[17px] border border-dashed border-hpsr-border bg-gradient-to-b from-[#fffaf5] to-[#f8f1ea] px-6 text-center text-sm font-bold text-hpsr-muted`}>Informe nome e passaporte para gerar a caderneta.</div>}
+              ) : <div ref={previewViewportRef} className={`grid w-full place-items-center rounded-[17px] border border-dashed border-hpsr-border bg-gradient-to-b from-[#fffaf5] to-[#f8f1ea] px-6 text-center text-sm font-bold text-hpsr-muted ${group === "crianca" ? "h-[390px] 2xl:h-full" : "h-[340px] 2xl:h-full"}`}>Informe nome e passaporte para gerar a caderneta.</div>}
             </div>
             {pageCount > 1 && <div className="mt-3 flex justify-center gap-2 print:hidden"><button disabled={page===0} onClick={()=>setPage(p=>Math.max(0,p-1))} className="rounded-[10px] border border-hpsr-border px-3 py-2 text-xs font-black disabled:opacity-40">Anterior</button><button disabled={page>=pageCount-1} onClick={()=>setPage(p=>Math.min(pageCount-1,p+1))} className="rounded-[10px] border border-hpsr-border px-3 py-2 text-xs font-black disabled:opacity-40">Próxima</button></div>}
           </section>
