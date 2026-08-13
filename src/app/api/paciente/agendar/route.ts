@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     const resolvedPassport = await resolvePortalPatientPassport(request, valid);
     if (!resolvedPassport) return NextResponse.json({ ok: false, error: "Paciente não autorizado para esta sessão." }, { status: 403 });
     const patientPassport = normalizePassport(resolvedPassport);
-    const { data: patientRow, error: patientError } = await valid.supabase.from("patient_registry").select("name").eq("passport", patientPassport).maybeSingle();
+    const { data: patientRow, error: patientError } = await valid.supabase.from("patient_registry").select("name,email").eq("passport", patientPassport).maybeSingle();
     if (patientError) throw patientError;
     if (!patientRow) return NextResponse.json({ ok: false, error: "Paciente não encontrado no prontuário." }, { status: 404 });
     const patient = String(patientRow.name || body.patient || "").trim();
@@ -29,10 +29,17 @@ export async function POST(request: NextRequest) {
     const flowDetails = String(body.flowDetails || "").trim();
     const requestedDoctorId = String(body.requestedDoctorId || "").trim();
     const requestedDoctorName = String(body.requestedDoctorName || "").trim();
+    const discordId = String(body.discordId || "").replace(/\D/g, "").trim();
+    const accountEmail = patientPassport === normalizePassport(valid.access.patient_passport) ? String(valid.access.email || "").trim().toLowerCase() : "";
+    const registryEmail = String(patientRow.email || "").trim().toLowerCase();
+    const contactEmail = registryEmail || accountEmail;
     const allowedFlowTypes = ["Consulta comum", "Acompanhamento com especialista", "Exames", "Outros"];
 
     if (!patient || !specialty || !reason || !allowedFlowTypes.includes(flowType)) {
       return NextResponse.json({ ok: false, error: "Preencha os campos obrigatórios." }, { status: 400 });
+    }
+    if (!contactEmail && !discordId) {
+      return NextResponse.json({ ok: false, code: "CONTACT_REQUIRED", error: "Este paciente não possui e-mail cadastrado. Informe o ID do Discord para que o médico consiga entrar em contato." }, { status: 400 });
     }
     if (flowType === "Acompanhamento com especialista" && (!requestedDoctorId || !requestedDoctorName)) {
       return NextResponse.json({ ok: false, error: "Selecione o médico responsável pelo acompanhamento." }, { status: 400 });
@@ -83,7 +90,10 @@ export async function POST(request: NextRequest) {
       preferredPeriod,
       preferredTime,
       schedulingMode: "medical_contact",
-      schedulingNotice: "A equipe médica entrará em contato pelo Discord privado ou pelo celular no RP para confirmar o dia e o horário da consulta.",
+      schedulingNotice: "O paciente apenas solicita a consulta. O médico entra em contato pelo e-mail cadastrado ou, quando indisponível, pelo ID do Discord informado para combinar o dia e o horário.",
+      contactEmail,
+      discordId: contactEmail ? "" : discordId,
+      contactChannel: contactEmail ? "email" : "discord",
       reason,
       notes,
       flowType,

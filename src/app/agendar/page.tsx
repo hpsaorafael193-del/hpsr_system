@@ -178,7 +178,7 @@ export default function SchedulePage() {
                 <div className="md:col-span-2 rounded-[18px] border border-amber-200 bg-[linear-gradient(135deg,#fff9e8_0%,#fff3d6_100%)] p-4">
                   <div className="flex items-start gap-3">
                     <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-amber-700 text-white"><CalendarDays size={18} /></div>
-                    <div><p className="text-sm font-black text-amber-950">A equipe definirá a data e o horário</p><p className="mt-1 text-xs font-semibold leading-relaxed text-amber-900">Fique atento ao privado do Discord e ao celular no RP. O médico entrará em contato para confirmar o agendamento.</p></div>
+                    <div><p className="text-sm font-black text-amber-950">A equipe definirá a data e o horário</p><p className="mt-1 text-xs font-semibold leading-relaxed text-amber-900">O médico entrará em contato pelo e-mail cadastrado ou, quando necessário, pelo ID do Discord informado para combinar o agendamento.</p></div>
                   </div>
                 </div>
 
@@ -200,7 +200,7 @@ export default function SchedulePage() {
               </button>
 
               <p className="mt-4 rounded-[14px] border border-hpsr-border bg-[#fcf6ee] p-3.5 text-sm leading-relaxed text-hpsr-muted">
-                Após o envio, fique atento ao privado do Discord e ao celular no RP. A consulta só será confirmada depois que a equipe definir o dia e o horário com você.
+                Após o envio, aguarde o contato do médico pelo e-mail cadastrado ou pelo ID do Discord informado. A consulta só será confirmada depois que o dia e o horário forem combinados.
               </p>
             </form>
           </div>

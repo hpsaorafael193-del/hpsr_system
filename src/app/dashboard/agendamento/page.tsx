@@ -13,7 +13,9 @@ import {
   CheckCircle2,
   Clock3,
   FileClock,
+  Hash,
   HeartPulse,
+  Mail,
   RotateCcw,
   Scissors,
   Search,
@@ -64,6 +66,12 @@ type PublicAppointmentRequest = {
   requestedDoctorName?: string;
   followupPlanId?: string;
   doctorNotificationUnread?: boolean;
+  contactEmail?: string;
+  discordId?: string;
+  contactChannel?: "email" | "discord";
+  acceptedAt?: string;
+  acceptedById?: string;
+  acceptedByName?: string;
 };
 
 function publicRequestPreferred(item: PublicAppointmentRequest) {
@@ -79,7 +87,7 @@ function buildPublicAnswer(
   details?: { proposedDate?: string; proposedTime?: string; reason?: string }
 ) {
   if (status === "Aceita") {
-    return `Solicitação aceita por ${doctorName}. A equipe entrará em contato pelo Discord privado ou pelo celular no RP para confirmar o dia e o horário.`;
+    return `Solicitação aceita por ${doctorName}. O médico responsável entrará em contato pelo e-mail cadastrado ou, quando necessário, pelo ID do Discord informado para combinar o dia e o horário.`;
   }
 
   if (status === "Recusada") {
@@ -103,7 +111,7 @@ function buildPublicAnswer(
 const inputClass =
   "min-w-0 w-full rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-medium text-hpsr-text outline-none transition placeholder:text-zinc-400 focus:border-hpsr-wineLight focus:bg-white focus:ring-2 focus:ring-hpsr-wineLight/20";
 
-type ScheduledAppointment = { id: string; time: string; date: string; passport: string; patient: string; specialty: string; doctor: string; type: string; status: string };
+type ScheduledAppointment = { id: string; time: string; date: string; passport: string; patient: string; specialty: string; doctor: string; type: string; status: string; acceptedAt?: string; acceptedById?: string; acceptedByName?: string; acceptedBySelf?: boolean; contactEmail?: string; discordId?: string; reason?: string; notes?: string; createdAt?: string };
 const scheduledAppointments: ScheduledAppointment[] = [];
 
 const followUps: Array<{ passport: string; patient: string; program: string; specialty: string; doctor: string; availability: string[]; nextSlot: string }> = [];
@@ -171,6 +179,20 @@ const baseVisibleAppointments = scheduledAppointments.filter((item) =>
   doctorCanAccessSpecialty(item.specialty)
 );
 
+function mapAppointmentRow(row: any): PublicAppointmentRequest {
+  const payload = (row?.payload || {}) as Partial<PublicAppointmentRequest>;
+  return {
+    ...(payload as PublicAppointmentRequest),
+    id: String(row?.id || payload.id || ""),
+    passport: String(row?.passport || payload.passport || ""),
+    patient: String(row?.patient || payload.patient || "Não informado"),
+    status: String(row?.status || payload.status || "Solicitação enviada"),
+    createdAt: String(payload.createdAt || row?.created_at || ""),
+    updatedAt: String(payload.updatedAt || row?.updated_at || ""),
+    specialty: String(payload.specialty || "Clínico Geral"),
+  };
+}
+
 export default function AppointmentsPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const [activeTab, setActiveTab] = useState<TabId>("solicitacoes");
@@ -196,16 +218,7 @@ export default function AppointmentsPage() {
       return;
     }
 
-    setPublicRequests((data || []).map((row: any) => ({
-      ...((row.payload || {}) as PublicAppointmentRequest),
-      id: String(row.id),
-      passport: String(row.passport || ""),
-      patient: String(row.patient || "Não informado"),
-      status: String(row.status || "Solicitação enviada"),
-      createdAt: String(((row.payload || {}) as Partial<PublicAppointmentRequest>).createdAt || row.created_at),
-      updatedAt: String(((row.payload || {}) as Partial<PublicAppointmentRequest>).updatedAt || row.updated_at),
-      specialty: String(((row.payload || {}) as Partial<PublicAppointmentRequest>).specialty || "Clínico Geral"),
-    })));
+    setPublicRequests((data || []).map(mapAppointmentRow));
   }, []);
 
   useEffect(() => {
@@ -218,17 +231,23 @@ export default function AppointmentsPage() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "appointments" },
-        () => void loadAppointments()
+        (change: any) => {
+          if (change.eventType === "DELETE") {
+            const deletedId = String(change.old?.id || "");
+            if (deletedId) setPublicRequests((current) => current.filter((item) => item.id !== deletedId));
+            return;
+          }
+          const next = mapAppointmentRow(change.new);
+          if (!next.id) return;
+          setPublicRequests((current) => {
+            const exists = current.some((item) => item.id === next.id);
+            return exists ? current.map((item) => item.id === next.id ? next : item) : [next, ...current];
+          });
+        }
       )
       .subscribe();
 
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") void loadAppointments();
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibility);
       void client.removeChannel(channel);
     };
   }, [loadAppointments]);
@@ -247,6 +266,11 @@ export default function AppointmentsPage() {
       proposedTime: details?.proposedTime || request.proposedTime,
       rescheduleReason: details?.reason || request.rescheduleReason,
       updatedAt: brazilIso(),
+      ...(status === "Aceita" ? {
+        acceptedAt: brazilIso(),
+        acceptedById: currentUserProfile.id,
+        acceptedByName: currentUserProfile.systemName,
+      } : {}),
     };
 
     const client = createClient();
@@ -295,7 +319,7 @@ export default function AppointmentsPage() {
         }
         updatedRequest.followupPlanId = String(plan.id);
         updatedRequest.doctorNotificationUnread = false;
-        updatedRequest.answer = `Acompanhamento confirmado por ${currentUserProfile.systemName}. Os próximos horários publicados por este médico ficarão disponíveis no portal.`;
+        updatedRequest.answer = `Acompanhamento confirmado por ${currentUserProfile.systemName}. O médico responsável entrará em contato pelo e-mail cadastrado ou pelo Discord informado para combinar os próximos atendimentos.`;
       }
       const payload = {
         ...request,
@@ -369,7 +393,16 @@ export default function AppointmentsPage() {
           specialty: item.specialty,
           doctor: item.doctor || currentUserProfile.systemName,
           type: item.flowType || "Consulta comum",
-          status: item.status === "Realizada" ? "Realizada" : item.status === "Reagendamento aceito" ? "Confirmada" : "Agendada",
+          status: item.status === "Realizada" ? "Realizada" : item.status === "Reagendamento aceito" ? "Confirmada" : "Aguardando contato",
+          acceptedAt: item.acceptedAt,
+          acceptedById: item.acceptedById,
+          acceptedByName: item.acceptedByName,
+          acceptedBySelf: Boolean(item.acceptedById && item.acceptedById === currentUserProfile.id),
+          contactEmail: item.contactEmail,
+          discordId: item.discordId || item.discord,
+          reason: item.reason,
+          notes: item.notes,
+          createdAt: item.createdAt,
         };
       });
   }, [publicRequests]);
@@ -507,67 +540,107 @@ export default function AppointmentsPage() {
 }
 
 function ConsultationOverview({ appointments }: { appointments: typeof scheduledAppointments }) {
-  const sortedAppointments = [...appointments].sort((first, second) => {
+  const [recentOnly, setRecentOnly] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<ScheduledAppointment | null>(null);
+  const recentCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const recentlyAcceptedCount = appointments.filter((item) => item.acceptedAt && new Date(item.acceptedAt).getTime() >= recentCutoff).length;
+  const filteredAppointments = recentOnly
+    ? appointments.filter((item) => item.acceptedAt && new Date(item.acceptedAt).getTime() >= recentCutoff)
+    : appointments;
+  const sortedAppointments = [...filteredAppointments].sort((first, second) => {
+    const firstRecent = first.acceptedAt ? new Date(first.acceptedAt).getTime() : 0;
+    const secondRecent = second.acceptedAt ? new Date(second.acceptedAt).getTime() : 0;
+    if (recentOnly || firstRecent || secondRecent) return secondRecent - firstRecent;
     const firstDate = `${first.date} ${first.time}`;
     const secondDate = `${second.date} ${second.time}`;
     return firstDate.localeCompare(secondDate);
   });
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-hpsr-border bg-white shadow-sm">
-      <div className="flex shrink-0 flex-col gap-2 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf7_0%,#f7e9e2_100%)] px-4 py-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Visão geral</p>
-          <h2 className="mt-0.5 text-lg font-black text-hpsr-text">Consultas agendadas</h2>
-          <p className="mt-0.5 text-xs leading-relaxed text-hpsr-muted">Paciente, profissional responsável, data, horário e situação atual.</p>
+    <>
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-hpsr-border bg-white shadow-sm">
+        <div className="flex shrink-0 flex-col gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf7_0%,#f7e9e2_100%)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Visão geral</p>
+            <h2 className="mt-0.5 text-lg font-black text-hpsr-text">Agendamento geral</h2>
+            <p className="mt-0.5 text-xs leading-relaxed text-hpsr-muted">Solicitações aceitas aparecem aqui mesmo antes da definição de data e horário. Clique no paciente para ver os detalhes.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => setRecentOnly(false)} className={`rounded-[12px] border px-3 py-2 text-xs font-black transition ${!recentOnly ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-wine"}`}>Todos</button>
+            <button type="button" onClick={() => setRecentOnly(true)} className={`rounded-[12px] border px-3 py-2 text-xs font-black transition ${recentOnly ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-wine"}`}>Aceitos recentemente · {recentlyAcceptedCount}</button>
+            <span className="rounded-[13px] border border-[#dcc1ba] bg-white px-3 py-2 text-xs font-black text-hpsr-wine shadow-sm">{sortedAppointments.length} pacientes</span>
+          </div>
         </div>
-        <span className="rounded-[13px] border border-[#dcc1ba] bg-white px-3 py-2 text-xs font-black text-hpsr-wine shadow-sm">
-          {sortedAppointments.length} consultas
-        </span>
-      </div>
 
-      <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-contain p-3 pr-2 [scrollbar-gutter:stable]">
-        {sortedAppointments.map((item) => (
-          <article
-            key={item.id}
-            className="grid gap-3 rounded-[16px] border border-hpsr-border bg-white p-3 shadow-[0_4px_14px_rgba(89,44,30,0.04)] transition hover:border-hpsr-wineLight/40 hover:bg-[#fffdfb] lg:grid-cols-[minmax(0,1.3fr)_minmax(180px,0.7fr)_140px_140px]"
-          >
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">
-                Paciente
-              </p>
-              <h3 className="mt-1 text-sm font-black text-hpsr-text">{item.patient}</h3>
-              <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">
-                Passaporte {item.passport} · {item.specialty}
-              </p>
-            </div>
+        <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-contain p-3 pr-2 [scrollbar-gutter:stable]">
+          {sortedAppointments.length ? sortedAppointments.map((item) => (
+            <button
+              type="button"
+              key={item.id}
+              onClick={() => setSelectedAppointment(item)}
+              className="grid w-full gap-3 rounded-[16px] border border-hpsr-border bg-white p-3 text-left shadow-[0_4px_14px_rgba(89,44,30,0.04)] transition hover:border-hpsr-wineLight/50 hover:bg-[#fffaf8] lg:grid-cols-[minmax(0,1.3fr)_minmax(180px,0.7fr)_140px_140px]"
+            >
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Paciente</p>
+                <h3 className="mt-1 text-sm font-black text-hpsr-text">{item.patient}</h3>
+                <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Passaporte {item.passport} · {item.specialty}</p>
+              </div>
 
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">
-                Médico responsável
-              </p>
-              <p className="mt-1 text-sm font-black text-hpsr-text">{item.doctor}</p>
-              <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{item.type}</p>
-            </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Médico responsável</p>
+                <p className="mt-1 text-sm font-black text-hpsr-text">{item.doctor}</p>
+                <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{item.type}</p>
+              </div>
 
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">
-                Data e hora
-              </p>
-              <p className="mt-1 text-sm font-black text-hpsr-text">{formatDate(item.date)}</p>
-              <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{item.time}</p>
-            </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Data e hora</p>
+                <p className="mt-1 text-sm font-black text-hpsr-text">{item.date && item.date !== "A definir" ? formatDate(item.date) : "A definir"}</p>
+                <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{item.time || "A definir"}</p>
+              </div>
 
-            <div className="flex items-center lg:justify-end">
-              <span className={`rounded-full border px-3 py-1 text-xs font-black ${consultationStatusClass(item.status)}`}>
-                {item.status}
-              </span>
+              <div className="flex items-center lg:justify-end">
+                <span className={`rounded-full border px-3 py-1 text-xs font-black ${consultationStatusClass(item.status)}`}>{item.status}</span>
+              </div>
+            </button>
+          )) : <EmptyState title={recentOnly ? "Nenhum aceite recente" : "Nenhum paciente no agendamento geral"} description={recentOnly ? "Não há solicitações aceitas nos últimos 7 dias." : "As solicitações aceitas aparecerão aqui para continuidade do contato e agendamento."} />}
+        </div>
+      </section>
+
+      {selectedAppointment && (
+        <div className="fixed inset-0 z-[100000] grid place-items-center px-4 py-6">
+          <button type="button" aria-label="Fechar detalhes" onClick={() => setSelectedAppointment(null)} className="fixed inset-0 bg-[#1f0805]/65 backdrop-blur-sm" />
+          <section className="relative z-10 w-full max-w-xl overflow-hidden rounded-[20px] border border-hpsr-border bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-4">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Check-up do agendamento</p>
+                <h3 className="mt-1 text-xl font-black text-hpsr-text">{selectedAppointment.patient}</h3>
+                <p className="mt-1 text-sm font-semibold text-hpsr-muted">Passaporte {selectedAppointment.passport} · {selectedAppointment.specialty}</p>
+              </div>
+              <button type="button" onClick={() => setSelectedAppointment(null)} className="rounded-[12px] border border-hpsr-border bg-white p-2.5 text-hpsr-wine"><X size={18}/></button>
             </div>
-          </article>
-        ))}
-      </div>
-    </section>
+            <div className="grid gap-3 p-4 sm:grid-cols-2">
+              <DetailCard label="Médico responsável" value={selectedAppointment.doctor || "A definir"} />
+              <DetailCard label="Situação" value={selectedAppointment.status} />
+              <DetailCard label="Data" value={selectedAppointment.date && selectedAppointment.date !== "A definir" ? formatDate(selectedAppointment.date) : "A definir após contato"} />
+              <DetailCard label="Horário" value={selectedAppointment.time && selectedAppointment.time !== "A definir" ? selectedAppointment.time : "A definir após contato"} />
+              <DetailCard label="Aceita em" value={selectedAppointment.acceptedAt ? new Date(selectedAppointment.acceptedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Registro anterior sem informação"} />
+              <DetailCard label="Aceita por" value={selectedAppointment.acceptedBySelf ? `Você (${selectedAppointment.acceptedByName || "usuário atual"})` : (selectedAppointment.acceptedByName || "Registro anterior sem informação")} />
+              <div className="sm:col-span-2 rounded-[15px] border border-hpsr-border bg-[#fffaf5] p-3">
+                <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Contato para agendamento</p>
+                {selectedAppointment.contactEmail ? <p className="mt-2 flex items-center gap-2 break-all text-sm font-black text-hpsr-text"><Mail size={15} className="text-hpsr-wine"/>{selectedAppointment.contactEmail}</p> : selectedAppointment.discordId ? <p className="mt-2 flex items-center gap-2 break-all text-sm font-black text-hpsr-text"><Hash size={15} className="text-hpsr-wine"/>Discord ID {selectedAppointment.discordId}</p> : <p className="mt-2 text-sm font-bold text-amber-800">Contato não registrado nesta solicitação antiga.</p>}
+              </div>
+              {selectedAppointment.reason && <DetailCard wide label="Motivo da solicitação" value={selectedAppointment.reason} />}
+              {selectedAppointment.notes && <DetailCard wide label="Observações" value={selectedAppointment.notes} />}
+            </div>
+          </section>
+        </div>
+      )}
+    </>
   );
+}
+
+function DetailCard({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+  return <div className={`rounded-[14px] border border-hpsr-border bg-white p-3 ${wide ? "sm:col-span-2" : ""}`}><p className="text-[10px] font-black uppercase tracking-[.13em] text-hpsr-wineLight">{label}</p><p className="mt-1 break-words text-sm font-bold text-hpsr-text">{value || "—"}</p></div>;
 }
 
 function RequestsCenterModal({
@@ -748,10 +821,11 @@ function RequestsTab({
                 <AppointmentCard
                   key={item.id ?? item.passport}
                   title={item.patient}
-                  subtitle={`Passaporte ${item.passport} · ${item.specialty} · Preferência: ${publicRequestPreferred(item)}`}
+                  subtitle={`Passaporte ${item.passport} · ${item.specialty} · Data e horário definidos após contato médico`}
                   status={<StatusBadge status={item.status} />}
                   meta={[
                     ["Fluxo", item.flowType || "Consulta comum"],
+                    ["Contato", item.contactEmail ? item.contactEmail : (item.discordId || item.discord) ? `Discord ID ${item.discordId || item.discord}` : "Não informado"],
                     ...(item.flowType === "Acompanhamento com especialista" ? [["Médico solicitado", item.requestedDoctorName || "Não informado"] as [string, string]] : []),
                     ["Objetivo", item.flowType === "Outros" ? (item.flowDetails || "Não informado") : (item.reason || "Aguardando análise médica")],
                     ...(patientAnsweredReschedule ? [["Resposta do paciente", item.patientResponse || item.status] as [string, string]] : []),
@@ -773,7 +847,6 @@ function RequestsTab({
                     ) : (
                       <>
                         <ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Aceita")}>Aceitar</ActionButton>
-                        <ActionButton onClick={() => openReschedule(item)}>Reagendar</ActionButton>
                         <ActionButton variant="danger" onClick={() => onUpdateStatus(item, "Recusada")}>Recusar</ActionButton>
                       </>
                     )
@@ -903,7 +976,7 @@ function FollowUpsTab() {
       <SectionTitle
         icon={<HeartPulse size={18} />}
         title="Acompanhamentos"
-        description="Pacientes em acompanhamento só escolhem horários liberados pelo médico responsável."
+        description="Pacientes em acompanhamento não definem horários pelo Portal. Os próximos atendimentos são combinados diretamente com o médico responsável."
       />
 
       {followUps.map((item) => (
@@ -919,8 +992,8 @@ function FollowUpsTab() {
           ]}
           actions={
             <>
-              <ActionButton variant="primary">Agendar</ActionButton>
-              <ActionButton>Ver horários</ActionButton>
+              <ActionButton variant="primary">Registrar horário combinado</ActionButton>
+              <ActionButton>Contato / histórico</ActionButton>
             </>
           }
         />
@@ -948,7 +1021,7 @@ function ReschedulesTab() {
       <SectionTitle
         icon={<RotateCcw size={18} />}
         title="Reagendamentos"
-        description="Ao reagendar, o sistema mostra apenas horários futuros livres, compatíveis com médico e especialidade."
+        description="O paciente não escolhe o novo horário pelo Portal. Após o contato, a equipe registra aqui o horário que foi combinado com o médico."
       />
 
       {reschedules.map((item) => (
@@ -966,7 +1039,7 @@ function ReschedulesTab() {
           alert={item.feeAlert ? "Reagendamento/cancelamento fora do prazo: possível taxa administrativa." : undefined}
           actions={
             <>
-              <ActionButton variant="primary">Escolher horário</ActionButton>
+              <ActionButton variant="primary">Registrar novo horário</ActionButton>
               <ActionButton>Histórico</ActionButton>
             </>
           }

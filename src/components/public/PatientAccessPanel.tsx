@@ -8,14 +8,13 @@ import {
 import { PatientRecordsPanel } from "@/components/public/PatientRecordsPanel";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { PatientAppointmentsPanel } from "@/components/public/PatientAppointmentsPanel";
-import { PatientBookingPanel } from "@/components/public/PatientBookingPanel";
 import { createClient } from "@/lib/supabase";
 import { clearAuthContext, clearLoginPersistence, setAuthContext } from "@/lib/auth-persistence";
 import { formatPhoneNumber } from "@/lib/phone";
 
 type Stage = "checking" | "login" | "register" | "portal";
 type PortalSection = "home" | "appointments" | "request" | "records" | "pending";
-type PortalPatient = { passport: string; name: string; relationship: string; access_type: string };
+type PortalPatient = { passport: string; name: string; relationship: string; access_type: string; hasEmail?: boolean };
 type PendingChildLink = { passport: string; name: string; relationship: string; status: string };
 type SessionResponse = { authenticated?: boolean; patientName?: string; accessiblePatients?: PortalPatient[]; pendingChildLinks?: PendingChildLink[] };
 
@@ -282,7 +281,7 @@ export function PatientAccessPanel() {
 
     return (
       <div className="mx-auto max-w-7xl">
-        <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="grid min-w-0 gap-4">
           <main className="min-w-0 overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-[0_14px_34px_rgba(82,48,27,.06)]">
             <div className="flex flex-col gap-3 border-b border-hpsr-border bg-[#fffaf4] p-3.5 sm:p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -354,15 +353,11 @@ export function PatientAccessPanel() {
                 </div>
               )}
               {portalSection === "appointments" && <PatientAppointmentsPanel view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
-              {portalSection === "request" && <PatientAppointmentsPanel view="request" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
+              {portalSection === "request" && <PatientAppointmentsPanel view="request" passport={selectedPassport} hasEmail={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasEmail} onSessionExpired={handleSessionExpired} />}
               {portalSection === "records" && <PatientRecordsPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
               {portalSection === "pending" && <PatientAppointmentsPanel view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
             </div>
           </main>
-
-          <aside className="min-w-0 lg:sticky lg:top-5">
-            <PatientBookingPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />
-          </aside>
         </div>
       {childOpen && (
         <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#2a0700]/55 p-0 sm:items-center sm:p-4">
@@ -515,7 +510,7 @@ export function PatientAccessPanel() {
                 </div>
               )}
               <Field label="Telefone"><input inputMode="numeric" maxLength={13} placeholder="(055) 626-323" value={register.phone} onChange={(e) => setRegister(v => ({...v, phone:formatPhoneNumber(e.target.value)}))} className="portal-input" /></Field>
-              <Field label="E-mail" wide><input type="email" autoComplete="email" value={register.email} onChange={(e) => setRegister(v => ({...v, email:e.target.value}))} className="portal-input" /></Field>
+              <Field label="E-mail para acesso e agendamento" wide><input type="email" autoComplete="email" value={register.email} onChange={(e) => setRegister(v => ({...v, email:e.target.value}))} className="portal-input" /><span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Mantenha este e-mail correto: ele será o principal contato do médico para combinar dia e horário das consultas.</span></Field>
               <Field label="Senha"><input type="password" autoComplete="new-password" value={register.password} onChange={(e) => setRegister(v => ({...v, password:e.target.value}))} className="portal-input" minLength={6} placeholder="Mínimo de 6 caracteres" /></Field>
               <Field label="Confirmar senha"><input type="password" autoComplete="new-password" value={register.confirmation} minLength={6} onChange={(e) => setRegister(v => ({...v, confirmation:e.target.value}))} className="portal-input" /></Field>
               </div>

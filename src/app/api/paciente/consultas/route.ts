@@ -73,6 +73,13 @@ export async function PATCH(request: NextRequest) {
       alternativeTime?: string;
     };
     if (!body.id || !body.action) return NextResponse.json({ ok: false, error: "Ação inválida." }, { status: 400 });
+    if (["accept_reschedule", "propose_alternative", "decline_reschedule", "send_availability"].includes(body.action)) {
+      return NextResponse.json({
+        ok: false,
+        code: "PATIENT_SCHEDULING_DISABLED",
+        error: "Data e horário não são definidos pelo Portal. Aguarde o contato do médico pelo e-mail cadastrado ou pelo ID do Discord informado.",
+      }, { status: 410 });
+    }
     const { data: row, error: readError } = await valid.supabase.from("appointments").select("id,passport,payload,status").eq("id", body.id).eq("passport", targetPassport).maybeSingle();
     if (readError || !row) return NextResponse.json({ ok: false, error: "Consulta não encontrada." }, { status: 404 });
     const payload = { ...((row.payload || {}) as Record<string, unknown>), patientResponseAt: brazilIso() } as Record<string, unknown>;

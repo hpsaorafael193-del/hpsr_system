@@ -410,10 +410,7 @@ export default function VaccinationPage() {
     setPatientName(selectedPatient.name);
     setPatientPassport(selectedPatient.passport);
     if (selectedPatient.birthDate) setBirthDate(selectedPatient.birthDate);
-    const detectedGroup = resolveRegisteredPatientGroup(selectedPatient);
-    setGroup(detectedGroup);
-    if (detectedGroup === "adulto" && selectedPatient.sex) setAdultVariant(selectedPatient.sex === "Feminino" ? "feminino" : "masculino");
-  }, [selectedPatient?.passport, selectedPatient?.age, selectedPatient?.birthDate, selectedPatient?.sex]);
+  }, [selectedPatient?.passport, selectedPatient?.birthDate]);
 
   useEffect(() => {
     setPreviewZoom(100);
@@ -519,14 +516,23 @@ export default function VaccinationPage() {
       client.from("patient_guardian_links").select("guardian_passport,relationship").eq("child_passport", passport).eq("access_status", "authorized"),
     ]);
     if (recordsResult.error) await hpsrAlert(recordsResult.error.message, "Não foi possível carregar o histórico vacinal");
-    setHistory((recordsResult.data || []).map(parseVaccineRow).filter(Boolean) as VaccinationApplication[]);
+    const parsedHistory = (recordsResult.data || []).map(parseVaccineRow).filter(Boolean) as VaccinationApplication[];
+    setHistory(parsedHistory);
     const registryPatient = registryResult.data as any;
     const registryBirthDate = String(registryPatient?.birth_date || "");
     setBirthDate(registryBirthDate);
-    const detectedGroup = resolveRegisteredPatientGroup({ age: String(registryPatient?.age || ""), birthDate: registryBirthDate });
-    setGroup(detectedGroup);
-    if (detectedGroup === "adulto" && (registryPatient?.sex === "Masculino" || registryPatient?.sex === "Feminino")) {
-      setAdultVariant(registryPatient.sex === "Feminino" ? "feminino" : "masculino");
+
+    // A caderneta exibida segue a última aplicação real do paciente.
+    // Sem histórico vacinal, usa apenas o fallback neutro definido para a tela.
+    const latestApplication = parsedHistory.length ? parsedHistory[parsedHistory.length - 1] : null;
+    if (latestApplication) {
+      setGroup(latestApplication.group);
+      if (latestApplication.group === "adulto") {
+        setAdultVariant(latestApplication.adultVariant || "masculino");
+      }
+    } else {
+      setGroup("adulto");
+      setAdultVariant("masculino");
     }
     const linked = (guardianResult.data || []) as any[];
     if (linked.length) {

@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
     const { data: access } = await supabase
       .from("patient_portal_access")
-      .select("patient_passport,access_enabled")
+      .select("patient_passport,email,access_enabled")
       .eq("id", session.portal_access_id)
       .maybeSingle();
     if (!access?.access_enabled) {
@@ -51,8 +51,20 @@ export async function GET(request: NextRequest) {
       relationship: String(link.relationship || "Responsável legal"),
       status: "pending",
     }));
+    const accessibleList = (accessiblePatients || []) as any[];
+    const accessiblePassports = accessibleList.map((item) => String(item.passport || "")).filter(Boolean);
+    const { data: patientContacts } = accessiblePassports.length
+      ? await supabase.from("patient_registry").select("passport,email").in("passport", accessiblePassports)
+      : { data: [] as any[] };
+    const emailByPassport = new Map((patientContacts || []).map((item: any) => [String(item.passport || ""), String(item.email || "").trim()]));
+    const accessibleWithContact = accessibleList.map((item) => {
+      const itemPassport = String(item.passport || "");
+      const registryEmail = emailByPassport.get(itemPassport) || "";
+      const accountEmail = itemPassport === passport ? String(access.email || "").trim() : "";
+      return { ...item, hasEmail: Boolean(registryEmail || accountEmail) };
+    });
     const passportHint = passport.length > 4 ? `${passport.slice(0, 2)}•••${passport.slice(-2)}` : "••••";
-    return NextResponse.json({ authenticated: true, expiresAt: session.expires_at, passportHint, patientName: patient?.name || "Paciente", accessiblePatients: accessiblePatients || [], pendingChildLinks });
+    return NextResponse.json({ authenticated: true, expiresAt: session.expires_at, passportHint, patientName: patient?.name || "Paciente", accessiblePatients: accessibleWithContact, pendingChildLinks });
   } catch (error) {
     console.error("[patient-portal] session", error);
     return NextResponse.json({ authenticated: false });
