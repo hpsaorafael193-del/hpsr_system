@@ -413,7 +413,7 @@ export function UserMenu() {
 
       {notificationsOpen && (
         <div className="fixed inset-0 z-[1200] flex items-center justify-center px-3 py-4 sm:px-5">
-          <button type="button" aria-label="Fechar notificações" onClick={() => setNotificationsOpen(false)} className="absolute inset-0 bg-[#2a0700]/45 backdrop-blur-[2px]" />
+          <button type="button" aria-label="Fechar notificações" onClick={() => setNotificationsOpen(false)} className="absolute inset-0 bg-[#2a0700]/45" />
           <section className="relative z-10 flex max-h-[min(720px,92dvh)] w-full max-w-[620px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf5] shadow-[0_28px_90px_rgba(42,7,0,.28)]">
             <header className="flex shrink-0 items-start justify-between gap-4 border-b border-hpsr-border bg-white px-5 py-4">
               <div className="flex min-w-0 items-center gap-3">

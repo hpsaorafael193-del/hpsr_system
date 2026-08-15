@@ -567,10 +567,10 @@ function AdmissionModal({
         type="button"
         aria-label="Fechar ficha de internação"
         onClick={onClose}
-        className="fixed inset-0 bg-[#1f0805]/62 backdrop-blur-md"
+        className="fixed inset-0 bg-[#1f0805]/62"
       />
 
-      <form onSubmit={handleSubmit} className="relative z-10 flex w-full max-w-6xl max-h-[90vh] flex-col overflow-hidden rounded-[18px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
+      <form onSubmit={handleSubmit} className="hpsr-modal-motion relative z-10 flex w-full max-w-6xl max-h-[90vh] flex-col overflow-hidden rounded-[18px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
         <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3">
@@ -774,10 +774,10 @@ function DischargeConfirmModal({
         type="button"
         aria-label="Cancelar alta hospitalar"
         onClick={onCancel}
-        className="fixed inset-0 bg-[#1f0805]/62 backdrop-blur-md"
+        className="fixed inset-0 bg-[#1f0805]/62"
       />
 
-      <section className="relative z-10 w-full max-w-md overflow-hidden rounded-[22px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
+      <section className="hpsr-modal-motion relative z-10 w-full max-w-md overflow-hidden rounded-[22px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
         <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] px-4 py-3">
           <div className="flex items-start gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[16px] bg-amber-100 text-amber-700">

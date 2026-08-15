@@ -32,7 +32,7 @@ export function DeveloperCreditsModal({ open, onClose }: { open: boolean; onClos
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#160500]/70 p-3 backdrop-blur-sm sm:p-6"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#160500]/70 p-3 sm:p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="developer-credits-title"
@@ -99,7 +99,7 @@ export function DeveloperCreditsModal({ open, onClose }: { open: boolean; onClos
           <div className="rounded-[16px] border border-[#ead6c4] bg-[#f5e8dc] px-4 py-4 text-center">
             <p className="text-sm font-black text-hpsr-wine">Desenvolvido para o Hospital São Rafael - Eldorado</p>
             <p className="mt-2 text-xs font-semibold text-hpsr-muted">© 2026 Luidhy Conceição dos Santos. Todos os direitos reservados.</p>
-            <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Versão do sistema: 1.0.252</p>
+            <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Versão do sistema: 1.0.254</p>
           </div>
 
           <button

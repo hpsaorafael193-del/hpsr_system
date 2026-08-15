@@ -649,10 +649,10 @@ function CastRecordModal({
         type="button"
         aria-label="Fechar ficha do gesso"
         onClick={onClose}
-        className="fixed inset-0 bg-[#1f0805]/62 backdrop-blur-md"
+        className="fixed inset-0 bg-[#1f0805]/62"
       />
 
-      <section className="relative z-10 w-full max-w-4xl overflow-hidden rounded-[22px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
+      <section className="hpsr-modal-motion relative z-10 w-full max-w-4xl overflow-hidden rounded-[22px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
         <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3">
@@ -775,7 +775,7 @@ function QuickPatientModal({ patient, setPatient, saving, onClose, onSave }: {
 }) {
   const field = (key: keyof PatientRegistryItem, value: string) => setPatient((current) => ({ ...current, [key]: value }));
   return (
-    <div className="fixed inset-0 z-[100000] grid place-items-center bg-[#1f0805]/62 p-4 backdrop-blur-md">
+    <div className="fixed inset-0 z-[100000] grid place-items-center bg-[#1f0805]/62 p-4">
       <section className="w-full max-w-xl overflow-hidden rounded-[22px] border border-white/40 bg-[#fffaf4] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
         <div className="flex items-start justify-between border-b border-hpsr-border bg-white px-5 py-4">
           <div className="flex gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-hpsr-border text-hpsr-wine"><UserPlus size={19}/></div><div><h3 className="font-black text-hpsr-text">Cadastro rápido de paciente</h3><p className="text-xs font-semibold text-hpsr-muted">O paciente será cadastrado no registro compartilhado e selecionado automaticamente.</p></div></div>

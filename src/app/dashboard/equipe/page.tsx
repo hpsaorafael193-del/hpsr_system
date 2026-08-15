@@ -1301,8 +1301,8 @@ function RegistrationRequestsModal({
 
   return (
     <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
-      <button type="button" aria-label="Fechar" onClick={onClose} className="fixed inset-0 bg-[#1f0805]/62 backdrop-blur-md" />
-      <div className="relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-[18px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,.36)]">
+      <button type="button" aria-label="Fechar" onClick={onClose} className="fixed inset-0 bg-[#1f0805]/62" />
+      <div className="hpsr-modal-motion relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-[18px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,.36)]">
         <div className="flex items-start justify-between gap-3 border-b border-hpsr-border bg-white px-5 py-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Acesso da equipe</p>
@@ -1399,8 +1399,8 @@ function AdministrativeActionModal({
 
   return (
     <div className="fixed inset-0 z-[100001] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
-      <button type="button" aria-label="Fechar modal" onClick={onCancel} className="fixed inset-0 bg-[#1f0805]/68 backdrop-blur-md" />
-      <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-[22px] border border-white/55 bg-[#fcf6ee] shadow-[0_32px_100px_rgba(27,10,7,.42)]">
+      <button type="button" aria-label="Fechar modal" onClick={onCancel} className="fixed inset-0 bg-[#1f0805]/68" />
+      <div className="hpsr-modal-motion relative z-10 w-full max-w-2xl overflow-hidden rounded-[22px] border border-white/55 bg-[#fcf6ee] shadow-[0_32px_100px_rgba(27,10,7,.42)]">
         <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f7eadc_55%,#f2e3d0_100%)] px-5 py-4 md:px-6 md:py-5">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
@@ -1464,8 +1464,8 @@ function PendingApplicationsModal({
   const pendingCount = items.length;
   return (
     <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
-      <button type="button" aria-label="Fechar modal" onClick={onClose} className="fixed inset-0 bg-[#1f0805]/62 backdrop-blur-md" />
-      <div className="relative z-10 flex w-full max-w-6xl flex-col overflow-hidden rounded-[16px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
+      <button type="button" aria-label="Fechar modal" onClick={onClose} className="fixed inset-0 bg-[#1f0805]/62" />
+      <div className="hpsr-modal-motion relative z-10 flex w-full max-w-6xl flex-col overflow-hidden rounded-[16px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
         <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Trabalhe Conosco</p><h2 className="mt-1 text-lg font-black text-hpsr-text">Formulários pendentes</h2><p className="mt-1 text-sm text-hpsr-muted">Somente candidaturas que ainda aguardam uma decisão final.</p></div>
@@ -1547,10 +1547,10 @@ function ApplicationAnalysisModal({
         type="button"
         aria-label="Fechar"
         onClick={onClose}
-        className="fixed inset-0 bg-[#1f0805]/68 backdrop-blur-md"
+        className="fixed inset-0 bg-[#1f0805]/68"
       />
 
-      <div className="relative z-10 flex w-full max-w-7xl flex-col overflow-hidden rounded-[22px] border border-white/55 bg-[#fcf6ee] shadow-[0_32px_100px_rgba(27,10,7,.42)]">
+      <div className="hpsr-modal-motion relative z-10 flex w-full max-w-7xl flex-col overflow-hidden rounded-[22px] border border-white/55 bg-[#fcf6ee] shadow-[0_32px_100px_rgba(27,10,7,.42)]">
         <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f7eadc_55%,#f2e3d0_100%)] px-5 py-4 md:px-6 md:py-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
@@ -2343,8 +2343,8 @@ function ManageMemberModal({
 
   return (
     <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3">
-      <button type="button" aria-label="Fechar" onClick={onClose} className="absolute inset-0 bg-[#2a0700]/56 backdrop-blur-sm" />
-      <form onSubmit={handleSubmit} className="relative z-10 flex w-full max-w-[1120px] max-h-[92vh] flex-col overflow-hidden rounded-[16px] border border-white/70 bg-[#fffaf4] shadow-[0_30px_90px_rgba(42,7,0,0.28)] md:rounded-[16px]">
+      <button type="button" aria-label="Fechar" onClick={onClose} className="absolute inset-0 bg-[#2a0700]/56" />
+      <form onSubmit={handleSubmit} className="hpsr-modal-motion relative z-10 flex w-full max-w-[1120px] max-h-[92vh] flex-col overflow-hidden rounded-[16px] border border-white/70 bg-[#fffaf4] shadow-[0_30px_90px_rgba(42,7,0,0.28)] md:rounded-[16px]">
         <div className="bg-[linear-gradient(135deg,#2a0700_0%,#672614_54%,#b18a72_100%)] px-4 py-3 text-white">
           <div className="flex items-start justify-between gap-3">
             <div>

@@ -3,6 +3,7 @@
 import {
   Children,
   isValidElement,
+  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -95,7 +96,7 @@ export function StyledSelect({
 
   useEffect(() => setMounted(true), []);
 
-  function updateMenuPosition() {
+  const updateMenuPosition = useCallback(() => {
     const button = buttonRef.current;
     if (!button) return;
 
@@ -115,7 +116,7 @@ export function StyledSelect({
     const top = placement === "bottom" ? rect.bottom + gap : rect.top - gap;
 
     setMenuPosition({ top, left, width, maxHeight, placement });
-  }
+  }, [shouldSearch]);
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -128,9 +129,10 @@ export function StyledSelect({
       window.removeEventListener("resize", handleViewportChange);
       window.removeEventListener("scroll", handleViewportChange, true);
     };
-  }, [open, shouldSearch]);
+  }, [open, updateMenuPosition]);
 
   useEffect(() => {
+    if (!open) return;
     function onPointerDown(event: PointerEvent) {
       const target = event.target as Node;
       if (!rootRef.current?.contains(target) && !menuRef.current?.contains(target)) setOpen(false);
@@ -144,7 +146,7 @@ export function StyledSelect({
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, []);
+  }, [open]);
 
   const visibleOptions = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase("pt-BR");

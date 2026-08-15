@@ -29,8 +29,8 @@ export function ApplicationHistoryModal({ items, onClose, onOpenAnalysis }: { it
 
   return (
     <div className="fixed inset-0 z-[100002] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
-      <button type="button" aria-label="Fechar histórico" onClick={onClose} className="fixed inset-0 bg-[#1f0805]/68 backdrop-blur-md" />
-      <div className="relative z-10 flex max-h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-[20px] border border-white/50 bg-[#fcf6ee] shadow-[0_32px_100px_rgba(27,10,7,.42)]">
+      <button type="button" aria-label="Fechar histórico" onClick={onClose} className="fixed inset-0 bg-[#1f0805]/68" />
+      <div className="hpsr-modal-motion relative z-10 flex max-h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-[20px] border border-white/50 bg-[#fcf6ee] shadow-[0_32px_100px_rgba(27,10,7,.42)]">
         <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Gestão de candidaturas</p><h2 className="mt-1 text-lg font-black text-hpsr-text">Candidatos</h2><p className="mt-1 text-xs text-hpsr-muted">Consulte todos os formulários, acompanhe as etapas e abra a análise quando necessário.</p></div>

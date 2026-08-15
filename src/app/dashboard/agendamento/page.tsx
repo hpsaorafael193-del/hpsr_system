@@ -608,8 +608,8 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
 
       {selectedAppointment && (
         <div className="fixed inset-0 z-[100000] grid place-items-center px-4 py-6">
-          <button type="button" aria-label="Fechar detalhes" onClick={() => setSelectedAppointment(null)} className="fixed inset-0 bg-[#1f0805]/65 backdrop-blur-sm" />
-          <section className="relative z-10 w-full max-w-xl overflow-hidden rounded-[20px] border border-hpsr-border bg-white shadow-2xl">
+          <button type="button" aria-label="Fechar detalhes" onClick={() => setSelectedAppointment(null)} className="fixed inset-0 bg-[#1f0805]/65" />
+          <section className="hpsr-modal-motion relative z-10 w-full max-w-xl overflow-hidden rounded-[20px] border border-hpsr-border bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-4">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Check-up do agendamento</p>
@@ -688,10 +688,10 @@ function RequestsCenterModal({
         type="button"
         aria-label="Fechar solicitações"
         onClick={onClose}
-        className="fixed inset-0 bg-[#1f0805]/65 backdrop-blur-md"
+        className="fixed inset-0 bg-[#1f0805]/65"
       />
 
-      <section className="relative z-10 flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-white">
+      <section className="hpsr-modal-motion relative z-10 flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-white">
         <div className="flex items-start justify-between gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-3.5">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">
@@ -866,9 +866,9 @@ function RequestsTab({
             type="button"
             aria-label="Fechar reagendamento"
             onClick={() => setRescheduleRequest(null)}
-            className="fixed inset-0 bg-[#1f0805]/65 backdrop-blur-sm"
+            className="fixed inset-0 bg-[#1f0805]/65"
           />
-          <section className="relative z-10 w-full max-w-lg overflow-hidden rounded-[18px] border border-hpsr-border bg-white shadow-2xl">
+          <section className="hpsr-modal-motion relative z-10 w-full max-w-lg overflow-hidden rounded-[18px] border border-hpsr-border bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-4">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Sugestão médica</p>

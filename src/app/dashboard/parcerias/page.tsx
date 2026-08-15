@@ -426,7 +426,7 @@ export default function PartnershipsPage() {
       )}
 
       {selected && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/35 p-3 backdrop-blur-[2px]" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/35 p-3" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
           <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[26px] border border-hpsr-border bg-[#fffdfb] shadow-2xl">
             <div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-hpsr-border bg-[#fffdfb]/95 p-5 backdrop-blur">
               <div className="flex min-w-0 items-center gap-3">
@@ -467,7 +467,7 @@ export default function PartnershipsPage() {
       )}
 
       {creating && canManage && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-3 backdrop-blur-[2px]">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 p-3">
           <div className="max-h-[88vh] w-full max-w-4xl overflow-y-auto rounded-[26px] border border-hpsr-border bg-[#fffdfb] shadow-2xl">
             <div className="sticky top-0 z-10 flex items-center justify-between border-b border-hpsr-border bg-[#fffdfb]/95 p-5 backdrop-blur"><div><p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Diretoria</p><h2 className="mt-1 text-lg font-black text-hpsr-text">{editing ? "Editar parceria" : "Registrar parceria"}</h2></div><button type="button" onClick={() => setCreating(false)} className="grid h-9 w-9 place-items-center rounded-xl border border-hpsr-border text-hpsr-wine"><X size={17} /></button></div>
             <div className="space-y-4 p-4 sm:p-5">
