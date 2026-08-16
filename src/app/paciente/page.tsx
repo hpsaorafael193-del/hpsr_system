@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BadgeDollarSign, CalendarClock, FileHeart, FileText, ShieldCheck, Stethoscope, MessageCircleWarning } from "lucide-react";
+import { BadgeDollarSign, CalendarClock, FileHeart, FileText, ShieldCheck, Stethoscope } from "lucide-react";
 import { PublicShell } from "@/components/public/PublicShell";
 import { PatientAccessPanel } from "@/components/public/PatientAccessPanel";
 
@@ -24,17 +24,6 @@ export default function PatientPortalPage() {
             </div>
           </header>
 
-          <section className="mx-auto mt-5 w-full overflow-hidden rounded-[22px] border-2 border-blue-300 bg-[linear-gradient(135deg,#eff7ff_0%,#dfeeff_100%)] p-4 shadow-[0_14px_32px_rgba(37,99,235,.10)] sm:p-5">
-            <div className="flex items-start gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-blue-700 text-white"><MessageCircleWarning size={21} /></span>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[.16em] text-blue-700">Importante antes de solicitar</p>
-                <h2 className="mt-1 text-lg font-black text-blue-950">O horário é sempre combinado com o médico</h2>
-                <p className="mt-1.5 text-sm font-semibold leading-relaxed text-blue-900">Você não escolhe dia ou horário no Portal. Isso vale para primeira consulta, retorno, reagendamento e pacientes já em acompanhamento. Envie a solicitação e aguarde o contato direto do médico responsável pelo Discord/contato cadastrado.</p>
-                <p className="mt-2 text-xs font-black text-rose-600">Se o Portal pedir seu ID do Discord, informe somente o ID numérico — nunca apelido ou nome de usuário.</p>
-              </div>
-            </div>
-          </section>
 
           <section className="mx-auto mt-6 w-full">
             <PatientAccessPanel />
