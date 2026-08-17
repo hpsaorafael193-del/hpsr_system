@@ -1,5 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient as createSupabaseJsClient, type SupabaseClient } from "@supabase/supabase-js";
 
 function getSupabasePublicKey() {
   return (
@@ -31,4 +31,43 @@ export function createClient() {
   // listeners de autenticação e estruturas internas a cada consulta.
   browserClient = createBrowserClient(url, key);
   return browserClient;
+}
+
+let passwordRecoveryClient: SupabaseClient | null | undefined;
+
+/**
+ * Cliente isolado apenas para recuperação de senha por e-mail.
+ *
+ * O cliente principal usa PKCE/SSR, que depende do code_verifier salvo no
+ * navegador que iniciou o fluxo. Para links de recuperação enviados por
+ * e-mail isso é frágil: o paciente pode abrir o link em outro dispositivo ou
+ * navegador e receber "PKCE code verifier not found".
+ *
+ * A recuperação acontece inteiramente no navegador, então usamos implicit
+ * flow somente aqui. O token volta no fragmento da URL, é processado pelo
+ * supabase-js e não depende do storage do dispositivo que pediu o link.
+ * O storageKey separado impede interferência na sessão normal do HPSR.
+ */
+export function createPasswordRecoveryClient() {
+  if (passwordRecoveryClient !== undefined) return passwordRecoveryClient;
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = getSupabasePublicKey();
+
+  if (!url?.trim() || !key?.trim()) {
+    passwordRecoveryClient = null;
+    return passwordRecoveryClient;
+  }
+
+  passwordRecoveryClient = createSupabaseJsClient(url, key, {
+    auth: {
+      flowType: "implicit",
+      detectSessionInUrl: true,
+      persistSession: true,
+      autoRefreshToken: false,
+      storageKey: "hpsr-password-recovery",
+    },
+  });
+
+  return passwordRecoveryClient;
 }

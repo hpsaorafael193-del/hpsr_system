@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogIn } from "lucide-react";
 import { LoginModal } from "./LoginModal";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,15 @@ export function MedicalLoginButton({
   iconSize?: number;
 }) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("acesso") !== "medico") return;
+    setOpen(true);
+    params.delete("acesso");
+    const query = params.toString();
+    window.history.replaceState({}, document.title, `${window.location.pathname}${query ? `?${query}` : ""}${window.location.hash}`);
+  }, []);
 
   return (
     <>

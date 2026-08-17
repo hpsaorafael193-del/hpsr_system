@@ -11,7 +11,7 @@ import { PatientAppointmentsPanel } from "@/components/public/PatientAppointment
 import { PatientExamRequestsPanel } from "@/components/public/PatientExamRequestsPanel";
 import { PatientFollowupsPanel, type PatientFollowupData } from "@/components/public/PatientFollowupsPanel";
 import { PatientProfilePanel } from "@/components/public/PatientProfilePanel";
-import { createClient } from "@/lib/supabase";
+import { createClient, createPasswordRecoveryClient } from "@/lib/supabase";
 import { clearAuthContext, clearLoginPersistence, setAuthContext } from "@/lib/auth-persistence";
 import { formatPhoneNumber } from "@/lib/phone";
 
@@ -236,9 +236,9 @@ export function PatientAccessPanel() {
     if (!email.trim()) { setError("Informe seu e-mail antes de solicitar a recuperação."); return; }
     setBusy(true);
     try {
-      const supabase = createClient();
+      const supabase = createPasswordRecoveryClient();
       if (!supabase) throw new Error("O serviço de acesso não está configurado.");
-      const redirectTo = `${window.location.origin}/redefinir-senha`;
+      const redirectTo = `${window.location.origin}/redefinir-senha?origem=paciente`;
       try { window.localStorage.setItem("hpsr_password_recovery_origin", "paciente"); } catch {}
       const { error: recoverError } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo });
       if (recoverError) throw recoverError;

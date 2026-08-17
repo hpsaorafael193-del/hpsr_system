@@ -3,9 +3,9 @@
 import { FormEvent, useEffect, useState } from "react";
 import { AlertCircle, CheckCircle2, KeyRound, LockKeyhole, RefreshCw } from "lucide-react";
 import { PublicShell } from "@/components/public/PublicShell";
-import { createClient } from "@/lib/supabase";
+import { createPasswordRecoveryClient } from "@/lib/supabase";
 
-const expiredMessage = "O link de recuperação é inválido, já foi utilizado ou expirou. Solicite um novo link na tela de login.";
+const expiredMessage = "Este link não pode mais ser usado. Solicite um novo link de recuperação.";
 
 export default function RedefinirSenhaPage() {
   const [password, setPassword] = useState("");
@@ -15,10 +15,10 @@ export default function RedefinirSenhaPage() {
   const [checking, setChecking] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [origin, setOrigin] = useState<"paciente" | "equipe">("equipe");
+  const [origin, setOrigin] = useState<"paciente" | "equipe">("paciente");
 
   useEffect(() => {
-    const client = createClient();
+    const client = createPasswordRecoveryClient();
     if (!client) {
       setChecking(false);
       setMessage("Não foi possível conectar ao Supabase.");
@@ -27,12 +27,23 @@ export default function RedefinirSenhaPage() {
 
     let active = true;
     let resolved = false;
+    let expiryTimer: number | undefined;
 
-    let preferredOrigin: "paciente" | "equipe" | null = null;
-    try {
-      const saved = window.localStorage.getItem("hpsr_password_recovery_origin");
-      if (saved === "paciente" || saved === "equipe") { preferredOrigin = saved; setOrigin(saved); }
-    } catch {}
+    const url = new URL(window.location.href);
+    const queryOrigin = url.searchParams.get("origem");
+    let preferredOrigin: "paciente" | "equipe" | null =
+      queryOrigin === "equipe" ? "equipe" : queryOrigin === "paciente" ? "paciente" : null;
+
+    if (!preferredOrigin) {
+      try {
+        const saved = window.localStorage.getItem("hpsr_password_recovery_origin");
+        if (saved === "paciente" || saved === "equipe") preferredOrigin = saved;
+      } catch {}
+    }
+
+    // Links antigos sem identificação pertencem ao Portal do Paciente por padrão.
+    // Isso evita que uma recuperação do paciente caia no login interno da equipe.
+    setOrigin(preferredOrigin || "paciente");
 
     const detectOrigin = async (userId?: string) => {
       if (!active || preferredOrigin || !userId) return;
@@ -46,87 +57,52 @@ export default function RedefinirSenhaPage() {
     };
 
     const acceptSession = (session?: { user?: { id?: string } } | null) => {
-      if (!active) return;
+      if (!active || resolved) return;
       resolved = true;
+      if (expiryTimer) window.clearTimeout(expiryTimer);
       setReady(true);
       setChecking(false);
       setMessage("");
       void detectOrigin(session?.user?.id);
+      // Remove parâmetros/tokens da barra sem perder a origem usada nos botões da tela.
+      window.history.replaceState({}, document.title, url.pathname);
     };
 
-    const rejectLink = (detail?: string) => {
+    const rejectLink = (_detail?: string) => {
       if (!active || resolved) return;
+      resolved = true;
       setReady(false);
       setChecking(false);
-      setMessage(detail ? `${expiredMessage} (${detail})` : expiredMessage);
+      // Não expõe mensagens internas de Auth (PKCE, storage, tokens) ao paciente.
+      setMessage(expiredMessage);
     };
 
-    const { data: listener } = client.auth.onAuthStateChange((event, session) => {
-      if (!active) return;
-      if (event === "PASSWORD_RECOVERY" && session) {
-        acceptSession(session);
-      }
-    });
-
-    async function resolveRecoveryLink(supabaseClient: NonNullable<ReturnType<typeof createClient>>) {
-      try {
-        const url = new URL(window.location.href);
-        const urlError = url.searchParams.get("error_description") || url.searchParams.get("error");
-        if (urlError) {
-          rejectLink(decodeURIComponent(urlError.replace(/\+/g, " ")));
-          return;
-        }
-
-        // Fluxo PKCE atual do Supabase: o redirect recebe ?code=...
-        const code = url.searchParams.get("code");
-        if (code) {
-          const { data, error } = await supabaseClient.auth.exchangeCodeForSession(code);
-          if (error || !data.session) {
-            rejectLink(error?.message);
-            return;
-          }
-          window.history.replaceState({}, document.title, url.pathname);
-          acceptSession(data.session);
-          return;
-        }
-
-        // Compatibilidade com links antigos/implicit flow: #access_token=...&refresh_token=...
-        const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
-        const accessToken = hash.get("access_token");
-        const refreshToken = hash.get("refresh_token");
-        const hashError = hash.get("error_description") || hash.get("error");
-        if (hashError) {
-          rejectLink(decodeURIComponent(hashError.replace(/\+/g, " ")));
-          return;
-        }
-        if (accessToken && refreshToken) {
-          const { data, error } = await supabaseClient.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          if (error || !data.session) {
-            rejectLink(error?.message);
-            return;
-          }
-          window.history.replaceState({}, document.title, url.pathname);
-          acceptSession(data.session);
-          return;
-        }
-
-        // Uma sessão normal não deve liberar a troca de senha.
-        // Sem código/token de recuperação, aguardamos apenas o evento PASSWORD_RECOVERY.
-        window.setTimeout(() => {
-          if (!resolved) rejectLink();
-        }, 1800);
-      } catch (error) {
-        rejectLink(error instanceof Error ? error.message : undefined);
-      }
+    const queryError = url.searchParams.get("error_description") || url.searchParams.get("error");
+    const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+    const hashError = hash.get("error_description") || hash.get("error");
+    if (queryError || hashError) {
+      const detail = queryError || hashError || undefined;
+      rejectLink(detail ? decodeURIComponent(detail.replace(/\+/g, " ")) : undefined);
+      return () => { active = false; };
     }
 
-    void resolveRecoveryLink(client);
+    // O cliente do Supabase processa o retorno da recuperação e emite PASSWORD_RECOVERY.
+    // Não trocamos o code manualmente aqui: tentar fazer as duas coisas pode consumir
+    // o mesmo código duas vezes e transformar um link válido em "expirado".
+    const { data: listener } = client.auth.onAuthStateChange((event, session) => {
+      if (!active) return;
+      if (event === "PASSWORD_RECOVERY" && session) acceptSession(session);
+    });
+
+    // Dá tempo para o SDK concluir o processamento do callback. Sessões normais não
+    // liberam esta tela: somente PASSWORD_RECOVERY é aceito.
+    expiryTimer = window.setTimeout(() => {
+      if (!resolved) rejectLink();
+    }, 10000);
 
     return () => {
       active = false;
+      if (expiryTimer) window.clearTimeout(expiryTimer);
       listener.subscription.unsubscribe();
     };
   }, []);
@@ -142,7 +118,7 @@ export default function RedefinirSenhaPage() {
       setMessage("A confirmação não corresponde à nova senha.");
       return;
     }
-    const client = createClient();
+    const client = createPasswordRecoveryClient();
     if (!client) {
       setMessage("Não foi possível conectar ao Supabase.");
       return;
@@ -178,7 +154,7 @@ export default function RedefinirSenhaPage() {
               <div className="rounded-[18px] border border-emerald-200 bg-emerald-50 p-5 text-center">
                 <CheckCircle2 className="mx-auto text-emerald-700" size={34} />
                 <p className="mt-3 font-black text-emerald-900">{message}</p>
-                <a href={origin === "paciente" ? "/paciente" : "/login"} className="mt-5 inline-flex rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white">{origin === "paciente" ? "Voltar ao Portal do Paciente" : "Voltar ao login"}</a>
+                <a href={origin === "paciente" ? "/paciente" : "/?acesso=medico"} className="mt-5 inline-flex rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white">{origin === "paciente" ? "Voltar ao Portal do Paciente" : "Voltar ao login"}</a>
               </div>
             ) : ready ? (
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -197,7 +173,7 @@ export default function RedefinirSenhaPage() {
               <div className="rounded-[18px] border border-amber-200 bg-amber-50 p-5 text-center">
                 <AlertCircle className="mx-auto text-amber-700" size={32} />
                 <p className="mt-3 text-sm font-bold leading-relaxed text-amber-950">{message}</p>
-                <a href={origin === "paciente" ? "/paciente" : "/login"} className="mt-5 inline-flex rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white">Solicitar novo link</a>
+                <a href={origin === "paciente" ? "/paciente" : "/?acesso=medico"} className="mt-5 inline-flex rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white">Solicitar novo link</a>
               </div>
             )}
           </div>

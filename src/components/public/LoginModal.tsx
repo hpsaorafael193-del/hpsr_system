@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { BadgeInfo, Hash, IdCard, Lock, LogIn, Mail, Phone, ShieldCheck, Stethoscope, UserRound, X } from "lucide-react";
 import { currentUserProfile } from "@/data/current-user-profile";
-import { createClient, isSupabaseConfigured } from "@/lib/supabase";
+import { createClient, createPasswordRecoveryClient, isSupabaseConfigured } from "@/lib/supabase";
 import { LOCAL_AUTH_SESSION_KEY, STAFF_REGISTRATION_REQUESTS_KEY } from "@/lib/local-auth";
 import { registerSystemActivity } from "@/lib/administrative-storage";
 import { setAuthContext, setLoginPersistence } from "@/lib/auth-persistence";
@@ -137,13 +137,13 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       setAuthMessage("Informe o e-mail institucional para receber o link de redefinição.");
       return;
     }
-    const client = createClient();
+    const client = createPasswordRecoveryClient();
     if (!client) {
       setAuthMessage("Não foi possível conectar ao Supabase.");
       return;
     }
     setAuthLoading(true);
-    const redirectTo = `${window.location.origin}/redefinir-senha`;
+    const redirectTo = `${window.location.origin}/redefinir-senha?origem=equipe`;
     try { window.localStorage.setItem("hpsr_password_recovery_origin", "equipe"); } catch {}
     const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
     setAuthLoading(false);
