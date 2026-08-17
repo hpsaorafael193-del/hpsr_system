@@ -55,7 +55,7 @@ export default function PatientPortalPage() {
                   <Step number="1" title="Solicitação" text="Você informa a necessidade da consulta. Não é necessário escolher dia ou horário pelo Portal." />
                   <Step number="2" title="Contato médico" text="Após a análise, aguarde o contato direto do médico responsável pelo Discord/contato cadastrado. Não escolha data ou horário no Portal." />
                   <Step number="3" title="Agendamento" text="A data e o horário são definidos diretamente com o médico e passam a aparecer no acompanhamento da consulta." />
-                  <Step number="4" title="Acompanhamento" text="Mesmo durante o acompanhamento, retornos e alterações de horário continuam sendo combinados diretamente com o médico." />
+                  <Step number="4" title="Acompanhamento" text="Acompanhamentos ativos aparecem no Portal sem exigir uma nova solicitação. Quando houver disponibilidade na agenda, o paciente recebe a atualização e aguarda a definição do médico." />
                 </div>
               </article>
 

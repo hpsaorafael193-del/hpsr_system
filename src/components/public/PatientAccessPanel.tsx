@@ -2,18 +2,20 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
-  AlertCircle, Baby, CalendarClock, ClipboardPlus, FileHeart,
+  AlertCircle, Baby, BellRing, CalendarClock, ClipboardPlus, FileHeart, FlaskConical, HeartPulse,
   Loader2, LockKeyhole, LogIn, Plus, ShieldCheck, Trash2, UserPlus, X,
 } from "lucide-react";
 import { PatientRecordsPanel } from "@/components/public/PatientRecordsPanel";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { PatientAppointmentsPanel } from "@/components/public/PatientAppointmentsPanel";
+import { PatientExamRequestsPanel } from "@/components/public/PatientExamRequestsPanel";
+import { PatientFollowupsPanel, type PatientFollowupData } from "@/components/public/PatientFollowupsPanel";
 import { createClient } from "@/lib/supabase";
 import { clearAuthContext, clearLoginPersistence, setAuthContext } from "@/lib/auth-persistence";
 import { formatPhoneNumber } from "@/lib/phone";
 
 type Stage = "checking" | "login" | "register" | "portal";
-type PortalSection = "home" | "appointments" | "request" | "records" | "pending";
+type PortalSection = "home" | "appointments" | "request" | "followups" | "exam-request" | "records" | "pending";
 type PortalPatient = { passport: string; name: string; relationship: string; access_type: string; hasEmail?: boolean };
 type PendingChildLink = { passport: string; name: string; relationship: string; status: string };
 type SessionResponse = { authenticated?: boolean; patientName?: string; accessiblePatients?: PortalPatient[]; pendingChildLinks?: PendingChildLink[] };
@@ -51,6 +53,31 @@ export function PatientAccessPanel() {
   const [portalSection, setPortalSection] = useState<PortalSection>("home");
   const [childOpen, setChildOpen] = useState(false);
   const [childForm, setChildForm] = useState({ name: "", passport: "", age: "", birthDate: "", bloodType: "", relationship: "Responsável legal" });
+  const [followupData, setFollowupData] = useState<PatientFollowupData | null>(null);
+  const [followupLoading, setFollowupLoading] = useState(false);
+  const [followupError, setFollowupError] = useState("");
+
+  const loadFollowups = useCallback(async (passport: string) => {
+    if (!passport) { setFollowupData(null); setFollowupError(""); return; }
+    setFollowupLoading(true);
+    setFollowupError("");
+    try {
+      const response = await fetch(`/api/paciente/acompanhamentos?passport=${encodeURIComponent(passport)}`, { cache: "no-store" });
+      const data = await response.json();
+      if (response.status === 401) return;
+      if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível carregar os acompanhamentos.");
+      setFollowupData({
+        followups: data.followups || [],
+        agendaAvailableCount: Number(data.agendaAvailableCount || 0),
+        scheduledCount: Number(data.scheduledCount || 0),
+        checkedAt: data.checkedAt,
+      });
+    } catch (caught) {
+      setFollowupError(caught instanceof Error ? caught.message : "Não foi possível carregar os acompanhamentos.");
+    } finally {
+      setFollowupLoading(false);
+    }
+  }, []);
 
   const checkSession = useCallback(async () => {
     try {
@@ -72,6 +99,11 @@ export function PatientAccessPanel() {
     setStage("login");
     return false;
   }, []);
+
+  useEffect(() => {
+    if (stage === "portal" && selectedPassport) void loadFollowups(selectedPassport);
+    else if (stage !== "portal") setFollowupData(null);
+  }, [loadFollowups, selectedPassport, stage]);
 
   useEffect(() => {
     try {
@@ -243,7 +275,7 @@ export function PatientAccessPanel() {
       const supabase = createClient();
       if (supabase) await supabase.auth.signOut();
     } finally {
-      setBusy(false); setStage("login"); setPassword(""); setPatientName("Paciente"); setPortalSection("home"); window.dispatchEvent(new Event("hpsr-patient-session-changed"));
+      setBusy(false); setStage("login"); setPassword(""); setPatientName("Paciente"); setFollowupData(null); setPortalSection("home"); window.dispatchEvent(new Event("hpsr-patient-session-changed"));
     }
   }
 
@@ -274,7 +306,9 @@ export function PatientAccessPanel() {
   if (stage === "portal") {
     const sections = [
       { id: "appointments" as const, icon: CalendarClock, title: "Meus agendamentos", subtitle: "Veja datas, horários, status e respostas da equipe médica." },
-      { id: "request" as const, icon: ClipboardPlus, title: "Solicitar consulta", subtitle: "Envie uma nova solicitação para análise da equipe." },
+      { id: "request" as const, icon: ClipboardPlus, title: "Solicitar consulta", subtitle: "Envie uma nova solicitação de consulta para análise da equipe." },
+      { id: "followups" as const, icon: HeartPulse, title: "Acompanhamentos", subtitle: "Acompanhe vínculos clínicos e atualizações da agenda médica." },
+      { id: "exam-request" as const, icon: FlaskConical, title: "Solicitar exame", subtitle: "Envie uma solicitação de exame sem criar uma consulta." },
       { id: "records" as const, icon: FileHeart, title: "Meu prontuário", subtitle: "Exames, documentos e serviços liberados pelo HP." },
       { id: "pending" as const, icon: AlertCircle, title: "Pendências", subtitle: "Acompanhe respostas, justificativas e avisos importantes." },
     ];
@@ -313,7 +347,7 @@ export function PatientAccessPanel() {
                 </div>
               </div>
 
-              <nav className="grid grid-cols-2 gap-2 xl:grid-cols-4" aria-label="Áreas do portal">
+              <nav className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6" aria-label="Áreas do portal">
                 {sections.map(({ id, icon: Icon, title }) => {
                   const active = portalSection === id;
                   return (
@@ -325,6 +359,7 @@ export function PatientAccessPanel() {
                     >
                       <Icon size={16} />
                       <span>{title}</span>
+                      {id === "followups" && Boolean(followupData?.agendaAvailableCount) && <span className={`ml-1 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[9px] font-black ${active ? "bg-white text-hpsr-wine" : "bg-blue-700 text-white"}`}>{followupData?.agendaAvailableCount}</span>}
                     </button>
                   );
                 })}
@@ -346,14 +381,22 @@ export function PatientAccessPanel() {
                   <p className="mt-2 text-xs font-semibold leading-relaxed text-amber-900">O prontuário já foi localizado ou preparado pelo sistema, mas os dados clínicos só serão liberados após a validação.</p>
                 </div>
               )}
+              {Boolean(followupData?.agendaAvailableCount) && portalSection === "home" && (
+                <button type="button" onClick={() => setPortalSection("followups")} className="mb-3 flex w-full items-start gap-3 rounded-[16px] border-2 border-blue-300 bg-[linear-gradient(135deg,#eff7ff_0%,#dfeeff_100%)] p-3.5 text-left shadow-[0_10px_22px_rgba(37,99,235,.07)]">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-blue-700 text-white"><BellRing size={18}/></span>
+                  <span className="min-w-0"><strong className="block text-sm font-black text-blue-950">Agenda disponível em acompanhamento</strong><span className="mt-1 block text-xs font-semibold leading-relaxed text-blue-900">Há atualização em {followupData?.agendaAvailableCount} acompanhamento{followupData?.agendaAvailableCount === 1 ? "" : "s"}. Toque para ver os detalhes.</span></span>
+                </button>
+              )}
               {portalSection === "home" && (
                 <div className="rounded-[16px] border border-dashed border-hpsr-border bg-[#fffdf9] px-4 py-8 text-center">
                   <p className="text-sm font-black text-hpsr-text">Escolha uma opção acima para continuar.</p>
-                  <p className="mt-1 text-xs font-semibold text-hpsr-muted">Consulte horários, envie solicitações, veja seu prontuário ou responda pendências.</p>
+                  <p className="mt-1 text-xs font-semibold text-hpsr-muted">Consulte seus agendamentos, acompanhe vínculos clínicos, envie solicitações específicas e veja seu prontuário.</p>
                 </div>
               )}
               {portalSection === "appointments" && <PatientAppointmentsPanel view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
               {portalSection === "request" && <PatientAppointmentsPanel view="request" passport={selectedPassport} hasEmail={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasEmail} onSessionExpired={handleSessionExpired} />}
+              {portalSection === "followups" && <PatientFollowupsPanel data={followupData} loading={followupLoading} error={followupError} onRefresh={() => void loadFollowups(selectedPassport)} />}
+              {portalSection === "exam-request" && <PatientExamRequestsPanel passport={selectedPassport} hasEmail={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasEmail} onSessionExpired={handleSessionExpired} />}
               {portalSection === "records" && <PatientRecordsPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
               {portalSection === "pending" && <PatientAppointmentsPanel view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
             </div>
@@ -434,7 +477,7 @@ export function PatientAccessPanel() {
                 </div>
                 <div className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3">
                   <p className="text-sm font-black text-hpsr-text">2. Acesse seu painel</p>
-                  <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Depois do login, você poderá solicitar consulta, acompanhar marcações, ver prontuário liberado e pendências.</p>
+                  <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Depois do login, consultas, exames e acompanhamentos aparecem em fluxos próprios: você solicita apenas o que precisa e acompanha cada etapa sem misturar informações.</p>
                 </div>
                 <div className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3">
                   <p className="text-sm font-black text-hpsr-text">3. Recupere o acesso quando precisar</p>

@@ -134,7 +134,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
         await client.from("clinical_availability_series").delete().eq("id", created.id);
         throw new Error("Nenhum horário novo foi criado. As vagas desse médico nesse período já existem no sistema.");
       }
-      setMessage(`${confirmedCount} horário${confirmedCount === 1 ? "" : "s"} publicado${confirmedCount === 1 ? "" : "s"} para pacientes com acesso à especialidade ${form.specialty}.`);
+      setMessage(`${confirmedCount} horário${confirmedCount === 1 ? "" : "s"} publicado${confirmedCount === 1 ? "" : "s"}. Acompanhamentos compatíveis em ${form.specialty} passarão a sinalizar agenda disponível no Portal.`);
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível publicar os horários.");
@@ -176,7 +176,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
       {!embedded && (
         <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4,#fff)] px-5 py-4">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-start gap-3"><div className="grid h-11 w-11 place-items-center rounded-[15px] bg-hpsr-wine text-white"><CalendarPlus2 size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Agenda médica</p><h2 className="mt-1 text-xl font-black text-hpsr-text">Publicar horários</h2><p className="mt-1 text-sm font-semibold text-hpsr-muted">Publique livremente por especialidade. O portal exibirá as vagas aos pacientes autorizados no prontuário.</p></div></div>
+            <div className="flex items-start gap-3"><div className="grid h-11 w-11 place-items-center rounded-[15px] bg-hpsr-wine text-white"><CalendarPlus2 size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Agenda médica</p><h2 className="mt-1 text-xl font-black text-hpsr-text">Publicar horários</h2><p className="mt-1 text-sm font-semibold text-hpsr-muted">Publique a disponibilidade por especialidade. Nos acompanhamentos compatíveis, o Portal avisará o paciente de que a agenda está disponível, sem permitir que ele escolha o horário.</p></div></div>
             <div className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2 text-right"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-hpsr-muted">Sequências ativas</p><p className="mt-0.5 text-xl font-black text-hpsr-wine">{series.length}</p></div>
           </div>
         </div>
@@ -188,7 +188,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
             <label className={`${label} md:col-span-3`}>Especialidade<StyledSelect value={form.specialty} onChange={(event) => setForm({ ...form, specialty: event.target.value })} className={field}>{specialties.map((specialty) => <option key={specialty}>{specialty}</option>)}</StyledSelect></label>
             <label className={label}>Data inicial<input type="date" min={today} value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value, endDate: form.endDate < event.target.value ? event.target.value : form.endDate })} className={field} /></label>
             <label className={label}>Data final<input type="date" min={form.startDate || today} value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} className={field} /></label>
-            <div className="rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3"><p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Acesso dos pacientes</p><p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Somente pacientes com esta especialidade liberada no prontuário verão os horários.</p></div>
+            <div className="rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3"><p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Acesso dos pacientes</p><p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">A disponibilidade alimenta o acompanhamento compatível. O paciente recebe o aviso, enquanto a definição do horário continua sob responsabilidade médica.</p></div>
           </div>
 
           <div className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3.5">
@@ -215,7 +215,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
             <div className="flex items-center gap-3 rounded-[13px] border border-hpsr-border bg-white p-3"><Clock3 size={18} className="text-hpsr-wine" /><div><p className="text-[10px] uppercase tracking-wider text-hpsr-muted">Faixa diária</p><p className="text-sm font-black text-hpsr-text">{form.startTime} — {form.endTime}</p></div></div>
             <div className="grid grid-cols-2 gap-2"><div className="rounded-[13px] border border-hpsr-border bg-white p-3"><Gauge size={16} className="text-hpsr-wine" /><p className="mt-2 text-[10px] uppercase tracking-wider text-hpsr-muted">Vagas/dia</p><p className="mt-0.5 text-xl font-black text-hpsr-text">{Math.min(MAX_DAILY_SLOTS, Math.max(1, Number(form.dailyLimit) || MAX_DAILY_SLOTS))}</p></div><div className="rounded-[13px] border border-hpsr-border bg-white p-3"><Repeat2 size={16} className="text-hpsr-wine" /><p className="mt-2 text-[10px] uppercase tracking-wider text-hpsr-muted">Duração</p><p className="mt-0.5 text-xl font-black text-hpsr-text">{form.duration}<span className="ml-1 text-xs">min</span></p></div></div>
           </div>
-          <p className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-900">Não é necessário criar planejamento. A vaga será exibida de acordo com a especialidade liberada no prontuário e deixará de aceitar confirmação 24 horas antes.</p>
+          <p className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-900">A publicação não cria consulta nem acompanhamento automaticamente. Ela apenas disponibiliza a agenda; vínculos clínicos existentes recebem a atualização e o horário continua sendo definido pela equipe médica.</p>
         </aside>
       </div>
 

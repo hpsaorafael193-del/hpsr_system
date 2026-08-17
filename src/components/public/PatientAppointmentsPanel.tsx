@@ -2,7 +2,7 @@
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, RefreshCcw, Stethoscope, XCircle, CalendarClock, MessageCircleWarning } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, RefreshCcw, CalendarClock, MessageCircleWarning } from "lucide-react";
 import { specialties } from "@/data/mock";
 
 type Appointment = {
@@ -48,7 +48,7 @@ function DiscordSchedulingNotice({ compact = false }: { compact?: boolean }) {
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[.16em] text-blue-700">Atenção ao agendamento</p>
           <h3 className="mt-1 text-base font-black text-blue-950 sm:text-lg">Você não escolhe dia ou horário pelo Portal</h3>
-          <p className="mt-1.5 text-xs font-semibold leading-relaxed text-blue-900 sm:text-sm">Envie apenas a solicitação. Depois da análise, o médico responsável entra em contato diretamente para combinar a data e o horário. Essa regra também vale para pacientes que já estão em acompanhamento, retornos e reagendamentos.</p>
+          <p className="mt-1.5 text-xs font-semibold leading-relaxed text-blue-900 sm:text-sm">Para uma nova consulta, envie apenas a solicitação. Depois da análise, o médico responsável entra em contato para combinar data e horário. Acompanhamentos ativos seguem em fluxo próprio e não precisam de uma nova solicitação para cada retorno.</p>
           {!compact && <div className="mt-3 rounded-[14px] border border-blue-200 bg-white/80 px-3.5 py-3 text-xs leading-relaxed text-blue-800">
             <p className="font-black">Contato pelo Discord — use o ID correto</p>
             <p className="mt-1"><strong>PC:</strong> abra seu perfil no Discord e use <strong>“Copiar ID do usuário”</strong>.</p>
@@ -70,10 +70,6 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
   const [expanded, setExpanded] = useState<string | null>(null);
   const [requestFlowType, setRequestFlowType] = useState("Consulta comum");
   const [requestSpecialty, setRequestSpecialty] = useState("");
-  const [specialistDoctors, setSpecialistDoctors] = useState<Array<{ id: string; name: string; specialty: string }>>([]);
-  const [selectedDoctorId, setSelectedDoctorId] = useState("");
-  const [loadingDoctors, setLoadingDoctors] = useState(false);
-  const [doctorLoadError, setDoctorLoadError] = useState("");
   const [discordId, setDiscordId] = useState("");
   const requestInFlightRef = useRef<Promise<void> | null>(null);
   const lastLoadedAtRef = useRef(0);
@@ -106,7 +102,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
           return;
         }
         if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível carregar as consultas.");
-        setAppointments(data.appointments || []);
+        setAppointments((data.appointments || []).filter((item: Appointment) => item.flowType !== "Exames"));
         lastLoadedAtRef.current = Date.now();
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : "Não foi possível carregar as consultas.");
@@ -136,49 +132,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
     return () => document.removeEventListener("visibilitychange", onVisibility);
   }, [loadAppointments, view]);
 
-  useEffect(() => {
-    if (requestFlowType !== "Acompanhamento com especialista" || !requestSpecialty) {
-      setSpecialistDoctors([]);
-      setSelectedDoctorId("");
-      setDoctorLoadError("");
-      return;
-    }
-    let active = true;
-    const timer = window.setTimeout(async () => {
-      setLoadingDoctors(true);
-      setDoctorLoadError("");
-      try {
-        const response = await fetch(`/api/paciente/medicos?specialty=${encodeURIComponent(requestSpecialty)}`, { cache: "no-store" });
-        const data = await response.json();
-        if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível carregar os médicos.");
-        if (active) setSpecialistDoctors(data.doctors || []);
-      } catch (loadDoctorError) {
-        if (active) {
-          setSpecialistDoctors([]);
-          setDoctorLoadError(loadDoctorError instanceof Error ? loadDoctorError.message : "Não foi possível carregar os médicos.");
-        }
-      } finally {
-        if (active) setLoadingDoctors(false);
-      }
-    }, 250);
-    return () => { active = false; window.clearTimeout(timer); };
-  }, [requestFlowType, requestSpecialty]);
 
-  async function appointmentAction(id: string, action: string) {
-    setSaving(true); setError(""); setMessage("");
-    try {
-      const response = await fetch(`/api/paciente/consultas${passport ? `?passport=${encodeURIComponent(passport)}` : ""}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
-        id,
-        action,
-        availability: "",
-      }) });
-      const data = await response.json();
-      if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível atualizar a consulta.");
-      setMessage("Resposta registrada com sucesso.");
-      await loadAppointments({ silent: true, force: true });
-    } catch (actionError) { setError(actionError instanceof Error ? actionError.message : "Não foi possível atualizar a consulta."); }
-    finally { setSaving(false); }
-  }
 
   async function submitAppointment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -198,7 +152,6 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
       formElement.reset();
       setRequestFlowType("Consulta comum");
       setRequestSpecialty("");
-      setSelectedDoctorId("");
       setDiscordId("");
       await loadAppointments({ silent: true, force: true });
     } catch (submitError) {
@@ -217,12 +170,11 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
             <div className="flex items-start gap-3">
               <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-amber-600 text-white"><CalendarClock size={21} /></div>
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[.16em] text-amber-800">Resposta necessária</p>
-                <h3 className="mt-1 text-lg font-black text-amber-950">O médico solicitou um reagendamento</h3>
-                <p className="mt-1 text-sm font-semibold leading-relaxed text-amber-900">Você possui {pendingReschedules.length} consulta{pendingReschedules.length === 1 ? "" : "s"} com ajuste em andamento. Abra a pendência para ver a orientação. O novo dia e horário serão combinados diretamente com o médico, sem escolha pelo Portal.</p>
+                <p className="text-[10px] font-black uppercase tracking-[.16em] text-amber-800">Atualização do agendamento</p>
+                <h3 className="mt-1 text-lg font-black text-amber-950">O médico está ajustando seu agendamento</h3>
+                <p className="mt-1 text-sm font-semibold leading-relaxed text-amber-900">Você possui {pendingReschedules.length} consulta{pendingReschedules.length === 1 ? "" : "s"} em ajuste. Não é necessário responder pelo Portal: o novo dia e horário serão combinados diretamente com o médico e aparecerão aqui quando forem definidos.</p>
               </div>
             </div>
-            <button type="button" onClick={() => setExpanded(pendingReschedules[0].id)} className="inline-flex min-h-[42px] items-center justify-center rounded-[13px] bg-amber-800 px-4 text-sm font-black text-white">Responder agora</button>
           </div>
         </section>
       )}
@@ -230,7 +182,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hpsr-border/70 pb-3">
           <div>
             <h3 className="text-base font-black text-hpsr-text">{view === "pending" ? "Pendências" : "Meus agendamentos"}</h3>
-            <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{view === "pending" ? "Itens que precisam da sua atenção." : "Acompanhe horários e respostas da equipe."}</p>
+            <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{view === "pending" ? "Avisos e ajustes relacionados às suas consultas." : "Acompanhe horários e respostas da equipe."}</p>
           </div>
           <button type="button" onClick={() => void loadAppointments({ force: true })} className="inline-flex items-center gap-1.5 rounded-[10px] border border-hpsr-border bg-white px-2.5 py-2 text-[11px] font-black text-hpsr-wine"><RefreshCcw size={13} /> Atualizar</button>
         </div>
@@ -257,7 +209,6 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
                       <p className="font-black text-amber-950"><CalendarClock className="mr-2 inline" size={16}/>Ajuste de agendamento em andamento</p>
                       <p className="mt-2 text-xs font-semibold leading-relaxed text-amber-900">O paciente não precisa escolher uma nova data ou horário pelo Portal. O médico responsável fará o contato pelo e-mail cadastrado ou pelo ID do Discord informado para combinar o ajuste.</p>
                       {appointment.rescheduleReason && <p className="mt-3 rounded-[12px] border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-900"><strong>Orientação:</strong> {appointment.rescheduleReason}</p>}
-                      <button disabled={saving} onClick={() => void appointmentAction(appointment.id, "withdraw")} className="mt-3 rounded-[12px] border border-rose-300 bg-white px-3 py-2.5 text-[11px] font-black text-rose-700"><XCircle className="mr-1 inline" size={13}/>Desistir do acompanhamento</button>
                     </div>
                   )}</div>}
                 </article>
@@ -270,36 +221,18 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
       {view === "request" && <section className="rounded-[18px] border border-hpsr-border bg-white/90 p-3.5 sm:p-4">
         <div className="border-b border-hpsr-border/70 pb-3">
           <h3 className="text-base font-black text-hpsr-text">Solicitar consulta</h3>
-          <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Você envia apenas a solicitação. Nenhum paciente — inclusive quem já está em acompanhamento — define dia ou horário pelo Portal. O médico responsável fará o contato para combinar o atendimento.</p>
+          <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Esta área cria somente uma nova solicitação de consulta. Acompanhamentos ativos seguem em fluxo próprio e não precisam ser solicitados novamente. O médico responsável fará o contato para combinar o atendimento.</p>
         </div>
-        <button type="button" onClick={() => setRequestFlowType("Acompanhamento com especialista")} className={`mt-4 flex w-full items-start gap-3 rounded-[18px] border p-4 text-left transition ${requestFlowType === "Acompanhamento com especialista" ? "border-hpsr-wine bg-[#fff4ee] shadow-sm" : "border-hpsr-border bg-[#fffaf4] hover:border-hpsr-wineLight"}`}>
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-hpsr-wine text-white"><Stethoscope size={19} /></span>
-          <span><strong className="block text-sm font-black text-hpsr-text">Já faço acompanhamento com um especialista</strong><span className="mt-1 block text-xs font-semibold leading-relaxed text-hpsr-muted">Selecione o médico que já acompanha você e envie o pré-registro para confirmação do profissional.</span></span>
-        </button>
         <form onSubmit={submitAppointment} className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="text-xs font-black text-hpsr-muted">Nome do paciente<input name="patient" required className={`${fieldClass} mt-1.5`} /></label>
           <label className="text-xs font-black text-hpsr-muted">Especialidade<StyledSelect name="specialty" required value={requestSpecialty} onChange={(event) => setRequestSpecialty(event.target.value)} className={`${fieldClass} mt-1.5`}><option value="" disabled>Selecione</option>{specialties.map((item) => <option key={item}>{item}</option>)}</StyledSelect></label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Tipo de fluxo
             <StyledSelect name="flowType" required value={requestFlowType} onChange={(event) => setRequestFlowType(event.target.value)} className={`${fieldClass} mt-1.5`}>
               <option>Consulta comum</option>
-              <option>Acompanhamento com especialista</option>
-              <option>Exames</option>
               <option>Outros</option>
             </StyledSelect>
-            <span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Escolha a finalidade principal para direcionar a solicitação à equipe adequada.</span>
+            <span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Use “Consulta comum” para um novo atendimento. “Outros” serve apenas para outro motivo de consulta; exames e acompanhamentos possuem fluxos próprios no Portal.</span>
           </label>
-          {requestFlowType === "Acompanhamento com especialista" && (
-            <div className="sm:col-span-2 rounded-[18px] border border-hpsr-border bg-[#fffaf4] p-4">
-              <p className="text-xs font-black text-hpsr-text">Médico que já realiza seu acompanhamento</p>
-              <p className="mt-1 text-[11px] font-semibold leading-relaxed text-hpsr-muted">Selecione o profissional responsável. Ele receberá o pré-registro e, após confirmar o vínculo, entrará em contato para combinar os próximos atendimentos.</p>
-              <StyledSelect name="requestedDoctorId" required value={selectedDoctorId} onChange={(event) => setSelectedDoctorId(event.target.value)} disabled={!requestSpecialty || loadingDoctors} className={`${fieldClass} mt-3`}>
-                <option value="" disabled>{loadingDoctors ? "Carregando médicos..." : !requestSpecialty ? "Selecione primeiro a especialidade" : specialistDoctors.length ? "Selecione o médico" : "Nenhum médico disponível nesta especialidade"}</option>
-                {specialistDoctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name}</option>)}
-              </StyledSelect>
-              {doctorLoadError && <p className="mt-2 rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">{doctorLoadError}</p>}
-              <input type="hidden" name="requestedDoctorName" value={specialistDoctors.find((doctor) => doctor.id === selectedDoctorId)?.name || ""} />
-            </div>
-          )}
           {requestFlowType === "Outros" && (
             <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Descreva o objetivo da solicitação
               <textarea name="flowDetails" required rows={3} placeholder="Explique exatamente o atendimento, procedimento ou orientação que você procura." className={`${fieldClass} mt-1.5 py-3`} />

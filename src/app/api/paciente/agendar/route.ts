@@ -2,7 +2,6 @@ import { brazilIso } from "@/lib/brazil-datetime";
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession, normalizePassport, resolvePortalPatientPassport } from "@/lib/patient-portal/server";
-import { isClinicalProfessional, profileMatchesClinicalSpecialty } from "@/lib/clinical-scheduling";
 
 export const runtime = "nodejs";
 
@@ -27,22 +26,26 @@ export async function POST(request: NextRequest) {
     const notes = String(body.notes || "").trim();
     const flowType = String(body.flowType || "Consulta comum").trim();
     const flowDetails = String(body.flowDetails || "").trim();
-    const requestedDoctorId = String(body.requestedDoctorId || "").trim();
-    const requestedDoctorName = String(body.requestedDoctorName || "").trim();
     const discordId = String(body.discordId || "").replace(/\D/g, "").trim();
     const accountEmail = patientPassport === normalizePassport(valid.access.patient_passport) ? String(valid.access.email || "").trim().toLowerCase() : "";
     const registryEmail = String(patientRow.email || "").trim().toLowerCase();
     const contactEmail = registryEmail || accountEmail;
-    const allowedFlowTypes = ["Consulta comum", "Acompanhamento com especialista", "Exames", "Outros"];
+    const allowedFlowTypes = ["Consulta comum", "Outros"];
 
+    if (["Acompanhamento com especialista", "Exames"].includes(flowType)) {
+      return NextResponse.json({
+        ok: false,
+        code: "SEPARATE_PATIENT_FLOW",
+        error: flowType === "Exames"
+          ? "Solicitações de exame possuem uma área própria no Portal do Paciente."
+          : "Acompanhamentos ativos são conduzidos pelo médico e não precisam de uma nova solicitação de consulta.",
+      }, { status: 409 });
+    }
     if (!patient || !specialty || !reason || !allowedFlowTypes.includes(flowType)) {
       return NextResponse.json({ ok: false, error: "Preencha os campos obrigatórios." }, { status: 400 });
     }
     if (!contactEmail && !discordId) {
       return NextResponse.json({ ok: false, code: "CONTACT_REQUIRED", error: "Este paciente não possui e-mail cadastrado. Informe o ID do Discord para que o médico consiga entrar em contato." }, { status: 400 });
-    }
-    if (flowType === "Acompanhamento com especialista" && (!requestedDoctorId || !requestedDoctorName)) {
-      return NextResponse.json({ ok: false, error: "Selecione o médico responsável pelo acompanhamento." }, { status: 400 });
     }
     if (flowType === "Outros" && !flowDetails) {
       return NextResponse.json({ ok: false, error: "Descreva o objetivo da solicitação selecionada como Outros." }, { status: 400 });
@@ -59,23 +62,6 @@ export async function POST(request: NextRequest) {
         { ok: false, error: `Você já possui uma consulta ativa em ${specialty}. Aguarde ela ser realizada, cancelada ou encerrada antes de solicitar outra.` },
         { status: 409 },
       );
-    }
-
-    let verifiedDoctorId = "";
-    let verifiedDoctorName = "";
-    if (flowType === "Acompanhamento com especialista") {
-      const { data: doctor, error: doctorError } = await valid.supabase
-        .from("profiles")
-        .select("id,name,specialty,role,crm,access_status")
-        .eq("id", requestedDoctorId)
-        .eq("access_status", "Aprovado")
-        .maybeSingle();
-      if (doctorError) throw doctorError;
-      if (!doctor || !isClinicalProfessional(doctor) || !profileMatchesClinicalSpecialty(doctor, specialty)) {
-        return NextResponse.json({ ok: false, error: "O médico selecionado não está disponível para esta especialidade." }, { status: 400 });
-      }
-      verifiedDoctorId = String(doctor.id);
-      verifiedDoctorName = String(doctor.name || requestedDoctorName);
     }
 
     const now = brazilIso();
@@ -98,11 +84,9 @@ export async function POST(request: NextRequest) {
       notes,
       flowType,
       flowDetails: flowType === "Outros" ? flowDetails : "",
-      requestedDoctorId: flowType === "Acompanhamento com especialista" ? verifiedDoctorId : "",
-      requestedDoctorName: flowType === "Acompanhamento com especialista" ? verifiedDoctorName : "",
       source: "patient_portal",
-      physician: flowType === "Acompanhamento com especialista" ? verifiedDoctorName : "A definir",
-      doctorNotificationUnread: flowType === "Acompanhamento com especialista",
+      physician: "A definir",
+      doctorNotificationUnread: true,
       createdAt: now,
       updatedAt: now,
     };
@@ -111,7 +95,7 @@ export async function POST(request: NextRequest) {
       id,
       passport: patientPassport,
       patient,
-      status: flowType === "Acompanhamento com especialista" ? "Acompanhamento aguardando confirmação" : "Solicitação enviada",
+      status: "Solicitação enviada",
       payload,
       created_at: now,
       updated_at: now,
@@ -128,7 +112,7 @@ export async function POST(request: NextRequest) {
       created_at: now,
     });
 
-    return NextResponse.json({ ok: true, id, status: flowType === "Acompanhamento com especialista" ? "Acompanhamento aguardando confirmação" : "Solicitação enviada" });
+    return NextResponse.json({ ok: true, id, status: "Solicitação enviada" });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error || "");
     if (errorMessage.includes("já possui uma consulta ativa")) {

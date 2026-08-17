@@ -73,11 +73,11 @@ export async function PATCH(request: NextRequest) {
       alternativeTime?: string;
     };
     if (!body.id || !body.action) return NextResponse.json({ ok: false, error: "Ação inválida." }, { status: 400 });
-    if (["accept_reschedule", "propose_alternative", "decline_reschedule", "send_availability"].includes(body.action)) {
+    if (["accept_reschedule", "propose_alternative", "decline_reschedule", "send_availability", "withdraw"].includes(body.action)) {
       return NextResponse.json({
         ok: false,
         code: "PATIENT_SCHEDULING_DISABLED",
-        error: "Data e horário não são definidos pelo Portal. Aguarde o contato do médico pelo e-mail cadastrado ou pelo ID do Discord informado.",
+        error: "O Portal não recebe respostas de agendamento ou acompanhamento do paciente. Consulte as atualizações e aguarde a definição do médico responsável.",
       }, { status: 410 });
     }
     const { data: row, error: readError } = await valid.supabase.from("appointments").select("id,passport,payload,status").eq("id", body.id).eq("passport", targetPassport).maybeSingle();

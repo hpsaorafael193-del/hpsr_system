@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Clock3,
   FileClock,
+  FlaskConical,
   Hash,
   HeartPulse,
   Mail,
@@ -31,7 +32,7 @@ import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvi
 import { doctorCanAccessSpecialty, doctorVisibleSpecialties } from "@/data/appointment-rules";
 import { createClient } from "@/lib/supabase";
 
-type TabId = "solicitacoes" | "consultas" | "acompanhamentos" | "reagendamentos" | "cobrancas";
+type TabId = "solicitacoes" | "exames" | "consultas" | "acompanhamentos" | "reagendamentos" | "cobrancas";
 
 type PublicAppointmentRequest = {
   id: string;
@@ -84,8 +85,13 @@ function publicRequestPreferred(item: PublicAppointmentRequest) {
 function buildPublicAnswer(
   status: string,
   doctorName: string,
-  details?: { proposedDate?: string; proposedTime?: string; reason?: string }
+  details?: { proposedDate?: string; proposedTime?: string; reason?: string },
+  flowType?: string,
 ) {
+  if (status === "Aceita" && flowType === "Exames") {
+    return `Solicitação de exame recebida por ${doctorName}. Ela seguirá no fluxo de exames e não cria uma consulta automaticamente.`;
+  }
+
   if (status === "Aceita") {
     return `Solicitação aceita por ${doctorName}. O médico responsável entrará em contato pelo e-mail cadastrado ou, quando necessário, pelo ID do Discord informado para combinar o dia e o horário.`;
   }
@@ -123,7 +129,8 @@ const billingIssues: Array<{ id: string; patient: string; passport: string; appo
 const availableSlots: Array<{ specialty: string; doctor: string; date: string; times: string[]; type: string }> = [];
 
 const tabs: Array<{ id: TabId; label: string; icon: ReactNode }> = [
-  { id: "solicitacoes", label: "Solicitações", icon: <CalendarDays size={15} /> },
+  { id: "solicitacoes", label: "Consultas", icon: <CalendarDays size={15} /> },
+  { id: "exames", label: "Exames", icon: <FlaskConical size={15} /> },
   { id: "consultas", label: "Consultas", icon: <Stethoscope size={15} /> },
   { id: "acompanhamentos", label: "Acompanhamentos", icon: <HeartPulse size={15} /> },
   { id: "reagendamentos", label: "Reagendamentos", icon: <RotateCcw size={15} /> },
@@ -261,7 +268,7 @@ export default function AppointmentsPage() {
       ...request,
       status,
       doctor: currentUserProfile.systemName,
-      answer: buildPublicAnswer(status, currentUserProfile.systemName, details),
+      answer: buildPublicAnswer(status, currentUserProfile.systemName, details, request.flowType),
       proposedDate: details?.proposedDate || request.proposedDate,
       proposedTime: details?.proposedTime || request.proposedTime,
       rescheduleReason: details?.reason || request.rescheduleReason,
@@ -377,7 +384,7 @@ export default function AppointmentsPage() {
 
   const publicAcceptedAppointments = useMemo(() => {
     return publicRequests
-      .filter((item) => ["Aceita", "Reagendamento aceito", "Realizada"].includes(item.status))
+      .filter((item) => item.flowType !== "Exames" && ["Aceita", "Reagendamento aceito", "Realizada"].includes(item.status))
       .map((item) => {
         const wasRescheduled = item.status === "Reagendamento aceito" || Boolean(item.proposedDate || item.proposedTime);
         return {
@@ -416,6 +423,7 @@ export default function AppointmentsPage() {
     const normalizedSearch = searchTerm.trim().toLowerCase();
 
     return pendingRequests.filter((item) => {
+      if (item.flowType === "Exames") return false;
       if (!normalizedSearch) return true;
       return (
         item.patient.toLowerCase().includes(normalizedSearch) ||
@@ -426,6 +434,15 @@ export default function AppointmentsPage() {
       );
     });
   }, [pendingRequests, searchTerm]);
+
+  const filteredExamRequests = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    return publicRequests.filter((item) => {
+      if (item.flowType !== "Exames") return false;
+      if (!normalizedSearch) return true;
+      return item.patient.toLowerCase().includes(normalizedSearch) || item.passport.includes(normalizedSearch) || item.specialty.toLowerCase().includes(normalizedSearch) || (item.reason || "").toLowerCase().includes(normalizedSearch);
+    });
+  }, [publicRequests, searchTerm]);
 
   const loggedDoctorConsultationsToday = visibleAppointments.filter(
     (item) => item.date === brazilDate() && item.doctor === currentUserProfile.systemName
@@ -530,6 +547,7 @@ export default function AppointmentsPage() {
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
           filteredRequests={filteredRequests}
+          filteredExamRequests={filteredExamRequests}
           visibleAppointments={visibleAppointments}
           onUpdateStatus={updatePublicRequestStatus}
           onClose={() => setRequestsModalOpen(false)}
@@ -649,6 +667,7 @@ function RequestsCenterModal({
   searchTerm,
   setSearchTerm,
   filteredRequests,
+  filteredExamRequests,
   visibleAppointments,
   onUpdateStatus,
   onClose,
@@ -658,6 +677,7 @@ function RequestsCenterModal({
   searchTerm: string;
   setSearchTerm: (value: string) => void;
   filteredRequests: PublicAppointmentRequest[];
+  filteredExamRequests: PublicAppointmentRequest[];
   visibleAppointments: typeof scheduledAppointments;
   onUpdateStatus: (
     request: PublicAppointmentRequest,
@@ -699,7 +719,7 @@ function RequestsCenterModal({
             </p>
             <h2 className="mt-1 text-lg font-black text-hpsr-text">Solicitações e fluxos clínicos</h2>
             <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">
-              Mesmo bloco anterior do agendamento geral, agora separado em modal para não misturar com a visão geral.
+              Consultas e solicitações de exames ficam separadas para preservar cada fluxo sem perder o contexto do paciente.
             </p>
           </div>
           <button
@@ -747,6 +767,7 @@ function RequestsCenterModal({
 
           <div className="min-h-0 flex-1 overflow-y-auto p-3.5">
             {activeTab === "solicitacoes" && <RequestsTab requests={filteredRequests} onUpdateStatus={onUpdateStatus} />}
+            {activeTab === "exames" && <ExamRequestsTab requests={filteredExamRequests} onUpdateStatus={onUpdateStatus} />}
             {activeTab === "consultas" && <ConsultationsTab appointments={visibleAppointments} />}
             {activeTab === "acompanhamentos" && <FollowUpsTab />}
             {activeTab === "reagendamentos" && <ReschedulesTab />}
@@ -754,6 +775,25 @@ function RequestsCenterModal({
           </div>
         </div>
       </section>
+    </div>
+  );
+}
+
+function ExamRequestsTab({ requests, onUpdateStatus }: { requests: PublicAppointmentRequest[]; onUpdateStatus: (request: PublicAppointmentRequest, status: string) => void }) {
+  const actionable = new Set(["Solicitação enviada", "Aguardando análise"]);
+  return (
+    <div className="grid gap-3">
+      <SectionTitle icon={<FlaskConical size={18} />} title="Solicitações de exame" description="Pedidos de exame ficam separados das consultas e nunca entram automaticamente no Agendamento Geral." />
+      {requests.length ? <div className="max-h-[540px] overflow-y-auto pr-2"><div className="grid gap-3">{requests.map((item) => <AppointmentCard
+        key={item.id}
+        title={item.patient}
+        subtitle={`Passaporte ${item.passport} · ${item.specialty}`}
+        status={<StatusBadge status={item.status} />}
+        meta={[["Fluxo", "Exame"], ["Necessidade", item.reason || "Não informada"], ["Contato", item.contactEmail ? item.contactEmail : item.discordId ? `Discord ID ${item.discordId}` : "Não informado"]]}
+        alert={item.answer || undefined}
+        alertTone={item.status === "Recusada" ? "warning" : "success"}
+        actions={actionable.has(item.status) ? <><ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Aceita")}>Receber solicitação</ActionButton><ActionButton variant="danger" onClick={() => onUpdateStatus(item, "Recusada")}>Recusar</ActionButton></> : <span className="rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-muted">Fluxo de exame · {item.status}</span>}
+      />)}</div></div> : <EmptyState title="Nenhuma solicitação de exame" description="Os pedidos de exame enviados pelo Portal aparecerão aqui, separados das consultas." />}
     </div>
   );
 }
