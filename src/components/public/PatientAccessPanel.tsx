@@ -416,7 +416,7 @@ export function PatientAccessPanel() {
               {portalSection === "exam-request" && <PatientExamRequestsPanel passport={selectedPassport} hasEmail={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasEmail} onSessionExpired={handleSessionExpired} />}
               {portalSection === "records" && <PatientRecordsPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
               {portalSection === "pending" && <PatientAppointmentsPanel view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
-              {portalSection === "profile" && <PatientProfilePanel onSessionExpired={handleSessionExpired} onSaved={checkSession} />}
+              {portalSection === "profile" && <PatientProfilePanel onSessionExpired={handleSessionExpired} onSaved={async () => { await checkSession(); }} />}
             </div>
           </main>
         </div>
