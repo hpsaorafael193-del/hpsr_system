@@ -144,6 +144,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
     }
     setAuthLoading(true);
     const redirectTo = `${window.location.origin}/redefinir-senha`;
+    try { window.localStorage.setItem("hpsr_password_recovery_origin", "equipe"); } catch {}
     const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
     setAuthLoading(false);
     if (error) {

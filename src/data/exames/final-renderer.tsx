@@ -111,26 +111,69 @@ function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity
   }
 
   if (tag === "p" || tag === "blockquote" || tag === "div") {
-    const text = (root.textContent || "").trim();
-    if (!text) return [html];
-    const words = text.split(/\s+/);
-    const fragments: string[] = [];
-    let current: string[] = [];
-    const opening = root.outerHTML.match(/^<[^>]+>/)?.[0] || `<${tag}>`;
-    const closing = `</${tag}>`;
-
-    for (const word of words) {
-      const candidate = [...current, word];
-      measure.innerHTML = `${opening}${candidate.join(" ")}${closing}`;
-      applyCanvasEquivalentMeasurementStyles(measure);
-      if (current.length && measure.scrollHeight > capacity) {
-        fragments.push(`${opening}${current.join(" ")}${closing}`);
-        current = [word];
-      } else {
-        current = candidate;
-      }
+    const textNodes: Text[] = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let currentNode = walker.nextNode();
+    while (currentNode) {
+      textNodes.push(currentNode as Text);
+      currentNode = walker.nextNode();
     }
-    if (current.length) fragments.push(`${opening}${current.join(" ")}${closing}`);
+
+    const totalLength = textNodes.reduce((sum, node) => sum + node.data.length, 0);
+    if (!totalLength) return [html];
+
+    const pointAt = (offset: number) => {
+      let remaining = Math.max(0, Math.min(totalLength, offset));
+      for (const node of textNodes) {
+        if (remaining <= node.data.length) return { node, offset: remaining };
+        remaining -= node.data.length;
+      }
+      const last = textNodes[textNodes.length - 1];
+      return { node: last, offset: last.data.length };
+    };
+
+    const buildFragment = (start: number, end: number) => {
+      const range = document.createRange();
+      const startPoint = pointAt(start);
+      const endPoint = pointAt(end);
+      range.setStart(startPoint.node, startPoint.offset);
+      range.setEnd(endPoint.node, endPoint.offset);
+      const clone = root.cloneNode(false) as HTMLElement;
+      clone.appendChild(range.cloneContents());
+      return clone.outerHTML;
+    };
+
+    const fragments: string[] = [];
+    let start = 0;
+    while (start < totalLength) {
+      let low = start + 1;
+      let high = totalLength;
+      let best = start;
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const candidate = buildFragment(start, mid);
+        measure.innerHTML = candidate;
+        applyCanvasEquivalentMeasurementStyles(measure);
+        if (measure.scrollHeight <= capacity) {
+          best = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+
+      if (best <= start) return fragments.length ? [...fragments, buildFragment(start, totalLength)] : [html];
+
+      // Prefere terminar em um limite de palavra, mas sem perder a marcação inline.
+      let end = best;
+      if (best < totalLength) {
+        const fragmentText = root.textContent || "";
+        const boundary = fragmentText.lastIndexOf(" ", best - 1);
+        if (boundary > start + 8) end = boundary + 1;
+      }
+      fragments.push(buildFragment(start, end));
+      start = end;
+    }
     return fragments.length ? fragments : [html];
   }
 

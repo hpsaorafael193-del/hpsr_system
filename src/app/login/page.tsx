@@ -102,6 +102,7 @@ function LoginContent() {
     }
     setBusy(true);
     const redirectTo = `${window.location.origin}/redefinir-senha`;
+    try { window.localStorage.setItem("hpsr_password_recovery_origin", "equipe"); } catch {}
     const { error } = await client.auth.resetPasswordForEmail(email, { redirectTo });
     setBusy(false);
     if (error) {

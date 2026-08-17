@@ -15,6 +15,7 @@ export default function RedefinirSenhaPage() {
   const [checking, setChecking] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [origin, setOrigin] = useState<"paciente" | "equipe">("equipe");
 
   useEffect(() => {
     const client = createClient();
@@ -27,12 +28,30 @@ export default function RedefinirSenhaPage() {
     let active = true;
     let resolved = false;
 
-    const acceptSession = () => {
+    let preferredOrigin: "paciente" | "equipe" | null = null;
+    try {
+      const saved = window.localStorage.getItem("hpsr_password_recovery_origin");
+      if (saved === "paciente" || saved === "equipe") { preferredOrigin = saved; setOrigin(saved); }
+    } catch {}
+
+    const detectOrigin = async (userId?: string) => {
+      if (!active || preferredOrigin || !userId) return;
+      try {
+        const [{ data: patientAccount }, { data: staffProfile }] = await Promise.all([
+          client.from("patient_accounts").select("user_id").eq("user_id", userId).maybeSingle(),
+          client.from("profiles").select("id").eq("id", userId).maybeSingle(),
+        ]);
+        if (active) setOrigin(patientAccount && !staffProfile ? "paciente" : "equipe");
+      } catch {}
+    };
+
+    const acceptSession = (session?: { user?: { id?: string } } | null) => {
       if (!active) return;
       resolved = true;
       setReady(true);
       setChecking(false);
       setMessage("");
+      void detectOrigin(session?.user?.id);
     };
 
     const rejectLink = (detail?: string) => {
@@ -44,8 +63,8 @@ export default function RedefinirSenhaPage() {
 
     const { data: listener } = client.auth.onAuthStateChange((event, session) => {
       if (!active) return;
-      if ((event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || event === "INITIAL_SESSION") && session) {
-        acceptSession();
+      if (event === "PASSWORD_RECOVERY" && session) {
+        acceptSession(session);
       }
     });
 
@@ -67,7 +86,7 @@ export default function RedefinirSenhaPage() {
             return;
           }
           window.history.replaceState({}, document.title, url.pathname);
-          acceptSession();
+          acceptSession(data.session);
           return;
         }
 
@@ -90,22 +109,12 @@ export default function RedefinirSenhaPage() {
             return;
           }
           window.history.replaceState({}, document.title, url.pathname);
-          acceptSession();
+          acceptSession(data.session);
           return;
         }
 
-        // A inicialização automática pode já ter consumido a URL e criado a sessão.
-        const { data, error } = await supabaseClient.auth.getSession();
-        if (error) {
-          rejectLink(error.message);
-          return;
-        }
-        if (data.session) {
-          acceptSession();
-          return;
-        }
-
-        // Pequena espera para INITIAL_SESSION/PASSWORD_RECOVERY em navegadores mais lentos.
+        // Uma sessão normal não deve liberar a troca de senha.
+        // Sem código/token de recuperação, aguardamos apenas o evento PASSWORD_RECOVERY.
         window.setTimeout(() => {
           if (!resolved) rejectLink();
         }, 1800);
@@ -145,6 +154,7 @@ export default function RedefinirSenhaPage() {
       setMessage(error.message || "Não foi possível atualizar a senha.");
       return;
     }
+    try { window.localStorage.removeItem("hpsr_password_recovery_origin"); } catch {}
     await client.auth.signOut({ scope: "local" });
     setSaving(false);
     setSuccess(true);
@@ -160,7 +170,7 @@ export default function RedefinirSenhaPage() {
             <div className="flex h-12 w-12 items-center justify-center rounded-[16px] bg-white/15"><KeyRound size={24} /></div>
             <p className="mt-4 text-[10px] font-black uppercase tracking-[.18em] text-white/70">Segurança de acesso</p>
             <h1 className="mt-1 text-2xl font-black">Redefinir senha</h1>
-            <p className="mt-2 text-sm text-white/75">Crie uma nova senha para acessar o painel do Hospital São Rafael.</p>
+            <p className="mt-2 text-sm text-white/75">Crie uma nova senha para acessar o Hospital São Rafael.</p>
           </div>
 
           <div className="p-6">
@@ -168,7 +178,7 @@ export default function RedefinirSenhaPage() {
               <div className="rounded-[18px] border border-emerald-200 bg-emerald-50 p-5 text-center">
                 <CheckCircle2 className="mx-auto text-emerald-700" size={34} />
                 <p className="mt-3 font-black text-emerald-900">{message}</p>
-                <a href="/login" className="mt-5 inline-flex rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white">Voltar ao login</a>
+                <a href={origin === "paciente" ? "/paciente" : "/login"} className="mt-5 inline-flex rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white">{origin === "paciente" ? "Voltar ao Portal do Paciente" : "Voltar ao login"}</a>
               </div>
             ) : ready ? (
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -187,7 +197,7 @@ export default function RedefinirSenhaPage() {
               <div className="rounded-[18px] border border-amber-200 bg-amber-50 p-5 text-center">
                 <AlertCircle className="mx-auto text-amber-700" size={32} />
                 <p className="mt-3 text-sm font-bold leading-relaxed text-amber-950">{message}</p>
-                <a href="/login" className="mt-5 inline-flex rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white">Solicitar novo link</a>
+                <a href={origin === "paciente" ? "/paciente" : "/login"} className="mt-5 inline-flex rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white">Solicitar novo link</a>
               </div>
             )}
           </div>

@@ -643,3 +643,93 @@ button:active {
 @media (min-width: 1280px) {
   .hpsr-appointments-scroll { min-height: 0 !important; max-height: none !important; }
 }
+
+
+/* Editor clínico compartilhado por Exames e Documentos. Mantém a mesma
+   geometria e comportamento visual para que edição, paginação e preview
+   partam de uma única referência. */
+.hpsr-continuous-editor {
+  color: #2a0700;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 15px;
+  line-height: 1.72;
+  letter-spacing: 0.002em;
+}
+.hpsr-continuous-editor:empty:before {
+  content: "Digite o conteúdo livremente ou use um modelo...";
+  color: #a68d82;
+  font-family: var(--font-hpsr), Roboto, sans-serif;
+  font-weight: 700;
+}
+.hpsr-continuous-editor h1,
+.hpsr-continuous-editor h2,
+.hpsr-continuous-editor h3 {
+  color: #672614;
+  font-family: var(--font-hpsr), Roboto, sans-serif;
+  font-weight: 900;
+  line-height: 1.25;
+  margin: 1rem 0 0.45rem;
+}
+.hpsr-continuous-editor h1 { font-size: 1.25rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.hpsr-continuous-editor h2 {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid rgba(103, 38, 20, 0.18);
+  padding-bottom: 0.25rem;
+}
+.hpsr-continuous-editor h3 { font-size: 0.94rem; }
+.hpsr-continuous-editor p { margin: 0.65rem 0; min-height: 1.72em; }
+.hpsr-continuous-editor ul,
+.hpsr-continuous-editor ol { margin: 0.55rem 0 0.55rem 1.25rem; }
+.hpsr-continuous-editor table {
+  width: min(86%, 680px);
+  max-width: 100%;
+  border-collapse: collapse;
+  margin: 0.85rem auto;
+  font-size: 12.5px;
+  border-radius: 10px;
+  overflow: hidden;
+  table-layout: auto;
+}
+.hpsr-continuous-editor th {
+  background: rgba(103, 38, 20, 0.1);
+  color: #672614;
+  font-weight: 900;
+  text-align: center;
+}
+.hpsr-continuous-editor td,
+.hpsr-continuous-editor th {
+  border: 1px solid rgba(103, 38, 20, 0.22);
+  padding: 0.30rem 0.40rem;
+  vertical-align: middle;
+  text-align: center;
+}
+.hpsr-continuous-editor section[data-hpsr-auto-block="true"] {
+  break-inside: avoid;
+  margin: 0 0 0.72rem;
+}
+.hpsr-continuous-editor section[data-hpsr-auto-block="true"] h2 {
+  margin-top: 0.72rem;
+  margin-bottom: 0.32rem;
+  padding-bottom: 0.18rem;
+}
+.hpsr-continuous-editor section[data-hpsr-auto-block="true"] p { margin: 0.28rem 0; line-height: 1.52; }
+.hpsr-continuous-editor section[data-hpsr-auto-block="true"] table {
+  width: min(82%, 640px);
+  margin: 0.42rem auto 0.58rem;
+  font-size: 12px;
+}
+.hpsr-continuous-editor section[data-hpsr-auto-block="true"] td,
+.hpsr-continuous-editor section[data-hpsr-auto-block="true"] th {
+  padding: 0.24rem 0.34rem;
+  line-height: 1.28;
+  text-align: center;
+}
+.hpsr-continuous-editor blockquote {
+  border-left: 4px solid rgba(103, 38, 20, 0.35);
+  background: #fff8f0;
+  margin: 0.8rem 0;
+  padding: 0.55rem 0.8rem;
+  color: #5d4038;
+}

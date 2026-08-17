@@ -77,7 +77,7 @@ export function PatientExamRequestsPanel({ passport, hasEmail, onSessionExpired 
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-hpsr-wine text-white"><FlaskConical size={18}/></span>
           <div>
             <h3 className="text-base font-black text-hpsr-text">Solicitar exame</h3>
-            <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Este fluxo é independente de consultas e acompanhamentos. Envie apenas a necessidade do exame; a equipe médica dará continuidade sem criar uma consulta automaticamente.</p>
+            <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Aqui você pede um exame. Isso não marca uma consulta e não muda seus acompanhamentos.</p>
           </div>
         </div>
         <form onSubmit={submit} className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -88,14 +88,14 @@ export function PatientExamRequestsPanel({ passport, hasEmail, onSessionExpired 
             </StyledSelect>
           </label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Exame ou necessidade solicitada
-            <textarea name="reason" required rows={4} placeholder="Informe qual exame precisa realizar ou a orientação recebida." className={`${fieldClass} mt-1.5 py-3`} />
+            <textarea name="reason" required rows={4} placeholder="Diga qual exame você precisa fazer." className={`${fieldClass} mt-1.5 py-3`} />
           </label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Observações
             <textarea name="notes" rows={3} className={`${fieldClass} mt-1.5 py-3`} />
           </label>
           <div className={`sm:col-span-2 rounded-[16px] border px-3.5 py-3 ${hasEmail ? "border-emerald-200 bg-emerald-50" : "border-blue-200 bg-blue-50"}`}>
             <p className={`text-xs font-black ${hasEmail ? "text-emerald-800" : "text-blue-900"}`}>{hasEmail ? "Contato cadastrado" : "ID do Discord necessário"}</p>
-            <p className={`mt-1 text-[11px] font-semibold leading-relaxed ${hasEmail ? "text-emerald-700" : "text-blue-800"}`}>{hasEmail ? "Se a equipe precisar combinar algum detalhe do exame, usará o contato cadastrado." : "Informe o ID numérico do Discord para que a equipe consiga entrar em contato se necessário."}</p>
+            <p className={`mt-1 text-[11px] font-semibold leading-relaxed ${hasEmail ? "text-emerald-700" : "text-blue-800"}`}>{hasEmail ? "Se a equipe precisar falar com você sobre o exame, usará o contato cadastrado ou falará com você dentro do RP." : "Informe seu ID numérico do Discord como contato de apoio."}</p>
           </div>
           {!hasEmail && <label className="text-xs font-black text-hpsr-muted sm:col-span-2">ID do Discord
             <input name="discordId" inputMode="numeric" pattern="[0-9]+" required value={discordId} onChange={(event) => setDiscordId(event.target.value.replace(/\D/g, ""))} placeholder="Somente números" className={`${fieldClass} mt-1.5`} />
@@ -108,7 +108,7 @@ export function PatientExamRequestsPanel({ passport, hasEmail, onSessionExpired 
 
       <section className="rounded-[18px] border border-hpsr-border bg-white/90 p-3.5 sm:p-4">
         <div className="flex items-center justify-between gap-3 border-b border-hpsr-border/70 pb-3">
-          <div><h3 className="text-base font-black text-hpsr-text">Minhas solicitações de exame</h3><p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Acompanhe o andamento sem misturar com sua agenda de consultas.</p></div>
+          <div><h3 className="text-base font-black text-hpsr-text">Minhas solicitações de exame</h3><p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Veja aqui como está o seu pedido de exame.</p></div>
           <button type="button" onClick={() => void load()} className="inline-flex items-center gap-1.5 rounded-[10px] border border-hpsr-border bg-white px-2.5 py-2 text-[11px] font-black text-hpsr-wine"><RefreshCcw size={13}/> Atualizar</button>
         </div>
         {loading ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-hpsr-wine"/></div> : requests.length ? <div className="mt-3 max-h-[360px] space-y-2 overflow-y-auto pr-1">{requests.map((item) => <article key={item.id} className="rounded-[15px] border border-hpsr-border bg-[#fffaf4] p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-hpsr-text">{item.specialty}</p><p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">{item.reason}</p></div><span className="shrink-0 rounded-full bg-[#f1dfcd] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{item.status}</span></div>{item.answer && <div className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900"><strong>Resposta da equipe:</strong> {item.answer}</div>}</article>)}</div> : <p className="mt-4 rounded-[14px] border border-dashed border-hpsr-border bg-[#fffaf4] p-4 text-center text-sm font-semibold text-hpsr-muted">Nenhuma solicitação de exame registrada.</p>}

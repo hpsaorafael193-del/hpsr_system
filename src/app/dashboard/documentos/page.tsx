@@ -44,6 +44,8 @@ import { ClinicalHistoryButton } from "@/components/dashboard/ClinicalHistoryBut
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { createClient } from "@/lib/supabase";
+import { drawRichTextElement, measureRichTextElement } from "@/lib/rich-text-canvas";
+import { handleRichEditorTableKeyDown } from "@/lib/rich-editor-behavior";
 import { splitClinicalReportHtmlIntoPages } from "@/data/exames/final-renderer";
 
 type PatientDraft = {
@@ -550,6 +552,7 @@ export default function DocumentsPage() {
     signatureImage: currentUserProfile.signatureImage || null,
   }]);
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const lastRange = useRef<Range | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const [patient, setPatient] = useState<PatientDraft>(emptyPatient);
   const patientOptions = sharedPatients as PatientDraft[];
@@ -785,10 +788,49 @@ export default function DocumentsPage() {
     setSaveStatus(manual ? `Salvo às ${time}` : "Rascunho local");
   }
 
+  function rememberSelection() {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || !editorRef.current) return;
+    const range = selection.getRangeAt(0);
+    if (editorRef.current.contains(range.commonAncestorContainer)) lastRange.current = range.cloneRange();
+  }
+
+  function placeCaretAtEnd() {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    const selection = window.getSelection();
+    if (!selection) return;
+    const range = document.createRange();
+    range.selectNodeContents(editorRef.current);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    lastRange.current = range.cloneRange();
+  }
+
+  function restoreSelection() {
+    editorRef.current?.focus();
+    const selection = window.getSelection();
+    if (!selection) return;
+    selection.removeAllRanges();
+    if (lastRange.current && editorRef.current?.contains(lastRange.current.commonAncestorContainer)) {
+      selection.addRange(lastRange.current);
+      return;
+    }
+    placeCaretAtEnd();
+  }
+
+  function ensureDefaultParagraphSeparator() {
+    try {
+      document.execCommand("defaultParagraphSeparator", false, "p");
+    } catch {}
+  }
+
   function syncEditor() {
     const html = normalizeEditorHtml(editorRef.current?.innerHTML || "");
     setEditorHtml(html);
     setSaveStatus("Salvando...");
+    rememberSelection();
     window.requestAnimationFrame(updateEditorPageGuides);
   }
 
@@ -836,7 +878,9 @@ export default function DocumentsPage() {
   }
 
   function exec(command: string, value?: string) {
+    restoreSelection();
     document.execCommand(command, false, value);
+    rememberSelection();
     syncEditor();
   }
 
@@ -845,14 +889,16 @@ export default function DocumentsPage() {
   }
 
   function applyFormatBlock(tag: string) {
-    editorRef.current?.focus();
+    restoreSelection();
     document.execCommand("formatBlock", false, tag);
+    rememberSelection();
     syncEditor();
   }
 
   function insertHtml(html: string) {
-    editorRef.current?.focus();
+    restoreSelection();
     document.execCommand("insertHTML", false, html);
+    rememberSelection();
     syncEditor();
   }
 
@@ -866,11 +912,12 @@ export default function DocumentsPage() {
   }
 
   async function pasteWithoutFormatting() {
-    editorRef.current?.focus();
+    restoreSelection();
     try {
       const text = await navigator.clipboard.readText();
       if (!text) return;
       document.execCommand("insertText", false, text);
+      rememberSelection();
       syncEditor();
     } catch {
       setAppDialog({
@@ -882,6 +929,7 @@ export default function DocumentsPage() {
   }
 
   function transformSelectionCase(mode: "upper" | "lower") {
+    restoreSelection();
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0 || !editorRef.current) return;
     const range = selection.getRangeAt(0);
@@ -1147,20 +1195,32 @@ export default function DocumentsPage() {
       const htmlText = (block.textContent || "").replace(/\s+/g, " ").trim();
 
       if (/^h[1-3]$/.test(tag)) {
+        const headingSize = tag === "h1" ? 13 : 11.5;
+        const headingHeight = Math.max(21, measureRichTextElement(context, block, width - 24, {
+          baseFontSize: headingSize,
+          fontFamily: "Arial, sans-serif",
+          color: "#5b1809",
+          bold: true,
+          lineHeight: 16,
+        }) + 8);
         y += 6;
         context.fillStyle = "rgba(91,24,9,0.06)";
         context.beginPath();
-        context.roundRect(x, y - 2, width, 21, 11);
+        context.roundRect(x, y - 2, width, headingHeight, 11);
         context.fill();
         context.strokeStyle = "rgba(91,24,9,0.18)";
         context.beginPath();
-        context.moveTo(x + 12, y + 23);
-        context.lineTo(x + width - 12, y + 23);
+        context.moveTo(x + 12, y + headingHeight + 2);
+        context.lineTo(x + width - 12, y + headingHeight + 2);
         context.stroke();
-        context.fillStyle = "#5b1809";
-        context.font = tag === "h1" ? "700 13px Arial" : "700 11.5px Arial";
-        context.fillText(htmlText.toUpperCase(), x + 12, y + 4);
-        y += 31;
+        drawRichTextElement(context, block, x + 12, y + 4, width - 24, y + headingHeight - 2, {
+          baseFontSize: headingSize,
+          fontFamily: "Arial, sans-serif",
+          color: "#5b1809",
+          bold: true,
+          lineHeight: 16,
+        });
+        y += headingHeight + 10;
         continue;
       }
 
@@ -1175,8 +1235,16 @@ export default function DocumentsPage() {
         context.lineWidth = 0.9;
         for (const [rowIndex, row] of rows.entries()) {
           const cells = Array.from(row.querySelectorAll("th,td"));
-          context.font = rowIndex === 0 ? "700 10.2px Arial" : "10.2px Georgia";
-          const rowHeight = Math.max(20, ...cells.map((cell) => wrapCanvasText(context, (cell.textContent || "").replace(/\s+/g, " ").trim(), colWidth - 12).length * 11 + 8));
+          const rowHeight = Math.max(20, ...cells.map((cell) =>
+            measureRichTextElement(context, cell, colWidth - 12, {
+              baseFontSize: 10,
+              fontFamily: rowIndex === 0 ? "Arial, sans-serif" : "Georgia, 'Times New Roman', serif",
+              color: "#412017",
+              bold: rowIndex === 0,
+              lineHeight: 11,
+              textAlign: "center",
+            }) + 8,
+          ));
           if (y + rowHeight > maxY) return y;
           cells.forEach((cell, cellIndex) => {
             const cx = tableX + cellIndex * colWidth;
@@ -1184,15 +1252,22 @@ export default function DocumentsPage() {
             context.fillRect(cx, y, colWidth, rowHeight);
             context.strokeStyle = "rgba(91,24,9,0.22)";
             context.strokeRect(cx, y, colWidth, rowHeight);
-            context.fillStyle = "#412017";
-            context.font = rowIndex === 0 ? "700 10px Arial" : "10px Georgia";
-            context.textAlign = "center";
-            const lines = wrapCanvasText(context, (cell.textContent || "").replace(/\s+/g, " ").trim(), colWidth - 12);
-            const lineHeight = 11;
-            const contentHeight = lines.length * lineHeight;
-            const startY = y + Math.max(4, (rowHeight - contentHeight) / 2 + 0.5);
-            lines.forEach((line, lineIndex) => context.fillText(line, cx + colWidth / 2, startY + lineIndex * lineHeight));
-            context.textAlign = "left";
+            const contentHeight = measureRichTextElement(context, cell, colWidth - 12, {
+              baseFontSize: 10,
+              fontFamily: rowIndex === 0 ? "Arial, sans-serif" : "Georgia, 'Times New Roman', serif",
+              color: "#412017",
+              bold: rowIndex === 0,
+              lineHeight: 11,
+              textAlign: "center",
+            });
+            drawRichTextElement(context, cell, cx + 6, y + Math.max(4, (rowHeight - contentHeight) / 2), colWidth - 12, y + rowHeight - 3, {
+              baseFontSize: 10,
+              fontFamily: rowIndex === 0 ? "Arial, sans-serif" : "Georgia, 'Times New Roman', serif",
+              color: "#412017",
+              bold: rowIndex === 0,
+              lineHeight: 11,
+              textAlign: "center",
+            });
           });
           y += rowHeight;
         }
@@ -1202,24 +1277,30 @@ export default function DocumentsPage() {
 
       if (tag === "ul" || tag === "ol") {
         const items = Array.from(block.querySelectorAll("li"));
-        context.fillStyle = "#4b2118";
-        context.font = "11.2px Georgia";
         items.forEach((item, index) => {
           if (y > maxY - 18) return;
+          context.fillStyle = "#4b2118";
+          context.font = "11.2px Georgia";
           context.fillText(tag === "ol" ? `${index + 1}.` : "•", x + 2, y);
-          y = drawWrappedText(context, (item.textContent || "").replace(/\s+/g, " ").trim(), x + 18, y, width - 18, 15, maxY);
+          y = drawRichTextElement(context, item, x + 18, y, width - 18, maxY, {
+            baseFontSize: 11.2,
+            color: "#4b2118",
+            lineHeight: 15,
+          });
         });
         y += 6;
         continue;
       }
 
       if (!htmlText) {
-        y += 8;
+        y += tag === "p" || tag === "blockquote" || tag === "div" ? 20.5 : 8;
         continue;
       }
-      context.fillStyle = "#3f231c";
-      context.font = "11.4px Georgia";
-      y = drawWrappedText(context, htmlText, x, y, width, 15.5, maxY) + 5;
+      y = drawRichTextElement(context, block, x, y, width, maxY, {
+        baseFontSize: 11.4,
+        color: "#3f231c",
+        lineHeight: 15.5,
+      }) + 5;
     }
     return y;
   }
@@ -1246,45 +1327,73 @@ export default function DocumentsPage() {
       setEditorPageGuideTops([]);
       return;
     }
+
     try {
       const pages = buildDocumentPages();
       if (pages.length <= 1) {
         setEditorPageGuideTops([]);
         return;
       }
-      const countNonWhitespace = (value: string) => (value.match(/\S/g) || []).length;
+
+      // Conta também <br> e parágrafos vazios. Assim, os Enters ocupam espaço
+      // no mesmo fluxo que a paginação/preview, em vez de a guia acompanhar
+      // somente caracteres visíveis.
+      const contentUnits = (root: Node) => {
+        let total = 0;
+        const walker = window.document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+        let current = walker.nextNode();
+        while (current) {
+          if (current.nodeType === Node.TEXT_NODE) total += (current.textContent || "").length;
+          else if ((current as Element).tagName?.toLowerCase() === "br") total += 1;
+          current = walker.nextNode();
+        }
+        return total;
+      };
+
       const targets: number[] = [];
       let cumulative = 0;
       pages.slice(0, -1).forEach((pageHtml) => {
         const holder = window.document.createElement("div");
         holder.innerHTML = pageHtml;
-        cumulative += countNonWhitespace(holder.textContent || "");
+        cumulative += contentUnits(holder);
         targets.push(cumulative);
       });
-      const walker = window.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+
+      const walker = window.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
       const positions: number[] = [];
       let targetIndex = 0;
       let consumed = 0;
       let node = walker.nextNode();
       const editorRect = editor.getBoundingClientRect();
+
       while (node && targetIndex < targets.length) {
-        const value = node.textContent || "";
-        let localCount = 0;
-        for (let offset = 0; offset <= value.length; offset += 1) {
-          if (offset > 0 && /\S/.test(value[offset - 1])) localCount += 1;
-          if (consumed + localCount < targets[targetIndex]) continue;
-          const range = window.document.createRange();
-          range.setStart(node, Math.min(offset, value.length));
-          range.setEnd(node, Math.min(offset, value.length));
-          const rect = range.getBoundingClientRect();
-          positions.push(Math.max(0, editor.offsetTop + rect.top - editorRect.top));
-          targetIndex += 1;
-          if (targetIndex >= targets.length) break;
+        if (node.nodeType === Node.TEXT_NODE) {
+          const value = node.textContent || "";
+          while (targetIndex < targets.length && consumed + value.length >= targets[targetIndex]) {
+            const offset = Math.max(0, Math.min(value.length, targets[targetIndex] - consumed));
+            const range = window.document.createRange();
+            range.setStart(node, offset);
+            range.setEnd(node, offset);
+            const rect = range.getBoundingClientRect();
+            positions.push(Math.max(0, editor.offsetTop + rect.top - editorRect.top));
+            targetIndex += 1;
+          }
+          consumed += value.length;
+        } else if ((node as Element).tagName?.toLowerCase() === "br") {
+          consumed += 1;
+          while (targetIndex < targets.length && consumed >= targets[targetIndex]) {
+            const parentRect = (node.parentElement || editor).getBoundingClientRect();
+            positions.push(Math.max(0, editor.offsetTop + parentRect.bottom - editorRect.top));
+            targetIndex += 1;
+          }
         }
-        consumed += localCount;
         node = walker.nextNode();
       }
-      setEditorPageGuideTops(positions);
+
+      setEditorPageGuideTops((current) => {
+        if (current.length === positions.length && current.every((value, index) => Math.abs(value - positions[index]) < 1)) return current;
+        return positions;
+      });
     } catch {
       setEditorPageGuideTops([]);
     }
@@ -1792,7 +1901,13 @@ export default function DocumentsPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 border-b border-[#d8c1ad] bg-[linear-gradient(180deg,#fffdf9_0%,#fff7ef_100%)] px-3 py-2.5 no-print">
+            <div
+              className="flex flex-wrap items-center gap-2 border-b border-[#d8c1ad] bg-[linear-gradient(180deg,#fffdf9_0%,#fff7ef_100%)] px-3 py-2.5 no-print"
+              onMouseDownCapture={(event) => {
+                rememberSelection();
+                if ((event.target as HTMLElement).closest("button")) event.preventDefault();
+              }}
+            >
               <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-xs font-black text-hpsr-text" onClick={() => exec("undo")} title="Desfazer">↶</button>
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-xs font-black text-hpsr-text" onClick={() => exec("redo")} title="Refazer">↷</button>
@@ -1871,6 +1986,13 @@ export default function DocumentsPage() {
                   contentEditable
                   suppressContentEditableWarning
                   onInput={syncEditor}
+                  onKeyUp={rememberSelection}
+                  onMouseUp={rememberSelection}
+                  onBlur={rememberSelection}
+                  onFocus={() => { ensureDefaultParagraphSeparator(); rememberSelection(); }}
+                  onKeyDown={(event) => {
+                    handleRichEditorTableKeyDown(event, editorRef.current, syncEditor);
+                  }}
                   className="hpsr-continuous-editor min-h-[740px] outline-none"
                   dangerouslySetInnerHTML={{ __html: editorHtml || generatedHtml }}
                 />

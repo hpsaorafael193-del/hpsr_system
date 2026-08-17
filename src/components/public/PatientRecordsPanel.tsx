@@ -116,15 +116,15 @@ export function PatientRecordsPanel({ onSessionExpired, passport }: { onSessionE
   }
 
   if (loading) {
-    return <div className="rounded-[24px] border border-hpsr-border bg-white/85 p-6 text-center"><Loader2 className="mx-auto animate-spin text-hpsr-wine" /><p className="mt-3 text-sm font-bold text-hpsr-muted">Carregando registros clínicos liberados...</p></div>;
+    return <div className="rounded-[24px] border border-hpsr-border bg-white/85 p-6 text-center"><Loader2 className="mx-auto animate-spin text-hpsr-wine" /><p className="mt-3 text-sm font-bold text-hpsr-muted">Carregando seu prontuário...</p></div>;
   }
 
   return (
     <section className="rounded-[24px] border border-hpsr-border bg-white/85 p-4 shadow-[0_18px_40px_rgba(82,48,27,0.08)] sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Área liberada</p>
-          <h2 className="text-xl font-black text-hpsr-text">Meus registros clínicos</h2>
+          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Seu prontuário</p>
+          <h2 className="text-xl font-black text-hpsr-text">Meus registros</h2>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1">
           <button type="button" onClick={() => void loadRecords()} className="shrink-0 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine"><RefreshCcw className="mr-1.5 inline" size={14} />Atualizar</button>

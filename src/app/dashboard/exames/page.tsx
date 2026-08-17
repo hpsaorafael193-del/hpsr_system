@@ -63,6 +63,8 @@ import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvi
 import { normalizeXrayKey, resolveXrayAttachmentAsset } from "@/lib/xray-attachment-resolver";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { createClient } from "@/lib/supabase";
+import { drawRichTextElement, measureRichTextElement } from "@/lib/rich-text-canvas";
+import { handleRichEditorTableKeyDown } from "@/lib/rich-editor-behavior";
 import { registerSystemActivity } from "@/lib/administrative-storage";
 import {
   createInitialAdaptiveConfiguration,
@@ -977,47 +979,65 @@ export default function ExamesPage() {
     }
 
     try {
-      const document = buildPreviewDocument();
-      const reportPages = document.pages.filter((page) => page.type === "report");
-      if (reportPages.length <= 1) {
+      const previewDocument = buildPreviewDocument();
+      const pages = previewDocument.pages.filter((page) => page.type === "report").map((page) => page.reportHtml || "");
+      if (pages.length <= 1) {
         setEditorPageGuideTops([]);
         return;
       }
 
-      const countNonWhitespace = (value: string) => (value.match(/\S/g) || []).length;
-      const cumulativeTargets: number[] = [];
+      // Conta também <br> e parágrafos vazios. Assim, os Enters ocupam espaço
+      // no mesmo fluxo que a paginação/preview, em vez de a guia acompanhar
+      // somente caracteres visíveis.
+      const contentUnits = (root: Node) => {
+        let total = 0;
+        const walker = window.document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+        let current = walker.nextNode();
+        while (current) {
+          if (current.nodeType === Node.TEXT_NODE) total += (current.textContent || "").length;
+          else if ((current as Element).tagName?.toLowerCase() === "br") total += 1;
+          current = walker.nextNode();
+        }
+        return total;
+      };
+
+      const targets: number[] = [];
       let cumulative = 0;
-      reportPages.slice(0, -1).forEach((page) => {
+      pages.slice(0, -1).forEach((pageHtml) => {
         const holder = window.document.createElement("div");
-        holder.innerHTML = page.reportHtml || "";
-        cumulative += countNonWhitespace(holder.textContent || "");
-        cumulativeTargets.push(cumulative);
+        holder.innerHTML = pageHtml;
+        cumulative += contentUnits(holder);
+        targets.push(cumulative);
       });
 
-      const walker = window.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+      const walker = window.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
       const positions: number[] = [];
       let targetIndex = 0;
       let consumed = 0;
       let node = walker.nextNode();
       const editorRect = editor.getBoundingClientRect();
 
-      while (node && targetIndex < cumulativeTargets.length) {
-        const value = node.textContent || "";
-        let localCount = 0;
-        for (let offset = 0; offset <= value.length; offset += 1) {
-          if (offset > 0 && /\S/.test(value[offset - 1])) localCount += 1;
-          if (consumed + localCount < cumulativeTargets[targetIndex]) continue;
-
-          const range = window.document.createRange();
-          range.setStart(node, Math.min(offset, value.length));
-          range.setEnd(node, Math.min(offset, value.length));
-          const rect = range.getBoundingClientRect();
-          const top = Math.max(0, editor.offsetTop + (rect.top - editorRect.top));
-          positions.push(top);
-          targetIndex += 1;
-          if (targetIndex >= cumulativeTargets.length) break;
+      while (node && targetIndex < targets.length) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          const value = node.textContent || "";
+          while (targetIndex < targets.length && consumed + value.length >= targets[targetIndex]) {
+            const offset = Math.max(0, Math.min(value.length, targets[targetIndex] - consumed));
+            const range = window.document.createRange();
+            range.setStart(node, offset);
+            range.setEnd(node, offset);
+            const rect = range.getBoundingClientRect();
+            positions.push(Math.max(0, editor.offsetTop + rect.top - editorRect.top));
+            targetIndex += 1;
+          }
+          consumed += value.length;
+        } else if ((node as Element).tagName?.toLowerCase() === "br") {
+          consumed += 1;
+          while (targetIndex < targets.length && consumed >= targets[targetIndex]) {
+            const parentRect = (node.parentElement || editor).getBoundingClientRect();
+            positions.push(Math.max(0, editor.offsetTop + parentRect.bottom - editorRect.top));
+            targetIndex += 1;
+          }
         }
-        consumed += localCount;
         node = walker.nextNode();
       }
 
@@ -1905,22 +1925,32 @@ export default function ExamesPage() {
         if (y > maxY - 24) break;
         const tag = block.tagName.toLowerCase();
         if (/^h[1-3]$/.test(tag)) {
-          const text = htmlText(block).toUpperCase();
-          const bandHeight = tag === "h1" ? 24 : 21;
+          const headingSize = tag === "h1" ? 13 : 11.5;
+          const headingHeight = Math.max(tag === "h1" ? 24 : 21, measureRichTextElement(context, block, width - 24, {
+            baseFontSize: headingSize,
+            fontFamily: "Arial, sans-serif",
+            color: "#5b1809",
+            bold: true,
+            lineHeight: 16,
+          }) + 8);
           y += 6;
           context.fillStyle = "rgba(91,24,9,0.06)";
           context.beginPath();
-          context.roundRect(x, y - 2, width, bandHeight, 11);
+          context.roundRect(x, y - 2, width, headingHeight, 11);
           context.fill();
           context.strokeStyle = "rgba(91,24,9,0.18)";
           context.beginPath();
-          context.moveTo(x + 12, y + bandHeight + 2);
-          context.lineTo(x + width - 12, y + bandHeight + 2);
+          context.moveTo(x + 12, y + headingHeight + 2);
+          context.lineTo(x + width - 12, y + headingHeight + 2);
           context.stroke();
-          context.fillStyle = "#5b1809";
-          context.font = tag === "h1" ? "700 13px Arial" : "700 11.5px Arial";
-          context.fillText(text, x + 12, y + 4);
-          y += bandHeight + 10;
+          drawRichTextElement(context, block, x + 12, y + 4, width - 24, y + headingHeight - 2, {
+            baseFontSize: headingSize,
+            fontFamily: "Arial, sans-serif",
+            color: "#5b1809",
+            bold: true,
+            lineHeight: 16,
+          });
+          y += headingHeight + 10;
           continue;
         }
 
@@ -1935,8 +1965,16 @@ export default function ExamesPage() {
           context.lineWidth = 0.9;
           for (const [rowIndex, row] of rows.entries()) {
             const cells = Array.from(row.querySelectorAll("th,td"));
-            context.font = rowIndex === 0 ? "700 10.2px Arial" : "10.2px Georgia";
-            const rowHeight = Math.max(20, ...cells.map((cell) => wrapCanvasText(context, htmlText(cell), colWidth - 12).length * 11 + 8));
+            const rowHeight = Math.max(20, ...cells.map((cell) =>
+              measureRichTextElement(context, cell, colWidth - 12, {
+                baseFontSize: 10,
+                fontFamily: rowIndex === 0 ? "Arial, sans-serif" : "Georgia, 'Times New Roman', serif",
+                color: "#412017",
+                bold: rowIndex === 0,
+                lineHeight: 11,
+                textAlign: "center",
+              }) + 8,
+            ));
             if (y + rowHeight > maxY) return y;
             cells.forEach((cell, cellIndex) => {
               const cx = tableX + cellIndex * colWidth;
@@ -1944,15 +1982,22 @@ export default function ExamesPage() {
               context.fillRect(cx, y, colWidth, rowHeight);
               context.strokeStyle = "rgba(91,24,9,0.22)";
               context.strokeRect(cx, y, colWidth, rowHeight);
-              context.fillStyle = "#412017";
-              context.font = rowIndex === 0 ? "700 10px Arial" : "10px Georgia";
-              context.textAlign = "center";
-              const lines = wrapCanvasText(context, htmlText(cell), colWidth - 12);
-              const lineHeight = 11;
-              const contentHeight = lines.length * lineHeight;
-              const startY = y + Math.max(4, (rowHeight - contentHeight) / 2 + 0.5);
-              lines.forEach((line, lineIndex) => context.fillText(line, cx + colWidth / 2, startY + lineIndex * lineHeight));
-              context.textAlign = "left";
+              const contentHeight = measureRichTextElement(context, cell, colWidth - 12, {
+                baseFontSize: 10,
+                fontFamily: rowIndex === 0 ? "Arial, sans-serif" : "Georgia, 'Times New Roman', serif",
+                color: "#412017",
+                bold: rowIndex === 0,
+                lineHeight: 11,
+                textAlign: "center",
+              });
+              drawRichTextElement(context, cell, cx + 6, y + Math.max(4, (rowHeight - contentHeight) / 2), colWidth - 12, y + rowHeight - 3, {
+                baseFontSize: 10,
+                fontFamily: rowIndex === 0 ? "Arial, sans-serif" : "Georgia, 'Times New Roman', serif",
+                color: "#412017",
+                bold: rowIndex === 0,
+                lineHeight: 11,
+                textAlign: "center",
+              });
             });
             y += rowHeight;
           }
@@ -1962,12 +2007,16 @@ export default function ExamesPage() {
 
         if (tag === "ul" || tag === "ol") {
           const items = Array.from(block.querySelectorAll("li"));
-          context.fillStyle = "#4b2118";
-          context.font = "11.2px Georgia";
           items.forEach((item, index) => {
             if (y > maxY - 18) return;
+            context.fillStyle = "#4b2118";
+            context.font = "11.2px Georgia";
             context.fillText(tag === "ol" ? `${index + 1}.` : "•", x + 2, y);
-            y = drawWrappedText(htmlText(item), x + 18, y, width - 18, 15, maxY);
+            y = drawRichTextElement(context, item, x + 18, y, width - 18, maxY, {
+              baseFontSize: 11.2,
+              color: "#4b2118",
+              lineHeight: 15,
+            });
           });
           y += 6;
           continue;
@@ -1975,12 +2024,17 @@ export default function ExamesPage() {
 
         const text = htmlText(block);
         if (!text) {
-          y += 8;
+          // Um parágrafo vazio representa uma linha real do editor. Mantém a
+          // mesma altura usada na medição da paginação para que Enter reflita
+          // imediatamente na pré-visualização e no PNG final.
+          y += tag === "p" || tag === "blockquote" || tag === "div" ? 20.5 : 8;
           continue;
         }
-        context.fillStyle = "#3f231c";
-        context.font = "11.4px Georgia";
-        y = drawWrappedText(text, x, y, width, 15.5, maxY) + 5;
+        y = drawRichTextElement(context, block, x, y, width, maxY, {
+          baseFontSize: 11.4,
+          color: "#3f231c",
+          lineHeight: 15.5,
+        }) + 5;
       }
       return y;
     };
@@ -2621,6 +2675,7 @@ export default function ExamesPage() {
             insertTable={insertTable}
             pasteWithoutFormatting={pasteWithoutFormatting}
             transformSelectionCase={transformSelectionCase}
+            rememberSelection={rememberSelection}
           />
 
           <div className="min-h-0 flex-1 overflow-y-auto bg-[#f2eee9] p-4">
@@ -2744,7 +2799,13 @@ export default function ExamesPage() {
                   onKeyUp={rememberSelection}
                   onMouseUp={rememberSelection}
                   onBlur={rememberSelection}
-                  onFocus={rememberSelection}
+                  onFocus={() => {
+                    try { document.execCommand("defaultParagraphSeparator", false, "p"); } catch {}
+                    rememberSelection();
+                  }}
+                  onKeyDown={(event) => {
+                    handleRichEditorTableKeyDown(event, editorRef.current, syncEditorFromDom);
+                  }}
                   className="hpsr-continuous-editor min-h-[740px] outline-none"
                 />
               </div>
@@ -2903,106 +2964,7 @@ export default function ExamesPage() {
 
       <AppDialog dialog={appDialog} onClose={() => setAppDialog(null)} />
 
-      <style jsx global>{`
-        .hpsr-continuous-editor {
-          color: #2a0700;
-          font-family: Georgia, "Times New Roman", serif;
-          font-size: 15px;
-          line-height: 1.72;
-          letter-spacing: 0.002em;
-        }
-        .hpsr-continuous-editor:empty:before {
-          content: "Digite o laudo livremente ou use um modelo inteligente...";
-          color: #a68d82;
-          font-family: var(--font-hpsr), Roboto, sans-serif;
-          font-weight: 700;
-        }
-        .hpsr-continuous-editor h1,
-        .hpsr-continuous-editor h2,
-        .hpsr-continuous-editor h3 {
-          color: #672614;
-          font-family: var(--font-hpsr), Roboto, sans-serif;
-          font-weight: 900;
-          line-height: 1.25;
-          margin: 1rem 0 0.45rem;
-        }
-        .hpsr-continuous-editor h1 {
-          font-size: 1.25rem;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-        }
-        .hpsr-continuous-editor h2 {
-          font-size: 1rem;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-          border-bottom: 1px solid rgba(103, 38, 20, 0.18);
-          padding-bottom: 0.25rem;
-        }
-        .hpsr-continuous-editor h3 {
-          font-size: 0.94rem;
-        }
-        .hpsr-continuous-editor p {
-          margin: 0.65rem 0;
-        }
-        .hpsr-continuous-editor ul,
-        .hpsr-continuous-editor ol {
-          margin: 0.55rem 0 0.55rem 1.25rem;
-        }
-        .hpsr-continuous-editor table {
-          width: min(86%, 680px);
-          max-width: 100%;
-          border-collapse: collapse;
-          margin: 0.85rem auto;
-          font-size: 12.5px;
-          border-radius: 10px;
-          overflow: hidden;
-          table-layout: auto;
-        }
-        .hpsr-continuous-editor th {
-          background: rgba(103, 38, 20, 0.1);
-          color: #672614;
-          font-weight: 900;
-          text-align: center;
-        }
-        .hpsr-continuous-editor td,
-        .hpsr-continuous-editor th {
-          border: 1px solid rgba(103, 38, 20, 0.22);
-          padding: 0.30rem 0.40rem;
-          vertical-align: middle;
-          text-align: center;
-        }
-        .hpsr-continuous-editor section[data-hpsr-auto-block="true"] {
-          break-inside: avoid;
-          margin: 0 0 0.72rem;
-        }
-        .hpsr-continuous-editor section[data-hpsr-auto-block="true"] h2 {
-          margin-top: 0.72rem;
-          margin-bottom: 0.32rem;
-          padding-bottom: 0.18rem;
-        }
-        .hpsr-continuous-editor section[data-hpsr-auto-block="true"] p {
-          margin: 0.28rem 0;
-          line-height: 1.52;
-        }
-        .hpsr-continuous-editor section[data-hpsr-auto-block="true"] table {
-          width: min(82%, 640px);
-          margin: 0.42rem auto 0.58rem;
-          font-size: 12px;
-        }
-        .hpsr-continuous-editor section[data-hpsr-auto-block="true"] td,
-        .hpsr-continuous-editor section[data-hpsr-auto-block="true"] th {
-          padding: 0.24rem 0.34rem;
-          line-height: 1.28;
-          text-align: center;
-        }
-        .hpsr-continuous-editor blockquote {
-          border-left: 4px solid rgba(103, 38, 20, 0.35);
-          background: #fff8f0;
-          margin: 0.8rem 0;
-          padding: 0.55rem 0.8rem;
-          color: #5d4038;
-        }
-      `}</style>
+
     </div>
   );
 }
@@ -3057,6 +3019,7 @@ function Toolbar({
   insertTable,
   pasteWithoutFormatting,
   transformSelectionCase,
+  rememberSelection,
 }: {
   exec: (command: string, value?: string) => void;
   insertHtml: (html: string) => void;
@@ -3070,6 +3033,7 @@ function Toolbar({
   insertTable: (rows?: number, cols?: number) => void;
   pasteWithoutFormatting: () => Promise<void>;
   transformSelectionCase: (mode: "upper" | "lower") => void;
+  rememberSelection: () => void;
 }) {
   function color(event: ChangeEvent<HTMLInputElement>) {
     exec("foreColor", event.target.value);
@@ -3080,7 +3044,10 @@ function Toolbar({
   }
 
   return (
-    <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-[#d8c1ad] bg-[linear-gradient(180deg,#fffdf9_0%,#fff7ef_100%)] px-3 py-2.5 backdrop-blur">
+    <div
+      className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-[#d8c1ad] bg-[linear-gradient(180deg,#fffdf9_0%,#fff7ef_100%)] px-3 py-2.5 backdrop-blur"
+      onMouseDownCapture={() => rememberSelection()}
+    >
       <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
         <Button onClick={() => exec("undo")} title="Desfazer">
           ↶
