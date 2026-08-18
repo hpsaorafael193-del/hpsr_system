@@ -9,7 +9,7 @@ import { PatientRecordsPanel } from "@/components/public/PatientRecordsPanel";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { PatientAppointmentsPanel } from "@/components/public/PatientAppointmentsPanel";
 import { PatientExamRequestsPanel } from "@/components/public/PatientExamRequestsPanel";
-import { PatientFollowupsPanel, type PatientFollowupData } from "@/components/public/PatientFollowupsPanel";
+import { PatientFollowupSummaryPanel, PatientFollowupsPanel, type PatientFollowupData } from "@/components/public/PatientFollowupsPanel";
 import { PatientProfilePanel } from "@/components/public/PatientProfilePanel";
 import { createClient, createPasswordRecoveryClient } from "@/lib/supabase";
 import { clearAuthContext, clearLoginPersistence, setAuthContext } from "@/lib/auth-persistence";
@@ -310,7 +310,7 @@ export function PatientAccessPanel() {
     const sections = [
       { id: "appointments" as const, icon: CalendarClock, title: "Meus agendamentos", subtitle: "Veja suas consultas e os horários combinados." },
       { id: "request" as const, icon: ClipboardPlus, title: "Solicitar consulta", subtitle: "Peça uma nova consulta. O médico combina o horário depois." },
-      { id: "followups" as const, icon: HeartPulse, title: "Acompanhamentos", subtitle: "Veja os atendimentos que seu médico já acompanha." },
+      { id: "followups" as const, icon: CalendarClock, title: "Horários do médico", subtitle: "Veja os horários que seu médico publicou para você e confirme um atendimento." },
       { id: "exam-request" as const, icon: FlaskConical, title: "Solicitar exame", subtitle: "Peça um exame e acompanhe o andamento." },
       { id: "records" as const, icon: FileHeart, title: "Meu prontuário", subtitle: "Veja seus exames, documentos e registros liberados." },
       { id: "pending" as const, icon: AlertCircle, title: "Pendências", subtitle: "Veja avisos ou ajustes que ainda estão em andamento." },
@@ -388,7 +388,7 @@ export function PatientAccessPanel() {
               {Boolean(followupData?.agendaAvailableCount) && portalSection === "home" && (
                 <button type="button" onClick={() => setPortalSection("followups")} className="mb-3 flex w-full items-start gap-3 rounded-[16px] border-2 border-blue-300 bg-[linear-gradient(135deg,#eff7ff_0%,#dfeeff_100%)] p-3.5 text-left shadow-[0_10px_22px_rgba(37,99,235,.07)]">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-blue-700 text-white"><BellRing size={18}/></span>
-                  <span className="min-w-0"><strong className="block text-sm font-black text-blue-950">Agenda disponível em acompanhamento</strong><span className="mt-1 block text-xs font-semibold leading-relaxed text-blue-900">Há atualização em {followupData?.agendaAvailableCount} acompanhamento{followupData?.agendaAvailableCount === 1 ? "" : "s"}. Toque para ver os detalhes.</span></span>
+                  <span className="min-w-0"><strong className="block text-sm font-black text-blue-950">Novos horários do médico</strong><span className="mt-1 block text-xs font-semibold leading-relaxed text-blue-900">Seu médico publicou horários em {followupData?.agendaAvailableCount} atendimento{followupData?.agendaAvailableCount === 1 ? "" : "s"}. Toque para ver e confirmar.</span></span>
                 </button>
               )}
               {portalSection === "home" && (
@@ -410,9 +410,9 @@ export function PatientAccessPanel() {
                   </div>
                 </div>
               )}
-              {portalSection === "appointments" && <PatientAppointmentsPanel view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
+              {portalSection === "appointments" && <div className="space-y-4"><PatientFollowupSummaryPanel data={followupData} loading={followupLoading} error={followupError} onOpenHours={() => setPortalSection("followups")} /><PatientAppointmentsPanel view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} /></div>}
               {portalSection === "request" && <PatientAppointmentsPanel view="request" passport={selectedPassport} hasEmail={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasEmail} onSessionExpired={handleSessionExpired} />}
-              {portalSection === "followups" && <PatientFollowupsPanel data={followupData} loading={followupLoading} error={followupError} onRefresh={() => void loadFollowups(selectedPassport)} />}
+              {portalSection === "followups" && <PatientFollowupsPanel data={followupData} loading={followupLoading} error={followupError} passport={selectedPassport} onRefresh={() => void loadFollowups(selectedPassport)} />}
               {portalSection === "exam-request" && <PatientExamRequestsPanel passport={selectedPassport} hasEmail={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasEmail} onSessionExpired={handleSessionExpired} />}
               {portalSection === "records" && <PatientRecordsPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
               {portalSection === "pending" && <PatientAppointmentsPanel view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
@@ -423,12 +423,12 @@ export function PatientAccessPanel() {
         <PatientPortalHelp open={helpOpen} onOpen={() => setHelpOpen(true)} onClose={() => setHelpOpen(false)} />
       {childOpen && (
         <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#2a0700]/55 p-0 sm:items-center sm:p-4">
-          <form onSubmit={createChild} className="w-full max-w-lg overflow-hidden rounded-t-[24px] bg-white shadow-2xl sm:rounded-[24px]">
+          <form onSubmit={createChild} className="flex max-h-[94dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] bg-white shadow-2xl sm:max-h-[88dvh] sm:rounded-[24px]">
             <div className="flex items-start justify-between bg-hpsr-wine px-5 py-4 text-white">
               <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-white/65">Fluxo pediátrico</p><h3 className="mt-1 text-xl font-black">Solicitar vínculo da criança</h3></div>
               <button type="button" onClick={() => setChildOpen(false)} className="grid h-9 w-9 place-items-center rounded-[11px] border border-white/20 bg-white/10"><X size={17}/></button>
             </div>
-            <div className="grid gap-3 p-5 sm:grid-cols-2">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5"><div className="grid gap-3 sm:grid-cols-2">
               <Field label="Nome da criança"><input className="portal-input" value={childForm.name} onChange={(e)=>setChildForm((c)=>({...c,name:e.target.value}))} required /></Field>
               <Field label="Passaporte"><input className="portal-input uppercase" value={childForm.passport} onChange={(e)=>setChildForm((c)=>({...c,passport:e.target.value.toUpperCase()}))} required /></Field>
               <Field label="Idade"><input className="portal-input" inputMode="numeric" value={childForm.age} onChange={(e)=>setChildForm((c)=>({...c,age:e.target.value.replace(/\D/g,"")}))} required /></Field>
@@ -436,8 +436,8 @@ export function PatientAccessPanel() {
               <Field label="Tipo sanguíneo"><input className="portal-input uppercase" value={childForm.bloodType} onChange={(e)=>setChildForm((c)=>({...c,bloodType:e.target.value.toUpperCase()}))} /></Field>
               <Field label="Vínculo"><input className="portal-input" value={childForm.relationship} onChange={(e)=>setChildForm((c)=>({...c,relationship:e.target.value}))} /></Field>
               <p className="sm:col-span-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] p-3 text-xs font-semibold leading-relaxed text-hpsr-muted">O sistema compara nome e passaporte com o Prontuário. Quando encontra uma criança, prepara o vínculo; quando não encontra, cria o prontuário infantil pendente. A liberação ocorre somente após uma confirmação médica simples.</p>
-            </div>
-            <div className="flex gap-3 border-t border-hpsr-border bg-[#fffaf4] p-4"><button type="button" onClick={()=>setChildOpen(false)} className="min-h-[44px] flex-1 rounded-[13px] border border-hpsr-border bg-white text-sm font-black">Cancelar</button><button disabled={busy} type="submit" className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine text-sm font-black text-white disabled:opacity-50">{busy?<Loader2 size={16} className="animate-spin"/>:<Baby size={16}/>}Enviar para validação</button></div>
+            </div></div>
+            <div className="flex shrink-0 gap-3 border-t border-hpsr-border bg-[#fffaf4] p-4"><button type="button" onClick={()=>setChildOpen(false)} className="min-h-[44px] flex-1 rounded-[13px] border border-hpsr-border bg-white text-sm font-black">Cancelar</button><button disabled={busy} type="submit" className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine text-sm font-black text-white disabled:opacity-50">{busy?<Loader2 size={16} className="animate-spin"/>:<Baby size={16}/>}Enviar para validação</button></div>
           </form>
         </div>
       )}
@@ -575,13 +575,13 @@ export function PatientAccessPanel() {
 
 function PatientPortalHelp({ open, onOpen, onClose }: { open: boolean; onOpen: () => void; onClose: () => void }) {
   const items = [
-    { icon: ClipboardPlus, title: "Solicitar consulta", text: "Peça uma nova consulta. O horário ainda não está marcado; o médico combina com você depois." },
-    { icon: CalendarClock, title: "Meus agendamentos", text: "Veja as consultas que já foram aceitas e os horários que já foram combinados." },
-    { icon: HeartPulse, title: "Acompanhamentos", text: "Veja os atendimentos que seu médico já acompanha. Quando a agenda mudar, você recebe um aviso aqui." },
-    { icon: FlaskConical, title: "Solicitar exame", text: "Peça um exame e acompanhe o andamento. Pedir um exame não cria uma consulta." },
-    { icon: FileHeart, title: "Meu prontuário", text: "Veja exames, documentos e registros que foram liberados para você." },
-    { icon: AlertCircle, title: "Pendências", text: "Veja avisos ou ajustes de consultas que ainda estão sendo resolvidos." },
-    { icon: UserRound, title: "Meus dados", text: "Atualize seu nome, telefone, e-mail e senha sem depender da equipe." },
+    { icon: ClipboardPlus, title: "Solicitar consulta", text: "Peça uma consulta nova. Depois, o médico combina o dia e o horário com você." },
+    { icon: CalendarClock, title: "Horários do médico", text: "É aqui que aparecem os horários publicados pelo seu médico. Escolha e confirme um deles." },
+    { icon: HeartPulse, title: "Meus agendamentos", text: "Veja seus acompanhamentos e tudo que já foi confirmado ou combinado com os médicos." },
+    { icon: FlaskConical, title: "Solicitar exame", text: "Peça um exame. Isso não cria uma consulta." },
+    { icon: FileHeart, title: "Meu prontuário", text: "Veja exames, documentos e registros liberados para você." },
+    { icon: AlertCircle, title: "Pendências", text: "Veja se existe algum aviso ou ajuste em andamento." },
+    { icon: UserRound, title: "Meus dados", text: "Atualize seus dados de contato e sua senha." },
   ];
 
   return (
@@ -590,29 +590,34 @@ function PatientPortalHelp({ open, onOpen, onClose }: { open: boolean; onOpen: (
         <HelpCircle size={17}/> Como usar
       </button>
       {open && (
-        <div className="fixed inset-0 z-[1250] flex items-end justify-center bg-[#1f0805]/60 p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label="Como usar o Portal do Paciente">
-          <div className="max-h-[88dvh] w-full max-w-2xl overflow-hidden rounded-t-[24px] border border-hpsr-border bg-white shadow-2xl sm:rounded-[24px]">
-            <div className="flex items-start justify-between gap-3 border-b border-hpsr-border bg-[#fffaf4] px-5 py-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[.15em] text-hpsr-wineLight">Ajuda rápida</p>
-                <h3 className="mt-1 text-xl font-black text-hpsr-text">Como usar o Portal</h3>
-                <p className="mt-1 text-sm font-semibold text-hpsr-muted">Cada opção faz uma coisa. É só escolher o que você precisa.</p>
+        <div className="fixed inset-0 z-[1250] flex items-center justify-center bg-[#1f0805]/60 p-3 sm:p-5" role="dialog" aria-modal="true" aria-label="Como usar o Portal do Paciente">
+          <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-2xl sm:max-h-[88dvh] sm:rounded-[26px]">
+            <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#fff2e6_100%)] px-4 py-4 sm:px-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wine"><HelpCircle size={12}/> Ajuda rápida</span>
+                  <h3 className="mt-2 text-lg font-black text-hpsr-text sm:text-xl">Como usar o Portal</h3>
+                  <p className="mt-1 max-w-xl text-xs font-semibold leading-relaxed text-hpsr-muted sm:text-sm">Escolha o que você precisa. Cada área tem uma função simples.</p>
+                </div>
+                <button type="button" onClick={onClose} aria-label="Fechar" className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] border border-hpsr-border bg-white text-hpsr-wine shadow-sm"><X size={17}/></button>
               </div>
-              <button type="button" onClick={onClose} aria-label="Fechar" className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] border border-hpsr-border bg-white text-hpsr-wine"><X size={17}/></button>
             </div>
-            <div className="max-h-[calc(88dvh-92px)] overflow-y-auto p-4 sm:p-5">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3.5 sm:p-5">
               <div className="grid gap-2 sm:grid-cols-2">
-                {items.map(({ icon: Icon, title, text }) => (
-                  <div key={title} className="flex items-start gap-3 rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3.5">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-white text-hpsr-wine shadow-sm"><Icon size={17}/></span>
-                    <div className="min-w-0"><p className="text-sm font-black text-hpsr-text">{title}</p><p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">{text}</p></div>
+                {items.map(({ icon: Icon, title, text }, index) => (
+                  <div key={title} className={`flex items-start gap-3 rounded-[15px] border p-3.5 ${index === 1 ? "border-blue-200 bg-blue-50/80" : "border-hpsr-border bg-[#fffaf4]"}`}>
+                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[11px] shadow-sm ${index === 1 ? "bg-blue-700 text-white" : "bg-white text-hpsr-wine"}`}><Icon size={17}/></span>
+                    <div className="min-w-0"><p className="text-sm font-black text-hpsr-text">{title}</p><p className="mt-1 text-[11px] font-semibold leading-relaxed text-hpsr-muted sm:text-xs">{text}</p></div>
                   </div>
                 ))}
               </div>
-              <div className="mt-3 rounded-[15px] border border-blue-200 bg-blue-50 px-4 py-3">
-                <p className="text-xs font-black text-blue-950">Sobre horários de consulta</p>
-                <p className="mt-1 text-xs font-semibold leading-relaxed text-blue-900">Você não escolhe o horário ao enviar um pedido. O médico combina com você pelo Discord ou dentro do RP, conforme a forma que ele preferir.</p>
+              <div className="mt-3 rounded-[15px] border border-blue-200 bg-blue-50 px-3.5 py-3">
+                <p className="text-xs font-black text-blue-950">Onde vejo os horários?</p>
+                <p className="mt-1 text-[11px] font-semibold leading-relaxed text-blue-900 sm:text-xs"><strong>Horários do médico</strong> é onde aparecem os horários que ele publicou para você escolher. Depois de confirmar, o atendimento aparece em <strong>Meus agendamentos</strong>.</p>
               </div>
+            </div>
+            <div className="shrink-0 border-t border-hpsr-border bg-white p-3 sm:p-4">
+              <button type="button" onClick={onClose} className="inline-flex min-h-[44px] w-full items-center justify-center rounded-[13px] bg-hpsr-wine px-4 text-sm font-black text-white shadow-sm">Entendi</button>
             </div>
           </div>
         </div>

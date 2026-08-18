@@ -145,7 +145,7 @@ export function ClinicalFollowupPlanner({
       const saved = data as { preserved_confirmed?: number } | null;
       setMessage(editingPlanId
         ? `Planejamento atualizado.${saved?.preserved_confirmed ? ` ${saved.preserved_confirmed} consulta(s) já confirmada(s) foram preservadas.` : ""}`
-        : `${list.length} datas previstas para ${patient.name}. Nenhuma consulta foi confirmada automaticamente.`);
+        : `${list.length} referências de acompanhamento criadas para ${patient.name}. Elas ajudam na organização, mas não prendem o atendimento a dias exatos.`);
       setEditingPlanId(null);
       await load();
     } catch (caught) {
@@ -217,7 +217,7 @@ export function ClinicalFollowupPlanner({
         <div className="flex flex-col gap-3 rounded-[18px] border border-hpsr-border bg-[linear-gradient(180deg,#ffffff_0%,#fffaf4_100%)] px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Configuração da sequência</p>
-            <p className="mt-1 text-sm text-hpsr-muted">Defina paciente, frequência e encerramento sem redundâncias na tela.</p>
+            <p className="mt-1 text-sm text-hpsr-muted">Defina paciente e frequência como referência de rotina. As datas ajudam na organização e podem ser ajustadas sem prender o atendimento a um dia exato.</p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full border border-hpsr-border bg-white px-3 py-1.5 text-xs font-black text-hpsr-wine">
             <CalendarRange size={14} /> {plans.length} ativo{plans.length === 1 ? "" : "s"}
@@ -270,7 +270,7 @@ export function ClinicalFollowupPlanner({
             </StyledSelect>
           </label>
           <label className={`${label} lg:col-span-3`}>
-            Primeira data
+            Primeira referência
             <input type="date" min={today} value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value })} className={field} />
           </label>
         </div>
@@ -303,7 +303,7 @@ export function ClinicalFollowupPlanner({
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Prévia da sequência</p>
               <p className="mt-1 truncate text-sm font-black text-hpsr-text">{selectedPatient?.name || "Selecione um paciente"}</p>
-              <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{generatedDates.length} data{generatedDates.length === 1 ? "" : "s"} prevista{generatedDates.length === 1 ? "" : "s"} · intervalo de {interval()} dias · não confirma consultas automaticamente</p>
+              <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{generatedDates.length} referência{generatedDates.length === 1 ? "" : "s"} · intervalo de {interval()} dias · serve para organização, não como data obrigatória</p>
             </div>
             <div className="flex flex-wrap gap-2 sm:justify-end">
               {preview.slice(0, 6).map((date, index) => (
@@ -341,7 +341,7 @@ export function ClinicalFollowupPlanner({
             {plans.length ? plans.map((plan) => (
               <div key={plan.id} className="flex items-center gap-3 rounded-[14px] border border-hpsr-border bg-[#fffdf9] p-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#fff4ea] text-hpsr-wine"><Clock3 size={17} /></div>
-                <div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{plan.patient_name}</p><p className="mt-0.5 truncate text-xs font-semibold text-hpsr-muted">{plan.specialty} · {plan.total_consultations || 0} datas previstas</p><p className="mt-1 text-[11px] text-hpsr-muted">{displayDate(plan.start_date)}{plan.end_date ? ` até ${displayDate(plan.end_date)}` : ""}</p></div>
+                <div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{plan.patient_name}</p><p className="mt-0.5 truncate text-xs font-semibold text-hpsr-muted">{plan.specialty} · {plan.total_consultations || 0} referências planejadas</p><p className="mt-1 text-[11px] text-hpsr-muted">{displayDate(plan.start_date)}{plan.end_date ? ` até ${displayDate(plan.end_date)}` : ""}</p></div>
                 <div className="flex shrink-0 gap-1.5">
                   <button type="button" aria-label="Editar planejamento" disabled={busy} onClick={() => startEditing(plan)} className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-hpsr-border text-hpsr-wine transition hover:bg-[#fff4ea]"><Pencil size={15}/></button>
                   <button type="button" aria-label="Excluir planejamento" disabled={busy} onClick={() => void remove(plan)} className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-rose-100 text-rose-700 transition hover:bg-rose-50"><Trash2 size={15} /></button>

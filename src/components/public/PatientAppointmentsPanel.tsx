@@ -221,7 +221,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
       {view === "request" && <section className="rounded-[18px] border border-hpsr-border bg-white/90 p-3.5 sm:p-4">
         <div className="border-b border-hpsr-border/70 pb-3">
           <h3 className="text-base font-black text-hpsr-text">Solicitar consulta</h3>
-          <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Aqui você pede uma nova consulta. Isso não marca um horário na hora. Acompanhamentos e exames têm áreas próprias no Portal.</p>
+          <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Aqui você pede uma nova consulta. Isso não marca um horário na hora. Se você já faz acompanhamento, veja Meus agendamentos e Horários do médico.</p>
         </div>
         <form onSubmit={submitAppointment} className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="text-xs font-black text-hpsr-muted">Nome do paciente<input name="patient" required className={`${fieldClass} mt-1.5`} /></label>
@@ -231,7 +231,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, view = "scheduled",
               <option>Consulta comum</option>
               <option value="Outros">Outro motivo</option>
             </StyledSelect>
-            <span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Para uma consulta nova, escolha “Consulta comum”. Exames e acompanhamentos ficam em outras áreas do Portal.</span>
+            <span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Para uma consulta nova, escolha “Consulta comum”. Exames têm uma área própria; acompanhamentos ficam em Meus agendamentos e os horários publicados ficam em Horários do médico.</span>
           </label>
           {requestFlowType === "Outros" && (
             <label className="text-xs font-black text-hpsr-muted sm:col-span-2">O que você precisa?

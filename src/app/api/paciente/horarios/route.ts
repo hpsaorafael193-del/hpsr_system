@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
     slots: [],
     allowedSpecialties: [],
     diagnostics: {
-      reason: "O Portal do Paciente não permite mais escolher horários. Envie uma solicitação de consulta e aguarde o contato do médico pelo e-mail cadastrado ou pelo Discord informado.",
+      reason: "Horários de acompanhamento são mostrados diretamente em Meus acompanhamentos. Para uma nova consulta, envie apenas o pedido e combine o horário com o médico.",
     },
-    schedulingMode: "medical_contact",
+    schedulingMode: "contextual",
   });
 }

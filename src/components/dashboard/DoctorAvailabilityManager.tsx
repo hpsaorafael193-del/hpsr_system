@@ -12,6 +12,7 @@ import { hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 const field = "mt-1.5 min-h-[46px] w-full rounded-[14px] border border-hpsr-border bg-white px-3.5 text-sm font-bold text-hpsr-text outline-none transition focus:border-hpsr-wine focus:ring-2 focus:ring-hpsr-wineLight/20";
 const label = "text-[11px] font-black uppercase tracking-[0.11em] text-hpsr-muted";
 const MAX_DAILY_SLOTS = 5;
+const WEEKDAYS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 
 type Props = { doctorId?: string; doctorName: string; defaultSpecialty?: string; embedded?: boolean };
 type Series = { id: string; specialty: string; start_date: string; end_date: string; start_time: string; end_time: string; slot_duration_minutes: number; weekday: number; status: string };
@@ -97,25 +98,30 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
       const slots: Array<Record<string, unknown>> = [];
       const cursor = new Date(`${form.startDate}T12:00:00`);
       const lastDate = new Date(`${form.endDate}T12:00:00`);
+      const plannedWeekday = firstDate.getDay();
       while (cursor <= lastDate) {
-        let minute = startHour * 60 + startMinute;
-        const finalMinute = endHour * 60 + endMinute;
-        let count = 0;
-        while (minute + duration <= finalMinute && count < dailyLimit) {
-          const start = new Date(cursor);
-          start.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
-          const finish = new Date(start.getTime() + duration * 60000);
-          slots.push({
-            series_id: created.id,
-            doctor_id: doctorId,
-            doctor_name: doctorName,
-            specialty: form.specialty,
-            starts_at: brazilIso(start),
-            ends_at: brazilIso(finish),
-            status: "Disponível",
-          });
-          minute += duration;
-          count += 1;
+        // A primeira data define o dia da semana da rotina. Em intervalos maiores,
+        // publicamos somente esse mesmo dia nas semanas seguintes.
+        if (cursor.getDay() === plannedWeekday) {
+          let minute = startHour * 60 + startMinute;
+          const finalMinute = endHour * 60 + endMinute;
+          let count = 0;
+          while (minute + duration <= finalMinute && count < dailyLimit) {
+            const start = new Date(cursor);
+            start.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
+            const finish = new Date(start.getTime() + duration * 60000);
+            slots.push({
+              series_id: created.id,
+              doctor_id: doctorId,
+              doctor_name: doctorName,
+              specialty: form.specialty,
+              starts_at: brazilIso(start),
+              ends_at: brazilIso(finish),
+              status: "Disponível",
+            });
+            minute += duration;
+            count += 1;
+          }
         }
         cursor.setDate(cursor.getDate() + 1);
       }
@@ -134,7 +140,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
         await client.from("clinical_availability_series").delete().eq("id", created.id);
         throw new Error("Nenhum horário novo foi criado. As vagas desse médico nesse período já existem no sistema.");
       }
-      setMessage(`${confirmedCount} horário${confirmedCount === 1 ? "" : "s"} publicado${confirmedCount === 1 ? "" : "s"}. Acompanhamentos compatíveis em ${form.specialty} passarão a sinalizar agenda disponível no Portal.`);
+      setMessage(`${confirmedCount} horário${confirmedCount === 1 ? "" : "s"} publicado${confirmedCount === 1 ? "" : "s"}. Pacientes em acompanhamento com você em ${form.specialty} poderão escolher esses horários até o dia anterior.`);
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível publicar os horários.");
@@ -145,7 +151,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
 
   async function removeSeries(id: string) {
     const confirmed = await hpsrConfirm(
-      "Excluir esta agenda publicada? Horários livres serão removidos. Consultas já reservadas ou realizadas serão preservadas no histórico.",
+      "Excluir esta agenda publicada? Os horários livres serão removidos. Se houver consultas reservadas ainda não concluídas, elas também serão excluídas e esses pacientes voltarão a aguardar uma nova disponibilidade. Atendimentos já realizados permanecem no histórico. Deseja continuar?",
       "Excluir agenda publicada"
     );
     if (!confirmed) return;
@@ -158,11 +164,17 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
     try {
       const { data, error: rpcError } = await client.rpc("delete_clinical_availability_series", { p_series_id: id });
       if (rpcError) throw rpcError;
-      const result = (data || {}) as { deleted?: boolean; deleted_free_slots?: number; preserved_occupied_slots?: number };
+      const result = (data || {}) as { deleted?: boolean; deleted_slots?: number; cancelled_appointments?: number; preserved_history_appointments?: number };
       if (!result.deleted) throw new Error("O banco não confirmou a exclusão da agenda publicada.");
-      const preserved = Number(result.preserved_occupied_slots || 0);
-      const removed = Number(result.deleted_free_slots || 0);
-      setMessage(`Agenda removida. ${removed} horário${removed === 1 ? "" : "s"} livre${removed === 1 ? "" : "s"} removido${removed === 1 ? "" : "s"}${preserved ? ` e ${preserved} consulta${preserved === 1 ? "" : "s"} preservada${preserved === 1 ? "" : "s"}.` : "."}`);
+      const removedSlots = Number(result.deleted_slots || 0);
+      const cancelled = Number(result.cancelled_appointments || 0);
+      const preservedHistory = Number(result.preserved_history_appointments || 0);
+      const details = [
+        `${removedSlots} horário${removedSlots === 1 ? "" : "s"} removido${removedSlots === 1 ? "" : "s"}`,
+        cancelled ? `${cancelled} consulta${cancelled === 1 ? "" : "s"} reservada${cancelled === 1 ? "" : "s"} excluída${cancelled === 1 ? "" : "s"}` : "",
+        preservedHistory ? `${preservedHistory} atendimento${preservedHistory === 1 ? "" : "s"} já concluído${preservedHistory === 1 ? "" : "s"} mantido${preservedHistory === 1 ? "" : "s"} no histórico` : "",
+      ].filter(Boolean);
+      setMessage(`Agenda removida. ${details.join("; ")}.`);
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível remover a agenda publicada.");
@@ -176,7 +188,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
       {!embedded && (
         <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4,#fff)] px-5 py-4">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-start gap-3"><div className="grid h-11 w-11 place-items-center rounded-[15px] bg-hpsr-wine text-white"><CalendarPlus2 size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Agenda médica</p><h2 className="mt-1 text-xl font-black text-hpsr-text">Publicar horários</h2><p className="mt-1 text-sm font-semibold text-hpsr-muted">Publique a disponibilidade por especialidade. Nos acompanhamentos compatíveis, o Portal avisará o paciente de que a agenda está disponível, sem permitir que ele escolha o horário.</p></div></div>
+            <div className="flex items-start gap-3"><div className="grid h-11 w-11 place-items-center rounded-[15px] bg-hpsr-wine text-white"><CalendarPlus2 size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Agenda médica</p><h2 className="mt-1 text-xl font-black text-hpsr-text">Publicar horários</h2><p className="mt-1 text-sm font-semibold text-hpsr-muted">Monte sua rotina e publique os horários reais de atendimento. A primeira data define o dia da semana; dentro do período, o sistema repete esse mesmo dia nas semanas seguintes.</p></div></div>
             <div className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2 text-right"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-hpsr-muted">Sequências ativas</p><p className="mt-0.5 text-xl font-black text-hpsr-wine">{series.length}</p></div>
           </div>
         </div>
@@ -186,9 +198,9 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
         <div className="grid gap-4">
           <div className="grid gap-3 md:grid-cols-3">
             <label className={`${label} md:col-span-3`}>Especialidade<StyledSelect value={form.specialty} onChange={(event) => setForm({ ...form, specialty: event.target.value })} className={field}>{specialties.map((specialty) => <option key={specialty}>{specialty}</option>)}</StyledSelect></label>
-            <label className={label}>Data inicial<input type="date" min={today} value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value, endDate: form.endDate < event.target.value ? event.target.value : form.endDate })} className={field} /></label>
-            <label className={label}>Data final<input type="date" min={form.startDate || today} value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} className={field} /></label>
-            <div className="rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3"><p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Acesso dos pacientes</p><p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">A disponibilidade alimenta o acompanhamento compatível. O paciente recebe o aviso, enquanto a definição do horário continua sob responsabilidade médica.</p></div>
+            <label className={label}>Primeira data<input type="date" min={today} value={form.startDate} onChange={(event) => setForm({ ...form, startDate: event.target.value, endDate: form.endDate < event.target.value ? event.target.value : form.endDate })} className={field} /></label>
+            <label className={label}>Publicar até<input type="date" min={form.startDate || today} value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} className={field} /></label>
+            <div className="rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3"><p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Acesso dos pacientes</p><p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Pacientes em acompanhamento com você veem somente horários futuros dessa especialidade e podem confirmar uma vaga até o dia anterior.</p></div>
           </div>
 
           <div className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3.5">
@@ -212,10 +224,10 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
           <div className="mt-3 space-y-2">
             <div className="flex items-center gap-3 rounded-[13px] border border-hpsr-border bg-white p-3"><Stethoscope size={18} className="text-hpsr-wine" /><div className="min-w-0"><p className="text-[10px] uppercase tracking-wider text-hpsr-muted">Médico</p><p className="truncate text-sm font-black text-hpsr-text">{doctorName}</p></div></div>
             <div className="flex items-center gap-3 rounded-[13px] border border-hpsr-border bg-white p-3"><Stethoscope size={18} className="text-hpsr-wine" /><div className="min-w-0"><p className="text-[10px] uppercase tracking-wider text-hpsr-muted">Especialidade</p><p className="truncate text-sm font-black text-hpsr-text">{form.specialty}</p></div></div>
-            <div className="flex items-center gap-3 rounded-[13px] border border-hpsr-border bg-white p-3"><Clock3 size={18} className="text-hpsr-wine" /><div><p className="text-[10px] uppercase tracking-wider text-hpsr-muted">Faixa diária</p><p className="text-sm font-black text-hpsr-text">{form.startTime} — {form.endTime}</p></div></div>
+            <div className="flex items-center gap-3 rounded-[13px] border border-hpsr-border bg-white p-3"><Clock3 size={18} className="text-hpsr-wine" /><div><p className="text-[10px] uppercase tracking-wider text-hpsr-muted">Faixa diária</p><p className="text-sm font-black text-hpsr-text">{form.startTime} — {form.endTime}</p></div></div><div className="flex items-center gap-3 rounded-[13px] border border-hpsr-border bg-white p-3"><Repeat2 size={18} className="text-hpsr-wine" /><div><p className="text-[10px] uppercase tracking-wider text-hpsr-muted">Rotina</p><p className="text-sm font-black capitalize text-hpsr-text">{WEEKDAYS[new Date(`${form.startDate}T12:00:00`).getDay()] || "dia escolhido"}</p></div></div>
             <div className="grid grid-cols-2 gap-2"><div className="rounded-[13px] border border-hpsr-border bg-white p-3"><Gauge size={16} className="text-hpsr-wine" /><p className="mt-2 text-[10px] uppercase tracking-wider text-hpsr-muted">Vagas/dia</p><p className="mt-0.5 text-xl font-black text-hpsr-text">{Math.min(MAX_DAILY_SLOTS, Math.max(1, Number(form.dailyLimit) || MAX_DAILY_SLOTS))}</p></div><div className="rounded-[13px] border border-hpsr-border bg-white p-3"><Repeat2 size={16} className="text-hpsr-wine" /><p className="mt-2 text-[10px] uppercase tracking-wider text-hpsr-muted">Duração</p><p className="mt-0.5 text-xl font-black text-hpsr-text">{form.duration}<span className="ml-1 text-xs">min</span></p></div></div>
           </div>
-          <p className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-900">A publicação não cria consulta nem acompanhamento automaticamente. Ela apenas disponibiliza a agenda; vínculos clínicos existentes recebem a atualização e o horário continua sendo definido pela equipe médica.</p>
+          <p className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-900">A publicação não cria acompanhamento novo. Ela abre vagas para pacientes que já estão vinculados a você. No próprio dia, vagas que ainda estiverem livres deixam de aceitar novas confirmações pelo Portal.</p>
         </aside>
       </div>
 
@@ -225,7 +237,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
           <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-hpsr-wine">Ver lista</span>
         </summary>
         <div className="grid max-h-[252px] gap-2 overflow-y-auto border-t border-hpsr-border p-3" style={{ scrollbarGutter: "stable" }}>
-          {series.length ? series.map((item) => <div key={item.id} className="flex items-center gap-3 rounded-[15px] border border-hpsr-border bg-white p-3 transition hover:border-hpsr-wineLight/50"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#fff4ea] text-hpsr-wine"><CalendarPlus2 size={18} /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{item.specialty}</p><p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{displayDate(item.start_date)} até {displayDate(item.end_date)}</p><p className="mt-1 text-[11px] text-hpsr-muted">{item.start_time.slice(0, 5)}–{item.end_time.slice(0, 5)} · {item.slot_duration_minutes} min</p></div><button aria-label="Remover sequência livre" disabled={busy} onClick={() => void removeSeries(item.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-rose-100 text-rose-700 transition hover:bg-rose-50"><Trash2 size={15} /></button></div>) : <p className="col-span-full rounded-[14px] border border-dashed border-hpsr-border bg-white p-5 text-center text-sm text-hpsr-muted">Nenhum horário publicado.</p>}
+          {series.length ? series.map((item) => <div key={item.id} className="flex items-center gap-3 rounded-[15px] border border-hpsr-border bg-white p-3 transition hover:border-hpsr-wineLight/50"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#fff4ea] text-hpsr-wine"><CalendarPlus2 size={18} /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{item.specialty}</p><p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{displayDate(item.start_date)} até {displayDate(item.end_date)}</p><p className="mt-1 text-[11px] font-semibold capitalize text-hpsr-muted">{WEEKDAYS[item.weekday] || "Dia definido"} · {item.start_time.slice(0, 5)}–{item.end_time.slice(0, 5)} · {item.slot_duration_minutes} min</p></div><button aria-label="Remover sequência livre" disabled={busy} onClick={() => void removeSeries(item.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-rose-100 text-rose-700 transition hover:bg-rose-50"><Trash2 size={15} /></button></div>) : <p className="col-span-full rounded-[14px] border border-dashed border-hpsr-border bg-white p-5 text-center text-sm text-hpsr-muted">Nenhum horário publicado.</p>}
         </div>
       </details>
     </section>
