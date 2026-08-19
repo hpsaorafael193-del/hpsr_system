@@ -27,6 +27,7 @@ function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage
   const role = String(row.role || "Médico Clínico");
   const systemRole = resolvedSystemRole || (role === "Diretor Técnico / Dev" ? role : "");
   const specialty = String(row.specialty || "Clínico Geral");
+  const specialties = [...new Set(specialty.split(",").map((item) => item.trim()).filter(Boolean))];
   const passport = String(row.passport || "—");
   const crm = String(row.crm || "—");
   const cityPhone = formatPhoneDisplay(String(row.city_phone || ""));
@@ -44,7 +45,7 @@ function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage
     accessLevel: systemRole === "Diretor Técnico / Dev" || role === "Diretor Técnico / Dev" ? "Total" : "Padrão",
     department: "Hospital São Rafael",
     specialty,
-    specialties: [specialty],
+    specialties: specialties.length ? specialties : [specialty],
     crm,
     cityPhone,
     discordId: String(row.discord || ""),

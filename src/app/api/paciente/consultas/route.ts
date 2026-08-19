@@ -16,12 +16,35 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await valid.supabase
       .from("appointments")
-      .select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,date:payload->>date,preferred_period:payload->>preferredPeriod,preferred_time:payload->>preferredTime,time:payload->>time,physician:payload->>physician,doctor:payload->>doctor,reason:payload->>reason,notes:payload->>notes,proposed_date:payload->>proposedDate,proposed_time:payload->>proposedTime,reschedule_reason:payload->>rescheduleReason,patient_availability:payload->>patientAvailability,patient_alternative_date:payload->>patientAlternativeDate,patient_alternative_time:payload->>patientAlternativeTime,patient_response:payload->>patientResponse,answer:payload->>answer,flow_type:payload->>flowType,flow_details:payload->>flowDetails")
+      .select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,date:payload->>date,preferred_period:payload->>preferredPeriod,preferred_time:payload->>preferredTime,time:payload->>time,physician:payload->>physician,doctor:payload->>doctor,reason:payload->>reason,notes:payload->>notes,proposed_date:payload->>proposedDate,proposed_time:payload->>proposedTime,reschedule_reason:payload->>rescheduleReason,patient_availability:payload->>patientAvailability,patient_alternative_date:payload->>patientAlternativeDate,patient_alternative_time:payload->>patientAlternativeTime,patient_response:payload->>patientResponse,answer:payload->>answer,flow_type:payload->>flowType,flow_details:payload->>flowDetails,attendance_summary:payload->>attendanceSummary,attendance_status:payload->>attendanceStatus")
       .eq("passport", targetPassport)
       .order("created_at", { ascending: false })
       .limit(100);
 
     if (error) throw error;
+
+    const { data: relatedRows, error: relatedError } = await valid.supabase
+      .from("clinical_records")
+      .select("id,record_type,released_at,is_confidential,created_at,appointment_id:payload->>appointmentId,exam_name:payload->>examName,document_title:payload->>documentTitle,title:payload->>title")
+      .eq("patient_passport", targetPassport)
+      .eq("is_confidential", false)
+      .not("released_at", "is", null)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    if (relatedError) throw relatedError;
+    const recordsByAppointment = new Map<string, Array<{ id: string; type: string; title: string; createdAt: string }>>();
+    for (const record of relatedRows || []) {
+      const appointmentId = String((record as any).appointment_id || "");
+      if (!appointmentId) continue;
+      const list = recordsByAppointment.get(appointmentId) || [];
+      list.push({
+        id: String((record as any).id),
+        type: String((record as any).record_type || "Registro"),
+        title: String((record as any).exam_name || (record as any).document_title || (record as any).title || (record as any).record_type || "Registro clínico"),
+        createdAt: String((record as any).created_at || ""),
+      });
+      recordsByAppointment.set(appointmentId, list);
+    }
 
     const appointments = (data || []).map((row: any) => {
       const status = String(row.status || "Enviada — médico a definir");
@@ -46,6 +69,9 @@ export async function GET(request: NextRequest) {
         patientAlternativeTime: String(row.patient_alternative_time || ""),
         patientResponse: String(row.patient_response || ""),
         answer: String(row.answer || ""),
+        attendanceSummary: String(row.attendance_summary || ""),
+        attendanceStatus: String(row.attendance_status || ""),
+        consultationRecords: recordsByAppointment.get(String(row.id)) || [],
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       };

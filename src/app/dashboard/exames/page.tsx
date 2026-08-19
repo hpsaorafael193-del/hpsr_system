@@ -63,6 +63,7 @@ import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvi
 import { normalizeXrayKey, resolveXrayAttachmentAsset } from "@/lib/xray-attachment-resolver";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { createClient } from "@/lib/supabase";
+import { findActiveAppointmentContext } from "@/lib/appointment-context";
 import { drawRichTextElement, measureRichTextElement } from "@/lib/rich-text-canvas";
 import { handleRichEditorTableKeyDown } from "@/lib/rich-editor-behavior";
 import { registerSystemActivity } from "@/lib/administrative-storage";
@@ -1663,10 +1664,18 @@ export default function ExamesPage() {
         const previewImages = (await Promise.all(
           document.pages.map((_, pageIndex) => renderPreviewPage(document, pageIndex, false)),
         )).filter((item): item is string => typeof item === "string" && item.startsWith("data:image/"));
+        const activeAppointment = await findActiveAppointmentContext(client, patient.passport || "", { id: selectedDoctorId, name: doctor.name });
         const payload = {
           protocol,
           patient,
           doctor,
+          ...(activeAppointment ? {
+            appointmentId: activeAppointment.id,
+            appointmentSpecialty: activeAppointment.specialty,
+            appointmentDoctor: activeAppointment.doctorName,
+            appointmentDate: activeAppointment.date,
+            appointmentTime: activeAppointment.time,
+          } : {}),
           examId: selectedExam?.id || selectedExamId,
           examName: metadata.examName,
           reportHtml: html,

@@ -44,6 +44,7 @@ import { ClinicalHistoryButton } from "@/components/dashboard/ClinicalHistoryBut
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { createClient } from "@/lib/supabase";
+import { findActiveAppointmentContext } from "@/lib/appointment-context";
 import { drawRichTextElement, measureRichTextElement } from "@/lib/rich-text-canvas";
 import { handleRichEditorTableKeyDown } from "@/lib/rich-editor-behavior";
 import { splitClinicalReportHtmlIntoPages } from "@/data/exames/final-renderer";
@@ -1634,6 +1635,7 @@ export default function DocumentsPage() {
       if (!client) throw new Error("Não foi possível conectar ao banco de dados.");
 
       const recordId = `document-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const activeAppointment = await findActiveAppointmentContext(client, patient.passport || "", { id: selectedDoctorId, name: doctor.name });
       const { error } = await client.from("clinical_records").insert({
         id: recordId,
         patient_passport: patient.passport.trim(),
@@ -1647,6 +1649,13 @@ export default function DocumentsPage() {
           previewImages: renderedImages,
           patient,
           doctor,
+          ...(activeAppointment ? {
+            appointmentId: activeAppointment.id,
+            appointmentSpecialty: activeAppointment.specialty,
+            appointmentDoctor: activeAppointment.doctorName,
+            appointmentDate: activeAppointment.date,
+            appointmentTime: activeAppointment.time,
+          } : {}),
           savedAt,
         },
       });

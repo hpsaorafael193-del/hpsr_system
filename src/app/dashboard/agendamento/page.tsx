@@ -174,7 +174,11 @@ function consultationStatusClass(status: string) {
     case "Cancelada":
       return "border-rose-200 bg-rose-50 text-rose-700";
     case "Ausente":
+    case "Não compareceu":
+    case "Atrasada":
       return "border-amber-200 bg-amber-50 text-amber-700";
+    case "Adiada":
+      return "border-blue-200 bg-blue-50 text-blue-700";
     case "Reagendada":
       return "border-blue-200 bg-blue-50 text-blue-700";
     default:
@@ -384,7 +388,7 @@ export default function AppointmentsPage() {
 
   const publicAcceptedAppointments = useMemo(() => {
     return publicRequests
-      .filter((item) => item.flowType !== "Exames" && ["Aceita", "Reagendamento aceito", "Realizada"].includes(item.status))
+      .filter((item) => item.flowType !== "Exames" && ["Aceita", "Reagendamento aceito", "Agendada", "Confirmada", "Em atendimento", "Realizada", "Concluída", "Adiada", "Atrasada", "Não compareceu", "Cancelada"].includes(item.status))
       .map((item) => {
         const wasRescheduled = item.status === "Reagendamento aceito" || Boolean(item.proposedDate || item.proposedTime);
         return {
@@ -400,7 +404,7 @@ export default function AppointmentsPage() {
           specialty: item.specialty,
           doctor: item.doctor || currentUserProfile.systemName,
           type: item.flowType || "Consulta comum",
-          status: item.status === "Realizada" ? "Realizada" : item.status === "Reagendamento aceito" ? "Confirmada" : "Aguardando contato",
+          status: item.status === "Aceita" ? "Aguardando contato" : item.status === "Reagendamento aceito" ? "Confirmada" : item.status,
           acceptedAt: item.acceptedAt,
           acceptedById: item.acceptedById,
           acceptedByName: item.acceptedByName,
@@ -560,18 +564,51 @@ export default function AppointmentsPage() {
 function ConsultationOverview({ appointments }: { appointments: typeof scheduledAppointments }) {
   const [recentOnly, setRecentOnly] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<ScheduledAppointment | null>(null);
+  const [relatedRecords, setRelatedRecords] = useState<Array<{ id: string; type: string; title: string; released: boolean }>>([]);
+
+  const loadRelatedRecords = useCallback(async (appointment: ScheduledAppointment | null) => {
+    setRelatedRecords([]);
+    if (!appointment) return;
+    const client = createClient();
+    if (!client) return;
+    const { data } = await client.from("clinical_records")
+      .select("id,record_type,is_confidential,released_at,payload")
+      .eq("patient_passport", appointment.passport)
+      .eq("payload->>appointmentId", appointment.id)
+      .order("created_at", { ascending: true })
+      .limit(50);
+    setRelatedRecords((data || []).map((row: any) => {
+      const payload = (row.payload || {}) as Record<string, unknown>;
+      return {
+        id: String(row.id),
+        type: String(row.record_type || "Registro"),
+        title: String(payload.examName || payload.documentTitle || payload.title || row.record_type || "Registro clínico"),
+        released: !row.is_confidential && Boolean(row.released_at),
+      };
+    }));
+  }, []);
+
+  useEffect(() => { void loadRelatedRecords(selectedAppointment); }, [selectedAppointment, loadRelatedRecords]);
+
   const recentCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const recentlyAcceptedCount = appointments.filter((item) => item.acceptedAt && new Date(item.acceptedAt).getTime() >= recentCutoff).length;
   const filteredAppointments = recentOnly
     ? appointments.filter((item) => item.acceptedAt && new Date(item.acceptedAt).getTime() >= recentCutoff)
     : appointments;
   const sortedAppointments = [...filteredAppointments].sort((first, second) => {
-    const firstRecent = first.acceptedAt ? new Date(first.acceptedAt).getTime() : 0;
-    const secondRecent = second.acceptedAt ? new Date(second.acceptedAt).getTime() : 0;
-    if (recentOnly || firstRecent || secondRecent) return secondRecent - firstRecent;
-    const firstDate = `${first.date} ${first.time}`;
-    const secondDate = `${second.date} ${second.time}`;
-    return firstDate.localeCompare(secondDate);
+    const timestamp = (item: ScheduledAppointment) => {
+      const preferred = item.acceptedAt || item.createdAt;
+      if (preferred) {
+        const parsed = new Date(preferred).getTime();
+        if (Number.isFinite(parsed)) return parsed;
+      }
+      if (item.date && item.date !== "A definir") {
+        const parsed = new Date(`${item.date}T${item.time && item.time !== "A definir" ? item.time : "00:00"}:00-03:00`).getTime();
+        if (Number.isFinite(parsed)) return parsed;
+      }
+      return 0;
+    };
+    return timestamp(second) - timestamp(first);
   });
 
   return (
@@ -649,6 +686,10 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
               </div>
               {selectedAppointment.reason && <DetailCard wide label="Motivo da solicitação" value={selectedAppointment.reason} />}
               {selectedAppointment.notes && <DetailCard wide label="Observações" value={selectedAppointment.notes} />}
+              <div className="sm:col-span-2 rounded-[15px] border border-hpsr-border bg-[#fffaf5] p-3">
+                <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Resumo da consulta</p>
+                {relatedRecords.length ? <div className="mt-2 grid gap-2">{relatedRecords.map((record) => <div key={record.id} className="flex items-center justify-between gap-3 rounded-[12px] border border-hpsr-border bg-white px-3 py-2"><div className="min-w-0"><p className="truncate text-xs font-black text-hpsr-text">{record.title}</p><p className="text-[10px] font-semibold text-hpsr-muted">{record.type}</p></div><span className={`shrink-0 rounded-full px-2 py-1 text-[9px] font-black ${record.released ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>{record.released ? "Liberado" : "Interno"}</span></div>)}</div> : <p className="mt-2 text-xs font-semibold text-hpsr-muted">Nenhum exame ou documento foi vinculado a esta consulta ainda.</p>}
+              </div>
             </div>
           </section>
         </div>

@@ -410,12 +410,12 @@ export function PatientAccessPanel() {
                   </div>
                 </div>
               )}
-              {portalSection === "appointments" && <div className="space-y-4"><PatientFollowupSummaryPanel data={followupData} loading={followupLoading} error={followupError} onOpenHours={() => setPortalSection("followups")} /><PatientAppointmentsPanel view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} /></div>}
+              {portalSection === "appointments" && <div className="space-y-4"><PatientFollowupSummaryPanel data={followupData} loading={followupLoading} error={followupError} onOpenHours={() => setPortalSection("followups")} /><PatientAppointmentsPanel view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => setPortalSection("records")} /></div>}
               {portalSection === "request" && <PatientAppointmentsPanel view="request" passport={selectedPassport} hasEmail={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasEmail} onSessionExpired={handleSessionExpired} />}
               {portalSection === "followups" && <PatientFollowupsPanel data={followupData} loading={followupLoading} error={followupError} passport={selectedPassport} onRefresh={() => void loadFollowups(selectedPassport)} />}
               {portalSection === "exam-request" && <PatientExamRequestsPanel passport={selectedPassport} hasEmail={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasEmail} onSessionExpired={handleSessionExpired} />}
               {portalSection === "records" && <PatientRecordsPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
-              {portalSection === "pending" && <PatientAppointmentsPanel view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
+              {portalSection === "pending" && <PatientAppointmentsPanel view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => setPortalSection("records")} />}
               {portalSection === "profile" && <PatientProfilePanel onSessionExpired={handleSessionExpired} onSaved={async () => { await checkSession(); }} />}
             </div>
           </main>

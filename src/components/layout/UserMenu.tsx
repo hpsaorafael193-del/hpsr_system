@@ -7,6 +7,7 @@ import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvi
 import { createClient } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { clearLoginPersistence } from "@/lib/auth-persistence";
+import { normalizeClinicalSpecialty } from "@/lib/clinical-scheduling";
 
 type ClockStatus = "Fora de serviço" | "Em serviço" | "Em pausa";
 type MedicalNotification = {
@@ -77,10 +78,22 @@ export function UserMenu() {
   useEffect(() => {
     void loadClock();
   }, [loadClock]);
+  const medicalSpecialties = useMemo(() => {
+    const source = Array.isArray(currentUserProfile.specialties) && currentUserProfile.specialties.length
+      ? currentUserProfile.specialties
+      : String(currentUserProfile.specialty || "").split(",");
+    return [...new Set(source.map((item) => String(item).trim()).filter((item) => item && item !== "Não informado"))];
+  }, [currentUserProfile.specialties, currentUserProfile.specialty]);
+
+  const normalizedMedicalSpecialties = useMemo(
+    () => medicalSpecialties.map(normalizeClinicalSpecialty).filter(Boolean),
+    [medicalSpecialties]
+  );
+
   const canUseMedicalNotifications = useMemo(() => {
     const role = `${currentUserProfile.role || ""} ${currentUserProfile.systemRole || ""}`.toLocaleLowerCase("pt-BR");
-    return Boolean(currentUserProfile.id && (currentUserProfile.specialty || role.includes("médic") || role.includes("diretor clínico")));
-  }, [currentUserProfile.id, currentUserProfile.role, currentUserProfile.specialty, currentUserProfile.systemRole]);
+    return Boolean(currentUserProfile.id && (medicalSpecialties.length || role.includes("médic") || role.includes("diretor clínico")));
+  }, [currentUserProfile.id, currentUserProfile.role, currentUserProfile.systemRole, medicalSpecialties.length]);
 
   const loadNotifications = useCallback(async () => {
     if (!canUseMedicalNotifications || !currentUserProfile.id) {
@@ -104,14 +117,14 @@ export function UserMenu() {
       if (directError) throw directError;
 
       let specialtyRows: any[] = [];
-      if (currentUserProfile.specialty) {
+      if (medicalSpecialties.length) {
         const { data, error: specialtyError } = await client
           .from("appointments")
           .select(columns)
-          .eq("payload->>specialty", currentUserProfile.specialty)
+          .in("payload->>specialty", medicalSpecialties)
           .in("status", ["Solicitação enviada", "Aguardando análise", "Acompanhamento aguardando confirmação"])
           .order("created_at", { ascending: false })
-          .limit(30);
+          .limit(50);
         if (specialtyError) throw specialtyError;
         specialtyRows = data || [];
       }
@@ -127,7 +140,7 @@ export function UserMenu() {
           const doctorId = String(payload.doctorId || "");
           const readBy = Array.isArray(payload.notificationReadBy) ? payload.notificationReadBy.map(String) : [];
           const directlyRelated = requestedDoctorId === userId || doctorId === userId;
-          const specialtyRelated = !requestedDoctorId && String(payload.specialty || "") === String(currentUserProfile.specialty || "");
+          const specialtyRelated = !requestedDoctorId && normalizedMedicalSpecialties.includes(normalizeClinicalSpecialty(payload.specialty));
           if (!directlyRelated && !specialtyRelated) return null;
 
           const flowType = String(payload.flowType || "Consulta comum");
@@ -169,7 +182,7 @@ export function UserMenu() {
     } finally {
       setNotificationsLoading(false);
     }
-  }, [canUseMedicalNotifications, currentUserProfile.id, currentUserProfile.specialty]);
+  }, [canUseMedicalNotifications, currentUserProfile.id, medicalSpecialties, normalizedMedicalSpecialties]);
 
   useEffect(() => {
     void loadNotifications();
@@ -191,9 +204,9 @@ export function UserMenu() {
       const userId = String(currentUserProfile.id);
       const requestedDoctorId = String(data.requestedDoctorId || "");
       const doctorId = String(data.doctorId || "");
-      const specialty = String(data.specialty || "");
+      const specialty = normalizeClinicalSpecialty(data.specialty);
       if (requestedDoctorId === userId || doctorId === userId) return true;
-      if (!requestedDoctorId && currentUserProfile.specialty && specialty === String(currentUserProfile.specialty)) return true;
+      if (!requestedDoctorId && normalizedMedicalSpecialties.includes(specialty)) return true;
       return payload.eventType === "DELETE";
     };
 
@@ -208,7 +221,7 @@ export function UserMenu() {
       if (refreshTimer !== null) window.clearTimeout(refreshTimer);
       void client.removeChannel(channel);
     };
-  }, [canUseMedicalNotifications, currentUserProfile.id, currentUserProfile.specialty, loadNotifications]);
+  }, [canUseMedicalNotifications, currentUserProfile.id, normalizedMedicalSpecialties, loadNotifications]);
 
   const unreadNotificationCount = notifications.filter((item) => item.unread).length;
 

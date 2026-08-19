@@ -3,6 +3,7 @@
 import { brazilIso } from "@/lib/brazil-datetime";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -149,7 +150,10 @@ function statusClasses(status: string) {
     case "Cancelada":
       return "bg-rose-50 text-rose-700 border-rose-200";
     case "Não compareceu":
+    case "Atrasada":
       return "bg-amber-50 text-amber-700 border-amber-200";
+    case "Adiada":
+      return "bg-blue-50 text-blue-700 border-blue-200";
     default:
       return "bg-blue-50 text-blue-700 border-blue-200";
   }
@@ -161,6 +165,8 @@ const inputClass =
 const labelClass = "text-xs font-semibold uppercase tracking-[0.16em] text-hpsr-muted";
 
 export default function ClinicalSchedulePage() {
+  const searchParams = useSearchParams();
+  const requestedAppointmentId = searchParams.get("appointment") || "";
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const isDeveloper = currentUserProfile.systemRole === "Diretor Técnico / Dev" || currentUserProfile.accessLevel === "Total";
   const isDirector = ["Diretora", "Vice Diretor", "Diretor Clínico"].some((role) => role === currentUserProfile.role || role === currentUserProfile.systemRole);
@@ -176,6 +182,7 @@ export default function ClinicalSchedulePage() {
   const [appointmentSearch, setAppointmentSearch] = useState("");
   const [scheduleScope, setScheduleScope] = useState<"mine" | "all">("mine");
   const [showCompletedAppointments, setShowCompletedAppointments] = useState(false);
+  const [quickStatusSavingId, setQuickStatusSavingId] = useState<string | null>(null);
 
   const dateKey = toDateKey(selectedDate);
 
@@ -185,12 +192,12 @@ export default function ClinicalSchedulePage() {
     const { data, error } = await client
       .from("appointments")
       .select("id,passport,patient,status,payload,created_at")
-      .in("status", ["Aceita", "Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento", "Realizada", "Concluída", "Não compareceu", "Cancelada"])
+      .in("status", ["Aceita", "Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento", "Adiada", "Atrasada", "Realizada", "Concluída", "Não compareceu", "Cancelada"])
       .order("created_at", { ascending: false })
       .limit(400);
     if (error) throw error;
     setScheduledAppointments((data || [])
-      .filter((row: any) => ["Aceita", "Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento", "Realizada", "Concluída", "Não compareceu", "Cancelada"].includes(String(row.status)))
+      .filter((row: any) => ["Aceita", "Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento", "Adiada", "Atrasada", "Realizada", "Concluída", "Não compareceu", "Cancelada"].includes(String(row.status)))
       .map((row: any) => {
         const payload = (row.payload || {}) as Record<string, unknown>;
         return {
@@ -217,6 +224,23 @@ export default function ClinicalSchedulePage() {
       .subscribe();
     return () => { void client.removeChannel(channel); };
   }, [loadAppointments]);
+
+  useEffect(() => {
+    if (!requestedAppointmentId || modal) return;
+    const target = scheduledAppointments.find((item) => item.id === requestedAppointmentId);
+    if (!target) return;
+    if (!canViewAllMedicalSchedules && target.doctorId && target.doctorId !== currentUserProfile.id) return;
+    if (!canViewAllMedicalSchedules && !target.doctorId && target.physician !== currentUserProfile.systemName) return;
+    if (target.date) {
+      const [year, month, day] = target.date.split("-").map(Number);
+      if (year && month && day) {
+        const selected = new Date(year, month - 1, day, 12, 0, 0);
+        setSelectedDate(selected);
+        setCurrentMonth(new Date(year, month - 1, 1));
+      }
+    }
+    setAppointmentSearch(target.patient);
+  }, [requestedAppointmentId, scheduledAppointments, modal, canViewAllMedicalSchedules, currentUserProfile.id, currentUserProfile.systemName]);
 
   const viewingAllSchedules = canViewAllMedicalSchedules && scheduleScope === "all";
   const doctorAppointments = scheduledAppointments.filter((appointment) => {
@@ -249,6 +273,74 @@ export default function ClinicalSchedulePage() {
   const todayAppointments = activeDoctorAppointments.filter((appointment) => appointment.date === todayKey);
   const confirmedAppointments = doctorAppointments.filter((appointment) => appointment.status === "Confirmada").length;
   const inServiceAppointments = doctorAppointments.filter((appointment) => appointment.status === "Em atendimento").length;
+
+
+  function canManageAppointment(appointment: Appointment) {
+    if (canViewAllMedicalSchedules) return true;
+    if (appointment.doctorId) return appointment.doctorId === currentUserProfile.id;
+    return appointment.physician === currentUserProfile.systemName;
+  }
+
+  async function handleQuickStatus(appointment: Appointment, nextStatus: "Em atendimento" | "Concluída" | "Adiada" | "Atrasada" | "Não compareceu") {
+    if (!canManageAppointment(appointment) || quickStatusSavingId) return;
+    const client = createClient();
+    if (!client) {
+      await hpsrAlert("Não foi possível acessar o banco de dados.", "Falha ao atualizar consulta");
+      return;
+    }
+
+    if (["Concluída", "Não compareceu"].includes(nextStatus)) {
+      const action = nextStatus === "Concluída" ? "concluir esta consulta" : "registrar que o paciente não compareceu";
+      const confirmed = await hpsrConfirm(`Deseja ${action}?`, "Confirmar alteração");
+      if (!confirmed) return;
+    }
+
+    setQuickStatusSavingId(appointment.id);
+    try {
+      const { data: currentRow, error: readError } = await client
+        .from("appointments")
+        .select("payload,status")
+        .eq("id", appointment.id)
+        .maybeSingle();
+      if (readError) throw readError;
+      if (!currentRow) throw new Error("A consulta não foi encontrada no banco de dados.");
+
+      const now = brazilIso();
+      const currentPayload = (currentRow.payload || {}) as Record<string, unknown>;
+      const payload = {
+        ...currentPayload,
+        attendanceStatus: nextStatus,
+        attendanceUpdatedAt: now,
+        attendanceUpdatedBy: currentUserProfile.systemName,
+        previousStatus: currentRow.status,
+        updatedAt: now,
+      };
+      const { data: updatedRow, error: updateError } = await client
+        .from("appointments")
+        .update({ status: nextStatus, payload, updated_at: now })
+        .eq("id", appointment.id)
+        .select("id,status")
+        .maybeSingle();
+      if (updateError) throw updateError;
+      if (!updatedRow || updatedRow.status !== nextStatus) throw new Error("O banco não confirmou a alteração do status.");
+
+      const slotId = String(currentPayload.slotId || "");
+      if (slotId) {
+        const slotStatus = nextStatus === "Concluída" ? "Concluído" : nextStatus === "Não compareceu" ? "Ausente" : nextStatus;
+        await client.from("clinical_appointment_slots").update({ status: slotStatus, updated_at: now }).eq("id", slotId);
+      }
+      const occurrenceId = String(currentPayload.occurrenceId || "");
+      if (occurrenceId) {
+        const occurrenceStatus = nextStatus === "Concluída" ? "Consulta realizada" : nextStatus;
+        await client.from("clinical_followup_occurrences").update({ status: occurrenceStatus, updated_at: now }).eq("id", occurrenceId);
+      }
+      await loadAppointments();
+    } catch (caught) {
+      await hpsrAlert(caught instanceof Error ? caught.message : "Não foi possível atualizar a consulta.", "Falha ao atualizar consulta");
+    } finally {
+      setQuickStatusSavingId(null);
+    }
+  }
 
   async function handleDeleteAppointment(appointment: Appointment) {
     const confirmed = await hpsrConfirm(
@@ -628,38 +720,20 @@ export default function ClinicalSchedulePage() {
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {!isClosedAppointment && (
-                      <button
-                        onClick={() => setModal({ mode: "open", appointment })}
-                        className="inline-flex items-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 py-2.5 text-xs font-black text-white transition"
-                      >
-                        <ClipboardPlus size={15} />
-                        Abrir atendimento
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setModal({ mode: "patient", appointment })}
-                      className="inline-flex items-center gap-2 rounded-[16px] border border-hpsr-border bg-white px-4 py-2.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fffdf9]"
-                    >
-                      <UserRound size={15} />
-                      Ver paciente
-                    </button>
-                    {!isClosedAppointment && (
+                    {!isClosedAppointment && canManageAppointment(appointment) && (
                       <>
-                        <button
-                          onClick={() => setModal({ mode: "reschedule", appointment })}
-                          className="inline-flex items-center gap-2 rounded-[16px] border border-hpsr-border bg-white px-4 py-2.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fffdf9]"
-                        >
-                          <Stethoscope size={15} />
-                          Reagendar
-                        </button>
-                        <button
-                          onClick={() => void handleDeleteAppointment(appointment)}
-                          className="inline-flex items-center gap-2 rounded-[16px] border border-rose-200 bg-white px-4 py-2.5 text-xs font-black text-rose-700 transition hover:bg-rose-50"
-                        >
-                          <Trash2 size={15} />
-                          Excluir consulta
-                        </button>
+                        {appointment.status !== "Em atendimento" && <button type="button" disabled={quickStatusSavingId === appointment.id} onClick={() => void handleQuickStatus(appointment, "Em atendimento")} className="inline-flex items-center gap-2 rounded-[13px] bg-hpsr-wine px-3.5 py-2.5 text-xs font-black text-white transition disabled:opacity-50"><ClipboardPlus size={14}/>Iniciar</button>}
+                        <button type="button" disabled={quickStatusSavingId === appointment.id} onClick={() => void handleQuickStatus(appointment, "Concluída")} className="rounded-[13px] border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-xs font-black text-emerald-700 transition disabled:opacity-50">Concluir</button>
+                        <button type="button" disabled={quickStatusSavingId === appointment.id} onClick={() => void handleQuickStatus(appointment, "Adiada")} className="rounded-[13px] border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-xs font-black text-blue-700 transition disabled:opacity-50">Adiar</button>
+                        <button type="button" disabled={quickStatusSavingId === appointment.id} onClick={() => void handleQuickStatus(appointment, "Atrasada")} className="rounded-[13px] border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs font-black text-amber-700 transition disabled:opacity-50">Atrasada</button>
+                        <button type="button" disabled={quickStatusSavingId === appointment.id} onClick={() => void handleQuickStatus(appointment, "Não compareceu")} className="rounded-[13px] border border-amber-200 bg-white px-3.5 py-2.5 text-xs font-black text-amber-800 transition disabled:opacity-50">Não compareceu</button>
+                      </>
+                    )}
+                    <button onClick={() => setModal({ mode: "patient", appointment })} className="inline-flex items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3.5 py-2.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fffdf9]"><UserRound size={14}/>Ver paciente</button>
+                    {!isClosedAppointment && canManageAppointment(appointment) && (
+                      <>
+                        <button onClick={() => setModal({ mode: "reschedule", appointment })} className="inline-flex items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3.5 py-2.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fffdf9]"><Stethoscope size={14}/>Reagendar</button>
+                        <button onClick={() => void handleDeleteAppointment(appointment)} className="inline-flex items-center gap-2 rounded-[13px] border border-rose-200 bg-white px-3.5 py-2.5 text-xs font-black text-rose-700 transition hover:bg-rose-50"><Trash2 size={14}/>Excluir</button>
                       </>
                     )}
                   </div>
