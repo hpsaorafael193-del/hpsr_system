@@ -349,6 +349,20 @@ export default function AppointmentsPage() {
         console.error("[HPSR][Agendamento] Falha ao atualizar solicitação:", error);
         return;
       }
+
+      // Receber uma solicitação cria automaticamente o vínculo leve paciente -> médico -> especialidade.
+      // Assim o paciente não precisa configurar nada: os horários publicados por este médico
+      // passam a aparecer no Portal sem transformar uma consulta comum em acompanhamento formal.
+      if (status === "Aceita" && request.flowType !== "Exames") {
+        const { error: linkError } = await client.rpc("set_patient_schedule_link", {
+          target_passport: request.passport.trim().toUpperCase(),
+          target_doctor_id: currentUserProfile.id,
+          target_doctor_name: currentUserProfile.systemName,
+          target_specialty: request.specialty,
+          target_enabled: true,
+        });
+        if (linkError) console.error("[HPSR][Agendamento] Solicitação aceita, mas o vínculo automático não pôde ser atualizado:", linkError);
+      }
     }
 
     setPublicRequests((currentRequests) => {

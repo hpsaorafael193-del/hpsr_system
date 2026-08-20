@@ -1,4 +1,4 @@
-import { addBrazilDays, brazilDate, brazilIso } from "@/lib/brazil-datetime";
+import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession, resolvePortalPatientPassport } from "@/lib/patient-portal/server";
 import { normalizeClinicalSpecialty } from "@/lib/clinical-scheduling";
@@ -7,12 +7,20 @@ export const runtime = "nodejs";
 export const revalidate = 0;
 export const dynamic = "force-dynamic";
 
-const MAX_AVAILABLE_SLOTS = 240;
-const MAX_SLOTS_PER_FOLLOWUP = 24;
+const MAX_AVAILABLE_SLOTS = 500;
+const MAX_SLOTS_PER_LINK = 24;
 
 function isFinalOccurrenceStatus(value: unknown) {
   const status = String(value || "").trim().toLocaleLowerCase("pt-BR");
   return ["consulta realizada", "realizada", "concluída", "concluido", "concluído", "cancelada", "cancelado", "não compareceu", "nao compareceu"].includes(status);
+}
+
+function specialtyMatches(left: unknown, right: unknown) {
+  const leftTokens = String(left || "").split(/[,;/|]+/).map(normalizeClinicalSpecialty).filter(Boolean);
+  const rightTokens = String(right || "").split(/[,;/|]+/).map(normalizeClinicalSpecialty).filter(Boolean);
+  return leftTokens.some((leftToken) => rightTokens.some((rightToken) =>
+    leftToken === rightToken || leftToken.includes(rightToken) || rightToken.includes(leftToken)
+  ));
 }
 
 export async function GET(request: NextRequest) {
@@ -22,7 +30,7 @@ export async function GET(request: NextRequest) {
     const targetPassport = await resolvePortalPatientPassport(request, valid);
     if (!targetPassport) return NextResponse.json({ ok: false, error: "Acesso não autorizado para este paciente." }, { status: 403 });
 
-    const [plansResult, occurrencesResult] = await Promise.all([
+    const [plansResult, occurrencesResult, accessResult] = await Promise.all([
       valid.supabase
         .from("clinical_followup_plans")
         .select("id,doctor_id,doctor_name,patient_name,patient_passport,specialty,frequency,start_date,end_date,total_consultations,status,created_at,updated_at")
@@ -36,20 +44,85 @@ export async function GET(request: NextRequest) {
         .eq("patient_passport", targetPassport)
         .order("planned_date", { ascending: true })
         .limit(240),
+      valid.supabase
+        .from("patient_portal_access")
+        .select("schedule_assignments")
+        .eq("patient_passport", targetPassport)
+        .maybeSingle(),
     ]);
 
-    const firstError = plansResult.error || occurrencesResult.error;
+    const firstError = plansResult.error || occurrencesResult.error || accessResult.error;
     if (firstError) throw firstError;
 
-    const plans = plansResult.data || [];
-    const occurrences = occurrencesResult.data || [];
-    const linkedSlotIds = [...new Set(occurrences.map((item: any) => String(item.slot_id || "")).filter(Boolean))];
-    const doctorIds = [...new Set((plans as any[]).map((item) => String(item.doctor_id || "")).filter(Boolean))];
+    const plans = (plansResult.data || []) as any[];
+    const occurrences = (occurrencesResult.data || []) as any[];
+    const assignments = Array.isArray((accessResult.data as any)?.schedule_assignments)
+      ? ((accessResult.data as any).schedule_assignments as any[])
+      : [];
 
-    // Regra do HPSR: no próprio dia o paciente não pode mais pegar uma vaga daquele dia.
-    // Portanto a agenda oferecida começa sempre no próximo dia civil de São Paulo.
-    const tomorrow = addBrazilDays(1);
-    const tomorrowStart = `${tomorrow}T00:00:00-03:00`;
+    type Link = {
+      key: string;
+      planId: string;
+      linkType: "plan" | "assignment";
+      doctorId: string;
+      doctorName: string;
+      specialty: string;
+      frequency: string;
+      status: string;
+      startDate: string;
+      endDate: string;
+      totalConsultations: number;
+    };
+
+    const linksByKey = new Map<string, Link>();
+    for (const assignment of assignments) {
+      const doctorId = String(assignment?.doctor_id || "").trim();
+      const specialty = String(assignment?.specialty || "").trim();
+      if (!doctorId || !specialty) continue;
+      const key = `${doctorId}|${normalizeClinicalSpecialty(specialty)}`;
+      linksByKey.set(key, {
+        key,
+        planId: `link:${doctorId}:${normalizeClinicalSpecialty(specialty)}`,
+        linkType: "assignment",
+        doctorId,
+        doctorName: String(assignment?.doctor_name || "Médico responsável"),
+        specialty,
+        frequency: "Vínculo de atendimento",
+        status: "Vinculado",
+        startDate: "",
+        endDate: "",
+        totalConsultations: 0,
+      });
+    }
+
+    // Vínculos administrativos explícitos são a referência de roteamento da agenda.
+    // Quando existem, planos formais apenas enriquecem a mesma combinação médico/especialidade;
+    // planos de outro médico não voltam a aparecer por trás de uma associação corrigida pelo interno.
+    for (const plan of plans) {
+      const doctorId = String(plan.doctor_id || "");
+      const specialty = String(plan.specialty || "");
+      if (!doctorId || !specialty) continue;
+      const key = `${doctorId}|${normalizeClinicalSpecialty(specialty)}`;
+      if (assignments.length > 0 && !linksByKey.has(key)) continue;
+      linksByKey.set(key, {
+        key,
+        planId: String(plan.id || ""),
+        linkType: "plan",
+        doctorId,
+        doctorName: String(plan.doctor_name || "Médico responsável"),
+        specialty,
+        frequency: String(plan.frequency || ""),
+        status: String(plan.status || "Ativo"),
+        startDate: String(plan.start_date || ""),
+        endDate: String(plan.end_date || ""),
+        totalConsultations: Number(plan.total_consultations || 0),
+      });
+    }
+
+    const links = [...linksByKey.values()];
+    const doctorIds = [...new Set(links.map((link) => link.doctorId).filter(Boolean))];
+    const linkedSlotIds = [...new Set(occurrences.map((item) => String(item.slot_id || "")).filter(Boolean))];
+    const cutoffAt = `${brazilDate()}T23:59:59.999-03:00`;
 
     const slotQueries: Array<PromiseLike<any>> = [];
     if (doctorIds.length) {
@@ -58,7 +131,7 @@ export async function GET(request: NextRequest) {
         .select("id,doctor_id,doctor_name,specialty,starts_at,ends_at,status,appointment_id")
         .in("doctor_id", doctorIds)
         .eq("status", "Disponível")
-        .gte("starts_at", tomorrowStart)
+        .gt("starts_at", cutoffAt)
         .order("starts_at", { ascending: true })
         .limit(MAX_AVAILABLE_SLOTS));
     }
@@ -70,24 +143,24 @@ export async function GET(request: NextRequest) {
         .limit(linkedSlotIds.length));
     }
 
-    const slotResults = await Promise.all(slotQueries);
+    const slotResults = slotQueries.length ? await Promise.all(slotQueries) : [];
     let resultIndex = 0;
     let availableSlots: any[] = [];
-    let linkedSlots: any[] = [];
     if (doctorIds.length) {
       const result = slotResults[resultIndex++];
       if (result.error) throw result.error;
       availableSlots = result.data || [];
     }
+    let linkedSlots: any[] = [];
     if (linkedSlotIds.length) {
       const result = slotResults[resultIndex];
       if (result.error) throw result.error;
       linkedSlots = result.data || [];
     }
 
-    const linkedById = new Map(linkedSlots.map((slot: any) => [String(slot.id), slot]));
+    const linkedById = new Map(linkedSlots.map((slot) => [String(slot.id), slot]));
     const occurrencesByPlan = new Map<string, any[]>();
-    for (const occurrence of occurrences as any[]) {
+    for (const occurrence of occurrences) {
       const key = String(occurrence.plan_id || "");
       const current = occurrencesByPlan.get(key) || [];
       current.push(occurrence);
@@ -95,26 +168,23 @@ export async function GET(request: NextRequest) {
     }
 
     const today = brazilDate();
-    const followups = (plans as any[]).map((plan) => {
-      const planOccurrences = occurrencesByPlan.get(String(plan.id)) || [];
+    const followups = links.map((link) => {
+      const planOccurrences = link.linkType === "plan" ? (occurrencesByPlan.get(link.planId) || []) : [];
       const scheduledOccurrence = planOccurrences
         .filter((occurrence) => occurrence.slot_id)
-        .map((occurrence) => ({ occurrence, slot: linkedById.get(String(occurrence.slot_id)) }))
+        .map((occurrence) => ({ occurrence, slot: linkedById.get(String(occurrence.slot_id)) as any }))
         .filter((item) => item.slot?.starts_at && new Date(String(item.slot.starts_at)).getTime() >= new Date(`${today}T00:00:00-03:00`).getTime())
         .sort((left, right) => String(left.slot.starts_at).localeCompare(String(right.slot.starts_at)))[0];
 
-      // As datas planejadas são referência. A próxima ocorrência pendente pode ter uma
-      // data de referência antiga; ela continua válida até ser vinculada a um atendimento.
-      const pendingOccurrence = planOccurrences.find((occurrence) => !occurrence.slot_id && !occurrence.appointment_id && !isFinalOccurrenceStatus(occurrence.status))
-        || planOccurrences.find((occurrence) => !occurrence.slot_id && !occurrence.appointment_id)
-        || null;
+      const pendingOccurrence = link.linkType === "plan"
+        ? (planOccurrences.find((occurrence) => !occurrence.slot_id && !occurrence.appointment_id && !isFinalOccurrenceStatus(occurrence.status))
+          || planOccurrences.find((occurrence) => !occurrence.slot_id && !occurrence.appointment_id)
+          || null)
+        : { id: link.planId, planned_date: "", status: "Vinculado" };
 
-      const planSpecialty = normalizeClinicalSpecialty(plan.specialty);
-      const planSlots = (availableSlots as any[]).filter((slot) => {
-        const sameDoctor = String(slot.doctor_id || "") === String(plan.doctor_id || "");
-        const sameSpecialty = normalizeClinicalSpecialty(slot.specialty) === planSpecialty;
-        return sameDoctor && sameSpecialty;
-      }).slice(0, MAX_SLOTS_PER_FOLLOWUP);
+      const matchingSlots = availableSlots.filter((slot) =>
+        String(slot.doctor_id || "") === link.doctorId && specialtyMatches(slot.specialty, link.specialty)
+      ).slice(0, MAX_SLOTS_PER_LINK);
 
       let scheduleState: "waiting" | "available" | "scheduled" = "waiting";
       let scheduledAt = "";
@@ -123,32 +193,33 @@ export async function GET(request: NextRequest) {
         scheduleState = "scheduled";
         scheduledAt = String(scheduledOccurrence.slot.starts_at);
         currentOccurrence = scheduledOccurrence.occurrence;
-      } else if (pendingOccurrence && planSlots.length > 0) {
+      } else if (pendingOccurrence && matchingSlots.length > 0) {
         scheduleState = "available";
       }
 
       return {
-        planId: String(plan.id || ""),
-        doctorId: String(plan.doctor_id || ""),
-        doctorName: String(plan.doctor_name || "Médico responsável"),
-        specialty: String(plan.specialty || "Não informada"),
-        frequency: String(plan.frequency || ""),
-        status: String(plan.status || "Ativo"),
-        startDate: String(plan.start_date || ""),
-        endDate: String(plan.end_date || ""),
-        totalConsultations: Number(plan.total_consultations || 0),
+        planId: link.planId,
+        linkType: link.linkType,
+        doctorId: link.doctorId,
+        doctorName: link.doctorName,
+        specialty: link.specialty,
+        frequency: link.frequency,
+        status: link.status,
+        startDate: link.startDate,
+        endDate: link.endDate,
+        totalConsultations: link.totalConsultations,
         nextOccurrence: currentOccurrence ? {
-          id: String(currentOccurrence.id || ""),
+          id: String(currentOccurrence.id || link.planId),
           plannedDate: String(currentOccurrence.planned_date || ""),
-          status: String(currentOccurrence.status || "Planejada"),
+          status: String(currentOccurrence.status || "Vinculado"),
           scheduleState,
           scheduledAt,
-          availableCount: scheduleState === "available" ? planSlots.length : 0,
-          availableSlots: scheduleState === "available" ? planSlots.map((slot) => ({
+          availableCount: scheduleState === "available" ? matchingSlots.length : 0,
+          availableSlots: scheduleState === "available" ? matchingSlots.map((slot) => ({
             id: String(slot.id || ""),
             doctorId: String(slot.doctor_id || ""),
-            doctorName: String(slot.doctor_name || plan.doctor_name || "Médico responsável"),
-            specialty: String(slot.specialty || plan.specialty || ""),
+            doctorName: String(slot.doctor_name || link.doctorName || "Médico responsável"),
+            specialty: String(slot.specialty || link.specialty || ""),
             startsAt: String(slot.starts_at || ""),
             endsAt: String(slot.ends_at || ""),
           })) : [],

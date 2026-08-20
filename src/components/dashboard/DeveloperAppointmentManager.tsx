@@ -223,7 +223,7 @@ export function DeveloperAppointmentManager({ doctorId, doctorName, canViewAll =
 
   async function removePlan(plan: Plan) {
     const confirmed = await hpsrConfirm(
-      `O planejamento de ${plan.patient_name}, criado por ${plan.doctor_name}, será removido. Consultas reais já vinculadas permanecerão no histórico.`,
+      `O planejamento de ${plan.patient_name}, criado por ${plan.doctor_name}, será removido. Consultas finalizadas permanecem no histórico; consultas ainda ativas desse planejamento serão canceladas para não bloquear novos pedidos.`,
       "Excluir planejamento clínico?",
     );
     if (!confirmed) return;
@@ -235,10 +235,10 @@ export function DeveloperAppointmentManager({ doctorId, doctorName, canViewAll =
     try {
       const { data, error: removeError } = await client.rpc("delete_clinical_followup_plan", { p_plan_id: plan.id });
       if (removeError) throw removeError;
-      const result = data as { deleted?: boolean; preserved_appointments?: number } | null;
+      const result = data as { deleted?: boolean; preserved_appointments?: number; cancelled_appointments?: number; released_slots?: number } | null;
       if (!result?.deleted) throw new Error("O banco não confirmou a exclusão do planejamento.");
       setPlans((current) => current.filter((item) => item.id !== plan.id));
-      setMessage(`Planejamento removido. ${result.preserved_appointments || 0} consulta(s) vinculada(s) foram preservadas.`);
+      setMessage(`Planejamento removido. ${result.cancelled_appointments || 0} consulta(s) ativa(s) foram canceladas, ${result.preserved_appointments || 0} registro(s) finalizado(s) foram preservados e ${result.released_slots || 0} vaga(s) futura(s) foram liberadas.`);
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível excluir o planejamento.");

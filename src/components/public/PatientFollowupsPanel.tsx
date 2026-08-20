@@ -15,6 +15,7 @@ export type PatientFollowupSlot = {
 export type PatientFollowupData = {
   followups: Array<{
     planId: string;
+    linkType: "plan" | "assignment";
     doctorId: string;
     doctorName: string;
     specialty: string;
@@ -75,8 +76,8 @@ export function PatientFollowupSummaryPanel({
       <div className="flex items-start gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-hpsr-wine text-white"><HeartPulse size={18}/></span>
         <div className="min-w-0">
-          <h3 className="text-base font-black text-hpsr-text">Seus acompanhamentos</h3>
-          <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Aqui você vê quais médicos estão acompanhando você. Os horários que eles publicarem ficam em <strong className="text-hpsr-text">Horários do médico</strong>.</p>
+          <h3 className="text-base font-black text-hpsr-text">Seus médicos</h3>
+          <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Aqui aparecem os médicos vinculados ao seu atendimento. Quando um deles publicar horários da sua especialidade, eles ficam em <strong className="text-hpsr-text">Horários do médico</strong>.</p>
         </div>
       </div>
       {loading ? (
@@ -103,7 +104,7 @@ export function PatientFollowupSummaryPanel({
           )}
         </>
       ) : (
-        <p className="mt-3 rounded-[13px] border border-dashed border-hpsr-border bg-[#fffaf4] p-4 text-center text-sm font-semibold text-hpsr-muted">Você não tem acompanhamento ativo no momento.</p>
+        <p className="mt-3 rounded-[13px] border border-dashed border-hpsr-border bg-[#fffaf4] p-4 text-center text-sm font-semibold text-hpsr-muted">Nenhum médico está vinculado a este paciente no momento.</p>
       )}
     </section>
   );
@@ -134,7 +135,7 @@ export function PatientFollowupsPanel({
     return map;
   }, [data]);
 
-  async function book(planId: string) {
+  async function book(planId: string, linkType: "plan" | "assignment", doctorId: string, specialty: string) {
     const slotId = selectedByPlan[planId];
     if (!slotId || !passport) return;
     setBookingPlanId(planId);
@@ -143,7 +144,7 @@ export function PatientFollowupsPanel({
       const response = await fetch(`/api/paciente/reservar-horario?passport=${encodeURIComponent(passport)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId, slotId }),
+        body: JSON.stringify({ planId, slotId, linkType, doctorId, specialty }),
       });
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error || "Não foi possível confirmar o horário.");
@@ -221,7 +222,7 @@ export function PatientFollowupsPanel({
                       return <button key={slot.id} type="button" onClick={() => setSelectedByPlan((current) => ({ ...current, [item.planId]: slot.id }))} className={`rounded-[12px] border px-3 py-2.5 text-left transition ${active ? "border-blue-700 bg-blue-700 text-white shadow-sm" : "border-blue-200 bg-white text-blue-950 hover:border-blue-400"}`}><span className="block text-[10px] font-black uppercase tracking-[.08em] opacity-75">{slotDay(slot.startsAt)}</span><span className="mt-1 flex items-center gap-1.5 text-sm font-black"><Clock3 size={14}/>{slotTime(slot.startsAt)}</span></button>;
                     })}
                   </div>
-                  <button type="button" disabled={!selectedSlot || bookingPlanId === item.planId} onClick={() => void book(item.planId)} className="mt-3 inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-[12px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">{bookingPlanId === item.planId ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>}Confirmar horário</button>
+                  <button type="button" disabled={!selectedSlot || bookingPlanId === item.planId} onClick={() => void book(item.planId, item.linkType, item.doctorId, item.specialty)} className="mt-3 inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-[12px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">{bookingPlanId === item.planId ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>}Confirmar horário</button>
                 </div>
               )}
 
@@ -229,7 +230,7 @@ export function PatientFollowupsPanel({
               {itemFeedback?.text && <p className={`mt-3 rounded-[12px] border px-3 py-2 text-xs font-bold ${itemFeedback.type === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800"}`}>{itemFeedback.text}</p>}
             </article>
           );
-        })}</div> : <p className="mt-4 rounded-[14px] border border-dashed border-hpsr-border bg-[#fffaf4] p-5 text-center text-sm font-semibold text-hpsr-muted">Nenhum médico com horários vinculados ao seu acompanhamento no momento.</p>}
+        })}</div> : <p className="mt-4 rounded-[14px] border border-dashed border-hpsr-border bg-[#fffaf4] p-5 text-center text-sm font-semibold text-hpsr-muted">Nenhum médico está vinculado a este paciente no momento.</p>}
       </section>
     </div>
   );

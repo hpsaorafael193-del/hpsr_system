@@ -113,6 +113,34 @@ export function ClinicalFollowupPlanner({
     return output;
   }
 
+  async function quickLink(enabled: boolean) {
+    setBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      if (!doctorId) throw new Error("Médico não identificado.");
+      const patient = patients.find((item) => normalizeClinicalPassport(item.passport) === normalizeClinicalPassport(form.passport));
+      if (!patient) throw new Error("Selecione um paciente.");
+      const client = createClient();
+      if (!client) throw new Error("Supabase não configurado.");
+      const { error: linkError } = await client.rpc("set_patient_schedule_link", {
+        target_passport: normalizeClinicalPassport(patient.passport),
+        target_doctor_id: doctorId,
+        target_doctor_name: doctorName,
+        target_specialty: form.specialty,
+        target_enabled: enabled,
+      });
+      if (linkError) throw linkError;
+      setMessage(enabled
+        ? `${patient.name} foi vinculado a você em ${form.specialty}. Seus horários publicados nessa especialidade já podem aparecer no Portal do Paciente.`
+        : `Vínculo de ${patient.name} em ${form.specialty} removido.`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Não foi possível atualizar o vínculo.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function save() {
     setBusy(true);
     setError("");
@@ -142,6 +170,14 @@ export function ClinicalFollowupPlanner({
         p_planned_dates: list,
       });
       if (saveError) throw saveError;
+      const { error: linkError } = await client.rpc("set_patient_schedule_link", {
+        target_passport: normalizeClinicalPassport(patient.passport),
+        target_doctor_id: doctorId,
+        target_doctor_name: doctorName,
+        target_specialty: form.specialty,
+        target_enabled: true,
+      });
+      if (linkError) console.error("[HPSR][Acompanhamento] Planejamento salvo, mas o vínculo leve não pôde ser sincronizado:", linkError);
       const saved = data as { preserved_confirmed?: number } | null;
       setMessage(editingPlanId
         ? `Planejamento atualizado.${saved?.preserved_confirmed ? ` ${saved.preserved_confirmed} consulta(s) já confirmada(s) foram preservadas.` : ""}`
@@ -182,7 +218,7 @@ export function ClinicalFollowupPlanner({
 
   async function remove(plan: Plan) {
     const confirmed = await hpsrConfirm(
-      `Excluir o planejamento de ${plan.patient_name}? As datas apenas previstas serão removidas. Consultas já confirmadas serão preservadas no histórico.`,
+      `Excluir o planejamento de ${plan.patient_name}? Referências futuras serão removidas, consultas ainda ativas desse planejamento serão canceladas para não bloquear novos pedidos e atendimentos finalizados permanecerão no histórico.`,
       "Excluir planejamento?"
     );
     if (!confirmed) return;
@@ -193,11 +229,11 @@ export function ClinicalFollowupPlanner({
     try {
       const { data, error: removeError } = await client.rpc("delete_clinical_followup_plan", { p_plan_id: plan.id });
       if (removeError) throw removeError;
-      const result = data as { deleted?: boolean; preserved_appointments?: number; deleted_occurrences?: number } | null;
+      const result = data as { deleted?: boolean; preserved_appointments?: number; deleted_occurrences?: number; cancelled_appointments?: number; released_slots?: number } | null;
       if (!result?.deleted) throw new Error("O banco não confirmou a exclusão do planejamento.");
       setPlans((current) => current.filter((item) => item.id !== plan.id));
       if (editingPlanId === plan.id) setEditingPlanId(null);
-      setMessage(`Planejamento removido. ${result.preserved_appointments || 0} consulta(s) já realizada(s) ou vinculada(s) foram preservadas no histórico.`);
+      setMessage(`Planejamento removido. ${result.cancelled_appointments || 0} consulta(s) ativa(s) ligada(s) ao planejamento foram canceladas para não bloquear novos pedidos; ${result.preserved_appointments || 0} registro(s) histórico(s) foram preservados e ${result.released_slots || 0} vaga(s) futura(s) foram liberadas.`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível remover o planejamento.");
     } finally {
@@ -241,6 +277,20 @@ export function ClinicalFollowupPlanner({
       )}
 
       <div className={embedded ? "rounded-[20px] border border-hpsr-border bg-white p-4 shadow-[0_10px_28px_rgba(93,45,24,0.05)] lg:p-5" : "p-4 lg:p-5"}>
+        <div className="mb-4 rounded-[18px] border-2 border-blue-200 bg-[linear-gradient(135deg,#f3f8ff_0%,#edf5ff_100%)] p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.15em] text-blue-700">Vínculo rápido</p>
+              <p className="mt-1 text-sm font-black text-blue-950">Paciente + especialidade. Só isso.</p>
+              <p className="mt-1 text-xs font-semibold leading-relaxed text-blue-900">Selecione abaixo o paciente e a especialidade e clique em Vincular. Não é necessário criar uma sequência de datas só para que o paciente veja seus horários.</p>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <button type="button" disabled={busy || !doctorId || !form.passport} onClick={() => void quickLink(true)} className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[12px] bg-blue-700 px-4 text-xs font-black text-white disabled:opacity-50"><CheckCircle2 size={15}/>Vincular paciente</button>
+              <button type="button" disabled={busy || !doctorId || !form.passport} onClick={() => void quickLink(false)} className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[12px] border border-blue-200 bg-white px-4 text-xs font-black text-blue-800 disabled:opacity-50"><X size={15}/>Desvincular</button>
+            </div>
+          </div>
+        </div>
+
         <div className="grid gap-3 lg:grid-cols-12">
           <div className={`${label} lg:col-span-5`}>
             <div className="flex items-center justify-between gap-2">

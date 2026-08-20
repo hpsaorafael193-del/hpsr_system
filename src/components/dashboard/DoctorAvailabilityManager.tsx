@@ -1,10 +1,10 @@
 "use client";
 
-import { brazilIso } from "@/lib/brazil-datetime";
+import { brazilDate } from "@/lib/brazil-datetime";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState } from "react";
-import { CalendarPlus2, CheckCircle2, Clock3, Gauge, Loader2, Repeat2, Stethoscope, Trash2 } from "lucide-react";
+import { CalendarDays, CalendarPlus2, CheckCircle2, Clock3, Gauge, Loader2, Stethoscope, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { specialties } from "@/data/mock";
 import { hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
@@ -12,22 +12,22 @@ import { hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 const field = "mt-1.5 min-h-[46px] w-full rounded-[14px] border border-hpsr-border bg-white px-3.5 text-sm font-bold text-hpsr-text outline-none transition focus:border-hpsr-wine focus:ring-2 focus:ring-hpsr-wineLight/20";
 const label = "text-[11px] font-black uppercase tracking-[0.11em] text-hpsr-muted";
 const MAX_DAILY_SLOTS = 5;
-const WEEKDAYS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
 
 type Props = { doctorId?: string; doctorName: string; defaultSpecialty?: string; embedded?: boolean };
-type Series = { id: string; specialty: string; start_date: string; end_date: string; start_time: string; end_time: string; slot_duration_minutes: number; weekday: number; status: string };
+type Series = { id: string; specialty: string; start_date: string; end_date: string; start_time: string; end_time: string; slot_duration_minutes: number; status: string };
 
-function dateKey(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+function resolvePublicationSpecialty(value?: string) {
+  const tokens = String(value || "")
+    .split(/[,;/|]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+  return tokens.find((token) => specialties.includes(token)) || "Clínico Geral";
 }
 
 function displayDate(value: string) { return value.split("-").reverse().join("/"); }
 
 export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecialty, embedded = false }: Props) {
-  const today = useMemo(() => dateKey(new Date()), []);
+  const today = useMemo(() => brazilDate(), []);
   const [series, setSeries] = useState<Series[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
@@ -38,7 +38,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
     startTime: "09:00",
     endTime: "12:00",
     duration: "60",
-    specialty: defaultSpecialty || "Clínico Geral",
+    specialty: resolvePublicationSpecialty(defaultSpecialty),
     dailyLimit: "5",
   });
 
@@ -48,7 +48,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
     if (!client) return;
     const { data } = await client
       .from("clinical_availability_series")
-      .select("id,specialty,start_date,end_date,start_time,end_time,slot_duration_minutes,weekday,status")
+      .select("id,specialty,start_date,end_date,start_time,end_time,slot_duration_minutes,status")
       .eq("doctor_id", doctorId)
       .order("created_at", { ascending: false })
       .limit(100);
@@ -75,71 +75,25 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
 
       const client = createClient();
       if (!client) throw new Error("Supabase não configurado.");
-      const firstDate = new Date(`${form.startDate}T12:00:00`);
-      const { data: created, error: seriesError } = await client
-        .from("clinical_availability_series")
-        .insert({
-          doctor_id: doctorId,
-          doctor_name: doctorName,
-          specialty: form.specialty,
-          start_date: form.startDate,
-          end_date: form.endDate,
-          start_time: form.startTime,
-          end_time: form.endTime,
-          slot_duration_minutes: duration,
-          weekday: firstDate.getDay(),
-          daily_limit: dailyLimit,
-          status: "Ativa",
-        })
-        .select("id")
-        .single();
-      if (seriesError) throw seriesError;
+      if (!specialties.includes(form.specialty)) throw new Error("Selecione uma especialidade válida para esta publicação.");
 
-      const slots: Array<Record<string, unknown>> = [];
-      const cursor = new Date(`${form.startDate}T12:00:00`);
-      const lastDate = new Date(`${form.endDate}T12:00:00`);
-      const plannedWeekday = firstDate.getDay();
-      while (cursor <= lastDate) {
-        // A primeira data define o dia da semana da rotina. Em intervalos maiores,
-        // publicamos somente esse mesmo dia nas semanas seguintes.
-        if (cursor.getDay() === plannedWeekday) {
-          let minute = startHour * 60 + startMinute;
-          const finalMinute = endHour * 60 + endMinute;
-          let count = 0;
-          while (minute + duration <= finalMinute && count < dailyLimit) {
-            const start = new Date(cursor);
-            start.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
-            const finish = new Date(start.getTime() + duration * 60000);
-            slots.push({
-              series_id: created.id,
-              doctor_id: doctorId,
-              doctor_name: doctorName,
-              specialty: form.specialty,
-              starts_at: brazilIso(start),
-              ends_at: brazilIso(finish),
-              status: "Disponível",
-            });
-            minute += duration;
-            count += 1;
-          }
-        }
-        cursor.setDate(cursor.getDate() + 1);
-      }
+      const { data, error: publishError } = await client.rpc("publish_clinical_availability", {
+        p_doctor_name: doctorName,
+        p_specialty: form.specialty,
+        p_start_date: form.startDate,
+        p_end_date: form.endDate,
+        p_start_time: form.startTime,
+        p_end_time: form.endTime,
+        p_slot_duration_minutes: duration,
+        p_daily_limit: dailyLimit,
+      });
+      if (publishError) throw publishError;
 
-      const { data: publishedSlots, error: slotError } = await client
-        .from("clinical_appointment_slots")
-        .upsert(slots, { onConflict: "doctor_id,starts_at", ignoreDuplicates: true })
-        .select("id,starts_at");
-      if (slotError) {
-        await client.from("clinical_availability_series").delete().eq("id", created.id);
-        throw slotError;
-      }
+      const result = (data || {}) as { ok?: boolean; slot_count?: number; error?: string };
+      if (!result.ok) throw new Error(result.error || "O banco não confirmou a publicação dos horários.");
+      const confirmedCount = Number(result.slot_count || 0);
+      if (!confirmedCount) throw new Error("Nenhum horário foi criado.");
 
-      const confirmedCount = publishedSlots?.length || 0;
-      if (!confirmedCount) {
-        await client.from("clinical_availability_series").delete().eq("id", created.id);
-        throw new Error("Nenhum horário novo foi criado. As vagas desse médico nesse período já existem no sistema.");
-      }
       setMessage(`${confirmedCount} horário${confirmedCount === 1 ? "" : "s"} publicado${confirmedCount === 1 ? "" : "s"}. Pacientes em acompanhamento com você em ${form.specialty} poderão escolher esses horários até o dia anterior.`);
       await load();
     } catch (caught) {
@@ -188,7 +142,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
       {!embedded && (
         <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4,#fff)] px-5 py-4">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-start gap-3"><div className="grid h-11 w-11 place-items-center rounded-[15px] bg-hpsr-wine text-white"><CalendarPlus2 size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Agenda médica</p><h2 className="mt-1 text-xl font-black text-hpsr-text">Publicar horários</h2><p className="mt-1 text-sm font-semibold text-hpsr-muted">Monte sua rotina e publique os horários reais de atendimento. A primeira data define o dia da semana; dentro do período, o sistema repete esse mesmo dia nas semanas seguintes.</p></div></div>
+            <div className="flex items-start gap-3"><div className="grid h-11 w-11 place-items-center rounded-[15px] bg-hpsr-wine text-white"><CalendarPlus2 size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Agenda médica</p><h2 className="mt-1 text-xl font-black text-hpsr-text">Publicar horários</h2><p className="mt-1 text-sm font-semibold text-hpsr-muted">Defina o período e publique os horários reais de atendimento. Todos os dias entre a primeira e a última data recebem a faixa de horários informada.</p></div></div>
             <div className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2 text-right"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-hpsr-muted">Sequências ativas</p><p className="mt-0.5 text-xl font-black text-hpsr-wine">{series.length}</p></div>
           </div>
         </div>
@@ -224,8 +178,8 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
           <div className="mt-3 space-y-2">
             <div className="flex items-center gap-3 rounded-[13px] border border-hpsr-border bg-white p-3"><Stethoscope size={18} className="text-hpsr-wine" /><div className="min-w-0"><p className="text-[10px] uppercase tracking-wider text-hpsr-muted">Médico</p><p className="truncate text-sm font-black text-hpsr-text">{doctorName}</p></div></div>
             <div className="flex items-center gap-3 rounded-[13px] border border-hpsr-border bg-white p-3"><Stethoscope size={18} className="text-hpsr-wine" /><div className="min-w-0"><p className="text-[10px] uppercase tracking-wider text-hpsr-muted">Especialidade</p><p className="truncate text-sm font-black text-hpsr-text">{form.specialty}</p></div></div>
-            <div className="flex items-center gap-3 rounded-[13px] border border-hpsr-border bg-white p-3"><Clock3 size={18} className="text-hpsr-wine" /><div><p className="text-[10px] uppercase tracking-wider text-hpsr-muted">Faixa diária</p><p className="text-sm font-black text-hpsr-text">{form.startTime} — {form.endTime}</p></div></div><div className="flex items-center gap-3 rounded-[13px] border border-hpsr-border bg-white p-3"><Repeat2 size={18} className="text-hpsr-wine" /><div><p className="text-[10px] uppercase tracking-wider text-hpsr-muted">Rotina</p><p className="text-sm font-black capitalize text-hpsr-text">{WEEKDAYS[new Date(`${form.startDate}T12:00:00`).getDay()] || "dia escolhido"}</p></div></div>
-            <div className="grid grid-cols-2 gap-2"><div className="rounded-[13px] border border-hpsr-border bg-white p-3"><Gauge size={16} className="text-hpsr-wine" /><p className="mt-2 text-[10px] uppercase tracking-wider text-hpsr-muted">Vagas/dia</p><p className="mt-0.5 text-xl font-black text-hpsr-text">{Math.min(MAX_DAILY_SLOTS, Math.max(1, Number(form.dailyLimit) || MAX_DAILY_SLOTS))}</p></div><div className="rounded-[13px] border border-hpsr-border bg-white p-3"><Repeat2 size={16} className="text-hpsr-wine" /><p className="mt-2 text-[10px] uppercase tracking-wider text-hpsr-muted">Duração</p><p className="mt-0.5 text-xl font-black text-hpsr-text">{form.duration}<span className="ml-1 text-xs">min</span></p></div></div>
+            <div className="flex items-center gap-3 rounded-[13px] border border-hpsr-border bg-white p-3"><Clock3 size={18} className="text-hpsr-wine" /><div><p className="text-[10px] uppercase tracking-wider text-hpsr-muted">Faixa diária</p><p className="text-sm font-black text-hpsr-text">{form.startTime} — {form.endTime}</p></div></div><div className="flex items-center gap-3 rounded-[13px] border border-hpsr-border bg-white p-3"><CalendarDays size={18} className="text-hpsr-wine" /><div><p className="text-[10px] uppercase tracking-wider text-hpsr-muted">Período</p><p className="text-sm font-black text-hpsr-text">{displayDate(form.startDate)} — {displayDate(form.endDate)}</p></div></div>
+            <div className="grid grid-cols-2 gap-2"><div className="rounded-[13px] border border-hpsr-border bg-white p-3"><Gauge size={16} className="text-hpsr-wine" /><p className="mt-2 text-[10px] uppercase tracking-wider text-hpsr-muted">Vagas/dia</p><p className="mt-0.5 text-xl font-black text-hpsr-text">{Math.min(MAX_DAILY_SLOTS, Math.max(1, Number(form.dailyLimit) || MAX_DAILY_SLOTS))}</p></div><div className="rounded-[13px] border border-hpsr-border bg-white p-3"><Clock3 size={16} className="text-hpsr-wine" /><p className="mt-2 text-[10px] uppercase tracking-wider text-hpsr-muted">Duração</p><p className="mt-0.5 text-xl font-black text-hpsr-text">{form.duration}<span className="ml-1 text-xs">min</span></p></div></div>
           </div>
           <p className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-900">A publicação não cria acompanhamento novo. Ela abre vagas para pacientes que já estão vinculados a você. No próprio dia, vagas que ainda estiverem livres deixam de aceitar novas confirmações pelo Portal.</p>
         </aside>
@@ -237,7 +191,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
           <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-hpsr-wine">Ver lista</span>
         </summary>
         <div className="grid max-h-[252px] gap-2 overflow-y-auto border-t border-hpsr-border p-3" style={{ scrollbarGutter: "stable" }}>
-          {series.length ? series.map((item) => <div key={item.id} className="flex items-center gap-3 rounded-[15px] border border-hpsr-border bg-white p-3 transition hover:border-hpsr-wineLight/50"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#fff4ea] text-hpsr-wine"><CalendarPlus2 size={18} /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{item.specialty}</p><p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{displayDate(item.start_date)} até {displayDate(item.end_date)}</p><p className="mt-1 text-[11px] font-semibold capitalize text-hpsr-muted">{WEEKDAYS[item.weekday] || "Dia definido"} · {item.start_time.slice(0, 5)}–{item.end_time.slice(0, 5)} · {item.slot_duration_minutes} min</p></div><button aria-label="Remover sequência livre" disabled={busy} onClick={() => void removeSeries(item.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-rose-100 text-rose-700 transition hover:bg-rose-50"><Trash2 size={15} /></button></div>) : <p className="col-span-full rounded-[14px] border border-dashed border-hpsr-border bg-white p-5 text-center text-sm text-hpsr-muted">Nenhum horário publicado.</p>}
+          {series.length ? series.map((item) => <div key={item.id} className="flex items-center gap-3 rounded-[15px] border border-hpsr-border bg-white p-3 transition hover:border-hpsr-wineLight/50"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] bg-[#fff4ea] text-hpsr-wine"><CalendarPlus2 size={18} /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{item.specialty}</p><p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{displayDate(item.start_date)} até {displayDate(item.end_date)}</p><p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Todos os dias do período · {item.start_time.slice(0, 5)}–{item.end_time.slice(0, 5)} · {item.slot_duration_minutes} min</p></div><button aria-label="Remover sequência livre" disabled={busy} onClick={() => void removeSeries(item.id)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border border-rose-100 text-rose-700 transition hover:bg-rose-50"><Trash2 size={15} /></button></div>) : <p className="col-span-full rounded-[14px] border border-dashed border-hpsr-border bg-white p-5 text-center text-sm text-hpsr-muted">Nenhum horário publicado.</p>}
         </div>
       </details>
     </section>
