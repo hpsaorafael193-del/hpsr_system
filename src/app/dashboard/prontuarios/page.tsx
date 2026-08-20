@@ -38,6 +38,7 @@ import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 import { hpsrSuccess } from "@/components/ui/HpsrToastProvider";
 import { createClient } from "@/lib/supabase";
 import { ClinicalRecordsPortalPanel } from "@/components/dashboard/ClinicalRecordsPortalPanel";
+import { PatientDoctorLinksManager } from "@/components/dashboard/PatientDoctorLinksManager";
 import { specialties } from "@/data/mock";
 
 type RecordTab = "geral" | "timeline" | "consultas" | "exames" | "vacinas" | "documentos" | "prescricoes" | "procedimentos" | "observacoes";
@@ -156,6 +157,7 @@ function eventIcon(type: TimelineEvent["type"]) {
 
 export default function RecordsPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
+  const isInternalLinkManager = currentUserProfile.systemRole === "Diretor Técnico / Dev";
   const { patients: sharedPatients, loading: sharedPatientsLoading, selectedPassport: sharedSelectedPassport, selectPatient: selectSharedPatient } = usePatientSelection();
   const [patients, setPatients] = useState<PatientRecord[]>(initialPatients);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>(initialTimelineEvents);
@@ -166,7 +168,6 @@ export default function RecordsPage() {
   const [isClinicalRecordOpen, setIsClinicalRecordOpen] = useState(false);
   const [isEditPatientOpen, setIsEditPatientOpen] = useState(false);
   const [isGuardiansOpen, setIsGuardiansOpen] = useState(false);
-  const [isPortalSpecialtiesOpen, setIsPortalSpecialtiesOpen] = useState(false);
   const [isPendingPatientsOpen, setIsPendingPatientsOpen] = useState(false);
   const [patientFilter, setPatientFilter] = useState<PatientFilter>("all");
   const [isLoadingPatients, setIsLoadingPatients] = useState(true);
@@ -1165,7 +1166,6 @@ export default function RecordsPage() {
                       {selectedPatientIsMinor && (
                         <button type="button" onClick={() => setIsGuardiansOpen(true)} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]"><UsersRound size={15} />Responsáveis</button>
                       )}
-                      <button type="button" onClick={() => setIsPortalSpecialtiesOpen(true)} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]"><Stethoscope size={15} />Agenda do portal</button>
                       <button
                         type="button"
                         onClick={() => setIsClinicalRecordOpen(true)}
@@ -1254,11 +1254,11 @@ export default function RecordsPage() {
 
       {isEditPatientOpen && selectedPatient && <EditPatientModal patient={selectedPatient} onClose={() => setIsEditPatientOpen(false)} onSave={handleEditPatient} />}
       {isGuardiansOpen && selectedPatient && <GuardianManagerModal patient={selectedPatient} patients={patients} onClose={() => setIsGuardiansOpen(false)} />}
-      {isPortalSpecialtiesOpen && selectedPatient && <PortalSpecialtiesModal patient={selectedPatient} onClose={() => setIsPortalSpecialtiesOpen(false)} onSaved={() => { setIsPortalSpecialtiesOpen(false); refreshRecords(); }} />}
       {isPendingPatientsOpen && (
         <PendingPatientsModal
           patients={pendingPatients}
           doctorName={currentUserProfile.systemName}
+          canManageLinks={isInternalLinkManager}
           onClose={() => setIsPendingPatientsOpen(false)}
           onClassified={() => {
             setIsPendingPatientsOpen(false);
@@ -1289,11 +1289,13 @@ export default function RecordsPage() {
 function PendingPatientsModal({
   patients,
   doctorName,
+  canManageLinks,
   onClose,
   onClassified,
 }: {
   patients: PatientRecord[];
   doctorName: string;
+  canManageLinks: boolean;
   onClose: () => void;
   onClassified: () => void;
 }) {
@@ -1301,6 +1303,7 @@ function PendingPatientsModal({
   const [classification, setClassification] = useState<"rotineiro" | "acompanhamento">("rotineiro");
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [view, setView] = useState<"classification" | "links">("classification");
   const selectedPatient = patients.find((patient) => patient.passport === selectedPassport) || null;
 
   function toggleSpecialty(specialty: string) {
@@ -1335,12 +1338,24 @@ function PendingPatientsModal({
         <div className="flex items-start justify-between bg-[linear-gradient(135deg,#2a0700,#672614,#9d6b4f)] px-5 py-4 text-white">
           <div>
             <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[.14em]"><FileClock size={14} />Pacientes pendentes</span>
-            <h2 className="mt-2 text-xl font-black">Classificação inicial</h2>
-            <p className="mt-1 text-sm text-white/75">Novos cadastros são rotineiros por padrão. Defina apenas os pacientes que você acompanha.</p>
+            <h2 className="mt-2 text-xl font-black">Pendências do prontuário</h2>
+            <p className="mt-1 text-sm text-white/75">Classifique o contexto clínico sem criar vínculos de agenda automaticamente.</p>
           </div>
           <button onClick={onClose} className="rounded-[12px] border border-white/25 bg-white/10 p-2"><X size={18} /></button>
         </div>
 
+        {canManageLinks && (
+          <div className="flex shrink-0 gap-2 border-b border-hpsr-border bg-white px-4 py-3 sm:px-5">
+            <button type="button" onClick={() => setView("classification")} className={`rounded-[12px] px-4 py-2 text-xs font-black transition ${view === "classification" ? "bg-hpsr-wine text-white" : "border border-hpsr-border bg-white text-hpsr-wine"}`}>Classificação clínica</button>
+            <button type="button" onClick={() => setView("links")} className={`rounded-[12px] px-4 py-2 text-xs font-black transition ${view === "links" ? "bg-hpsr-wine text-white" : "border border-hpsr-border bg-white text-hpsr-wine"}`}>Vínculos médico-paciente</button>
+          </div>
+        )}
+
+        {view === "links" && canManageLinks ? (
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
+            <PatientDoctorLinksManager />
+          </div>
+        ) : (
         <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[300px_minmax(0,1fr)]">
           <div className="min-h-0 overflow-y-auto border-b border-hpsr-border bg-white p-3 lg:border-b-0 lg:border-r">
             {patients.length === 0 ? (
@@ -1362,20 +1377,22 @@ function PendingPatientsModal({
                   <p className="mt-1 text-sm font-semibold text-hpsr-muted">{selectedPatient.age} anos · {selectedPatient.bloodType} · {selectedPatient.passport}</p>
                 </div>
 
+                <div className="mt-4 rounded-[14px] border border-blue-200 bg-blue-50 p-3 text-xs font-semibold leading-relaxed text-blue-900">Esta classificação serve apenas para organizar o prontuário. Vínculos de agenda são administrados separadamente pelo setor interno.</div>
+
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <button type="button" onClick={() => { setClassification("rotineiro"); setSelectedSpecialties([]); }} className={`rounded-[16px] border p-4 text-left ${classification === "rotineiro" ? "border-hpsr-wine bg-[#fff3e9] ring-2 ring-hpsr-wine/10" : "border-hpsr-border bg-white"}`}>
                     <p className="font-black text-hpsr-text">Paciente rotineiro</p>
-                    <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Mantém o cadastro padrão, sem vínculo de agenda com este médico.</p>
+                    <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Mantém o cadastro como contexto clínico rotineiro. Nenhum vínculo de agenda é criado ou removido.</p>
                   </button>
                   <button type="button" onClick={() => setClassification("acompanhamento")} className={`rounded-[16px] border p-4 text-left ${classification === "acompanhamento" ? "border-blue-400 bg-blue-50 ring-2 ring-blue-100" : "border-hpsr-border bg-white"}`}>
                     <p className="font-black text-hpsr-text">Em acompanhamento</p>
-                    <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Libera para este paciente a agenda publicada por {doctorName} nas especialidades escolhidas.</p>
+                    <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Marca o paciente como contexto de acompanhamento clínico. Isso não vincula o paciente a {doctorName} nem altera a agenda.</p>
                   </button>
                 </div>
 
                 {classification === "acompanhamento" && (
                   <div className="mt-4 rounded-[16px] border border-hpsr-border bg-white p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Especialidades do acompanhamento</p>
+                    <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Especialidades do contexto clínico</p>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                       {specialties.map((specialty) => {
                         const active = selectedSpecialties.includes(specialty);
@@ -1390,10 +1407,11 @@ function PendingPatientsModal({
             )}
           </div>
         </div>
+        )}
 
         <div className="flex justify-end gap-3 border-t border-hpsr-border bg-white/95 px-5 py-3.5">
           <button type="button" onClick={onClose} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-text">Fechar</button>
-          <button type="button" disabled={saving || !selectedPatient} onClick={() => void classify()} className="inline-flex min-w-[170px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-50">{saving ? <LoaderCircle size={16} className="animate-spin" /> : <ShieldCheck size={16} />}Salvar classificação</button>
+          {view === "classification" && <button type="button" disabled={saving || !selectedPatient} onClick={() => void classify()} className="inline-flex min-w-[170px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-50">{saving ? <LoaderCircle size={16} className="animate-spin" /> : <ShieldCheck size={16} />}Salvar classificação</button>}
         </div>
       </div>
     </div>
@@ -1503,36 +1521,6 @@ function EditPatientModal({ patient, onClose, onSave }: { patient: PatientRecord
   const [saving, setSaving] = useState(false);
   async function submit(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); setSaving(true); try { await onSave(form); } finally { setSaving(false); } }
   return <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3"><button type="button" aria-label="Fechar edição" onClick={onClose} className="absolute inset-0 bg-[#2a0700]/45" /><form onSubmit={submit} className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[720px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf4] shadow-[0_28px_90px_rgba(42,7,0,0.28)]"><div className="bg-[linear-gradient(135deg,#2a0700_0%,#672614_52%,#9d6b4f_100%)] px-5 py-4 text-white"><div className="flex items-start justify-between gap-3"><div><span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]"><Pencil size={14}/>Dados cadastrais</span><h2 className="mt-3 text-xl font-black">Editar paciente</h2><p className="mt-1 text-sm text-white/80">O histórico clínico será preservado.</p></div><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-white/25 bg-white/10"><X size={18}/></button></div></div><div className="min-h-0 overflow-y-auto p-4 sm:p-5"><section className="grid gap-3 rounded-[18px] border border-hpsr-border bg-white p-4"><ModalField label="Nome" required><input className={modalInputClass} value={form.name} onChange={e=>setForm(c=>({...c,name:e.target.value}))}/></ModalField><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Passaporte" required><input className={modalInputClass} value={form.passport} onChange={e=>setForm(c=>({...c,passport:e.target.value.toUpperCase()}))}/></ModalField><ModalField label="Idade"><input className={modalInputClass} value={form.age} onChange={e=>setForm(c=>({...c,age:e.target.value}))}/></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Data de nascimento"><input type="date" className={modalInputClass} value={form.birthDate} onChange={e=>setForm(c=>({...c,birthDate:e.target.value}))}/></ModalField><ModalField label="Sexo"><StyledSelect className={modalInputClass} value={form.sex} onChange={e=>setForm(c=>({...c,sex:e.target.value}))}><option value="">Não informado</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option></StyledSelect></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Tipo sanguíneo"><input className={modalInputClass} value={form.bloodType} onChange={e=>setForm(c=>({...c,bloodType:e.target.value.toUpperCase()}))}/></ModalField><ModalField label="Telefone"><input className={modalInputClass} value={form.cityPhone} onChange={e=>setForm(c=>({...c,cityPhone:formatPhoneNumber(e.target.value)}))}/></ModalField></div><ModalField label="Acompanhamento"><StyledSelect className={modalInputClass} value={form.followUp} onChange={e=>setForm(c=>({...c,followUp:e.target.value as "Rotina" | "Clínico" | "Especializado"}))}><option>Rotina</option><option>Clínico</option><option>Especializado</option></StyledSelect></ModalField></section></div><div className="flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white px-5 py-3.5 sm:flex-row sm:justify-end"><button type="button" onClick={onClose} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black">Cancelar</button><button disabled={saving} type="submit" className="rounded-[16px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-60">{saving?"Salvando...":"Salvar alterações"}</button></div></form></div>;
-}
-
-function PortalSpecialtiesModal({ patient, onClose, onSaved }: { patient: PatientRecord; onClose: () => void; onSaved: () => void }) {
-  const { profile: currentUserProfile } = useCurrentUserProfile();
-  const ownSpecialties = patient.scheduleAssignments
-    .filter((assignment) => assignment.doctor_id === currentUserProfile.id)
-    .map((assignment) => assignment.specialty);
-  const [selected, setSelected] = useState<string[]>(ownSpecialties);
-  const [saving, setSaving] = useState(false);
-
-  function toggle(specialty: string) {
-    setSelected((current) => current.includes(specialty) ? current.filter((item) => item !== specialty) : [...current, specialty]);
-  }
-
-  async function save() {
-    const client = createClient();
-    if (!client) return void hpsrAlert("Não foi possível conectar ao Supabase.", "Agenda não salva");
-    setSaving(true);
-    const { error } = await client.rpc("classify_patient_portal_access", {
-      target_passport: patient.passport,
-      target_classification: selected.length > 0 ? "acompanhamento" : "rotineiro",
-      target_specialties: selected,
-    });
-    setSaving(false);
-    if (error) return void hpsrAlert(error.message, "Não foi possível atualizar a agenda");
-    notifyPatientRegistryUpdated();
-    onSaved();
-  }
-
-  return <div className="fixed inset-0 z-[999] flex items-end justify-center bg-[#2a0700]/45 p-0 sm:items-center sm:p-4"><div className="flex max-h-[94dvh] w-full max-w-3xl flex-col overflow-hidden rounded-t-[24px] border border-white/80 bg-[#fffaf4] shadow-2xl sm:rounded-[24px]"><div className="flex items-start justify-between bg-[linear-gradient(135deg,#2a0700,#672614,#9d6b4f)] px-5 py-4 text-white"><div><span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[.14em]"><Stethoscope size={14}/>Agenda do Portal do Paciente</span><h2 className="mt-2 text-xl font-black">{patient.name}</h2><p className="mt-1 text-sm text-white/75">Defina em quais especialidades este paciente acompanha você.</p></div><button onClick={onClose} className="rounded-[12px] border border-white/25 bg-white/10 p-2"><X size={18}/></button></div><div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5"><div className="rounded-[16px] border border-blue-200 bg-blue-50 p-3 text-sm font-semibold leading-relaxed text-blue-900">Os horários exibidos serão apenas os publicados por <strong>{currentUserProfile.systemName}</strong> nas especialidades selecionadas. Sem seleção, este médico não fica vinculado à agenda do paciente.</div><div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{specialties.map((specialty) => { const active = selected.includes(specialty); return <button key={specialty} type="button" onClick={() => toggle(specialty)} className={`flex items-center justify-between gap-3 rounded-[14px] border px-3 py-3 text-left text-sm font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-text hover:border-hpsr-wineLight"}`}><span>{specialty}</span><span className={`h-4 w-4 rounded-full border-2 ${active ? "border-white bg-white" : "border-hpsr-border bg-white"}`}/></button>; })}</div>{selected.length > 0 && <div className="mt-4 rounded-[16px] border border-hpsr-border bg-white p-4"><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Seu acompanhamento</p><p className="mt-2 text-sm font-semibold leading-relaxed text-hpsr-muted">{selected.join(" · ")}</p></div>}</div><div className="flex justify-end gap-3 border-t border-hpsr-border bg-white/95 px-5 py-3.5"><button type="button" onClick={onClose} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-text">Cancelar</button><button type="button" disabled={saving} onClick={() => void save()} className="inline-flex min-w-[150px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-50">{saving ? <LoaderCircle size={16} className="animate-spin" /> : <ShieldCheck size={16}/>}Salvar vínculo</button></div></div></div>;
 }
 
 function GuardianManagerModal({ patient, patients, onClose }: { patient: PatientRecord; patients: PatientRecord[]; onClose: () => void }) {

@@ -108,6 +108,15 @@ type DoctorOption = DoctorDraft & {
   signatureImage?: string | null;
 };
 
+type AppointmentLinkOption = {
+  id: string;
+  status: string;
+  specialty: string;
+  doctorName: string;
+  date: string;
+  time: string;
+};
+
 type SavedDraft = {
   patient: PatientDraft;
   doctor: DoctorDraft;
@@ -742,6 +751,9 @@ export default function ExamesPage() {
   const [manualExamDateTime, setManualExamDateTime] = useState(false);
   const [examDate, setExamDate] = useState(todayISO());
   const [examTime, setExamTime] = useState(nowHHMM());
+  const [appointmentLinkMode, setAppointmentLinkMode] = useState("auto");
+  const [appointmentOptions, setAppointmentOptions] = useState<AppointmentLinkOption[]>([]);
+  const [appointmentOptionsLoading, setAppointmentOptionsLoading] = useState(false);
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState("Sem alterações");
   const [isConfidential, setIsConfidential] = useState(true);
@@ -786,6 +798,13 @@ export default function ExamesPage() {
       adaptiveConfig || createInitialAdaptiveConfiguration(selectedExam),
     );
   }, [selectedExam, adaptiveConfig]);
+
+  const categoryCounts = useMemo(() => {
+    return intelligentExamModels.reduce<Record<string, number>>((acc, exam) => {
+      acc[exam.categoria] = (acc[exam.categoria] || 0) + 1;
+      return acc;
+    }, {});
+  }, []);
 
   const filteredCatalog = useMemo(() => {
     const normalizeSearch = (value: string) => value
@@ -980,6 +999,73 @@ export default function ExamesPage() {
     setDoctor({ name: selected.name, crm: selected.crm });
     setSignatureImage(selected.signatureImage || null);
   }, [selectedDoctorId, availableDoctors]);
+
+  useEffect(() => {
+    const passport = String(patient.passport || "").trim().toUpperCase();
+    setAppointmentLinkMode("auto");
+    setAppointmentOptions([]);
+    if (!passport) return;
+
+    const client = createClient();
+    if (!client) return;
+    let cancelled = false;
+    setAppointmentOptionsLoading(true);
+
+    void (async () => {
+      try {
+        const { data, error } = await client
+          .from("appointments")
+          .select("id,status,payload,created_at,updated_at")
+          .eq("passport", passport)
+          .order("created_at", { ascending: false })
+          .limit(60);
+
+        if (cancelled) return;
+        if (error) {
+          console.warn("[HPSR][Exames] Não foi possível carregar as consultas do paciente para vínculo manual:", error);
+          setAppointmentOptions([]);
+          return;
+        }
+
+        const allowedStatuses = new Set([
+          "Aceita",
+          "Reagendamento aceito",
+          "Agendada",
+          "Confirmada",
+          "Em atendimento",
+          "Realizada",
+          "Concluída",
+          "Adiada",
+          "Atrasada",
+          "Não compareceu",
+        ]);
+
+        const options = (data || [])
+          .filter((row: any) => {
+            const payload = (row?.payload || {}) as Record<string, unknown>;
+            return String(payload.flowType || "") !== "Exames" && allowedStatuses.has(String(row?.status || ""));
+          })
+          .map((row: any): AppointmentLinkOption => {
+            const payload = (row?.payload || {}) as Record<string, unknown>;
+            return {
+              id: String(row.id),
+              status: String(row.status || ""),
+              specialty: String(payload.specialty || "Consulta"),
+              doctorName: String(payload.physician || payload.doctor || payload.doctorName || "Médico não informado"),
+              date: String(payload.date || payload.preferredDate || payload.proposedDate || String(row.created_at || "").slice(0, 10)),
+              time: String(payload.time || payload.preferredTime || payload.proposedTime || ""),
+            };
+          });
+        setAppointmentOptions(options);
+      } finally {
+        if (!cancelled) setAppointmentOptionsLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [patient.passport]);
 
   useEffect(() => {
     if (!selectedExam) return;
@@ -1698,17 +1784,27 @@ export default function ExamesPage() {
         const previewImages = (await Promise.all(
           document.pages.map((_, pageIndex) => renderPreviewPage(document, pageIndex, false)),
         )).filter((item): item is string => typeof item === "string" && item.startsWith("data:image/"));
-        const activeAppointment = await findActiveAppointmentContext(client, patient.passport || "", { id: selectedDoctorId, name: doctor.name });
+        const automaticAppointment = appointmentLinkMode === "auto"
+          ? await findActiveAppointmentContext(client, patient.passport || "", { id: selectedDoctorId, name: doctor.name })
+          : null;
+        const manualAppointment = appointmentLinkMode !== "auto" && appointmentLinkMode !== "none"
+          ? appointmentOptions.find((item) => item.id === appointmentLinkMode) || null
+          : null;
+        if (appointmentLinkMode !== "auto" && appointmentLinkMode !== "none" && !manualAppointment) {
+          throw new Error("A consulta selecionada não está mais disponível para vínculo. Atualize o paciente e escolha novamente.");
+        }
+        const linkedAppointment = manualAppointment || automaticAppointment;
         const payload = {
           protocol,
           patient,
           doctor,
-          ...(activeAppointment ? {
-            appointmentId: activeAppointment.id,
-            appointmentSpecialty: activeAppointment.specialty,
-            appointmentDoctor: activeAppointment.doctorName,
-            appointmentDate: activeAppointment.date,
-            appointmentTime: activeAppointment.time,
+          ...(linkedAppointment ? {
+            appointmentId: linkedAppointment.id,
+            appointmentSpecialty: linkedAppointment.specialty,
+            appointmentDoctor: linkedAppointment.doctorName,
+            appointmentDate: linkedAppointment.date,
+            appointmentTime: linkedAppointment.time,
+            appointmentLinkMode: manualAppointment ? "manual" : "automatic",
           } : {}),
           examId: selectedExam?.id || selectedExamId,
           examName: document.metadata.examName,
@@ -2427,6 +2523,37 @@ export default function ExamesPage() {
               </div>
             </Panel>
 
+            <Panel title="Consulta relacionada">
+              <div className="space-y-2">
+                <div>
+                  <FieldLabel>Vincular este exame a uma consulta</FieldLabel>
+                  <SelectInput value={appointmentLinkMode} onChange={setAppointmentLinkMode}>
+                    <option value="auto">Automático — usar consulta em atendimento</option>
+                    <option value="none">Não vincular — exame avulso</option>
+                    {appointmentOptions.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {formatDateBR(item.date)}{item.time ? ` ${item.time}` : ""} · {item.specialty} · {item.doctorName} · {item.status}
+                      </option>
+                    ))}
+                  </SelectInput>
+                </div>
+                <p className="text-[11px] font-semibold leading-relaxed text-hpsr-muted">
+                  {appointmentOptionsLoading
+                    ? "Carregando consultas deste paciente..."
+                    : appointmentLinkMode === "auto"
+                      ? "Se houver uma consulta em atendimento com este médico, o vínculo será feito automaticamente. Se não houver, o exame será salvo como avulso."
+                      : appointmentLinkMode === "none"
+                        ? "O exame continuará no prontuário e em Exames, mas não aparecerá dentro do resumo de uma consulta específica."
+                        : "O exame será relacionado manualmente à consulta escolhida, mesmo que ela não esteja ativa agora. O registro original não é duplicado."}
+                </p>
+                {!appointmentOptionsLoading && patient.passport && appointmentOptions.length === 0 && (
+                  <p className="rounded-[12px] border border-dashed border-[#d8bfa9] bg-[#fffaf4] px-3 py-2 text-[11px] font-semibold text-hpsr-muted">
+                    Nenhuma consulta elegível foi encontrada para este paciente. Ainda é possível salvar o exame como avulso ou usar o vínculo automático quando uma consulta estiver em atendimento.
+                  </p>
+                )}
+              </div>
+            </Panel>
+
             <Panel title="Catálogo de exames">
               {smartConfigOpen && !showCatalog ? (
                 <div className="rounded-[18px] border border-[#d7b796] bg-white px-4 py-3 shadow-[0_10px_22px_rgba(42,7,0,0.05)]">
@@ -2452,77 +2579,120 @@ export default function ExamesPage() {
                 </div>
               ) : (
                 <>
-                  <div className="mb-3 flex items-center gap-2 rounded-[15px] border border-[#d8c1ad] bg-white px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
-                    <Search size={15} className="text-hpsr-muted" />
-                    <input
-                      value={examSearch}
-                      onChange={(event) => setExamSearch(event.target.value)}
-                      placeholder="Buscar exame..."
-                      className="h-10 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-muted">
-                      Categoria dos exames
-                    </label>
-                    <div className="relative flex h-11 items-center rounded-[14px] border border-[#d8c1ad] bg-white shadow-[0_4px_12px_rgba(42,7,0,0.035)] transition focus-within:border-hpsr-wine/55 focus-within:ring-2 focus-within:ring-hpsr-wine/10">
-                      <div className="pointer-events-none flex h-full w-10 shrink-0 items-center justify-center border-r border-[#ead9ca] text-hpsr-wine">
-                        <Table2 size={15} strokeWidth={2.2} />
+                  <div className="mb-3 rounded-[18px] border border-[#dfc9b6] bg-[linear-gradient(145deg,#fffdf9_0%,#fff7ef_100%)] p-3 shadow-[0_8px_20px_rgba(42,7,0,0.04)]">
+                    <div className="mb-2.5 flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Selecionar exame</p>
+                        <p className="mt-0.5 text-[11px] font-semibold text-hpsr-muted">Busque pelo nome ou filtre rapidamente pela categoria.</p>
                       </div>
-                      <StyledSelect
-                        value={catalogCategory}
-                        onChange={(event) => setCatalogCategory(event.target.value)}
-                        aria-label="Filtrar catálogo por categoria"
-                        className="h-full min-w-0 flex-1 appearance-none bg-transparent px-3 pr-10 text-sm font-black text-hpsr-text outline-none"
-                      >
-                        <option value="all">Todas as categorias</option>
-                        {categories.map((category) => (
-                          <option key={category} value={category}>
-                            {categoryLabels[category] || category}
-                          </option>
-                        ))}
-                      </StyledSelect>
-                      <ChevronDown size={16} className="pointer-events-none absolute right-3 text-hpsr-muted" />
+                      <span className="shrink-0 rounded-full border border-[#e4cbb5] bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-wine">
+                        {filteredCatalog.length} {filteredCatalog.length === 1 ? "resultado" : "resultados"}
+                      </span>
+                    </div>
+
+                    <div className="flex h-11 items-center gap-2 rounded-[14px] border border-[#d8c1ad] bg-white px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition focus-within:border-hpsr-wine/55 focus-within:ring-2 focus-within:ring-hpsr-wine/10">
+                      <Search size={16} className="shrink-0 text-hpsr-wine" />
+                      <input
+                        value={examSearch}
+                        onChange={(event) => setExamSearch(event.target.value)}
+                        placeholder="Buscar exame, especialidade ou palavra-chave"
+                        className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-hpsr-muted/70"
+                      />
+                      {examSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setExamSearch("")}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-hpsr-muted transition hover:bg-[#f7eadf] hover:text-hpsr-wine"
+                          aria-label="Limpar busca"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
 
-                  <div className="max-h-[430px] overflow-y-auto pr-1">
-                    <div className="grid grid-cols-2 gap-2.5">
-                      {filteredCatalog.map((exam) => {
-                        const isSelected = exam.id === selectedExam?.id;
-                        const ExamIcon = resolveExamIcon(exam.icone);
+                  <div className="mb-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <label className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-muted">Categorias</label>
+                      {catalogCategory !== "all" && (
+                        <button type="button" onClick={() => setCatalogCategory("all")} className="text-[10px] font-black text-hpsr-wine hover:underline">
+                          Ver todas
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+                      <button
+                        type="button"
+                        onClick={() => setCatalogCategory("all")}
+                        aria-pressed={catalogCategory === "all"}
+                        className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-[12px] border px-3 text-[11px] font-black transition ${catalogCategory === "all" ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_6px_14px_rgba(103,38,20,0.16)]" : "border-[#dec7b3] bg-white text-hpsr-text hover:border-hpsr-wine/35 hover:bg-[#fff8f1]"}`}
+                      >
+                        <Table2 size={14} strokeWidth={2.3} />
+                        Todos
+                        <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${catalogCategory === "all" ? "bg-white/15 text-white" : "bg-[#f4e7db] text-hpsr-muted"}`}>{intelligentExamModels.length}</span>
+                      </button>
+                      {categories.map((category) => {
+                        const active = catalogCategory === category;
                         return (
                           <button
-                            key={exam.id}
+                            key={category}
                             type="button"
-                            onClick={() => applyModelFor(exam)}
-                            aria-pressed={isSelected}
-                            className={`group relative min-h-[104px] overflow-visible rounded-[16px] border p-3 text-left transition-all duration-200 ${isSelected ? "border-hpsr-wine bg-[linear-gradient(145deg,#fff7ec_0%,#ffedda_100%)] shadow-[0_10px_22px_rgba(103,38,20,0.12)] ring-1 ring-hpsr-wine/10" : "border-[#ddc7b4] bg-white shadow-[0_4px_12px_rgba(42,7,0,0.035)] hover:-translate-y-0.5 hover:border-hpsr-wine/40 hover:bg-[#fffaf4] hover:shadow-[0_10px_20px_rgba(42,7,0,0.08)]"}`}
+                            onClick={() => setCatalogCategory(category)}
+                            aria-pressed={active}
+                            className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-[12px] border px-3 text-[11px] font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_6px_14px_rgba(103,38,20,0.16)]" : "border-[#dec7b3] bg-white text-hpsr-text hover:border-hpsr-wine/35 hover:bg-[#fff8f1]"}`}
                           >
-                            <span className={`absolute inset-y-0 left-0 w-1 transition ${isSelected ? "bg-hpsr-wine" : "bg-transparent group-hover:bg-hpsr-wine/25"}`} />
-                            <div className="flex h-full items-start gap-3">
-                              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border transition ${isSelected ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_6px_12px_rgba(103,38,20,0.18)]" : "border-[#e5d2c1] bg-[#f8ecdf] text-hpsr-wine group-hover:border-hpsr-wine/25 group-hover:bg-[#f6e5d5]"}`}>
-                                <ExamIcon size={20} strokeWidth={2.15} />
-                              </div>
-                              <div className="min-w-0 flex-1 pt-0.5">
-                                <p className="mb-1 text-[9px] font-black uppercase tracking-[0.11em] text-hpsr-muted">
-                                  {categoryLabels[exam.categoria] || exam.categoria}
-                                </p>
-                                <p className="break-words text-[13px] font-black leading-[1.25] text-hpsr-text">
-                                  {exam.nome}
-                                </p>
-                              </div>
-                              {isSelected && (
-                                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-hpsr-wine text-white shadow-sm" aria-label="Selecionado">
-                                  <Check size={12} strokeWidth={3} />
-                                </span>
-                              )}
-                            </div>
+                            {categoryLabels[category] || category}
+                            <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${active ? "bg-white/15 text-white" : "bg-[#f4e7db] text-hpsr-muted"}`}>{categoryCounts[category] || 0}</span>
                           </button>
                         );
                       })}
                     </div>
+                  </div>
+
+                  <div className="max-h-[430px] overflow-y-auto pr-1">
+                    {filteredCatalog.length > 0 ? (
+                      <div className="space-y-2">
+                        {filteredCatalog.map((exam) => {
+                          const isSelected = exam.id === selectedExam?.id;
+                          const ExamIcon = resolveExamIcon(exam.icone);
+                          return (
+                            <button
+                              key={exam.id}
+                              type="button"
+                              onClick={() => applyModelFor(exam)}
+                              aria-pressed={isSelected}
+                              className={`group relative w-full overflow-hidden rounded-[15px] border px-3 py-2.5 text-left transition-all duration-200 ${isSelected ? "border-hpsr-wine bg-[linear-gradient(135deg,#fff8ee_0%,#ffead8_100%)] shadow-[0_8px_18px_rgba(103,38,20,0.11)] ring-1 ring-hpsr-wine/10" : "border-[#dfcbb9] bg-white shadow-[0_3px_10px_rgba(42,7,0,0.03)] hover:border-hpsr-wine/35 hover:bg-[#fffaf5] hover:shadow-[0_8px_18px_rgba(42,7,0,0.07)]"}`}
+                            >
+                              <span className={`absolute inset-y-0 left-0 w-1 transition ${isSelected ? "bg-hpsr-wine" : "bg-transparent group-hover:bg-hpsr-wine/20"}`} />
+                              <div className="flex items-center gap-3">
+                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border transition ${isSelected ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_5px_12px_rgba(103,38,20,0.17)]" : "border-[#e5d2c1] bg-[#f8ecdf] text-hpsr-wine group-hover:border-hpsr-wine/25"}`}>
+                                  <ExamIcon size={19} strokeWidth={2.15} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="mb-0.5 flex items-center gap-2">
+                                    <span className="truncate text-[9px] font-black uppercase tracking-[0.1em] text-hpsr-muted">{categoryLabels[exam.categoria] || exam.categoria}</span>
+                                  </div>
+                                  <p className="break-words text-[13px] font-black leading-[1.25] text-hpsr-text">{exam.nome}</p>
+                                  {exam.descricao && <p className="mt-1 line-clamp-1 text-[10px] font-semibold leading-relaxed text-hpsr-muted">{exam.descricao}</p>}
+                                </div>
+                                <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition ${isSelected ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-[#e4d2c2] bg-[#fffaf5] text-hpsr-muted group-hover:border-hpsr-wine/30 group-hover:text-hpsr-wine"}`}>
+                                  {isSelected ? <Check size={14} strokeWidth={3} /> : <ChevronDown size={14} className="-rotate-90" />}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-[16px] border border-dashed border-[#d8bfa9] bg-[#fffaf4] px-4 py-6 text-center">
+                        <Search size={22} className="mx-auto mb-2 text-hpsr-wine/60" />
+                        <p className="text-sm font-black text-hpsr-text">Nenhum exame encontrado</p>
+                        <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Tente outro termo ou selecione uma categoria diferente.</p>
+                        <button type="button" onClick={() => { setExamSearch(""); setCatalogCategory("all"); }} className="mt-3 rounded-[11px] border border-[#d8bfa9] bg-white px-3 py-2 text-[11px] font-black text-hpsr-wine transition hover:bg-[#fff3e8]">
+                          Limpar filtros
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </>
               )}

@@ -24,7 +24,6 @@ import {
   UserRound,
   UserPlus,
   UsersRound,
-  Link2,
   Trash2,
   X,
 } from "lucide-react";
@@ -32,7 +31,6 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { DoctorAvailabilityManager } from "@/components/dashboard/DoctorAvailabilityManager";
 import { DeveloperAppointmentManager } from "@/components/dashboard/DeveloperAppointmentManager";
 import { ClinicalFollowupPlanner } from "@/components/dashboard/ClinicalFollowupPlanner";
-import { PatientDoctorLinksManager } from "@/components/dashboard/PatientDoctorLinksManager";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
@@ -62,7 +60,7 @@ type ModalState = {
   appointment?: Appointment;
 } | null;
 
-type ScheduleToolModal = "followup" | "availability" | "links" | null;
+type ScheduleToolModal = "followup" | "availability" | null;
 
 function getBrasiliaToday() {
   const formatter = new Intl.DateTimeFormat("en-CA", {
@@ -482,18 +480,6 @@ export default function ClinicalSchedulePage() {
             </div>
           </button>
 
-          {isDeveloper && (
-            <button type="button" onClick={() => setScheduleToolModal("links")} className="group bg-white p-4 text-left transition hover:bg-[#fff8f3]">
-              <div className="flex items-start gap-3">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-[#f3e1da] text-hpsr-wine"><Link2 size={19} /></div>
-                <div className="min-w-0">
-                  <p className="text-sm font-black text-hpsr-text">Vínculos médico-paciente</p>
-                  <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">Confira e ajuste quem acompanha cada paciente e especialidade.</p>
-                </div>
-              </div>
-            </button>
-          )}
-
           <button type="button" onClick={() => { setSelectedDate(brasiliaToday); setCurrentMonth(new Date(brasiliaToday.getFullYear(), brasiliaToday.getMonth(), 1)); }} className="group bg-white p-4 text-left transition hover:bg-[#fff8f3]">
             <div className="flex items-start gap-3">
               <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-[#f3e1da] text-hpsr-wine"><CalendarDays size={19} /></div>
@@ -814,7 +800,6 @@ function ScheduleToolDialog({
   if (!mode) return null;
 
   const isFollowup = mode === "followup";
-  const isLinks = mode === "links";
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center px-3 py-3 sm:px-5">
@@ -824,17 +809,15 @@ function ScheduleToolDialog({
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-hpsr-border bg-white px-5 py-4 sm:px-6">
           <div className="flex min-w-0 items-start gap-3">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-hpsr-wine text-white shadow-sm">
-              {isFollowup ? <CalendarCheck2 size={20} /> : isLinks ? <Link2 size={20} /> : <CalendarClock size={20} />}
+              {isFollowup ? <CalendarCheck2 size={20} /> : <CalendarClock size={20} />}
             </div>
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[.18em] text-hpsr-wineLight">Agenda clínica</p>
-              <h2 className="mt-0.5 text-xl font-black text-hpsr-text">{isFollowup ? "Planejar acompanhamento" : isLinks ? "Vínculos médico-paciente" : "Publicar horários"}</h2>
+              <h2 className="mt-0.5 text-xl font-black text-hpsr-text">{isFollowup ? "Planejar acompanhamento" : "Publicar horários"}</h2>
               <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">
                 {isFollowup
                   ? "Monte uma sequência de acompanhamento para o paciente sem sair da visão principal da agenda."
-                  : isLinks
-                    ? "Confira, adicione, edite ou remova os vínculos usados para direcionar os horários de cada paciente."
-                    : "Defina e publique os horários disponíveis para atendimento médico."}
+                  : "Defina e publique os horários disponíveis para atendimento médico."}
               </p>
             </div>
           </div>
@@ -847,8 +830,6 @@ function ScheduleToolDialog({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5" style={{ scrollbarGutter: "stable" }}>
           {isFollowup ? (
             <ClinicalFollowupPlanner doctorId={doctorId} doctorName={doctorName} defaultSpecialty={defaultSpecialty} embedded />
-          ) : isLinks ? (
-            <PatientDoctorLinksManager />
           ) : (
             <DoctorAvailabilityManager doctorId={doctorId} doctorName={doctorName} defaultSpecialty={defaultSpecialty} embedded />
           )}

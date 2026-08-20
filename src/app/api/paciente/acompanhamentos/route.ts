@@ -95,15 +95,15 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Vínculos administrativos explícitos são a referência de roteamento da agenda.
-    // Quando existem, planos formais apenas enriquecem a mesma combinação médico/especialidade;
-    // planos de outro médico não voltam a aparecer por trás de uma associação corrigida pelo interno.
+    // Somente vínculos administrativos explícitos roteiam horários no Portal.
+    // Planos de acompanhamento são contexto clínico e apenas enriquecem uma combinação
+    // que já foi vinculada pelo setor interno; nunca criam vínculo implicitamente.
     for (const plan of plans) {
       const doctorId = String(plan.doctor_id || "");
       const specialty = String(plan.specialty || "");
       if (!doctorId || !specialty) continue;
       const key = `${doctorId}|${normalizeClinicalSpecialty(specialty)}`;
-      if (assignments.length > 0 && !linksByKey.has(key)) continue;
+      if (!linksByKey.has(key)) continue;
       linksByKey.set(key, {
         key,
         planId: String(plan.id || ""),
