@@ -7,18 +7,20 @@ import { useEffect, useMemo, useState } from "react";
 import { Activity, Clock3, Download, History, RefreshCw, ShieldCheck, Square, UsersRound } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 
-type Entry = { id: string; user: string; openedAt: string; closedAt?: string | null; workedSeconds: number; status: string };
+type Entry = { id: string; userId: string; user: string; openedAt: string; closedAt?: string | null; workedSeconds: number; status: string };
 type Ranking = { position: number; userId: string; user: string; workedSeconds: number };
 type Report = { monthStart: string; ranking: Ranking[]; totalUsers: number; totalWorkedSeconds: number; closedAt: string };
 type Audit = { id: string; actor?: string; target?: string; action: string; reason?: string; createdAt: string };
-type ReportData = { entries: Entry[]; reports: Report[]; audit: Audit[]; currentRanking: Ranking[] };
-const emptyData: ReportData = { entries: [], reports: [], audit: [], currentRanking: [] };
+type ReportData = { entries: Entry[]; reports: Report[]; audit: Audit[]; currentRanking: Ranking[]; serverNow?: string };
+const emptyData: ReportData = { entries: [], reports: [], audit: [], currentRanking: [], serverNow: undefined };
 
 export function TimeClockAdministrativeReport() {
   const [data, setData] = useState<ReportData>(emptyData);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
+  const [liveAnchorMs, setLiveAnchorMs] = useState(() => Date.now());
+  const [liveNowMs, setLiveNowMs] = useState(() => Date.now());
 
   async function load() {
     const client = createClient();
@@ -33,7 +35,11 @@ export function TimeClockAdministrativeReport() {
         reports: Array.isArray(raw.reports) ? raw.reports.map((item: any) => ({ ...item, totalUsers: Number(item.totalUsers || 0), totalWorkedSeconds: Number(item.totalWorkedSeconds || 0), ranking: Array.isArray(item.ranking) ? item.ranking.map(normalizeNumbers) : [] })) : [],
         audit: Array.isArray(raw.audit) ? raw.audit : [],
         currentRanking: Array.isArray(raw.currentRanking) ? raw.currentRanking.map(normalizeNumbers) : [],
+        serverNow: typeof raw.serverNow === "string" ? raw.serverNow : undefined,
       };
+      const receivedAt = Date.now();
+      setLiveAnchorMs(receivedAt);
+      setLiveNowMs(receivedAt);
       setData(normalized);
       if (!selectedMonth && normalized.reports[0]) setSelectedMonth(normalized.reports[0].monthStart);
     }
@@ -41,9 +47,20 @@ export function TimeClockAdministrativeReport() {
   }
 
   useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    const timer = window.setInterval(() => setLiveNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
   const selectedReport = useMemo(() => data.reports.find((item) => item.monthStart === selectedMonth), [data.reports, selectedMonth]);
   const openEntries = useMemo(() => data.entries.filter((entry) => !entry.closedAt), [data.entries]);
   const closedEntries = useMemo(() => data.entries.filter((entry) => Boolean(entry.closedAt)), [data.entries]);
+  const liveElapsedSeconds = Math.max(0, Math.floor((liveNowMs - liveAnchorMs) / 1000));
+  const liveSecondsForEntry = (entry: Entry) => entry.workedSeconds + (!entry.closedAt && entry.status === "Em serviço" ? liveElapsedSeconds : 0);
+  const activeUserIds = useMemo(() => new Set(data.entries.filter((entry) => !entry.closedAt && entry.status === "Em serviço").map((entry) => entry.userId)), [data.entries]);
+  const liveCurrentRanking = useMemo(() => data.currentRanking
+    .map((row) => ({ ...row, workedSeconds: row.workedSeconds + (activeUserIds.has(row.userId) ? liveElapsedSeconds : 0) }))
+    .sort((a, b) => b.workedSeconds - a.workedSeconds || a.user.localeCompare(b.user, "pt-BR"))
+    .map((row, index) => ({ ...row, position: index + 1 })), [data.currentRanking, activeUserIds, liveElapsedSeconds]);
 
   async function setClosedAt(entry: Entry) {
     const initial = toLocalDateTimeInput(entry.closedAt || brazilIso());
@@ -93,7 +110,7 @@ export function TimeClockAdministrativeReport() {
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         {openEntries.map((entry) => <div key={entry.id} className="rounded-[16px] border border-red-100 bg-[#fffafa] p-4">
-          <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-hpsr-text">{entry.user}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">Entrada: {formatDateTime(entry.openedAt)}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">Situação: {entry.status}</p></div><span className="rounded-[11px] bg-white px-3 py-2 text-sm font-black tabular-nums text-hpsr-wine shadow-sm">{formatDuration(entry.workedSeconds)}</span></div>
+          <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-hpsr-text">{entry.user}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">Entrada: {formatDateTime(entry.openedAt)}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">Situação: {entry.status}</p></div><span className="rounded-[11px] bg-white px-3 py-2 text-sm font-black tabular-nums text-hpsr-wine shadow-sm">{formatDuration(liveSecondsForEntry(entry))}</span></div>
           <button type="button" onClick={() => void setClosedAt(entry)} disabled={loading} className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-[12px] bg-red-700 px-3 text-xs font-black text-white disabled:opacity-50"><Square size={13}/> Encerrar ponto</button>
         </div>)}
         {!openEntries.length && <div className="lg:col-span-2"><Empty text="Nenhum ponto aberto no momento."/></div>}
@@ -102,8 +119,8 @@ export function TimeClockAdministrativeReport() {
 
     <div className="grid gap-4 xl:grid-cols-[1.1fr_.9fr]">
       <div className="rounded-[22px] border border-hpsr-border bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.05)] sm:p-5">
-        <div className="mb-4 flex items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#fff2e8] text-hpsr-wine"><UsersRound size={18}/></span><div><h3 className="text-sm font-black text-hpsr-text">Ranking do mês atual</h3><p className="text-xs text-hpsr-muted">Todos os profissionais aprovados aparecem, inclusive com 0h.</p></div></div><span className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Pontos encerrados</span></div>
-        <RankingList ranking={data.currentRanking}/>
+        <div className="mb-4 flex items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#fff2e8] text-hpsr-wine"><UsersRound size={18}/></span><div><h3 className="text-sm font-black text-hpsr-text">Ranking do mês atual</h3><p className="text-xs text-hpsr-muted">Todos os profissionais aprovados aparecem, inclusive com 0h.</p></div></div><span className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Atualização ao vivo</span></div>
+        <RankingList ranking={liveCurrentRanking}/>
       </div>
       <div className="rounded-[22px] border border-hpsr-border bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.05)] sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><History size={17} className="text-hpsr-wine"/><div><h3 className="text-sm font-black text-hpsr-text">Rankings arquivados</h3><p className="text-xs text-hpsr-muted">Meses já encerrados.</p></div></div><div className="flex min-w-[220px] gap-2"><StyledSelect value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}><option value="">Nenhum mês fechado</option>{data.reports.map((item) => <option key={item.monthStart} value={item.monthStart}>{formatMonth(item.monthStart)}</option>)}</StyledSelect><button onClick={exportReport} disabled={!selectedReport} className="rounded-[12px] border border-hpsr-border bg-white p-2.5 text-hpsr-wine disabled:opacity-40" title="Exportar ranking"><Download size={16}/></button></div></div>
@@ -118,7 +135,7 @@ export function TimeClockAdministrativeReport() {
   </section>;
 }
 
-function RankingList({ ranking }: { ranking: Ranking[] }) { return <div className="max-h-64 space-y-2 overflow-y-auto pr-1">{ranking.map((row) => <div key={row.userId} className="grid grid-cols-[42px_1fr_auto] items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5"><span className="text-sm font-black text-hpsr-wine">{row.position}º</span><span className="truncate text-xs font-black text-hpsr-text">{row.user}</span><span className="text-xs font-black tabular-nums text-hpsr-wine">{formatDuration(row.workedSeconds)}</span></div>)}{!ranking.length && <Empty text="Nenhuma hora encerrada neste período."/>}</div>; }
+function RankingList({ ranking }: { ranking: Ranking[] }) { return <div className="max-h-64 space-y-2 overflow-y-auto pr-1">{ranking.map((row) => <div key={row.userId} className="grid grid-cols-[42px_1fr_auto] items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5"><span className="text-sm font-black text-hpsr-wine">{row.position}º</span><span className="truncate text-xs font-black text-hpsr-text">{row.user}</span><span className="text-xs font-black tabular-nums text-hpsr-wine">{formatDuration(row.workedSeconds)}</span></div>)}{!ranking.length && <Empty text="Nenhuma hora contabilizada neste período."/>}</div>; }
 function Empty({ text }: { text: string }) { return <p className="rounded-[12px] border border-dashed border-hpsr-border px-3 py-5 text-center text-xs text-hpsr-muted">{text}</p>; }
 function normalizeNumbers(item: any) { return { ...item, position: Number(item.position || 0), workedSeconds: Number(item.workedSeconds || 0) }; }
 function formatDuration(seconds: number) { const safe = Math.max(0, Math.floor(seconds || 0)); const h = Math.floor(safe / 3600); const m = Math.floor((safe % 3600) / 60); return `${h}h ${String(m).padStart(2, "0")}min`; }
