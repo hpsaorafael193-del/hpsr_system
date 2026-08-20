@@ -127,36 +127,68 @@ export const func_espirometriaModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Espirometria com CVF: 86,4; VEF1: 86,4; VEF1/CVF: 75,6.",
+      "interpretation": "Os parâmetros mensurados — CVF: 86,4 % previsto; VEF1: 86,4 % previsto; VEF1/CVF: 75,6 %; Padrão Ventilatório: Normal — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Espirometria com parâmetros compatíveis com o padrão esperado, incluindo CVF: 86,4 % previsto; VEF1: 86,4 % previsto.",
+      "results": {
+        "cvf": "86,4",
+        "vef1": "86,4",
+        "vef1_cvf": "75,6",
+        "padrao": "Normal",
+        "resposta_broncodilatador": "Sem resposta broncodilatadora significativa",
+        "impressao": "Espirometria com parâmetros compatíveis com o padrão esperado, incluindo CVF: 86,4 % previsto; VEF1: 86,4 % previsto"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Espirometria: CVF: 78; VEF1: 62; VEF1/CVF: 64; Padrão Ventilatório: Distúrbio ventilatório obstrutivo moderado.",
+      "interpretation": "Os resultados principais (CVF: 78 % previsto; VEF1: 62 % previsto; VEF1/CVF: 64 %; Padrão Ventilatório: Distúrbio ventilatório obstrutivo moderado) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Espirometria com padrão alterado, documentado por CVF: 78 % previsto; VEF1: 62 % previsto.",
+      "results": {
+        "cvf": "78",
+        "vef1": "62",
+        "vef1_cvf": "64",
+        "padrao": "Distúrbio ventilatório obstrutivo moderado",
+        "resposta_broncodilatador": "Resposta broncodilatadora significativa",
+        "impressao": "Padrão obstrutivo moderado com resposta ao broncodilatador"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Espirometria: CVF: 79; VEF1: 78; VEF1/CVF: 70; Padrão Ventilatório: Valores limítrofes para distúrbio ventilatório.",
+      "interpretation": "Os principais resultados (CVF: 79 % previsto; VEF1: 78 % previsto; VEF1/CVF: 70 %; Padrão Ventilatório: Valores limítrofes para distúrbio ventilatório) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Espirometria com resultado limítrofe/inespecífico, destacando-se CVF: 79 % previsto; VEF1: 78 % previsto.",
+      "results": {
+        "cvf": "79",
+        "vef1": "78",
+        "vef1_cvf": "70",
+        "padrao": "Valores limítrofes para distúrbio ventilatório",
+        "resposta_broncodilatador": "Sem resposta significativa",
+        "impressao": "Espirometria em faixa limítrofe, sem padrão obstrutivo/restritivo definido"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Espirometria: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "cvf": "86,4",
+        "vef1": "86,4",
+        "vef1_cvf": "75,6",
+        "padrao": "Normal",
+        "resposta_broncodilatador": "Sem resposta broncodilatadora significativa",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -285,8 +317,8 @@ export const func_espirometriaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Prova de função pulmonar realizada com manobras expiratórias forçadas reprodutíveis, avaliando CVF, VEF1 e relação VEF1/CVF; prova broncodilatadora quando indicada.",
+  "method": "Espirometria computadorizada com curvas fluxo-volume e volume-tempo, aceitação das manobras tecnicamente adequadas e comparação com valores previstos para o paciente.",
   "parameters": [
     {
       "id": "cvf",
@@ -350,14 +382,14 @@ export const func_espirometriaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Espirometria compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Espirometria com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Espirometria com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Espirometria sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Espirometria alterado conforme resultados objetivos descritos.",
+    "undefined": "Espirometria com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

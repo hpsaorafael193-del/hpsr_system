@@ -147,7 +147,21 @@ export const lab_funcao_hepatica_completaModel: IntelligentExamModel = {
       "description": "Enzimas hepáticas e bilirrubinas dentro da referência.",
       "resultSummary": "Função hepática sem alterações laboratoriais relevantes.",
       "interpretation": "Enzimas hepáticas, bilirrubinas e marcadores de síntese dentro do padrão esperado.",
-      "conclusion": "Função hepática preservada pelos parâmetros avaliados."
+      "conclusion": "Função hepática preservada pelos parâmetros avaliados.",
+      "results": {
+        "tgo_ast": "24",
+        "tgp_alt": "27",
+        "relacao_ast_alt": "0,9",
+        "fosfatase_alcalina": "82",
+        "ggt": "28",
+        "bilirrubina_total": "0,8",
+        "bilirrubina_direta": "0,2",
+        "bilirrubina_indireta": "0,6",
+        "albumina": "4,3",
+        "tempo_protrombina": "12,4",
+        "inr": "1,0",
+        "impressao": "Perfil hepático sem alterações bioquímicas relevantes"
+      }
     },
     {
       "id": "hepatocelular",
@@ -156,7 +170,21 @@ export const lab_funcao_hepatica_completaModel: IntelligentExamModel = {
       "description": "Predomínio de elevação de transaminases.",
       "resultSummary": "Exame com elevação predominante de transaminases.",
       "interpretation": "Elevação de TGO/AST e TGP/ALT sugere padrão hepatocelular, devendo ser correlacionada com medicamentos, infecções, álcool, esteatose e demais dados clínicos.",
-      "conclusion": "Alteração hepática com padrão hepatocelular."
+      "conclusion": "Alteração hepática com padrão hepatocelular.",
+      "results": {
+        "tgo_ast": "132",
+        "tgp_alt": "186",
+        "relacao_ast_alt": "0,7",
+        "fosfatase_alcalina": "110",
+        "ggt": "66",
+        "bilirrubina_total": "1,3",
+        "bilirrubina_direta": "0,4",
+        "bilirrubina_indireta": "0,9",
+        "albumina": "4,1",
+        "tempo_protrombina": "12,8",
+        "inr": "1,1",
+        "impressao": "Padrão de lesão hepatocelular com elevação predominante de aminotransferases"
+      }
     },
     {
       "id": "colestatico",
@@ -165,7 +193,21 @@ export const lab_funcao_hepatica_completaModel: IntelligentExamModel = {
       "description": "Predomínio de FA/GGT e/ou bilirrubinas.",
       "resultSummary": "Exame com elevação de marcadores colestáticos.",
       "interpretation": "Elevação de GGT, fosfatase alcalina e/ou bilirrubinas sugere padrão colestático, devendo ser correlacionada com imagem e contexto clínico.",
-      "conclusion": "Alteração hepática com padrão colestático."
+      "conclusion": "Alteração hepática com padrão colestático.",
+      "results": {
+        "tgo_ast": "48",
+        "tgp_alt": "55",
+        "relacao_ast_alt": "0,9",
+        "fosfatase_alcalina": "238",
+        "ggt": "184",
+        "bilirrubina_total": "2,1",
+        "bilirrubina_direta": "1,4",
+        "bilirrubina_indireta": "0,7",
+        "albumina": "4,0",
+        "tempo_protrombina": "13,0",
+        "inr": "1,1",
+        "impressao": "Padrão bioquímico colestático"
+      }
     },
     {
       "id": "misto",
@@ -174,7 +216,21 @@ export const lab_funcao_hepatica_completaModel: IntelligentExamModel = {
       "description": "Elevação combinada de transaminases e marcadores colestáticos.",
       "resultSummary": "Exame com alterações hepáticas de padrão misto.",
       "interpretation": "Elevação combinada de transaminases e marcadores colestáticos sugere padrão misto, requerendo correlação clínica.",
-      "conclusion": "Alteração hepática de padrão misto."
+      "conclusion": "Alteração hepática de padrão misto.",
+      "results": {
+        "tgo_ast": "112",
+        "tgp_alt": "146",
+        "relacao_ast_alt": "0,8",
+        "fosfatase_alcalina": "196",
+        "ggt": "152",
+        "bilirrubina_total": "1,8",
+        "bilirrubina_direta": "1,0",
+        "bilirrubina_indireta": "0,8",
+        "albumina": "3,9",
+        "tempo_protrombina": "13,2",
+        "inr": "1,1",
+        "impressao": "Padrão misto hepatocelular e colestático"
+      }
     },
     {
       "id": "indefinido",
@@ -183,16 +239,44 @@ export const lab_funcao_hepatica_completaModel: IntelligentExamModel = {
       "description": "Alterações discretas sem padrão definido.",
       "resultSummary": "Função hepática com alterações discretas/limítrofes.",
       "interpretation": "Alterações discretas podem ser transitórias ou inespecíficas e devem ser interpretadas conforme evolução e contexto clínico.",
-      "conclusion": "Achado hepático limítrofe/inespecífico."
+      "conclusion": "Perfil hepático com elevações discretas e limítrofes, sem padrão bioquímico específico isoladamente.",
+      "results": {
+        "tgo_ast": "42",
+        "tgp_alt": "44",
+        "relacao_ast_alt": "1,0",
+        "fosfatase_alcalina": "132",
+        "ggt": "62",
+        "bilirrubina_total": "1,2",
+        "bilirrubina_direta": "0,3",
+        "bilirrubina_indireta": "0,9",
+        "albumina": "4,2",
+        "tempo_protrombina": "12,6",
+        "inr": "1,0",
+        "impressao": "Elevações discretas e limítrofes das enzimas hepáticas"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Função Hepática: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "tgo_ast": "24",
+        "tgp_alt": "27",
+        "relacao_ast_alt": "0,9",
+        "fosfatase_alcalina": "82",
+        "ggt": "28",
+        "bilirrubina_total": "0,8",
+        "bilirrubina_direta": "0,2",
+        "bilirrubina_indireta": "0,6",
+        "albumina": "4,3",
+        "tempo_protrombina": "12,4",
+        "inr": "1,0",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -315,8 +399,8 @@ export const lab_funcao_hepatica_completaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Amostra sérica processada para painel de função e lesão hepatobiliar, incluindo enzimas, bilirrubinas, proteínas e parâmetros de síntese quando previstos.",
+  "method": "Dosagens bioquímicas automatizadas por métodos enzimáticos/colorimétricos e imunoturbidimétricos conforme o analito; tempo de protrombina por método coagulométrico quando incluído.",
   "parameters": [
     {
       "id": "tgo_ast",
@@ -428,14 +512,14 @@ export const lab_funcao_hepatica_completaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Função Hepática compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Função Hepática com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Função Hepática com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Função Hepática sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Função Hepática alterado conforme resultados objetivos descritos.",
+    "undefined": "Função Hepática com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

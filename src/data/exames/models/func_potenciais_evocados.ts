@@ -110,36 +110,60 @@ export const func_potenciais_evocadosModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Potenciais Evocados com Tipo de Potencial Evocado: Potencial evocado visual; Latência: Normal; Amplitude: Normal.",
+      "interpretation": "Os parâmetros mensurados — Tipo de Potencial Evocado: Potencial evocado visual; Latência: Normal; Amplitude: Normal — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Potenciais Evocados com parâmetros compatíveis com o padrão esperado, incluindo Tipo de Potencial Evocado: Potencial evocado visual; Latência: Normal.",
+      "results": {
+        "tipo": "Potencial evocado visual",
+        "latencia": "Normal",
+        "amplitude": "Normal",
+        "impressao": "Latências e amplitudes preservadas bilateralmente"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Potenciais Evocados: Latência: Latência P100 prolongada bilateralmente; Amplitude: Amplitude discretamente reduzida.",
+      "interpretation": "Os resultados principais (Latência: Latência P100 prolongada bilateralmente; Amplitude: Amplitude discretamente reduzida) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Potenciais Evocados com padrão alterado, documentado por Latência: Latência P100 prolongada bilateralmente; Amplitude: Amplitude discretamente reduzida.",
+      "results": {
+        "tipo": "Potencial evocado visual",
+        "latencia": "Latência P100 prolongada bilateralmente",
+        "amplitude": "Amplitude discretamente reduzida",
+        "impressao": "Atraso de condução nas vias visuais, bilateral"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Potenciais Evocados: Latência: Latência discretamente prolongada em um lado; Amplitude: Amplitude preservada.",
+      "interpretation": "Os principais resultados (Latência: Latência discretamente prolongada em um lado; Amplitude: Amplitude preservada) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Potenciais Evocados com resultado limítrofe/inespecífico, destacando-se Latência: Latência discretamente prolongada em um lado; Amplitude: Amplitude preservada.",
+      "results": {
+        "tipo": "Potencial evocado visual",
+        "latencia": "Latência discretamente prolongada em um lado",
+        "amplitude": "Amplitude preservada",
+        "impressao": "Assimetria discreta de latência, sem alteração bilateral definida"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Potenciais Evocados: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "tipo": "Potencial evocado visual",
+        "latencia": "Normal",
+        "amplitude": "Normal",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -268,8 +292,8 @@ export const func_potenciais_evocadosModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Potenciais evocados registrados após estímulo padronizado da via avaliada, com análise de latências, amplitudes e simetria das respostas.",
+  "method": "Registro neurofisiológico por eletrodos de superfície, promediação dos sinais e análise dos componentes eletrofisiológicos conforme o tipo de potencial evocado selecionado.",
   "parameters": [
     {
       "id": "tipo",
@@ -317,14 +341,14 @@ export const func_potenciais_evocadosModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Potenciais Evocados compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Potenciais Evocados com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Potenciais Evocados com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Potenciais Evocados sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Potenciais Evocados alterado conforme resultados objetivos descritos.",
+    "undefined": "Potenciais Evocados com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

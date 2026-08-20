@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
     if (verifyError || !verified.user || verified.user.id !== account.user_id) {
       return NextResponse.json({ error: "A senha atual não está correta." }, { status: 400 });
     }
+    if (verified.session?.access_token) {
+      await verifier.auth.signOut({ scope: "local" }).catch(() => undefined);
+    }
     const { error: updateError } = await valid.supabase.auth.admin.updateUserById(account.user_id, { password: newPassword });
     if (updateError) throw updateError;
     return NextResponse.json({ ok: true, message: "Senha alterada com sucesso." });

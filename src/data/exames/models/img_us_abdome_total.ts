@@ -171,36 +171,68 @@ export const img_us_abdome_totalModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Ultrassonografia de Abdome Total com Fígado: Normal; Vesícula Biliar: Normal; Vias Biliares: Não dilatadas.",
+      "interpretation": "Os parâmetros mensurados — Fígado: Normal; Vesícula Biliar: Normal; Vias Biliares: Não dilatadas; Rins: Normais — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Ultrassonografia de Abdome Total com parâmetros compatíveis com o padrão esperado, incluindo Fígado: Normal; Vesícula Biliar: Normal.",
+      "results": {
+        "figado": "Normal",
+        "vesicula_biliar": "Normal",
+        "vias_biliares": "Não dilatadas",
+        "rins": "Normais",
+        "baço": "Normal",
+        "impressao": "Ultrassonografia de Abdome Total com parâmetros compatíveis com o padrão esperado, incluindo Fígado: Normal; Vesícula Biliar: Normal"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Ultrassonografia de Abdome Total: Fígado: Aumento difuso da ecogenicidade hepática, compatível com esteatose; Vesícula Biliar: Cálculo móvel de 8 mm, sem espessamento parietal; Rins: Sem hidronefrose; pequeno cisto cortical simples à esquerda; Baço: Dimensões preservadas.",
+      "interpretation": "Os resultados principais (Fígado: Aumento difuso da ecogenicidade hepática, compatível com esteatose; Vesícula Biliar: Cálculo móvel de 8 mm, sem espessamento parietal; Rins: Sem hidronefrose; pequeno cisto cortical simples à esquerda; Baço: Dimensões preservadas) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Ultrassonografia de Abdome Total com padrão alterado, documentado por Fígado: Aumento difuso da ecogenicidade hepática, compatível com esteatose; Vesícula Biliar: Cálculo móvel de 8 mm, sem espessamento parietal.",
+      "results": {
+        "figado": "Aumento difuso da ecogenicidade hepática, compatível com esteatose",
+        "vesicula_biliar": "Cálculo móvel de 8 mm, sem espessamento parietal",
+        "vias_biliares": "Não dilatadas",
+        "rins": "Sem hidronefrose; pequeno cisto cortical simples à esquerda",
+        "baço": "Dimensões preservadas",
+        "impressao": "Esteatose hepática e colelitíase, sem sinais ultrassonográficos de colecistite"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Ultrassonografia de Abdome Total: Fígado: Discreto aumento difuso da ecogenicidade; Vesícula Biliar: Sem cálculos; pequena dobra de parede sem espessamento; Rins: Pequeno cisto cortical simples.",
+      "interpretation": "Os principais resultados (Fígado: Discreto aumento difuso da ecogenicidade; Vesícula Biliar: Sem cálculos; pequena dobra de parede sem espessamento; Rins: Pequeno cisto cortical simples) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Ultrassonografia de Abdome Total com resultado limítrofe/inespecífico, destacando-se Fígado: Discreto aumento difuso da ecogenicidade; Vesícula Biliar: Sem cálculos; pequena dobra de parede sem espessamento.",
+      "results": {
+        "figado": "Discreto aumento difuso da ecogenicidade",
+        "vesicula_biliar": "Sem cálculos; pequena dobra de parede sem espessamento",
+        "vias_biliares": "Não dilatadas",
+        "rins": "Pequeno cisto cortical simples",
+        "baço": "Normal",
+        "impressao": "Esteatose hepática leve e pequeno cisto renal simples"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Ultrassonografia de Abdome Total: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "figado": "Normal",
+        "vesicula_biliar": "Normal",
+        "vias_biliares": "Não dilatadas",
+        "rins": "Normais",
+        "baço": "Normal",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -354,8 +386,8 @@ export const img_us_abdome_totalModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Ultrassonografia de Abdome Total realizada por ultrassonografia com avaliação sistematizada das estruturas previstas para a região selecionada e medidas pertinentes.",
+  "method": "Aquisição ultrassonográfica em modo bidimensional, complementada por Doppler colorido/espectral quando indicado pelo tipo de exame e contexto clínico.",
   "parameters": [
     {
       "id": "figado",
@@ -419,14 +451,14 @@ export const img_us_abdome_totalModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Ultrassonografia de Abdome Total compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Ultrassonografia de Abdome Total com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Ultrassonografia de Abdome Total com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Ultrassonografia de Abdome Total sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Ultrassonografia de Abdome Total alterado conforme resultados objetivos descritos.",
+    "undefined": "Ultrassonografia de Abdome Total com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

@@ -174,7 +174,16 @@ export const lab_teste_dnaModel: IntelligentExamModel = {
       "description": "Perfil de compatibilidade genética conforme vínculo avaliado.",
       "resultSummary": "Resultado compatível com vínculo biológico avaliado.",
       "interpretation": "Marcadores analisados apresentam compatibilidade com a hipótese de vínculo, conforme metodologia e índice calculado.",
-      "conclusion": "Resultado compatível com o vínculo biológico investigado."
+      "conclusion": "Resultado compatível com o vínculo biológico investigado.",
+      "results": {
+        "finalidade": "Investigação de paternidade",
+        "tipo_amostra": "Swab bucal",
+        "perfil_genetico": "Compatível",
+        "indice_probabilidade": "99,99",
+        "conclusao_tecnica": "Vínculo biológico compatível",
+        "validade_legal": "Conforme cadeia de custódia documentada",
+        "observacoes_tecnicas": "Perfis genéticos obtidos com qualidade analítica adequada"
+      }
     },
     {
       "id": "exclusao",
@@ -183,7 +192,16 @@ export const lab_teste_dnaModel: IntelligentExamModel = {
       "description": "Perfil de exclusão do vínculo investigado.",
       "resultSummary": "Resultado não compatível com vínculo biológico avaliado.",
       "interpretation": "Incompatibilidades genéticas observadas nos marcadores analisados afastam a hipótese de vínculo, conforme critérios técnicos.",
-      "conclusion": "Resultado não compatível com o vínculo biológico investigado."
+      "conclusion": "Resultado não compatível com o vínculo biológico investigado.",
+      "results": {
+        "finalidade": "Investigação de paternidade",
+        "tipo_amostra": "Swab bucal",
+        "perfil_genetico": "Incompatível em múltiplos loci independentes",
+        "indice_probabilidade": "0",
+        "conclusao_tecnica": "Vínculo biológico excluído",
+        "validade_legal": "Conforme cadeia de custódia documentada",
+        "observacoes_tecnicas": "Perfis genéticos obtidos com qualidade analítica adequada"
+      }
     },
     {
       "id": "inconclusivo",
@@ -192,16 +210,34 @@ export const lab_teste_dnaModel: IntelligentExamModel = {
       "description": "Resultado insuficiente ou limítrofe.",
       "resultSummary": "Resultado inconclusivo para definição do vínculo.",
       "interpretation": "Amostra, número de participantes, ausência de genitor ou índice insuficiente podem impedir conclusão segura.",
-      "conclusion": "Resultado inconclusivo, recomendando nova coleta ou complementação conforme indicação."
+      "conclusion": "Resultado inconclusivo, recomendando nova coleta ou complementação conforme indicação.",
+      "results": {
+        "finalidade": "Investigação de parentesco",
+        "tipo_amostra": "Swab bucal",
+        "perfil_genetico": "Informação genética insuficiente para conclusão",
+        "indice_probabilidade": "Inconclusivo",
+        "conclusao_tecnica": "Não conclusivo",
+        "validade_legal": "Necessita complementação de amostras/participantes",
+        "observacoes_tecnicas": "Recomendada ampliação do painel ou inclusão de familiar adicional"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "DNA personalizado.",
-      "interpretation": "Interpretação a ser definida pelo responsável técnico.",
-      "conclusion": "Conclusão a ser definida pelo responsável técnico."
+      "resultSummary": "Teste de DNA: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "finalidade": "Investigação de paternidade",
+        "tipo_amostra": "Swab bucal",
+        "perfil_genetico": "Compatível",
+        "indice_probabilidade": "99,99",
+        "conclusao_tecnica": "Vínculo biológico compatível",
+        "validade_legal": "Conforme cadeia de custódia documentada",
+        "observacoes_tecnicas": "Perfis genéticos obtidos com qualidade analítica adequada"
+      }
     }
   ],
   "variables": [
@@ -352,8 +388,8 @@ export const lab_teste_dnaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Análise realizada em material biológico informado, utilizando marcadores compatíveis com a finalidade do exame.",
-  "method": "Comparação de marcadores genéticos conforme metodologia validada e tipo de vínculo investigado.",
+  "technique": "Análise genética realizada em amostras identificadas para comparação de perfis moleculares conforme a finalidade informada.",
+  "method": "Extração de DNA, amplificação de marcadores STR por PCR e comparação estatística dos perfis genéticos, com controles de qualidade e cadeia de custódia quando requerida.",
   "parameters": [
     {
       "id": "finalidade",
@@ -414,14 +450,14 @@ export const lab_teste_dnaModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Resultado compatível com a hipótese técnica analisada.",
-    "altered": "Resultado incompatível ou alterado conforme finalidade do exame.",
-    "undefined": "Resultado inconclusivo/insuficiente para definição técnica segura."
+    "normal": "Resultados de Teste de DNA compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Teste de DNA com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Teste de DNA com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Resultado compatível com o vínculo biológico investigado.",
-    "altered": "Resultado não compatível com o vínculo biológico investigado.",
-    "undefined": "Resultado inconclusivo, recomendando nova coleta ou complementação conforme indicação."
+    "normal": "Teste de DNA sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Teste de DNA alterado conforme resultados objetivos descritos.",
+    "undefined": "Teste de DNA com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

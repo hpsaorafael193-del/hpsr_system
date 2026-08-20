@@ -110,36 +110,60 @@ export const oftalmo_fundo_olhoModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Fundo de Olho com Disco Óptico: Normal; Mácula: Normal; Retina: Normal.",
+      "interpretation": "Os parâmetros mensurados — Disco Óptico: Normal; Mácula: Normal; Retina: Normal — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Fundo de Olho com parâmetros compatíveis com o padrão esperado, incluindo Disco Óptico: Normal; Mácula: Normal.",
+      "results": {
+        "disco_optico": "Normal",
+        "macula": "Normal",
+        "retina": "Normal",
+        "impressao": "Fundo de Olho com parâmetros compatíveis com o padrão esperado, incluindo Disco Óptico: Normal; Mácula: Normal"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Fundo de Olho: Disco Óptico: Escavação aumentada, relação C/D aproximada de 0,7; Mácula: Reflexo foveal discretamente reduzido; Retina: Sem descolamento; rarefação vascular discreta.",
+      "interpretation": "Os resultados principais (Disco Óptico: Escavação aumentada, relação C/D aproximada de 0,7; Mácula: Reflexo foveal discretamente reduzido; Retina: Sem descolamento; rarefação vascular discreta) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Fundo de Olho com padrão alterado, documentado por Disco Óptico: Escavação aumentada, relação C/D aproximada de 0,7; Mácula: Reflexo foveal discretamente reduzido.",
+      "results": {
+        "disco_optico": "Escavação aumentada, relação C/D aproximada de 0,7",
+        "macula": "Reflexo foveal discretamente reduzido",
+        "retina": "Sem descolamento; rarefação vascular discreta",
+        "impressao": "Escavação papilar aumentada, recomendando correlação com pressão intraocular e campo visual"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Fundo de Olho: Disco Óptico: Escavação 0,6, simétrica; Mácula: Preservada; Retina: Sem lesões focais.",
+      "interpretation": "Os principais resultados (Disco Óptico: Escavação 0,6, simétrica; Mácula: Preservada; Retina: Sem lesões focais) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Fundo de Olho com resultado limítrofe/inespecífico, destacando-se Disco Óptico: Escavação 0,6, simétrica; Mácula: Preservada.",
+      "results": {
+        "disco_optico": "Escavação 0,6, simétrica",
+        "macula": "Preservada",
+        "retina": "Sem lesões focais",
+        "impressao": "Escavação papilar limítrofe, recomendando correlação com demais exames"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Fundo de Olho: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "disco_optico": "Normal",
+        "macula": "Normal",
+        "retina": "Normal",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -266,8 +290,8 @@ export const oftalmo_fundo_olhoModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Fundoscopia realizada para avaliação do nervo óptico, mácula, vasos retinianos e retina periférica acessível ao método.",
+  "method": "Oftalmoscopia direta e/ou indireta após adequada visualização do fundo ocular, com descrição sistematizada das estruturas observadas.",
   "parameters": [
     {
       "id": "disco_optico",
@@ -304,14 +328,14 @@ export const oftalmo_fundo_olhoModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Fundo de Olho compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Fundo de Olho com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Fundo de Olho com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Fundo de Olho sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Fundo de Olho alterado conforme resultados objetivos descritos.",
+    "undefined": "Fundo de Olho com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

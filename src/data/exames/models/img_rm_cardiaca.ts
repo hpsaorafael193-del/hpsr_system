@@ -113,36 +113,60 @@ export const img_rm_cardiacaModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Ressonância Magnética Cardíaca com Função Sistólica: Preservada; Fração de Ejeção: 59,4; Realce Tardio: Ausente.",
+      "interpretation": "Os parâmetros mensurados — Função Sistólica: Preservada; Fração de Ejeção: 59,4 %; Realce Tardio: Ausente — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Ressonância Magnética Cardíaca com parâmetros compatíveis com o padrão esperado, incluindo Função Sistólica: Preservada; Fração de Ejeção: 59,4 %.",
+      "results": {
+        "funcao_sistolica": "Preservada",
+        "fracao_ejecao": "59,4",
+        "realce_tardio": "Ausente",
+        "impressao": "Ressonância Magnética Cardíaca com parâmetros compatíveis com o padrão esperado, incluindo Função Sistólica: Preservada; Fração de Ejeção: 59,4 %"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Ressonância Magnética Cardíaca: Função Sistólica: Disfunção sistólica moderada; Fração de Ejeção: 43; Realce Tardio: Foco subepicárdico de realce tardio em parede inferolateral.",
+      "interpretation": "Os resultados principais (Função Sistólica: Disfunção sistólica moderada; Fração de Ejeção: 43 %; Realce Tardio: Foco subepicárdico de realce tardio em parede inferolateral) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Ressonância Magnética Cardíaca com padrão alterado, documentado por Função Sistólica: Disfunção sistólica moderada; Fração de Ejeção: 43 %.",
+      "results": {
+        "funcao_sistolica": "Disfunção sistólica moderada",
+        "fracao_ejecao": "43",
+        "realce_tardio": "Foco subepicárdico de realce tardio em parede inferolateral",
+        "impressao": "Disfunção sistólica com área focal de fibrose/lesão miocárdica pelo padrão de realce"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Ressonância Magnética Cardíaca: Função Sistólica: Função sistólica global limítrofe; Fração de Ejeção: 53; Realce Tardio: Ausência de realce tardio típico; pequena área duvidosa por artefato.",
+      "interpretation": "Os principais resultados (Função Sistólica: Função sistólica global limítrofe; Fração de Ejeção: 53 %; Realce Tardio: Ausência de realce tardio típico; pequena área duvidosa por artefato) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Ressonância Magnética Cardíaca com resultado limítrofe/inespecífico, destacando-se Função Sistólica: Função sistólica global limítrofe; Fração de Ejeção: 53 %.",
+      "results": {
+        "funcao_sistolica": "Função sistólica global limítrofe",
+        "fracao_ejecao": "53",
+        "realce_tardio": "Ausência de realce tardio típico; pequena área duvidosa por artefato",
+        "impressao": "Função ventricular limítrofe, sem fibrose miocárdica definida"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Ressonância Magnética Cardíaca: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "funcao_sistolica": "Preservada",
+        "fracao_ejecao": "59,4",
+        "realce_tardio": "Ausente",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -289,8 +313,8 @@ export const img_rm_cardiacaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Ressonância Magnética Cardíaca realizada com aquisição multiplanar de sequências de ressonância magnética adequadas à região selecionada, incluindo sequências adicionais quando clinicamente indicadas.",
+  "method": "Aquisição por ressonância magnética com sequências ponderadas e planos anatômicos apropriados ao protocolo, com contraste paramagnético somente quando indicado.",
   "parameters": [
     {
       "id": "funcao_sistolica",
@@ -338,14 +362,14 @@ export const img_rm_cardiacaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Ressonância Magnética Cardíaca compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Ressonância Magnética Cardíaca com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Ressonância Magnética Cardíaca com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Ressonância Magnética Cardíaca sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Ressonância Magnética Cardíaca alterado conforme resultados objetivos descritos.",
+    "undefined": "Ressonância Magnética Cardíaca com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

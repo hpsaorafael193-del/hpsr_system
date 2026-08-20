@@ -199,7 +199,16 @@ export const lab_glicemiaModel: IntelligentExamModel = {
       "description": "Glicemia dentro da referência conforme condição da coleta.",
       "resultSummary": "Glicemia dentro dos valores de referência.",
       "interpretation": "Resultado glicêmico dentro do esperado para a condição de coleta informada.",
-      "conclusion": "Exame sem alteração glicêmica laboratorial relevante."
+      "conclusion": "Exame sem alteração glicêmica laboratorial relevante.",
+      "results": {
+        "tipo_coleta": "Jejum",
+        "glicose": "88",
+        "sintomas": "Ausentes",
+        "condicao_coleta": "Jejum adequado, amostra válida",
+        "classificacao_glicemica": "Normoglicemia de jejum",
+        "risco_metabolico": "Baixo no parâmetro isolado",
+        "impressao": "Glicemia de jejum dentro da faixa de referência"
+      }
     },
     {
       "id": "hiperglicemia",
@@ -208,7 +217,16 @@ export const lab_glicemiaModel: IntelligentExamModel = {
       "description": "Glicemia acima do valor de referência.",
       "resultSummary": "Glicemia elevada.",
       "interpretation": "Glicemia acima dos valores de referência, compatível com hiperglicemia laboratorial. Recomenda-se correlação com jejum, sintomas e critérios clínicos.",
-      "conclusion": "Hiperglicemia laboratorial."
+      "conclusion": "Hiperglicemia laboratorial.",
+      "results": {
+        "tipo_coleta": "Jejum",
+        "glicose": "148",
+        "sintomas": "Sem sintomas agudos informados",
+        "condicao_coleta": "Jejum adequado, amostra válida",
+        "classificacao_glicemica": "Hiperglicemia de jejum",
+        "risco_metabolico": "Elevado",
+        "impressao": "Hiperglicemia laboratorial"
+      }
     },
     {
       "id": "hipoglicemia",
@@ -217,7 +235,16 @@ export const lab_glicemiaModel: IntelligentExamModel = {
       "description": "Glicemia abaixo do esperado.",
       "resultSummary": "Glicemia reduzida.",
       "interpretation": "Glicemia abaixo dos valores usuais, devendo ser correlacionada com sintomas, medicações e contexto clínico.",
-      "conclusion": "Hipoglicemia laboratorial."
+      "conclusion": "Hipoglicemia laboratorial.",
+      "results": {
+        "tipo_coleta": "Jejum",
+        "glicose": "58",
+        "sintomas": "Sudorese e tremores leves referidos",
+        "condicao_coleta": "Jejum prolongado informado",
+        "classificacao_glicemica": "Hipoglicemia",
+        "risco_metabolico": "Requer correlação clínica imediata se sintomática",
+        "impressao": "Glicemia abaixo da faixa de referência"
+      }
     },
     {
       "id": "limítrofe",
@@ -226,16 +253,34 @@ export const lab_glicemiaModel: IntelligentExamModel = {
       "description": "Glicemia discretamente alterada, sem definição isolada.",
       "resultSummary": "Glicemia em faixa limítrofe.",
       "interpretation": "Glicemia discretamente acima do valor de referência, sem definição diagnóstica isolada.",
-      "conclusion": "Alteração glicêmica limítrofe. Recomenda-se correlação clínica."
+      "conclusion": "Alteração glicêmica limítrofe. Recomenda-se correlação clínica.",
+      "results": {
+        "tipo_coleta": "Jejum",
+        "glicose": "108",
+        "sintomas": "Ausentes",
+        "condicao_coleta": "Jejum adequado, amostra válida",
+        "classificacao_glicemica": "Glicemia de jejum alterada / faixa limítrofe",
+        "risco_metabolico": "Intermediário",
+        "impressao": "Glicemia em faixa limítrofe"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Glicemia: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "tipo_coleta": "Jejum",
+        "glicose": "88",
+        "sintomas": "Ausentes",
+        "condicao_coleta": "Jejum adequado, amostra válida",
+        "classificacao_glicemica": "Normoglicemia de jejum",
+        "risco_metabolico": "Baixo no parâmetro isolado",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -358,8 +403,8 @@ export const lab_glicemiaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Dosagem bioquímica da glicose em amostra informada, interpretada conforme condição de coleta e referência laboratorial.",
+  "technique": "Amostra biológica processada para determinação da glicose, com registro da condição de coleta para interpretação do resultado.",
+  "method": "Dosagem de glicose por método enzimático automatizado validado, com interpretação segundo jejum, sintomas e intervalo de referência aplicável.",
   "parameters": [
     {
       "id": "tipo_coleta",
@@ -431,14 +476,14 @@ export const lab_glicemiaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Glicemia compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Glicemia com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Glicemia com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Glicemia sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Glicemia alterado conforme resultados objetivos descritos.",
+    "undefined": "Glicemia com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

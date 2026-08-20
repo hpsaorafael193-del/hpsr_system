@@ -186,36 +186,68 @@ export const oftalmo_erg_pediatricoModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Eletrorretinograma (ERG) com Condição do exame: Registro tecnicamente adequado, com cooperação compatível com a idade; Resposta retiniana global: Respostas escotópicas e fotópicas presentes; Padrão de resposta: Amplitudes e tempos implícitos dentro do esperado.",
+      "interpretation": "Os parâmetros mensurados — Condição do exame: Registro tecnicamente adequado, com cooperação compatível com a idade; Resposta retiniana global: Respostas escotópicas e fotópicas presentes; Padrão de resposta: Amplitudes e tempos implícitos dentro do esperado; Simetria entre os olhos: Respostas simétricas entre OD e OE — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Eletrorretinograma (ERG) com parâmetros compatíveis com o padrão esperado, incluindo Condição do exame: Registro tecnicamente adequado, com cooperação compatível com a idade; Resposta retiniana global: Respostas escotópicas e fotópicas presentes.",
+      "results": {
+        "condicao_exame": "Registro tecnicamente adequado, com cooperação compatível com a idade",
+        "resposta_global": "Respostas escotópicas e fotópicas presentes",
+        "padrao_resposta": "Amplitudes e tempos implícitos dentro do esperado",
+        "simetria": "Respostas simétricas entre OD e OE",
+        "suspeita_clinica": "Sem padrão eletrofisiológico sugestivo de distrofia retiniana difusa",
+        "impressao": "Eletrorretinograma dentro dos limites funcionais esperados"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Eletrorretinograma (ERG): Condição do exame: Registro tecnicamente adequado; Resposta retiniana global: Amplitudes escotópicas e fotópicas reduzidas; Padrão de resposta: Atraso de tempos implícitos e redução de amplitude; Simetria entre os olhos: Redução bilateral relativamente simétrica.",
+      "interpretation": "Os resultados principais (Condição do exame: Registro tecnicamente adequado; Resposta retiniana global: Amplitudes escotópicas e fotópicas reduzidas; Padrão de resposta: Atraso de tempos implícitos e redução de amplitude; Simetria entre os olhos: Redução bilateral relativamente simétrica) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Eletrorretinograma (ERG) com padrão alterado, documentado por Condição do exame: Registro tecnicamente adequado; Resposta retiniana global: Amplitudes escotópicas e fotópicas reduzidas.",
+      "results": {
+        "condicao_exame": "Registro tecnicamente adequado",
+        "resposta_global": "Amplitudes escotópicas e fotópicas reduzidas",
+        "padrao_resposta": "Atraso de tempos implícitos e redução de amplitude",
+        "simetria": "Redução bilateral relativamente simétrica",
+        "suspeita_clinica": "Padrão compatível com disfunção retiniana difusa",
+        "impressao": "ERG alterado bilateralmente, sugerindo disfunção retiniana difusa"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Eletrorretinograma (ERG): Resposta retiniana global: Amplitude discretamente reduzida; Padrão de resposta: Tempos implícitos em limite superior; Simetria entre os olhos: Simetria preservada; Correlação clínica sugerida: Sem padrão específico definido.",
+      "interpretation": "Os principais resultados (Resposta retiniana global: Amplitude discretamente reduzida; Padrão de resposta: Tempos implícitos em limite superior; Simetria entre os olhos: Simetria preservada; Correlação clínica sugerida: Sem padrão específico definido) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Eletrorretinograma (ERG) com resultado limítrofe/inespecífico, destacando-se Resposta retiniana global: Amplitude discretamente reduzida; Padrão de resposta: Tempos implícitos em limite superior.",
+      "results": {
+        "condicao_exame": "Registro tecnicamente adequado, com cooperação compatível com a idade",
+        "resposta_global": "Amplitude discretamente reduzida",
+        "padrao_resposta": "Tempos implícitos em limite superior",
+        "simetria": "Simetria preservada",
+        "suspeita_clinica": "Sem padrão específico definido",
+        "impressao": "ERG limítrofe, sem assinatura eletrofisiológica específica"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Eletrorretinograma (ERG): modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "condicao_exame": "Registro tecnicamente adequado, com cooperação compatível com a idade",
+        "resposta_global": "Respostas escotópicas e fotópicas presentes",
+        "padrao_resposta": "Amplitudes e tempos implícitos dentro do esperado",
+        "simetria": "Respostas simétricas entre OD e OE",
+        "suspeita_clinica": "Sem padrão eletrofisiológico sugestivo de distrofia retiniana difusa",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -342,8 +374,8 @@ export const oftalmo_erg_pediatricoModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Eletrorretinograma realizado para avaliação eletrofisiológica global da função retiniana, com protocolo adaptado à faixa etária.",
+  "method": "Registro de respostas retinianas a estímulos luminosos em condições escotópicas e fotópicas, com análise de amplitudes e tempos implícitos.",
   "parameters": [
     {
       "id": "condicao_exame",
@@ -396,14 +428,14 @@ export const oftalmo_erg_pediatricoModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Eletrorretinograma (ERG) compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Eletrorretinograma (ERG) com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Eletrorretinograma (ERG) com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Eletrorretinograma (ERG) sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Eletrorretinograma (ERG) alterado conforme resultados objetivos descritos.",
+    "undefined": "Eletrorretinograma (ERG) com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

@@ -146,36 +146,64 @@ export const img_rm_colunaModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Ressonância Magnética de Coluna com Segmento Avaliado: Conforme segmento selecionado; Discos Intervertebrais: Preservados; Canal Medular: Normal.",
+      "interpretation": "Os parâmetros mensurados — Segmento Avaliado: Conforme segmento selecionado; Discos Intervertebrais: Preservados; Canal Medular: Normal; Compressão Neural: Ausente — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Ressonância Magnética de Coluna com parâmetros compatíveis com o padrão esperado, incluindo Segmento Avaliado: Conforme segmento selecionado; Discos Intervertebrais: Preservados.",
+      "results": {
+        "segmento": "Conforme segmento selecionado",
+        "discos": "Preservados",
+        "canal_medular": "Normal",
+        "compressao_neural": "Ausente",
+        "impressao": "Alinhamento e estruturas neurais preservados no segmento avaliado"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Ressonância Magnética de Coluna: Discos Intervertebrais: Desidratação discal com protrusão posterior em nível inferior; Canal Medular: Estreitamento leve do canal no nível da protrusão; Compressão Neural: Contato com raiz adjacente, sem compressão severa.",
+      "interpretation": "Os resultados principais (Discos Intervertebrais: Desidratação discal com protrusão posterior em nível inferior; Canal Medular: Estreitamento leve do canal no nível da protrusão; Compressão Neural: Contato com raiz adjacente, sem compressão severa) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Ressonância Magnética de Coluna com padrão alterado, documentado por Discos Intervertebrais: Desidratação discal com protrusão posterior em nível inferior; Canal Medular: Estreitamento leve do canal no nível da protrusão.",
+      "results": {
+        "segmento": "Conforme segmento selecionado",
+        "discos": "Desidratação discal com protrusão posterior em nível inferior",
+        "canal_medular": "Estreitamento leve do canal no nível da protrusão",
+        "compressao_neural": "Contato com raiz adjacente, sem compressão severa",
+        "impressao": "Doença degenerativa discal com protrusão posterior e conflito radicular leve"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Ressonância Magnética de Coluna: Discos Intervertebrais: Desidratação discal discreta; Canal Medular: Calibre preservado; Compressão Neural: Sem compressão; contato discreto com saco dural.",
+      "interpretation": "Os principais resultados (Discos Intervertebrais: Desidratação discal discreta; Canal Medular: Calibre preservado; Compressão Neural: Sem compressão; contato discreto com saco dural) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Ressonância Magnética de Coluna com resultado limítrofe/inespecífico, destacando-se Discos Intervertebrais: Desidratação discal discreta; Canal Medular: Calibre preservado.",
+      "results": {
+        "segmento": "Conforme segmento selecionado",
+        "discos": "Desidratação discal discreta",
+        "canal_medular": "Calibre preservado",
+        "compressao_neural": "Sem compressão; contato discreto com saco dural",
+        "impressao": "Alterações degenerativas leves sem compressão neural definida"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Ressonância Magnética de Coluna: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "segmento": "Conforme segmento selecionado",
+        "discos": "Preservados",
+        "canal_medular": "Normal",
+        "compressao_neural": "Ausente",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -322,8 +350,8 @@ export const img_rm_colunaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Ressonância Magnética de Coluna realizada com aquisição multiplanar de sequências de ressonância magnética adequadas à região selecionada, incluindo sequências adicionais quando clinicamente indicadas.",
+  "method": "Aquisição por ressonância magnética com sequências ponderadas e planos anatômicos apropriados ao protocolo, com contraste paramagnético somente quando indicado.",
   "parameters": [
     {
       "id": "segmento",
@@ -379,14 +407,14 @@ export const img_rm_colunaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Ressonância Magnética de Coluna compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Ressonância Magnética de Coluna com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Ressonância Magnética de Coluna com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Ressonância Magnética de Coluna sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Ressonância Magnética de Coluna alterado conforme resultados objetivos descritos.",
+    "undefined": "Ressonância Magnética de Coluna com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

@@ -162,36 +162,68 @@ export const img_rm_cranioModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Ressonância Magnética de Crânio com Uso de Contraste: Sem contraste; Lesões Focais: Ausentes; Sinais de Isquemia: Ausentes.",
+      "interpretation": "Os parâmetros mensurados — Uso de Contraste: Sem contraste; Lesões Focais: Ausentes; Sinais de Isquemia: Ausentes; Hemorragia: Ausente — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Ressonância Magnética de Crânio com parâmetros compatíveis com o padrão esperado, incluindo Uso de Contraste: Sem contraste; Lesões Focais: Ausentes.",
+      "results": {
+        "uso_contraste": "Sem contraste",
+        "lesoes_focais": "Ausentes",
+        "isquemia": "Ausentes",
+        "hemorragia": "Ausente",
+        "substancia_branca": "Preservada",
+        "impressao": "Ressonância Magnética de Crânio com parâmetros compatíveis com o padrão esperado, incluindo Uso de Contraste: Sem contraste; Lesões Focais: Ausentes"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Ressonância Magnética de Crânio: Lesões Focais: Pequena área de hipersinal em substância branca, inespecífica; Sinais de Isquemia: Sem restrição à difusão sugestiva de isquemia aguda; Substância Branca: Foco inespecífico de alteração de sinal.",
+      "interpretation": "Os resultados principais (Lesões Focais: Pequena área de hipersinal em substância branca, inespecífica; Sinais de Isquemia: Sem restrição à difusão sugestiva de isquemia aguda; Substância Branca: Foco inespecífico de alteração de sinal) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Ressonância Magnética de Crânio com padrão alterado, documentado por Lesões Focais: Pequena área de hipersinal em substância branca, inespecífica; Sinais de Isquemia: Sem restrição à difusão sugestiva de isquemia aguda.",
+      "results": {
+        "uso_contraste": "Sem contraste",
+        "lesoes_focais": "Pequena área de hipersinal em substância branca, inespecífica",
+        "isquemia": "Sem restrição à difusão sugestiva de isquemia aguda",
+        "hemorragia": "Ausente",
+        "substancia_branca": "Foco inespecífico de alteração de sinal",
+        "impressao": "Foco inespecífico de alteração de sinal em substância branca, sem evento agudo"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Ressonância Magnética de Crânio: Lesões Focais: Ponto único de hipersinal inespecífico em substância branca; Sinais de Isquemia: Ausente; Substância Branca: Foco isolado inespecífico.",
+      "interpretation": "Os principais resultados (Lesões Focais: Ponto único de hipersinal inespecífico em substância branca; Sinais de Isquemia: Ausente; Substância Branca: Foco isolado inespecífico) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Ressonância Magnética de Crânio com resultado limítrofe/inespecífico, destacando-se Lesões Focais: Ponto único de hipersinal inespecífico em substância branca; Sinais de Isquemia: Ausente.",
+      "results": {
+        "uso_contraste": "Sem contraste",
+        "lesoes_focais": "Ponto único de hipersinal inespecífico em substância branca",
+        "isquemia": "Ausente",
+        "hemorragia": "Ausente",
+        "substancia_branca": "Foco isolado inespecífico",
+        "impressao": "Foco puntiforme inespecífico em substância branca, sem sinais de evento agudo"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Ressonância Magnética de Crânio: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "uso_contraste": "Sem contraste",
+        "lesoes_focais": "Ausentes",
+        "isquemia": "Ausentes",
+        "hemorragia": "Ausente",
+        "substancia_branca": "Preservada",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -338,8 +370,8 @@ export const img_rm_cranioModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Ressonância Magnética de Crânio realizada com aquisição multiplanar de sequências de ressonância magnética adequadas à região selecionada, incluindo sequências adicionais quando clinicamente indicadas.",
+  "method": "Aquisição por ressonância magnética com sequências ponderadas e planos anatômicos apropriados ao protocolo, com contraste paramagnético somente quando indicado.",
   "parameters": [
     {
       "id": "uso_contraste",
@@ -403,14 +435,14 @@ export const img_rm_cranioModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Ressonância Magnética de Crânio compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Ressonância Magnética de Crânio com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Ressonância Magnética de Crânio com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Ressonância Magnética de Crânio sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Ressonância Magnética de Crânio alterado conforme resultados objetivos descritos.",
+    "undefined": "Ressonância Magnética de Crânio com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

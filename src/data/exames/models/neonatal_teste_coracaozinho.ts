@@ -75,36 +75,60 @@ export const neonatal_teste_coracaozinhoModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Teste do Coraçãozinho com SpO₂ Mão Direita: 102,6; SpO₂ Pé: 102,6; Diferença Mão–Pé: 2,2.",
+      "interpretation": "Os parâmetros mensurados — SpO₂ Mão Direita: 102,6 %; SpO₂ Pé: 102,6 %; Diferença Mão–Pé: 2,2 %; Resultado: Normal — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Teste do Coraçãozinho com parâmetros compatíveis com o padrão esperado, incluindo SpO₂ Mão Direita: 102,6 %; SpO₂ Pé: 102,6 %.",
+      "results": {
+        "spo2_mao": "102,6",
+        "spo2_pe": "102,6",
+        "diferenca": "2,2",
+        "resultado": "Normal"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Teste do Coraçãozinho: SpO₂ Mão Direita: 91; SpO₂ Pé: 88; Diferença Mão–Pé: 3; Resultado: Falhou — saturações abaixo do ponto de corte, requer reavaliação conforme protocolo.",
+      "interpretation": "Os resultados principais (SpO₂ Mão Direita: 91 %; SpO₂ Pé: 88 %; Diferença Mão–Pé: 3 %; Resultado: Falhou — saturações abaixo do ponto de corte, requer reavaliação conforme protocolo) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Teste do Coraçãozinho com padrão alterado, documentado por SpO₂ Mão Direita: 91 %; SpO₂ Pé: 88 %.",
+      "results": {
+        "spo2_mao": "91",
+        "spo2_pe": "88",
+        "diferenca": "3",
+        "resultado": "Falhou — saturações abaixo do ponto de corte, requer reavaliação conforme protocolo"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Teste do Coraçãozinho: SpO₂ Mão Direita: 94; SpO₂ Pé: 93; Diferença Mão–Pé: 1; Resultado: Repetir teste conforme protocolo por saturações limítrofes.",
+      "interpretation": "Os principais resultados (SpO₂ Mão Direita: 94 %; SpO₂ Pé: 93 %; Diferença Mão–Pé: 1 %; Resultado: Repetir teste conforme protocolo por saturações limítrofes) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Teste do Coraçãozinho com resultado limítrofe/inespecífico, destacando-se SpO₂ Mão Direita: 94 %; SpO₂ Pé: 93 %.",
+      "results": {
+        "spo2_mao": "94",
+        "spo2_pe": "93",
+        "diferenca": "1",
+        "resultado": "Repetir teste conforme protocolo por saturações limítrofes"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Teste do Coraçãozinho: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "spo2_mao": "102,6",
+        "spo2_pe": "102,6",
+        "diferenca": "2,2",
+        "resultado": "Normal"
+      }
     }
   ],
   "variables": [
@@ -231,8 +255,8 @@ export const neonatal_teste_coracaozinhoModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Triagem neonatal de cardiopatia congênita crítica realizada por oximetria de pulso em membro superior direito e membro inferior, após estabilização clínica.",
+  "method": "Mensuração comparativa da saturação periférica de oxigênio pré-ductal e pós-ductal, interpretada segundo critérios de triagem neonatal.",
   "parameters": [
     {
       "id": "spo2_mao",
@@ -269,14 +293,14 @@ export const neonatal_teste_coracaozinhoModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Teste do Coraçãozinho compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Teste do Coraçãozinho com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Teste do Coraçãozinho com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Teste do Coraçãozinho sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Teste do Coraçãozinho alterado conforme resultados objetivos descritos.",
+    "undefined": "Teste do Coraçãozinho com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

@@ -230,7 +230,22 @@ export const lab_urina_analiseModel: IntelligentExamModel = {
       "description": "Urina tipo I sem alterações físico-químicas ou sedimentares relevantes.",
       "resultSummary": "Amostra urinária sem alterações laboratoriais relevantes.",
       "interpretation": "Aspectos físico-químicos e sedimentoscopia dentro do padrão esperado para a amostra analisada.",
-      "conclusion": "Urina tipo I sem alterações laboratoriais significativas."
+      "conclusion": "Urina tipo I sem alterações laboratoriais significativas.",
+      "results": {
+        "cor": "Amarelo claro",
+        "aspecto": "Límpido",
+        "densidade": "1,017",
+        "ph": "6,1",
+        "proteinas": "Ausente",
+        "glicose": "Ausente",
+        "cetonas": "Ausentes",
+        "nitrito": "Negativo",
+        "leucocitos": "1",
+        "hemacias": "1",
+        "cilindros": "Ausentes",
+        "bacterias": "Ausentes",
+        "impressao": "Urina tipo I sem alterações significativas"
+      }
     },
     {
       "id": "itu",
@@ -239,7 +254,22 @@ export const lab_urina_analiseModel: IntelligentExamModel = {
       "description": "Achados compatíveis com processo infeccioso urinário, sem substituir correlação clínica/cultura.",
       "resultSummary": "Exame com leucocitúria, bacteriúria e/ou nitrito positivo, padrão sugestivo de infecção urinária.",
       "interpretation": "A presença de leucocitúria e bacteriúria, associada ou não a nitrito positivo, é compatível com processo inflamatório/infeccioso do trato urinário. Recomenda-se correlação com sintomas e urocultura quando indicada.",
-      "conclusion": "Achados urinários sugestivos de infecção do trato urinário."
+      "conclusion": "Leucocitúria, bacteriúria e nitrito positivo, padrão urinário sugestivo de infecção do trato urinário.",
+      "results": {
+        "cor": "Amarelo",
+        "aspecto": "Turvo",
+        "densidade": "1,020",
+        "ph": "6,5",
+        "proteinas": "Traços",
+        "glicose": "Ausente",
+        "cetonas": "Ausentes",
+        "nitrito": "Positivo",
+        "leucocitos": "28",
+        "hemacias": "4",
+        "cilindros": "Ausentes",
+        "bacterias": "Numerosas",
+        "impressao": "Leucocitúria, bacteriúria e nitrito positivo, padrão sugestivo de ITU"
+      }
     },
     {
       "id": "proteinuria",
@@ -248,7 +278,22 @@ export const lab_urina_analiseModel: IntelligentExamModel = {
       "description": "Presença de proteína urinária acima do esperado.",
       "resultSummary": "Exame com proteinúria detectável.",
       "interpretation": "A presença de proteínas na urina pode estar associada a alterações renais, condições transitórias ou contexto clínico específico, devendo ser correlacionada clinicamente.",
-      "conclusion": "Proteinúria detectável. Recomenda-se correlação clínica e seguimento conforme avaliação médica."
+      "conclusion": "Proteinúria detectável. Recomenda-se correlação clínica e seguimento conforme avaliação médica.",
+      "results": {
+        "cor": "Amarelo claro",
+        "aspecto": "Ligeiramente turvo",
+        "densidade": "1,024",
+        "ph": "6,0",
+        "proteinas": "2+",
+        "glicose": "Ausente",
+        "cetonas": "Ausentes",
+        "nitrito": "Negativo",
+        "leucocitos": "2",
+        "hemacias": "2",
+        "cilindros": "Hialinos ocasionais",
+        "bacterias": "Ausentes",
+        "impressao": "Proteinúria detectável no exame químico"
+      }
     },
     {
       "id": "hematuria",
@@ -257,16 +302,46 @@ export const lab_urina_analiseModel: IntelligentExamModel = {
       "description": "Hemácias acima do valor esperado na sedimentoscopia.",
       "resultSummary": "Exame com hematúria microscópica.",
       "interpretation": "A elevação de hemácias no sedimento urinário caracteriza hematúria microscópica e pode ocorrer em diferentes contextos urológicos, nefrológicos ou transitórios.",
-      "conclusion": "Hematúria microscópica. Recomenda-se correlação clínica."
+      "conclusion": "Hematúria microscópica. Recomenda-se correlação clínica.",
+      "results": {
+        "cor": "Amarelo avermelhado",
+        "aspecto": "Ligeiramente turvo",
+        "densidade": "1,018",
+        "ph": "6,2",
+        "proteinas": "Traços",
+        "glicose": "Ausente",
+        "cetonas": "Ausentes",
+        "nitrito": "Negativo",
+        "leucocitos": "3",
+        "hemacias": "22",
+        "cilindros": "Ausentes",
+        "bacterias": "Ausentes",
+        "impressao": "Hematúria microscópica"
+      }
     },
     {
       "id": "litiase",
       "name": "Litíase / cristais",
       "status": "alterado",
       "description": "Achados urinários que podem acompanhar litíase ou cristalúria.",
-      "resultSummary": "Exame com hematúria e achados compatíveis com cristalúria/litíase, conforme contexto.",
-      "interpretation": "Achados de hematúria e/ou cristalúria podem ser observados em litíase urinária, devendo ser correlacionados com dor, imagem e avaliação clínica.",
-      "conclusion": "Achados urinários compatíveis com cristalúria/litíase no contexto adequado."
+      "resultSummary": "Urina com hematúria e cristalúria, padrão compatível com litíase no contexto clínico adequado.",
+      "interpretation": "Hematúria associada à cristalúria pode ocorrer em litíase urinária e deve ser interpretada em conjunto com sintomas e exame de imagem.",
+      "conclusion": "Hematúria com cristalúria, padrão urinário compatível com litíase no contexto adequado.",
+      "results": {
+        "cor": "Amarelo",
+        "aspecto": "Ligeiramente turvo",
+        "densidade": "1,026",
+        "ph": "5,6",
+        "proteinas": "Traços",
+        "glicose": "Ausente",
+        "cetonas": "Ausentes",
+        "nitrito": "Negativo",
+        "leucocitos": "4",
+        "hemacias": "14",
+        "cilindros": "Ausentes",
+        "bacterias": "Ausentes",
+        "impressao": "Hematúria associada a cristalúria, compatível com litíase no contexto adequado"
+      }
     },
     {
       "id": "indefinido",
@@ -274,17 +349,47 @@ export const lab_urina_analiseModel: IntelligentExamModel = {
       "status": "indefinido",
       "description": "Alterações discretas sem definição isolada.",
       "resultSummary": "Exame com alterações discretas ou inespecíficas.",
-      "interpretation": "Achados discretos no exame de urina, sem definição diagnóstica isolada.",
-      "conclusion": "Alteração urinária limítrofe/inespecífica. Recomenda-se correlação clínica."
+      "interpretation": "Alterações discretas no exame de urina, sem padrão laboratorial específico no resultado isolado.",
+      "conclusion": "Alteração urinária limítrofe/inespecífica. Recomenda-se correlação clínica.",
+      "results": {
+        "cor": "Amarelo",
+        "aspecto": "Ligeiramente turvo",
+        "densidade": "1,030",
+        "ph": "5,0",
+        "proteinas": "Traços",
+        "glicose": "Ausente",
+        "cetonas": "Ausentes",
+        "nitrito": "Negativo",
+        "leucocitos": "6",
+        "hemacias": "3",
+        "cilindros": "Ausentes",
+        "bacterias": "Raras",
+        "impressao": "Alterações urinárias discretas e inespecíficas"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Urina Tipo I – Análise: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "cor": "Amarelo claro",
+        "aspecto": "Límpido",
+        "densidade": "1,017",
+        "ph": "6,1",
+        "proteinas": "Ausente",
+        "glicose": "Ausente",
+        "cetonas": "Ausentes",
+        "nitrito": "Negativo",
+        "leucocitos": "1",
+        "hemacias": "1",
+        "cilindros": "Ausentes",
+        "bacterias": "Ausentes",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -407,8 +512,8 @@ export const lab_urina_analiseModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Amostra de urina analisada quanto a propriedades físicas, parâmetros químicos e elementos do sedimento urinário.",
+  "method": "Análise físico-química por tira reagente e/ou leitura automatizada, complementada por microscopia do sedimento quando indicada.",
   "parameters": [
     {
       "id": "cor",
@@ -528,14 +633,14 @@ export const lab_urina_analiseModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Urina Tipo I – Análise compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Urina Tipo I – Análise com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Urina Tipo I – Análise com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Urina Tipo I – Análise sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Urina Tipo I – Análise alterado conforme resultados objetivos descritos.",
+    "undefined": "Urina Tipo I – Análise com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

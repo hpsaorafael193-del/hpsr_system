@@ -123,36 +123,60 @@ export const img_us_doppler_vascularModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Ultrassonografia Doppler Vascular com Território Avaliado: Conforme território vascular selecionado; Fluxo: Normal; Trombose: Ausente.",
+      "interpretation": "Os parâmetros mensurados — Território Avaliado: Conforme território vascular selecionado; Fluxo: Normal; Trombose: Ausente — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Ultrassonografia Doppler Vascular com parâmetros compatíveis com o padrão esperado, incluindo Território Avaliado: Conforme território vascular selecionado; Fluxo: Normal.",
+      "results": {
+        "territorio": "Conforme território vascular selecionado",
+        "fluxo": "Normal",
+        "trombose": "Ausente",
+        "impressao": "Fluxo preservado, sem evidências de trombose no território examinado"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Ultrassonografia Doppler Vascular: Território Avaliado: Membro inferior direito; Fluxo: Ausência de fluxo compressível em segmento venoso profundo; Trombose: Trombo intraluminal com ausência de compressibilidade.",
+      "interpretation": "Os resultados principais (Território Avaliado: Membro inferior direito; Fluxo: Ausência de fluxo compressível em segmento venoso profundo; Trombose: Trombo intraluminal com ausência de compressibilidade) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Ultrassonografia Doppler Vascular com padrão alterado, documentado por Território Avaliado: Membro inferior direito; Fluxo: Ausência de fluxo compressível em segmento venoso profundo.",
+      "results": {
+        "territorio": "Membro inferior direito",
+        "fluxo": "Ausência de fluxo compressível em segmento venoso profundo",
+        "trombose": "Trombo intraluminal com ausência de compressibilidade",
+        "impressao": "Achados compatíveis com trombose venosa profunda no território avaliado"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Ultrassonografia Doppler Vascular: Território Avaliado: Conforme território selecionado; Fluxo: Fluxo preservado com discreta redução de velocidade focal.",
+      "interpretation": "Os principais resultados (Território Avaliado: Conforme território selecionado; Fluxo: Fluxo preservado com discreta redução de velocidade focal) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Ultrassonografia Doppler Vascular com resultado limítrofe/inespecífico, destacando-se Território Avaliado: Conforme território selecionado; Fluxo: Fluxo preservado com discreta redução de velocidade focal.",
+      "results": {
+        "territorio": "Conforme território selecionado",
+        "fluxo": "Fluxo preservado com discreta redução de velocidade focal",
+        "trombose": "Ausente",
+        "impressao": "Variação hemodinâmica discreta, sem trombose demonstrável"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Ultrassonografia Doppler Vascular: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "territorio": "Conforme território vascular selecionado",
+        "fluxo": "Normal",
+        "trombose": "Ausente",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -306,8 +330,8 @@ export const img_us_doppler_vascularModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Ultrassonografia Doppler Vascular realizada por ultrassonografia com avaliação sistematizada das estruturas previstas para a região selecionada e medidas pertinentes.",
+  "method": "Aquisição ultrassonográfica em modo bidimensional, complementada por Doppler colorido/espectral quando indicado pelo tipo de exame e contexto clínico.",
   "parameters": [
     {
       "id": "territorio",
@@ -355,14 +379,14 @@ export const img_us_doppler_vascularModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Ultrassonografia Doppler Vascular compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Ultrassonografia Doppler Vascular com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Ultrassonografia Doppler Vascular com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Ultrassonografia Doppler Vascular sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Ultrassonografia Doppler Vascular alterado conforme resultados objetivos descritos.",
+    "undefined": "Ultrassonografia Doppler Vascular com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

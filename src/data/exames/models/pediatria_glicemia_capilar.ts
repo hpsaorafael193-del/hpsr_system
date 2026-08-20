@@ -65,36 +65,52 @@ export const pediatria_glicemia_capilarModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Glicemia Capilar Pediátrica com Glicemia: 84,4.",
+      "interpretation": "Os parâmetros mensurados — Glicemia: 84,4 mg/dL — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Glicemia Capilar Pediátrica com parâmetros compatíveis com o padrão esperado, incluindo Glicemia: 84,4 mg/dL.",
+      "results": {
+        "valor": "84,4",
+        "impressao": "Glicemia Capilar Pediátrica com parâmetros compatíveis com o padrão esperado, incluindo Glicemia: 84,4 mg/dL"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Glicemia Capilar Pediátrica: Glicemia: 154.",
+      "interpretation": "Os resultados principais (Glicemia: 154 mg/dL) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Glicemia Capilar Pediátrica com padrão alterado, documentado por Glicemia: 154 mg/dL.",
+      "results": {
+        "valor": "154",
+        "impressao": "Hiperglicemia capilar"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Glicemia Capilar Pediátrica: Glicemia: 104.",
+      "interpretation": "Os principais resultados (Glicemia: 104 mg/dL) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Glicemia Capilar Pediátrica com resultado limítrofe/inespecífico, destacando-se Glicemia: 104 mg/dL.",
+      "results": {
+        "valor": "104",
+        "impressao": "Glicemia capilar discretamente acima da faixa de referência"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Glicemia Capilar Pediátrica: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "valor": "84,4",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -221,8 +237,8 @@ export const pediatria_glicemia_capilarModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Dosagem bioquímica da glicose em amostra informada, interpretada conforme condição de coleta e referência laboratorial.",
+  "technique": "Glicemia capilar pediátrica aferida em amostra de sangue periférico obtida por punção digital ou de local apropriado à idade.",
+  "method": "Leitura por sistema portátil de glicose validado, com controle da qualidade da tira reagente e interpretação segundo contexto alimentar e clínico.",
   "parameters": [
     {
       "id": "valor",
@@ -243,14 +259,14 @@ export const pediatria_glicemia_capilarModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Glicemia Capilar Pediátrica compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Glicemia Capilar Pediátrica com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Glicemia Capilar Pediátrica com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Glicemia Capilar Pediátrica sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Glicemia Capilar Pediátrica alterado conforme resultados objetivos descritos.",
+    "undefined": "Glicemia Capilar Pediátrica com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

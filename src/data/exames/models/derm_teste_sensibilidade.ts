@@ -90,36 +90,56 @@ export const derm_teste_sensibilidadeModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Avaliação de Sensibilidade Cutânea com Sensibilidade: Preservada; Espessamento de Nervos: Ausente.",
+      "interpretation": "Os parâmetros mensurados — Sensibilidade: Preservada; Espessamento de Nervos: Ausente — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Avaliação de Sensibilidade Cutânea com parâmetros compatíveis com o padrão esperado, incluindo Sensibilidade: Preservada; Espessamento de Nervos: Ausente.",
+      "results": {
+        "sensibilidade": "Preservada",
+        "nervos_perifericos": "Ausente",
+        "impressao": "Avaliação de Sensibilidade Cutânea com parâmetros compatíveis com o padrão esperado, incluindo Sensibilidade: Preservada; Espessamento de Nervos: Ausente"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Avaliação de Sensibilidade Cutânea: Sensibilidade: Hipoestesia tátil e térmica localizada; Espessamento de Nervos: Espessamento discreto de nervo periférico palpável.",
+      "interpretation": "Os resultados principais (Sensibilidade: Hipoestesia tátil e térmica localizada; Espessamento de Nervos: Espessamento discreto de nervo periférico palpável) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Avaliação de Sensibilidade Cutânea com padrão alterado, documentado por Sensibilidade: Hipoestesia tátil e térmica localizada; Espessamento de Nervos: Espessamento discreto de nervo periférico palpável.",
+      "results": {
+        "sensibilidade": "Hipoestesia tátil e térmica localizada",
+        "nervos_perifericos": "Espessamento discreto de nervo periférico palpável",
+        "impressao": "Alteração sensitiva periférica que requer correlação dermatoneurológica"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Avaliação de Sensibilidade Cutânea: Sensibilidade: Hipoestesia discreta e localizada; Espessamento de Nervos: Sem espessamento inequívoco.",
+      "interpretation": "Os principais resultados (Sensibilidade: Hipoestesia discreta e localizada; Espessamento de Nervos: Sem espessamento inequívoco) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Avaliação de Sensibilidade Cutânea com resultado limítrofe/inespecífico, destacando-se Sensibilidade: Hipoestesia discreta e localizada; Espessamento de Nervos: Sem espessamento inequívoco.",
+      "results": {
+        "sensibilidade": "Hipoestesia discreta e localizada",
+        "nervos_perifericos": "Sem espessamento inequívoco",
+        "impressao": "Alteração sensitiva discreta, sem definição etiológica isolada"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Avaliação de Sensibilidade Cutânea: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "sensibilidade": "Preservada",
+        "nervos_perifericos": "Ausente",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -246,8 +266,8 @@ export const derm_teste_sensibilidadeModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Avaliação dermatoneurológica dirigida da sensibilidade cutânea e de nervos periféricos nos territórios selecionados.",
+  "method": "Exame clínico comparativo de sensibilidade tátil, térmica e/ou dolorosa, associado à palpação de nervos periféricos quando pertinente.",
   "parameters": [
     {
       "id": "sensibilidade",
@@ -276,14 +296,14 @@ export const derm_teste_sensibilidadeModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Avaliação de Sensibilidade Cutânea compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Avaliação de Sensibilidade Cutânea com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Avaliação de Sensibilidade Cutânea com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Avaliação de Sensibilidade Cutânea sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Avaliação de Sensibilidade Cutânea alterado conforme resultados objetivos descritos.",
+    "undefined": "Avaliação de Sensibilidade Cutânea com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

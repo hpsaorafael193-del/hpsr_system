@@ -58,13 +58,11 @@ export async function PATCH(request: NextRequest) {
     const passport = normalizePassport(valid.access.patient_passport);
     const body = await request.json();
     const name = clean(body.name);
-    const email = clean(body.email).toLowerCase();
     const phone = formatPhoneNumber(body.phone);
     const birthDate = clean(body.birthDate);
     const sex = clean(body.sex);
 
     if (name.length < 2) return NextResponse.json({ error: "Informe seu nome." }, { status: 400 });
-    if (!/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: "Informe um e-mail válido." }, { status: 400 });
     if (phone && phoneDigits(phone).length < 6) return NextResponse.json({ error: "Confira o telefone informado." }, { status: 400 });
     if (birthDate && !/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return NextResponse.json({ error: "Confira a data de nascimento." }, { status: 400 });
     if (sex && !["Masculino", "Feminino"].includes(sex)) return NextResponse.json({ error: "Confira o sexo cadastrado." }, { status: 400 });
@@ -74,41 +72,26 @@ export async function PATCH(request: NextRequest) {
     if (accountError) throw accountError;
     if (!account) return NextResponse.json({ error: "Conta do paciente não encontrada." }, { status: 404 });
 
-    const oldEmail = clean(account.email).toLowerCase();
-    if (email !== oldEmail) {
-      const { data: duplicate, error: duplicateError } = await valid.supabase
-        .from("patient_accounts").select("user_id").eq("email", email).neq("user_id", account.user_id).maybeSingle();
-      if (duplicateError) throw duplicateError;
-      if (duplicate) return NextResponse.json({ error: "Este e-mail já está sendo usado em outra conta." }, { status: 409 });
+    const email = clean(account.email).toLowerCase();
+    if (!email) return NextResponse.json({ error: "A conta não possui um e-mail de acesso válido." }, { status: 409 });
 
-      const { error: authUpdateError } = await valid.supabase.auth.admin.updateUserById(account.user_id, { email, email_confirm: true });
-      if (authUpdateError) return NextResponse.json({ error: "Não foi possível trocar o e-mail. Confira se ele já não está em uso." }, { status: 400 });
-    }
+    // O e-mail é uma credencial protegida do Portal e não pode ser alterado pelo paciente.
+    // O valor persistido em Auth/patient_accounts permanece como fonte de verdade.
+    const registryUpdate: Record<string, string | null> = {
+      name,
+      city_phone: phone || null,
+      email,
+      birth_date: birthDate || null,
+      sex: sex || null,
+    };
+    if (birthDate) registryUpdate.age = ageFromBirthDate(birthDate) || null;
 
-    try {
-      const registryUpdate: Record<string, string | null> = {
-        name,
-        city_phone: phone || null,
-        email,
-        birth_date: birthDate || null,
-        sex: sex || null,
-      };
-      if (birthDate) registryUpdate.age = ageFromBirthDate(birthDate) || null;
-
-      const [{ error: registryError }, { error: accountSyncError }, { error: portalError }] = await Promise.all([
-        valid.supabase.from("patient_registry").update(registryUpdate).eq("passport", passport),
-        valid.supabase.from("patient_accounts").update({ email }).eq("user_id", account.user_id),
-        valid.supabase.from("patient_portal_access").update({ email }).eq("patient_passport", passport),
-      ]);
-      if (registryError) throw registryError;
-      if (accountSyncError) throw accountSyncError;
-      if (portalError) throw portalError;
-    } catch (syncError) {
-      if (email !== oldEmail) {
-        try { await valid.supabase.auth.admin.updateUserById(account.user_id, { email: oldEmail, email_confirm: true }); } catch {}
-      }
-      throw syncError;
-    }
+    const [{ error: registryError }, { error: portalError }] = await Promise.all([
+      valid.supabase.from("patient_registry").update(registryUpdate).eq("passport", passport),
+      valid.supabase.from("patient_portal_access").update({ email }).eq("patient_passport", passport),
+    ]);
+    if (registryError) throw registryError;
+    if (portalError) throw portalError;
 
     return NextResponse.json({ ok: true, message: "Seus dados foram atualizados.", email });
   } catch (error) {

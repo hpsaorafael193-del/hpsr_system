@@ -86,36 +86,64 @@ export const exame_genericoModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Modelo manual: preencher os resultados efetivamente obtidos no exame realizado.",
+      "interpretation": "Interpretação a ser preenchida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser preenchida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "tipo_exame": "Informar o exame realizado",
+        "metodologia": "Informar a metodologia utilizada",
+        "resultado_principal": "Inserir o resultado objetivo do exame",
+        "parametros_adicionais": "Inserir parâmetros adicionais quando aplicável",
+        "impressao": "A definir pelo médico responsável"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Modelo manual: preencher os resultados efetivamente obtidos no exame realizado.",
+      "interpretation": "Interpretação a ser preenchida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser preenchida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "tipo_exame": "Informar o exame realizado",
+        "metodologia": "Informar a metodologia utilizada",
+        "resultado_principal": "Inserir o resultado objetivo do exame",
+        "parametros_adicionais": "Inserir parâmetros adicionais quando aplicável",
+        "impressao": "A definir pelo médico responsável"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Modelo manual: preencher os resultados efetivamente obtidos no exame realizado.",
+      "interpretation": "Interpretação a ser preenchida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser preenchida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "tipo_exame": "Informar o exame realizado",
+        "metodologia": "Informar a metodologia utilizada",
+        "resultado_principal": "Inserir o resultado objetivo do exame",
+        "parametros_adicionais": "Inserir parâmetros adicionais quando aplicável",
+        "impressao": "A definir pelo médico responsável"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Modelo manual: preencher os resultados efetivamente obtidos no exame realizado.",
+      "interpretation": "Interpretação a ser preenchida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser preenchida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "tipo_exame": "Informar o exame realizado",
+        "metodologia": "Informar a metodologia utilizada",
+        "resultado_principal": "Inserir o resultado objetivo do exame",
+        "parametros_adicionais": "Inserir parâmetros adicionais quando aplicável",
+        "impressao": "A definir pelo médico responsável"
+      }
     }
   ],
   "variables": [],
@@ -238,8 +266,8 @@ export const exame_genericoModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Modelo manual de contingência destinado exclusivamente a exames não contemplados por um modelo específico do catálogo.",
+  "method": "O método, os parâmetros, os valores de referência, a interpretação e a conclusão devem ser preenchidos manualmente conforme o exame efetivamente realizado; o sistema não deve inferir resultados clínicos neste modelo.",
   "parameters": [
     {
       "id": "tipo_exame",
@@ -295,14 +323,14 @@ export const exame_genericoModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Preenchimento manual obrigatório.",
+    "altered": "Preenchimento manual obrigatório.",
+    "undefined": "Preenchimento manual obrigatório."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Conclusão manual.",
+    "altered": "Conclusão manual.",
+    "undefined": "Conclusão manual."
   },
   "attachments": {
     "enabled": false,

@@ -166,7 +166,18 @@ export const hormonal_painel_hormonal_completoModel: IntelligentExamModel = {
       "description": "Painel dentro do esperado para o contexto informado.",
       "resultSummary": "Painel hormonal sem alterações relevantes.",
       "interpretation": "FSH, LH, estradiol, progesterona, prolactina, TSH e T4 livre devem ser interpretados conforme sexo, idade, fase do ciclo e contexto clínico.",
-      "conclusion": "Painel hormonal sem alterações laboratoriais relevantes no contexto informado."
+      "conclusion": "Painel hormonal sem alterações laboratoriais relevantes no contexto informado.",
+      "results": {
+        "fase_ciclo": "Fase folicular",
+        "fsh": "6,8",
+        "lh": "5,9",
+        "estradiol": "92",
+        "progesterona": "0,8",
+        "prolactina": "14",
+        "tsh": "2,1",
+        "t4_livre": "1,2",
+        "impressao": "Perfil hormonal compatível com fase folicular, sem alterações relevantes"
+      }
     },
     {
       "id": "disfuncao_ovulatoria",
@@ -175,7 +186,18 @@ export const hormonal_painel_hormonal_completoModel: IntelligentExamModel = {
       "description": "Padrão sugestivo de alteração ovulatória.",
       "resultSummary": "Painel hormonal com alteração em eixo gonadal.",
       "interpretation": "Alterações em FSH, LH, estradiol e/ou progesterona podem sugerir disfunção ovulatória, devendo ser correlacionadas ao ciclo.",
-      "conclusion": "Achados compatíveis com possível disfunção ovulatória a correlacionar clinicamente."
+      "conclusion": "Progesterona baixa para a fase lútea presumida, com perfil compatível com possível disfunção ovulatória no contexto adequado.",
+      "results": {
+        "fase_ciclo": "Fase lútea presumida",
+        "fsh": "7,1",
+        "lh": "8,2",
+        "estradiol": "88",
+        "progesterona": "1,2",
+        "prolactina": "16",
+        "tsh": "2,0",
+        "t4_livre": "1,2",
+        "impressao": "Progesterona baixa para fase lútea, sugerindo atividade ovulatória insuficiente no contexto adequado"
+      }
     },
     {
       "id": "hiperprolactinemia",
@@ -184,7 +206,18 @@ export const hormonal_painel_hormonal_completoModel: IntelligentExamModel = {
       "description": "Elevação de prolactina.",
       "resultSummary": "Painel hormonal com prolactina elevada.",
       "interpretation": "Elevação de prolactina deve ser interpretada com medicações, estresse, gestação e função tireoidiana.",
-      "conclusion": "Hiperprolactinemia laboratorial a correlacionar clinicamente."
+      "conclusion": "Hiperprolactinemia laboratorial a correlacionar clinicamente.",
+      "results": {
+        "fase_ciclo": "Fase folicular",
+        "fsh": "6,2",
+        "lh": "5,1",
+        "estradiol": "76",
+        "progesterona": "0,7",
+        "prolactina": "46",
+        "tsh": "2,3",
+        "t4_livre": "1,1",
+        "impressao": "Hiperprolactinemia laboratorial"
+      }
     },
     {
       "id": "tireoide",
@@ -193,7 +226,18 @@ export const hormonal_painel_hormonal_completoModel: IntelligentExamModel = {
       "description": "Alteração de TSH e/ou T4 livre.",
       "resultSummary": "Painel hormonal com alteração tireoidiana.",
       "interpretation": "TSH e T4 livre fora da referência podem sugerir disfunção tireoidiana conforme padrão hormonal.",
-      "conclusion": "Achados sugestivos de disfunção tireoidiana a correlacionar clinicamente."
+      "conclusion": "TSH elevado associado a T4 livre reduzido, padrão hormonal sugestivo de hipotireoidismo primário no contexto clínico adequado.",
+      "results": {
+        "fase_ciclo": "Fase folicular",
+        "fsh": "6,5",
+        "lh": "5,7",
+        "estradiol": "84",
+        "progesterona": "0,8",
+        "prolactina": "18",
+        "tsh": "6,2",
+        "t4_livre": "0,7",
+        "impressao": "Padrão compatível com hipotireoidismo primário no contexto clínico adequado"
+      }
     },
     {
       "id": "indefinido",
@@ -202,16 +246,38 @@ export const hormonal_painel_hormonal_completoModel: IntelligentExamModel = {
       "description": "Alterações discretas sem conclusão diagnóstica.",
       "resultSummary": "Painel hormonal com variações limítrofes.",
       "interpretation": "Alterações discretas podem não definir diagnóstico isoladamente e dependem de ciclo, idade, medicamentos e contexto clínico.",
-      "conclusion": "Painel hormonal com achados limítrofes, recomendando correlação clínica."
+      "conclusion": "Painel hormonal com parâmetros em faixas limítrofes, sem definição endócrina isolada.",
+      "results": {
+        "fase_ciclo": "Fase folicular",
+        "fsh": "12,6",
+        "lh": "12,4",
+        "estradiol": "44",
+        "progesterona": "1,7",
+        "prolactina": "25",
+        "tsh": "4,1",
+        "t4_livre": "0,8",
+        "impressao": "Parâmetros hormonais em faixas limítrofes"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Painel hormonal personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Painel Hormonal Completo: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "fase_ciclo": "Fase folicular",
+        "fsh": "6,8",
+        "lh": "5,9",
+        "estradiol": "92",
+        "progesterona": "0,8",
+        "prolactina": "14",
+        "tsh": "2,1",
+        "t4_livre": "1,2",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -367,8 +433,8 @@ export const hormonal_painel_hormonal_completoModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Amostra sérica processada para painel hormonal, com avaliação integrada de gonadotrofinas, hormônios ovarianos, prolactina e eixo tireoidiano conforme o contexto informado.",
+  "method": "Dosagens hormonais por imunoensaios automatizados validados, com interpretação considerando sexo, idade, fase do ciclo, horário de coleta e referências específicas de cada analito.",
   "parameters": [
     {
       "id": "fase_ciclo",
@@ -456,14 +522,14 @@ export const hormonal_painel_hormonal_completoModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Painel Hormonal Completo compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Painel Hormonal Completo com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Painel Hormonal Completo com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Painel hormonal sem alterações laboratoriais relevantes no contexto informado.",
-    "altered": "Achados compatíveis com possível disfunção ovulatória a correlacionar clinicamente.",
-    "undefined": "Painel hormonal com achados limítrofes, recomendando correlação clínica."
+    "normal": "Painel Hormonal Completo sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Painel Hormonal Completo alterado conforme resultados objetivos descritos.",
+    "undefined": "Painel Hormonal Completo com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

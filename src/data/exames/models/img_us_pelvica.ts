@@ -126,36 +126,65 @@ export const img_us_pelvicaModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Ultrassonografia Pélvica com Útero: Normal; Espessura Endometrial: 8,6; Ovários: Normais.",
+      "interpretation": "Os parâmetros mensurados — Útero: Normal; Espessura Endometrial: 8,6 mm; Ovários: Normais; Líquido Livre: Ausente — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Ultrassonografia Pélvica com parâmetros compatíveis com o padrão esperado, incluindo Útero: Normal; Espessura Endometrial: 8,6 mm.",
+      "results": {
+        "utero": "Normal",
+        "endometrio": "8,6",
+        "ovarios": "Normais",
+        "liquido_livre": "Ausente",
+        "impressao": "Ultrassonografia Pélvica com parâmetros compatíveis com o padrão esperado, incluindo Útero: Normal; Espessura Endometrial: 8,6 mm"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Ultrassonografia Pélvica: Útero: Útero com mioma intramural de 2,5 cm; Espessura Endometrial: 13,4; Ovários: Cisto simples de 3,2 cm no ovário direito; esquerdo preservado; Líquido Livre: Pequena lâmina em fundo de saco.",
+      "interpretation": "Os resultados principais (Útero: Útero com mioma intramural de 2,5 cm; Espessura Endometrial: 13,4 mm; Ovários: Cisto simples de 3,2 cm no ovário direito; esquerdo preservado; Líquido Livre: Pequena lâmina em fundo de saco) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Ultrassonografia Pélvica com padrão alterado, documentado por Útero: Útero com mioma intramural de 2,5 cm; Espessura Endometrial: 13,4 mm.",
+      "results": {
+        "utero": "Útero com mioma intramural de 2,5 cm",
+        "endometrio": "13,4",
+        "ovarios": "Cisto simples de 3,2 cm no ovário direito; esquerdo preservado",
+        "liquido_livre": "Pequena lâmina em fundo de saco",
+        "impressao": "Mioma uterino e cisto ovariano simples à direita"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Ultrassonografia Pélvica: Ovários: Cisto funcional simples de 2,6 cm à direita; Líquido Livre: Mínima lâmina em fundo de saco.",
+      "interpretation": "Os principais resultados (Ovários: Cisto funcional simples de 2,6 cm à direita; Líquido Livre: Mínima lâmina em fundo de saco) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Ultrassonografia Pélvica com resultado limítrofe/inespecífico, destacando-se Ovários: Cisto funcional simples de 2,6 cm à direita; Líquido Livre: Mínima lâmina em fundo de saco.",
+      "results": {
+        "utero": "Normal",
+        "endometrio": "8,6",
+        "ovarios": "Cisto funcional simples de 2,6 cm à direita",
+        "liquido_livre": "Mínima lâmina em fundo de saco",
+        "endométrio": "12,1",
+        "impressao": "Alterações funcionais discretas, sem massa complexa"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Ultrassonografia Pélvica: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "utero": "Normal",
+        "endometrio": "8,6",
+        "ovarios": "Normais",
+        "liquido_livre": "Ausente",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -309,8 +338,8 @@ export const img_us_pelvicaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Ultrassonografia Pélvica realizada por ultrassonografia com avaliação sistematizada das estruturas previstas para a região selecionada e medidas pertinentes.",
+  "method": "Aquisição ultrassonográfica em modo bidimensional, complementada por Doppler colorido/espectral quando indicado pelo tipo de exame e contexto clínico.",
   "parameters": [
     {
       "id": "utero",
@@ -366,14 +395,14 @@ export const img_us_pelvicaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Ultrassonografia Pélvica compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Ultrassonografia Pélvica com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Ultrassonografia Pélvica com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Ultrassonografia Pélvica sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Ultrassonografia Pélvica alterado conforme resultados objetivos descritos.",
+    "undefined": "Ultrassonografia Pélvica com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

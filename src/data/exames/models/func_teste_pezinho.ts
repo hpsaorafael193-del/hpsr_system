@@ -94,36 +94,56 @@ export const func_teste_pezinhoModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Teste do Pezinho com Resultado: Normal; Doença Suspeita: Nenhuma.",
+      "interpretation": "Os parâmetros mensurados — Resultado: Normal; Doença Suspeita: Nenhuma — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Teste do Pezinho com parâmetros compatíveis com o padrão esperado, incluindo Resultado: Normal; Doença Suspeita: Nenhuma.",
+      "results": {
+        "resultado": "Normal",
+        "doenca_suspeita": "Nenhuma",
+        "impressao": "Teste do Pezinho com parâmetros compatíveis com o padrão esperado, incluindo Resultado: Normal; Doença Suspeita: Nenhuma"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Teste do Pezinho: Resultado: Triagem positiva; Doença Suspeita: Fenilcetonúria — marcador acima do ponto de corte.",
+      "interpretation": "Os resultados principais (Resultado: Triagem positiva; Doença Suspeita: Fenilcetonúria — marcador acima do ponto de corte) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Teste do Pezinho com padrão alterado, documentado por Resultado: Triagem positiva; Doença Suspeita: Fenilcetonúria — marcador acima do ponto de corte.",
+      "results": {
+        "resultado": "Triagem positiva",
+        "doenca_suspeita": "Fenilcetonúria — marcador acima do ponto de corte",
+        "impressao": "Triagem neonatal alterada; necessária confirmação diagnóstica conforme protocolo"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Teste do Pezinho: Resultado: Limítrofe; Doença Suspeita: Marcador próximo ao ponto de corte.",
+      "interpretation": "Os principais resultados (Resultado: Limítrofe; Doença Suspeita: Marcador próximo ao ponto de corte) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Teste do Pezinho com resultado limítrofe/inespecífico, destacando-se Resultado: Limítrofe; Doença Suspeita: Marcador próximo ao ponto de corte.",
+      "results": {
+        "resultado": "Limítrofe",
+        "doenca_suspeita": "Marcador próximo ao ponto de corte",
+        "impressao": "Triagem neonatal limítrofe; indicada repetição conforme protocolo"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Teste do Pezinho: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "resultado": "Normal",
+        "doenca_suspeita": "Nenhuma",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -250,8 +270,8 @@ export const func_teste_pezinhoModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Triagem neonatal realizada em amostra de sangue capilar coletada em papel-filtro, destinada ao rastreamento de doenças incluídas no painel neonatal.",
+  "method": "Análise de sangue seco em papel-filtro por metodologias específicas para cada marcador do painel, com liberação conforme critérios de triagem e necessidade de confirmação quando aplicável.",
   "parameters": [
     {
       "id": "resultado",
@@ -280,14 +300,14 @@ export const func_teste_pezinhoModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Teste do Pezinho compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Teste do Pezinho com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Teste do Pezinho com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Teste do Pezinho sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Teste do Pezinho alterado conforme resultados objetivos descritos.",
+    "undefined": "Teste do Pezinho com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

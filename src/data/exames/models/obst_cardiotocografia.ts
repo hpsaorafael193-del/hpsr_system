@@ -125,36 +125,64 @@ export const obst_cardiotocografiaModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Cardiotocografia (CTG) com FCF Basal: 134; Variabilidade: Normal; Acelerações: Presentes.",
+      "interpretation": "Os parâmetros mensurados — FCF Basal: 134 bpm; Variabilidade: Normal; Acelerações: Presentes; Desacelerações: Ausentes — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Cardiotocografia (CTG) com parâmetros compatíveis com o padrão esperado, incluindo FCF Basal: 134 bpm; Variabilidade: Normal.",
+      "results": {
+        "fcf_basal": "134",
+        "variabilidade": "Normal",
+        "aceleracoes": "Presentes",
+        "desaceleracoes": "Ausentes",
+        "impressao": "Reativa"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Cardiotocografia (CTG): FCF Basal: 170; Variabilidade: Reduzida; Acelerações: Ausentes no período observado; Desacelerações: Desacelerações tardias recorrentes.",
+      "interpretation": "Os resultados principais (FCF Basal: 170 bpm; Variabilidade: Reduzida; Acelerações: Ausentes no período observado; Desacelerações: Desacelerações tardias recorrentes) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Cardiotocografia (CTG) com padrão alterado, documentado por FCF Basal: 170 bpm; Variabilidade: Reduzida.",
+      "results": {
+        "fcf_basal": "170",
+        "variabilidade": "Reduzida",
+        "aceleracoes": "Ausentes no período observado",
+        "desaceleracoes": "Desacelerações tardias recorrentes",
+        "impressao": "Traçado não tranquilizador, requer avaliação obstétrica imediata"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Cardiotocografia (CTG): FCF Basal: 160; Variabilidade: Limítrofe/reduzida por período curto; Acelerações: Presentes, porém escassas; Desacelerações: Variáveis isoladas.",
+      "interpretation": "Os principais resultados (FCF Basal: 160 bpm; Variabilidade: Limítrofe/reduzida por período curto; Acelerações: Presentes, porém escassas; Desacelerações: Variáveis isoladas) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Cardiotocografia (CTG) com resultado limítrofe/inespecífico, destacando-se FCF Basal: 160 bpm; Variabilidade: Limítrofe/reduzida por período curto.",
+      "results": {
+        "fcf_basal": "160",
+        "variabilidade": "Limítrofe/reduzida por período curto",
+        "aceleracoes": "Presentes, porém escassas",
+        "desaceleracoes": "Variáveis isoladas",
+        "impressao": "Traçado limítrofe, recomendando prolongar observação e correlacionar clinicamente"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Cardiotocografia (CTG): modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "fcf_basal": "134",
+        "variabilidade": "Normal",
+        "aceleracoes": "Presentes",
+        "desaceleracoes": "Ausentes",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -281,8 +309,8 @@ export const obst_cardiotocografiaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Cardiotocografia realizada com registro simultâneo da frequência cardíaca fetal e atividade uterina durante período adequado de observação.",
+  "method": "Monitorização eletrônica externa com transdutor ultrassônico para frequência cardíaca fetal e tocodinamômetro para atividade uterina, analisando linha de base, variabilidade, acelerações e desacelerações.",
   "parameters": [
     {
       "id": "fcf_basal",
@@ -327,14 +355,14 @@ export const obst_cardiotocografiaModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Cardiotocografia (CTG) compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Cardiotocografia (CTG) com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Cardiotocografia (CTG) com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Cardiotocografia (CTG) sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Cardiotocografia (CTG) alterado conforme resultados objetivos descritos.",
+    "undefined": "Cardiotocografia (CTG) com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

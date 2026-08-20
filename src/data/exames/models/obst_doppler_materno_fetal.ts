@@ -110,36 +110,60 @@ export const obst_doppler_materno_fetalModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Doppler Obstétrico (Materno-fetal) com Artéria Umbilical: Normal; Artéria Cerebral Média: Normal; Ducto Venoso: Normal.",
+      "interpretation": "Os parâmetros mensurados — Artéria Umbilical: Normal; Artéria Cerebral Média: Normal; Ducto Venoso: Normal — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Doppler Obstétrico (Materno-fetal) com parâmetros compatíveis com o padrão esperado, incluindo Artéria Umbilical: Normal; Artéria Cerebral Média: Normal.",
+      "results": {
+        "arteria_umbilical": "Normal",
+        "arteria_cerebral_media": "Normal",
+        "ducto_venoso": "Normal",
+        "impressao": "Doppler Obstétrico (Materno-fetal) com parâmetros compatíveis com o padrão esperado, incluindo Artéria Umbilical: Normal; Artéria Cerebral Média: Normal"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Doppler Obstétrico (Materno-fetal): Artéria Umbilical: Índice de pulsatilidade aumentado, fluxo diastólico ainda presente; Artéria Cerebral Média: Redução do índice de pulsatilidade; Ducto Venoso: Onda A positiva.",
+      "interpretation": "Os resultados principais (Artéria Umbilical: Índice de pulsatilidade aumentado, fluxo diastólico ainda presente; Artéria Cerebral Média: Redução do índice de pulsatilidade; Ducto Venoso: Onda A positiva) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Doppler Obstétrico (Materno-fetal) com padrão alterado, documentado por Artéria Umbilical: Índice de pulsatilidade aumentado, fluxo diastólico ainda presente; Artéria Cerebral Média: Redução do índice de pulsatilidade.",
+      "results": {
+        "arteria_umbilical": "Índice de pulsatilidade aumentado, fluxo diastólico ainda presente",
+        "arteria_cerebral_media": "Redução do índice de pulsatilidade",
+        "ducto_venoso": "Onda A positiva",
+        "impressao": "Redistribuição hemodinâmica fetal com aumento de resistência placentária"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Doppler Obstétrico (Materno-fetal): Artéria Umbilical: Índice de pulsatilidade em limite superior; Artéria Cerebral Média: Índice de pulsatilidade em limite inferior.",
+      "interpretation": "Os principais resultados (Artéria Umbilical: Índice de pulsatilidade em limite superior; Artéria Cerebral Média: Índice de pulsatilidade em limite inferior) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Doppler Obstétrico (Materno-fetal) com resultado limítrofe/inespecífico, destacando-se Artéria Umbilical: Índice de pulsatilidade em limite superior; Artéria Cerebral Média: Índice de pulsatilidade em limite inferior.",
+      "results": {
+        "arteria_umbilical": "Índice de pulsatilidade em limite superior",
+        "arteria_cerebral_media": "Índice de pulsatilidade em limite inferior",
+        "ducto_venoso": "Normal",
+        "impressao": "Índices Doppler limítrofes, sem alteração crítica do fluxo"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Doppler Obstétrico (Materno-fetal): modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "arteria_umbilical": "Normal",
+        "arteria_cerebral_media": "Normal",
+        "ducto_venoso": "Normal",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -266,8 +290,8 @@ export const obst_doppler_materno_fetalModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Doppler obstétrico realizado para avaliação hemodinâmica materna, placentária e fetal nos vasos selecionados.",
+  "method": "Ultrassonografia Doppler pulsada e colorida com obtenção de índices velocimétricos das artérias uterinas, umbilical, cerebral média e outros vasos quando indicados.",
   "parameters": [
     {
       "id": "arteria_umbilical",
@@ -304,14 +328,14 @@ export const obst_doppler_materno_fetalModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Doppler Obstétrico (Materno-fetal) compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Doppler Obstétrico (Materno-fetal) com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Doppler Obstétrico (Materno-fetal) com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Doppler Obstétrico (Materno-fetal) sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Doppler Obstétrico (Materno-fetal) alterado conforme resultados objetivos descritos.",
+    "undefined": "Doppler Obstétrico (Materno-fetal) com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

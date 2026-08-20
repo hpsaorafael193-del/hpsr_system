@@ -226,36 +226,88 @@ export const lab_sorologiaModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Sorologia com HIV: Não reagente; Sífilis: Não reagente; Hepatite B (HBsAg): Não reagente.",
+      "interpretation": "Os parâmetros mensurados — HIV: Não reagente; Sífilis: Não reagente; Hepatite B (HBsAg): Não reagente; Hepatite C (Anti-HCV): Não reagente — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Sorologia com parâmetros compatíveis com o padrão esperado, incluindo HIV: Não reagente; Sífilis: Não reagente.",
+      "results": {
+        "hiv": "Não reagente",
+        "sifilis": "Não reagente",
+        "hepatite_b": "Não reagente",
+        "hepatite_c": "Não reagente",
+        "toxoplasmose_igg": "Não reagente",
+        "toxoplasmose_igm": "Não reagente",
+        "rubeola_igg": "Reagente",
+        "rubeola_igm": "Não reagente",
+        "citomegalovirus_igg": "Reagente",
+        "citomegalovirus_igm": "Não reagente",
+        "impressao": "Painel sorológico sem evidências de infecção aguda nos marcadores pesquisados"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Sorologia: Sífilis: Reagente em teste de triagem; confirmar conforme algoritmo; Toxoplasmose IgG: Reagente; Toxoplasmose IgM: Reagente.",
+      "interpretation": "Os resultados principais (Sífilis: Reagente em teste de triagem; confirmar conforme algoritmo; Toxoplasmose IgG: Reagente; Toxoplasmose IgM: Reagente) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Sorologia com padrão alterado, documentado por Sífilis: Reagente em teste de triagem; confirmar conforme algoritmo; Toxoplasmose IgG: Reagente.",
+      "results": {
+        "hiv": "Não reagente",
+        "sifilis": "Reagente em teste de triagem; confirmar conforme algoritmo",
+        "hepatite_b": "Não reagente",
+        "hepatite_c": "Não reagente",
+        "toxoplasmose_igg": "Reagente",
+        "toxoplasmose_igm": "Reagente",
+        "rubeola_igg": "Reagente",
+        "rubeola_igm": "Não reagente",
+        "citomegalovirus_igg": "Reagente",
+        "citomegalovirus_igm": "Não reagente",
+        "impressao": "Painel com marcadores reagentes que requerem correlação e confirmação específica conforme o teste"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Sorologia: Toxoplasmose IgG: Reagente; Toxoplasmose IgM: Indeterminado.",
+      "interpretation": "Os principais resultados (Toxoplasmose IgG: Reagente; Toxoplasmose IgM: Indeterminado) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Sorologia com resultado limítrofe/inespecífico, destacando-se Toxoplasmose IgG: Reagente; Toxoplasmose IgM: Indeterminado.",
+      "results": {
+        "hiv": "Não reagente",
+        "sifilis": "Não reagente",
+        "hepatite_b": "Não reagente",
+        "hepatite_c": "Não reagente",
+        "toxoplasmose_igg": "Reagente",
+        "toxoplasmose_igm": "Indeterminado",
+        "rubeola_igg": "Reagente",
+        "rubeola_igm": "Não reagente",
+        "citomegalovirus_igg": "Reagente",
+        "citomegalovirus_igm": "Não reagente",
+        "impressao": "IgM para toxoplasmose em faixa indeterminada, recomendando confirmação conforme método"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Sorologia: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "hiv": "Não reagente",
+        "sifilis": "Não reagente",
+        "hepatite_b": "Não reagente",
+        "hepatite_c": "Não reagente",
+        "toxoplasmose_igg": "Não reagente",
+        "toxoplasmose_igm": "Não reagente",
+        "rubeola_igg": "Reagente",
+        "rubeola_igm": "Não reagente",
+        "citomegalovirus_igg": "Reagente",
+        "citomegalovirus_igm": "Não reagente",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -378,8 +430,8 @@ export const lab_sorologiaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Amostra sérica processada para pesquisa de anticorpos e/ou antígenos dos agentes incluídos no painel sorológico.",
+  "method": "Imunoensaios qualitativos ou quantitativos específicos para cada marcador, com liberação como reagente, não reagente ou indeterminado conforme os valores de corte do método.",
   "parameters": [
     {
       "id": "hiv",
@@ -483,14 +535,14 @@ export const lab_sorologiaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Sorologia compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Sorologia com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Sorologia com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Sorologia sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Sorologia alterado conforme resultados objetivos descritos.",
+    "undefined": "Sorologia com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

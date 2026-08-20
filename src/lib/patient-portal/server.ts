@@ -1,6 +1,6 @@
 import { brazilIso } from "@/lib/brazil-datetime";
 import "server-only";
-import { createHash, randomBytes, randomInt } from "crypto";
+import { createHash, randomBytes, randomInt, timingSafeEqual } from "crypto";
 import { createClient } from "@supabase/supabase-js";
 
 const SESSION_COOKIE = "hpsr_patient_session";
@@ -32,8 +32,26 @@ export function hashPatientSecret(value: string) {
   return createHash("sha256").update(`${getPepper()}:${value}`).digest("hex");
 }
 
+export function patientSecretMatches(expectedHash: string, value: string) {
+  const actualHash = hashPatientSecret(value);
+  const expected = Buffer.from(expectedHash, "hex");
+  const actual = Buffer.from(actualHash, "hex");
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
+}
+
 export function generateAccessCode() {
   return String(randomInt(100000, 1000000));
+}
+
+export function generateRecoveryCode() {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = randomBytes(16);
+  const chars = Array.from(bytes, (byte) => alphabet[byte % alphabet.length]);
+  return `HPSR-${chars.slice(0, 4).join("")}-${chars.slice(4, 8).join("")}-${chars.slice(8, 12).join("")}-${chars.slice(12, 16).join("")}`;
+}
+
+export function normalizeRecoveryCode(value: unknown) {
+  return String(value ?? "").trim().toUpperCase().replace(/\s+/g, "");
 }
 
 export function generateSessionToken() {

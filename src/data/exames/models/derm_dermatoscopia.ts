@@ -102,36 +102,60 @@ export const derm_dermatoscopiaModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Dermatoscopia com Padrão Pigmentar: Regular; Estrutura Vascular: Normal; Critérios de Malignidade: Ausentes.",
+      "interpretation": "Os parâmetros mensurados — Padrão Pigmentar: Regular; Estrutura Vascular: Normal; Critérios de Malignidade: Ausentes — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Dermatoscopia com parâmetros compatíveis com o padrão esperado, incluindo Padrão Pigmentar: Regular; Estrutura Vascular: Normal.",
+      "results": {
+        "padrao_pigmentar": "Regular",
+        "estrutura_vascular": "Normal",
+        "criterios_malignidade": "Ausentes",
+        "impressao": "Dermatoscopia com parâmetros compatíveis com o padrão esperado, incluindo Padrão Pigmentar: Regular; Estrutura Vascular: Normal"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Dermatoscopia: Padrão Pigmentar: Rede pigmentar assimétrica e irregular; Estrutura Vascular: Vasos puntiformes e polimórficos; Critérios de Malignidade: Assimetria, múltiplas cores e estruturas atípicas presentes.",
+      "interpretation": "Os resultados principais (Padrão Pigmentar: Rede pigmentar assimétrica e irregular; Estrutura Vascular: Vasos puntiformes e polimórficos; Critérios de Malignidade: Assimetria, múltiplas cores e estruturas atípicas presentes) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Dermatoscopia com padrão alterado, documentado por Padrão Pigmentar: Rede pigmentar assimétrica e irregular; Estrutura Vascular: Vasos puntiformes e polimórficos.",
+      "results": {
+        "padrao_pigmentar": "Rede pigmentar assimétrica e irregular",
+        "estrutura_vascular": "Vasos puntiformes e polimórficos",
+        "criterios_malignidade": "Assimetria, múltiplas cores e estruturas atípicas presentes",
+        "impressao": "Lesão dermatoscópica suspeita, indicada avaliação histopatológica"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Dermatoscopia: Padrão Pigmentar: Leve assimetria da rede pigmentar; Estrutura Vascular: Vasos regulares esparsos; Critérios de Malignidade: Sem critérios maiores; um critério menor isolado.",
+      "interpretation": "Os principais resultados (Padrão Pigmentar: Leve assimetria da rede pigmentar; Estrutura Vascular: Vasos regulares esparsos; Critérios de Malignidade: Sem critérios maiores; um critério menor isolado) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Dermatoscopia com resultado limítrofe/inespecífico, destacando-se Padrão Pigmentar: Leve assimetria da rede pigmentar; Estrutura Vascular: Vasos regulares esparsos.",
+      "results": {
+        "padrao_pigmentar": "Leve assimetria da rede pigmentar",
+        "estrutura_vascular": "Vasos regulares esparsos",
+        "criterios_malignidade": "Sem critérios maiores; um critério menor isolado",
+        "impressao": "Lesão de baixo grau de suspeição, indicada documentação/seguimento conforme contexto"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Dermatoscopia: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "padrao_pigmentar": "Regular",
+        "estrutura_vascular": "Normal",
+        "criterios_malignidade": "Ausentes",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -258,8 +282,8 @@ export const derm_dermatoscopiaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Avaliação dermatoscópica da lesão cutânea com inspeção de padrões pigmentares, estruturas vasculares, simetria e critérios morfológicos de suspeição.",
+  "method": "Exame por dermatoscópio com luz polarizada e/ou não polarizada, documentando estruturas não visíveis à inspeção clínica direta.",
   "parameters": [
     {
       "id": "padrao_pigmentar",
@@ -296,14 +320,14 @@ export const derm_dermatoscopiaModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Dermatoscopia compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Dermatoscopia com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Dermatoscopia com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Dermatoscopia sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Dermatoscopia alterado conforme resultados objetivos descritos.",
+    "undefined": "Dermatoscopia com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

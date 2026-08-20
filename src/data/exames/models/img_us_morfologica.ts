@@ -284,36 +284,104 @@ export const img_us_morfologicaModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "USG Morfológica com Idade Gestacional: 21; Número de Fetos: Feto único; Batimentos Cardíacos Fetais: 146.",
+      "interpretation": "Os parâmetros mensurados — Idade Gestacional: 21 semanas; Número de Fetos: Feto único; Batimentos Cardíacos Fetais: 146 bpm; Apresentação Fetal: Cefálica — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "USG Morfológica com parâmetros compatíveis com o padrão esperado, incluindo Idade Gestacional: 21 semanas; Número de Fetos: Feto único.",
+      "results": {
+        "idade_gestacional": "21",
+        "numero_fetos": "Feto único",
+        "batimentos_cardiacos": "146",
+        "apresentacao_fetal": "Cefálica",
+        "placenta_localizacao": "Posterior, sem cobrir o orifício interno do colo",
+        "liquido_amniotico": "Volume preservado",
+        "cranio_cerebro": "Morfologia encefálica compatível com a idade gestacional",
+        "face": "Perfil e estruturas faciais sem alterações evidentes",
+        "coluna": "Continuidade vertebral preservada",
+        "torax_coracao": "Quatro câmaras e eixo cardíaco sem alterações evidentes",
+        "abdome": "Parede abdominal e órgãos avaliáveis sem alterações evidentes",
+        "rins_bexiga": "Rins tópicos e bexiga visualizada",
+        "membros": "Quatro membros visualizados, sem deformidades evidentes",
+        "sexo_fetal": "Conforme visualização ultrassonográfica",
+        "impressao": "Morfologia fetal compatível com a idade gestacional"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "USG Morfológica: Batimentos Cardíacos Fetais: 142; Placenta (Localização): Posterior; Crânio e Encéfalo: Ventriculomegalia lateral discreta; Face: Sem alteração estrutural evidente.",
+      "interpretation": "Os resultados principais (Batimentos Cardíacos Fetais: 142 bpm; Placenta (Localização): Posterior; Crânio e Encéfalo: Ventriculomegalia lateral discreta; Face: Sem alteração estrutural evidente) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "USG Morfológica com padrão alterado, documentado por Batimentos Cardíacos Fetais: 142 bpm; Placenta (Localização): Posterior.",
+      "results": {
+        "idade_gestacional": "21",
+        "numero_fetos": "Feto único",
+        "batimentos_cardiacos": "142",
+        "apresentacao_fetal": "Cefálica",
+        "placenta_localizacao": "Posterior",
+        "liquido_amniotico": "Volume preservado",
+        "cranio_cerebro": "Ventriculomegalia lateral discreta",
+        "face": "Sem alteração estrutural evidente",
+        "coluna": "Continuidade preservada",
+        "torax_coracao": "Quatro câmaras visualizadas, sem alteração maior evidente",
+        "abdome": "Sem alteração estrutural maior evidente",
+        "rins_bexiga": "Pelve renal discretamente dilatada à esquerda",
+        "membros": "Quatro membros visualizados",
+        "sexo_fetal": "Conforme visualização ultrassonográfica",
+        "impressao": "Ventriculomegalia discreta e pieloectasia fetal esquerda, recomendando seguimento morfológico"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "USG Morfológica: Batimentos Cardíacos Fetais: 145; Crânio e Encéfalo: Ventrículos laterais em limite superior da normalidade; Face: Normal; Coluna Vertebral: Normal.",
+      "interpretation": "Os principais resultados (Batimentos Cardíacos Fetais: 145 bpm; Crânio e Encéfalo: Ventrículos laterais em limite superior da normalidade; Face: Normal; Coluna Vertebral: Normal) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "USG Morfológica com resultado limítrofe/inespecífico, destacando-se Batimentos Cardíacos Fetais: 145 bpm; Crânio e Encéfalo: Ventrículos laterais em limite superior da normalidade.",
+      "results": {
+        "idade_gestacional": "21",
+        "numero_fetos": "Feto único",
+        "batimentos_cardiacos": "145",
+        "apresentacao_fetal": "Cefálica",
+        "placenta_localizacao": "Posterior, sem cobrir o orifício interno do colo",
+        "liquido_amniotico": "Volume preservado",
+        "cranio_cerebro": "Ventrículos laterais em limite superior da normalidade",
+        "face": "Normal",
+        "coluna": "Normal",
+        "torax_coracao": "Normal",
+        "abdome": "Normal",
+        "rins_bexiga": "Pelve renal em limite superior à esquerda",
+        "membros": "Normais",
+        "sexo_fetal": "Conforme visualização ultrassonográfica",
+        "impressao": "Marcadores discretamente limítrofes, recomendando controle ultrassonográfico"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "USG Morfológica: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "idade_gestacional": "21",
+        "numero_fetos": "Feto único",
+        "batimentos_cardiacos": "146",
+        "apresentacao_fetal": "Cefálica",
+        "placenta_localizacao": "Posterior, sem cobrir o orifício interno do colo",
+        "liquido_amniotico": "Volume preservado",
+        "cranio_cerebro": "Morfologia encefálica compatível com a idade gestacional",
+        "face": "Perfil e estruturas faciais sem alterações evidentes",
+        "coluna": "Continuidade vertebral preservada",
+        "torax_coracao": "Quatro câmaras e eixo cardíaco sem alterações evidentes",
+        "abdome": "Parede abdominal e órgãos avaliáveis sem alterações evidentes",
+        "rins_bexiga": "Rins tópicos e bexiga visualizada",
+        "membros": "Quatro membros visualizados, sem deformidades evidentes",
+        "sexo_fetal": "Conforme visualização ultrassonográfica",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -440,8 +508,8 @@ export const img_us_morfologicaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Ultrassonografia morfológica fetal realizada de forma sistematizada para avaliação anatômica, biometria, placenta, líquido amniótico e marcadores demonstráveis na idade gestacional.",
+  "method": "Exame ultrassonográfico obstétrico bidimensional com cortes anatômicos padronizados e Doppler complementar quando indicado.",
   "parameters": [
     {
       "id": "idade_gestacional",
@@ -566,14 +634,14 @@ export const img_us_morfologicaModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de USG Morfológica compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "USG Morfológica com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "USG Morfológica com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "USG Morfológica sem alterações significativas nos parâmetros avaliados.",
+    "altered": "USG Morfológica alterado conforme resultados objetivos descritos.",
+    "undefined": "USG Morfológica com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

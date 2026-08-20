@@ -100,36 +100,60 @@ export const lab_hba1c_completaModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "HbA1c dentro do padrão esperado.",
-      "resultSummary": "Hemoglobina glicada dentro da faixa de referência.",
-      "interpretation": "HbA1c dentro do padrão esperado, sem evidência laboratorial de alteração glicêmica crônica pelo parâmetro avaliado.",
-      "conclusion": "HbA1c sem alteração laboratorial relevante."
+      "resultSummary": "HbA1c de 5,4%, com glicemia média estimada de aproximadamente 108 mg/dL.",
+      "interpretation": "HbA1c de 5,4%, abaixo de 5,7%, dentro da faixa não diabética. A glicemia média estimada correspondente é de aproximadamente 108 mg/dL.",
+      "conclusion": "Hemoglobina glicada dentro da faixa de normalidade laboratorial.",
+      "results": {
+        "hba1c": "5,4",
+        "glicemia_media_estimada": "108",
+        "controle_glicemico": "Dentro da faixa não diabética",
+        "impressao": "HbA1c dentro da faixa de normalidade"
+      }
     },
     {
       "id": "pre_diabetes",
       "name": "Pré-diabetes / limítrofe",
       "status": "indefinido",
       "description": "HbA1c em faixa intermediária.",
-      "resultSummary": "HbA1c em faixa limítrofe/intermediária.",
-      "interpretation": "Resultado em faixa intermediária, devendo ser correlacionado com glicemia, risco metabólico e critérios clínicos.",
-      "conclusion": "Alteração glicêmica crônica limítrofe/intermediária."
+      "resultSummary": "HbA1c de 5,9%, com glicemia média estimada de aproximadamente 123 mg/dL.",
+      "interpretation": "HbA1c de 5,9%, situada na faixa de 5,7% a 6,4%, compatível com pré-diabetes pelos critérios laboratoriais usuais. Glicemia média estimada de aproximadamente 123 mg/dL.",
+      "conclusion": "Hemoglobina glicada em faixa compatível com pré-diabetes.",
+      "results": {
+        "hba1c": "5,9",
+        "glicemia_media_estimada": "123",
+        "controle_glicemico": "Faixa de risco glicêmico aumentado",
+        "impressao": "HbA1c em faixa compatível com pré-diabetes"
+      }
     },
     {
       "id": "diabetes",
       "name": "Alterado / compatível com diabetes",
       "status": "alterado",
       "description": "HbA1c elevada.",
-      "resultSummary": "HbA1c elevada.",
-      "interpretation": "HbA1c acima da faixa usual, compatível com alteração glicêmica crônica. Resultado deve ser interpretado conforme critérios clínicos e laboratoriais.",
-      "conclusion": "HbA1c elevada, compatível com alteração glicêmica crônica."
+      "resultSummary": "HbA1c de 7,2%, com glicemia média estimada de aproximadamente 160 mg/dL.",
+      "interpretation": "HbA1c de 7,2%, acima do ponto de corte laboratorial de 6,5% utilizado para diabetes. Glicemia média estimada de aproximadamente 160 mg/dL; interpretar conforme contexto clínico e critérios diagnósticos aplicáveis.",
+      "conclusion": "Hemoglobina glicada elevada, em faixa laboratorial compatível com diabetes.",
+      "results": {
+        "hba1c": "7,2",
+        "glicemia_media_estimada": "160",
+        "controle_glicemico": "Acima da faixa diagnóstica de normalidade",
+        "impressao": "HbA1c em faixa compatível com diabetes"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Hemoglobina Glicada (HbA1c): modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "hba1c": "5,4",
+        "glicemia_media_estimada": "108",
+        "controle_glicemico": "Dentro da faixa não diabética",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -252,8 +276,8 @@ export const lab_hba1c_completaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Amostra de sangue total processada para quantificação da hemoglobina glicada, refletindo a exposição glicêmica média aproximada dos últimos dois a três meses.",
+  "method": "Quantificação de HbA1c por metodologia padronizada/rastreável, com cálculo da glicemia média estimada a partir do percentual de HbA1c.",
   "parameters": [
     {
       "id": "hba1c",
@@ -301,14 +325,14 @@ export const lab_hba1c_completaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Hemoglobina Glicada (HbA1c) compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Hemoglobina Glicada (HbA1c) com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Hemoglobina Glicada (HbA1c) com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Hemoglobina Glicada (HbA1c) sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Hemoglobina Glicada (HbA1c) alterado conforme resultados objetivos descritos.",
+    "undefined": "Hemoglobina Glicada (HbA1c) com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

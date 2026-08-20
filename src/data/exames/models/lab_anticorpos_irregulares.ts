@@ -174,36 +174,68 @@ export const lab_anticorpos_irregularesModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Anticorpos Irregulares com Resultado da Pesquisa: Negativo; Anticorpo Identificado: Não identificado; Classe de Imunoglobulina: Não aplicável.",
+      "interpretation": "Os parâmetros mensurados — Resultado da Pesquisa: Negativo; Anticorpo Identificado: Não identificado; Classe de Imunoglobulina: Não aplicável; Intensidade da Reação: Sem reação detectável — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Anticorpos Irregulares com parâmetros compatíveis com o padrão esperado, incluindo Resultado da Pesquisa: Negativo; Anticorpo Identificado: Não identificado.",
+      "results": {
+        "resultado": "Negativo",
+        "anticorpo": "Não identificado",
+        "classe": "Não aplicável",
+        "intensidade": "Sem reação detectável",
+        "correlacao": "Sem anticorpos eritrocitários irregulares detectáveis",
+        "impressao": "Pesquisa de anticorpos irregulares negativa"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Anticorpos Irregulares: Resultado da Pesquisa: Positivo; Anticorpo Identificado: Anti-D; Classe de Imunoglobulina: IgG; Intensidade da Reação: 2+.",
+      "interpretation": "Os resultados principais (Resultado da Pesquisa: Positivo; Anticorpo Identificado: Anti-D; Classe de Imunoglobulina: IgG; Intensidade da Reação: 2+) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Anticorpos Irregulares com padrão alterado, documentado por Resultado da Pesquisa: Positivo; Anticorpo Identificado: Anti-D.",
+      "results": {
+        "resultado": "Positivo",
+        "anticorpo": "Anti-D",
+        "classe": "IgG",
+        "intensidade": "2+",
+        "correlacao": "Anticorpo eritrocitário clinicamente significativo; correlacionar com histórico transfusional/obstétrico",
+        "impressao": "Pesquisa positiva para anticorpo eritrocitário irregular Anti-D"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Anticorpos Irregulares: Resultado da Pesquisa: Reação fraca/inconclusiva; Anticorpo Identificado: Especificidade não definida; Classe de Imunoglobulina: Não definida; Intensidade da Reação: ± a 1+.",
+      "interpretation": "Os principais resultados (Resultado da Pesquisa: Reação fraca/inconclusiva; Anticorpo Identificado: Especificidade não definida; Classe de Imunoglobulina: Não definida; Intensidade da Reação: ± a 1+) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Anticorpos Irregulares com resultado limítrofe/inespecífico, destacando-se Resultado da Pesquisa: Reação fraca/inconclusiva; Anticorpo Identificado: Especificidade não definida.",
+      "results": {
+        "resultado": "Reação fraca/inconclusiva",
+        "anticorpo": "Especificidade não definida",
+        "classe": "Não definida",
+        "intensidade": "± a 1+",
+        "correlacao": "Recomenda-se repetição e painel de identificação conforme indicação",
+        "impressao": "Pesquisa com reatividade fraca, sem especificidade definida"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Anticorpos Irregulares: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "resultado": "Negativo",
+        "anticorpo": "Não identificado",
+        "classe": "Não aplicável",
+        "intensidade": "Sem reação detectável",
+        "correlacao": "Sem anticorpos eritrocitários irregulares detectáveis",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -326,8 +358,8 @@ export const lab_anticorpos_irregularesModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Amostra de sangue processada para pesquisa de anticorpos eritrocitários irregulares clinicamente significativos.",
+  "method": "Teste de antiglobulina indireta em painel de hemácias reagentes, com identificação complementar quando houver reatividade.",
   "parameters": [
     {
       "id": "resultado",
@@ -391,14 +423,14 @@ export const lab_anticorpos_irregularesModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Anticorpos Irregulares compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Anticorpos Irregulares com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Anticorpos Irregulares com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Anticorpos Irregulares sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Anticorpos Irregulares alterado conforme resultados objetivos descritos.",
+    "undefined": "Anticorpos Irregulares com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

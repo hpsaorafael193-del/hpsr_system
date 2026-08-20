@@ -165,36 +165,72 @@ export const lab_painel_alergiaModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Painel de Alergia com IgE Total: 46; Alergenos Respiratórios: Negativo; Alergenos Alimentares: Negativo.",
+      "interpretation": "Os parâmetros mensurados — IgE Total: 46 UI/mL; Alergenos Respiratórios: Negativo; Alergenos Alimentares: Negativo; Alergenos Medicamentosos: Negativo — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Painel de Alergia com parâmetros compatíveis com o padrão esperado, incluindo IgE Total: 46 UI/mL; Alergenos Respiratórios: Negativo.",
+      "results": {
+        "ige_total": "46",
+        "alergenos_respiratorios": "Negativo",
+        "alergenos_alimentares": "Negativo",
+        "alergenos_medicamentos": "Negativo",
+        "tipo_reacao": "Sem sensibilização específica detectável",
+        "gravidade": "Não aplicável",
+        "impressao": "Painel sem sensibilização IgE-mediada detectável nos alérgenos pesquisados"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Painel de Alergia: IgE Total: 286; Alergenos Respiratórios: Positivo para ácaros (Dermatophagoides spp.); Tipo de Reação: Sensibilização respiratória IgE-mediada; Gravidade: Moderada pelo padrão laboratorial.",
+      "interpretation": "Os resultados principais (IgE Total: 286 UI/mL; Alergenos Respiratórios: Positivo para ácaros (Dermatophagoides spp.); Tipo de Reação: Sensibilização respiratória IgE-mediada; Gravidade: Moderada pelo padrão laboratorial) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Painel de Alergia com padrão alterado, documentado por IgE Total: 286 UI/mL; Alergenos Respiratórios: Positivo para ácaros (Dermatophagoides spp.).",
+      "results": {
+        "ige_total": "286",
+        "alergenos_respiratorios": "Positivo para ácaros (Dermatophagoides spp.)",
+        "alergenos_alimentares": "Negativo",
+        "alergenos_medicamentos": "Negativo",
+        "tipo_reacao": "Sensibilização respiratória IgE-mediada",
+        "gravidade": "Moderada pelo padrão laboratorial",
+        "impressao": "Sensibilização respiratória a ácaros com IgE total elevada"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Painel de Alergia: IgE Total: 108; Alergenos Respiratórios: Baixa reatividade para ácaros; Tipo de Reação: Sensibilização de baixa intensidade.",
+      "interpretation": "Os principais resultados (IgE Total: 108 UI/mL; Alergenos Respiratórios: Baixa reatividade para ácaros; Tipo de Reação: Sensibilização de baixa intensidade; Gravidade: Leve) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Painel de Alergia com resultado limítrofe/inespecífico, destacando-se IgE Total: 108 UI/mL; Alergenos Respiratórios: Baixa reatividade para ácaros.",
+      "results": {
+        "ige_total": "108",
+        "alergenos_respiratorios": "Baixa reatividade para ácaros",
+        "alergenos_alimentares": "Negativo",
+        "alergenos_medicamentos": "Negativo",
+        "tipo_reacao": "Sensibilização de baixa intensidade",
+        "gravidade": "Leve",
+        "impressao": "Reatividade alérgica limítrofe, sem definição clínica isolada"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Painel de Alergia: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "ige_total": "46",
+        "alergenos_respiratorios": "Negativo",
+        "alergenos_alimentares": "Negativo",
+        "alergenos_medicamentos": "Negativo",
+        "tipo_reacao": "Sem sensibilização específica detectável",
+        "gravidade": "Não aplicável",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -317,8 +353,8 @@ export const lab_painel_alergiaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Amostra sérica processada para pesquisa de sensibilização alérgica pelos marcadores incluídos no painel solicitado.",
+  "method": "Determinação de IgE total e/ou IgE específica por imunoensaio, com interpretação por classe de reatividade e alérgeno pesquisado quando aplicável.",
   "parameters": [
     {
       "id": "ige_total",
@@ -390,14 +426,14 @@ export const lab_painel_alergiaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Painel de Alergia compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Painel de Alergia com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Painel de Alergia com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Painel de Alergia sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Painel de Alergia alterado conforme resultados objetivos descritos.",
+    "undefined": "Painel de Alergia com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

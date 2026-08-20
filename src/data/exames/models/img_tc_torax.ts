@@ -154,36 +154,64 @@ export const img_tc_toraxModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Tomografia Computadorizada de Tórax com Uso de Contraste: Sem contraste; Padrão Pulmonar: Normal; Derrame Pleural: Ausente.",
+      "interpretation": "Os parâmetros mensurados — Uso de Contraste: Sem contraste; Padrão Pulmonar: Normal; Derrame Pleural: Ausente; Mediastino: Normal — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Tomografia Computadorizada de Tórax com parâmetros compatíveis com o padrão esperado, incluindo Uso de Contraste: Sem contraste; Padrão Pulmonar: Normal.",
+      "results": {
+        "uso_contraste": "Sem contraste",
+        "padrao_pulmonar": "Normal",
+        "derrame_pleural": "Ausente",
+        "mediastino": "Normal",
+        "impressao": "Tomografia Computadorizada de Tórax com parâmetros compatíveis com o padrão esperado, incluindo Uso de Contraste: Sem contraste; Padrão Pulmonar: Normal"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Tomografia Computadorizada de Tórax: Padrão Pulmonar: Opacidades em vidro fosco multifocais de predomínio periférico; Mediastino: Sem linfonodomegalias significativas.",
+      "interpretation": "Os resultados principais (Padrão Pulmonar: Opacidades em vidro fosco multifocais de predomínio periférico; Mediastino: Sem linfonodomegalias significativas) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Tomografia Computadorizada de Tórax com padrão alterado, documentado por Padrão Pulmonar: Opacidades em vidro fosco multifocais de predomínio periférico; Mediastino: Sem linfonodomegalias significativas.",
+      "results": {
+        "uso_contraste": "Sem contraste",
+        "padrao_pulmonar": "Opacidades em vidro fosco multifocais de predomínio periférico",
+        "derrame_pleural": "Ausente",
+        "mediastino": "Sem linfonodomegalias significativas",
+        "impressao": "Opacidades pulmonares em vidro fosco multifocais, de padrão inflamatório/infeccioso no contexto adequado"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Tomografia Computadorizada de Tórax: Padrão Pulmonar: Pequenas atelectasias laminares bibasais; Mediastino: Sem alterações significativas.",
+      "interpretation": "Os principais resultados (Padrão Pulmonar: Pequenas atelectasias laminares bibasais; Mediastino: Sem alterações significativas) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Tomografia Computadorizada de Tórax com resultado limítrofe/inespecífico, destacando-se Padrão Pulmonar: Pequenas atelectasias laminares bibasais; Mediastino: Sem alterações significativas.",
+      "results": {
+        "uso_contraste": "Sem contraste",
+        "padrao_pulmonar": "Pequenas atelectasias laminares bibasais",
+        "derrame_pleural": "Ausente",
+        "mediastino": "Sem alterações significativas",
+        "impressao": "Atelectasias laminares discretas, sem consolidação focal"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Tomografia Computadorizada de Tórax: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "uso_contraste": "Sem contraste",
+        "padrao_pulmonar": "Normal",
+        "derrame_pleural": "Ausente",
+        "mediastino": "Normal",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -330,8 +358,8 @@ export const img_tc_toraxModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Tomografia Computadorizada de Tórax realizada por aquisição tomográfica volumétrica da região selecionada, com reconstruções multiplanares e documentação das estruturas avaliadas.",
+  "method": "Tomografia computadorizada multislice com reconstruções nos planos adequados; meio de contraste iodado utilizado apenas quando indicado pelo protocolo clínico.",
   "parameters": [
     {
       "id": "uso_contraste",
@@ -387,14 +415,14 @@ export const img_tc_toraxModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Tomografia Computadorizada de Tórax compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Tomografia Computadorizada de Tórax com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Tomografia Computadorizada de Tórax com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Tomografia Computadorizada de Tórax sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Tomografia Computadorizada de Tórax alterado conforme resultados objetivos descritos.",
+    "undefined": "Tomografia Computadorizada de Tórax com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

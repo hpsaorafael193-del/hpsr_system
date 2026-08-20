@@ -104,36 +104,64 @@ export const cardio_holter_24hModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Holter 24 horas com Frequência Cardíaca Mínima: 52; Frequência Cardíaca Máxima: 132; Arritmias Detectadas: Ausentes.",
+      "interpretation": "Os parâmetros mensurados — Frequência Cardíaca Mínima: 52 bpm; Frequência Cardíaca Máxima: 132 bpm; Arritmias Detectadas: Ausentes; Pausas: Ausentes — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Holter 24 horas com parâmetros compatíveis com o padrão esperado, incluindo Frequência Cardíaca Mínima: 52 bpm; Frequência Cardíaca Máxima: 132 bpm.",
+      "results": {
+        "fc_minima": "52",
+        "fc_maxima": "132",
+        "arritmias": "Ausentes",
+        "pausas": "Ausentes",
+        "impressao": "Ritmo sinusal predominante, sem arritmias significativas"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Holter 24 horas: Frequência Cardíaca Mínima: 46; Frequência Cardíaca Máxima: 158; Arritmias Detectadas: Extrassístoles supraventriculares frequentes, com salvas curtas; Pausas: Sem pausas > 2,0 s.",
+      "interpretation": "Os resultados principais (Frequência Cardíaca Mínima: 46 bpm; Frequência Cardíaca Máxima: 158 bpm; Arritmias Detectadas: Extrassístoles supraventriculares frequentes, com salvas curtas; Pausas: Sem pausas > 2,0 s) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Holter 24 horas com padrão alterado, documentado por Frequência Cardíaca Mínima: 46 bpm; Frequência Cardíaca Máxima: 158 bpm.",
+      "results": {
+        "fc_minima": "46",
+        "fc_maxima": "158",
+        "arritmias": "Extrassístoles supraventriculares frequentes, com salvas curtas",
+        "pausas": "Sem pausas > 2,0 s",
+        "impressao": "Ectopia supraventricular frequente no período monitorado"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Holter 24 horas: Frequência Cardíaca Mínima: 50; Frequência Cardíaca Máxima: 142; Arritmias Detectadas: Extrassístoles supraventriculares isoladas e raras.",
+      "interpretation": "Os principais resultados (Frequência Cardíaca Mínima: 50 bpm; Frequência Cardíaca Máxima: 142 bpm; Arritmias Detectadas: Extrassístoles supraventriculares isoladas e raras) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Holter 24 horas com resultado limítrofe/inespecífico, destacando-se Frequência Cardíaca Mínima: 50 bpm; Frequência Cardíaca Máxima: 142 bpm.",
+      "results": {
+        "fc_minima": "50",
+        "fc_maxima": "142",
+        "arritmias": "Extrassístoles supraventriculares isoladas e raras",
+        "pausas": "Ausentes",
+        "impressao": "Ectopia supraventricular rara, sem arritmia sustentada"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Holter 24 horas: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "fc_minima": "52",
+        "fc_maxima": "132",
+        "arritmias": "Ausentes",
+        "pausas": "Ausentes",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -260,8 +288,8 @@ export const cardio_holter_24hModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Monitorização eletrocardiográfica ambulatorial contínua por aproximadamente 24 horas, com análise de frequência cardíaca, ritmo, ectopias, pausas e eventos arrítmicos.",
+  "method": "Registro eletrocardiográfico multicanal prolongado, seguido de análise automatizada e revisão técnica dos eventos relevantes.",
   "parameters": [
     {
       "id": "fc_minima",
@@ -306,14 +334,14 @@ export const cardio_holter_24hModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Holter 24 horas compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Holter 24 horas com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Holter 24 horas com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Holter 24 horas sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Holter 24 horas alterado conforme resultados objetivos descritos.",
+    "undefined": "Holter 24 horas com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

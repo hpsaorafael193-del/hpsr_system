@@ -645,6 +645,13 @@ function guidedRuntimeOverride(
     return clinicalContext;
   }
   if (hasAny(parameterText, ["impressão", "impressao", "classificação", "classificacao"])) {
+    // Raio-X e Psicotécnico permanecem exatamente no fluxo legado. Nos demais
+    // modelos, a impressão/classificação curada do perfil tem prioridade sobre
+    // o resumo genérico, evitando frases soltas no lugar do resultado técnico.
+    if (model.id !== "img_raio_x_unico" && model.id !== "psiquiatria_psicotecnico") {
+      const explicitImpression = profile.results?.[parameter.id]?.trim();
+      if (explicitImpression && !isGenericResult(explicitImpression)) return explicitImpression;
+    }
     return profile.resultSummary.replace(/[.]$/, "");
   }
 
@@ -797,7 +804,13 @@ function resultForParameter(model: IntelligentExamModel, parameter: IntelligentE
   const explicitResult = profile.results?.[parameter.id];
 
   if (explicitResult) {
-    const result = adaptiveExplicitResult(explicitResult, parameter, generationKey);
+    // Os perfis revisados passam a ser cenários clínicos fechados: valores
+    // relacionados (ex.: HbA1c/eAG, creatinina/TFG, AST/ALT) não podem variar
+    // independentemente a cada renderização. As duas exceções solicitadas
+    // mantêm o comportamento legado sem qualquer alteração.
+    const result = model.id === "img_raio_x_unico" || model.id === "psiquiatria_psicotecnico"
+      ? adaptiveExplicitResult(explicitResult, parameter, generationKey)
+      : explicitResult;
     if (!isGenericResult(result)) return formatResult(result, parameter);
   }
 
@@ -875,7 +888,7 @@ function parameterFindingSentence(label: string, result: string, reference: stri
   return `${cleanLabel} apresentou ${cleanResult.toLowerCase()}, conforme avaliação técnica do método.`;
 }
 
-function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][]) {
+function legacyTechnicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][]) {
   const { model, profile } = resolved;
   const altered = rows.filter((row) => {
     const parameter = model.parameters.find((item) => item.label === row[0]);
@@ -900,7 +913,7 @@ function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][
   return `Alteração objetiva${names ? ` envolvendo ${names}` : " nos parâmetros principais"}. Correlacionar com o quadro clínico e exames anteriores.`;
 }
 
-function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
+function legacyTechnicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
   const { model, profile } = resolved;
   const altered = rows.filter((row) => {
     const parameter = model.parameters.find((item) => item.label === row[0]);
@@ -925,6 +938,90 @@ function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
     : `${model.nome} com alterações tecnicamente demonstradas${summary ? `: ${summary}` : ""}. Correlacionar com o contexto clínico para definição de conduta.`;
 }
 
+function firstNumericResult(value?: string | null) {
+  const token = String(value || "").match(/(?:\d{1,3}(?:\.\d{3})+|\d+(?:[,.]\d+)?)/)?.[0];
+  if (!token) return Number.NaN;
+  return parsePtNumber(token);
+}
+
+function outsideNumericReference(parameter: IntelligentExamParameter, value?: string | null) {
+  const reference = parameter.referencia || "";
+  const current = firstNumericResult(value);
+  const numbers = extractReferenceNumbers(reference);
+  if (!Number.isFinite(current) || !numbers.length) return null;
+
+  if (numbers.length >= 2 && /[–-]|\b(?:a|entre)\b/i.test(reference) && !/\//.test(reference)) {
+    const lower = Math.min(numbers[0], numbers[1]);
+    const upper = Math.max(numbers[0], numbers[1]);
+    return current < lower || current > upper;
+  }
+  if (/(?:<|≤|até|ate)/i.test(reference)) return current > numbers[0];
+  if (/(?:>|≥)/.test(reference)) return current < numbers[0];
+  return null;
+}
+
+function profileChangedRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  const { model, profile } = resolved;
+  const normalProfile = model.profiles.find((item) => item.status === "normal") || model.profiles.find((item) => item.id === "normal");
+  if (!normalProfile || normalProfile.id === profile.id) return [];
+
+  const ranked: Array<{ row: string[]; rank: number; index: number }> = [];
+  rows.forEach((row, index) => {
+    const parameter = model.parameters[index];
+    if (!parameter || /impressão|impressao|conclusão|conclusao/i.test(parameter.label || "")) return;
+    const current = profile.results?.[parameter.id];
+    const normal = normalProfile.results?.[parameter.id];
+    if (current == null || normal == null || String(current).trim() === String(normal).trim()) return;
+
+    const outside = outsideNumericReference(parameter, current);
+    const normalOutside = outsideNumericReference(parameter, normal);
+    if (outside === false && normalOutside === false) return;
+
+    const reference = parameter.referencia || "";
+    const hasQualitativeReference = !!reference && reference !== "—" && !/\d/.test(reference);
+    const rank = outside === true ? 0 : hasQualitativeReference ? 1 : 2;
+    ranked.push({ row, rank, index });
+  });
+
+  return ranked.sort((a, b) => a.rank - b.rank || a.index - b.index).map((item) => item.row);
+}
+
+function reportEvidenceRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  const { profile } = resolved;
+  const withoutImpression = rows.filter((row) => !/impressão|impressao|conclusão|conclusao/i.test(row[0] || ""));
+  if (profile.status === "normal" || profile.id === "normal") return withoutImpression.slice(0, 4);
+
+  const changed = profileChangedRows(resolved, rows);
+  return (changed.length ? changed : withoutImpression).slice(0, 4);
+}
+
+function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  // Exceção expressa do projeto: não alterar o comportamento do Raio-X.
+  if (resolved.model.id === "img_raio_x_unico") return legacyTechnicalInterpretation(resolved, rows);
+
+  const evidence = reportEvidenceRows(resolved, rows)
+    .map((row) => `${row[0]}: ${row[1]}`)
+    .join("; ");
+  const narrative = resolved.profile.interpretation?.trim();
+  if (!evidence) return narrative || resolved.profile.resultSummary;
+
+  const noun = isImagingReportModel(resolved.model) ? "Achados objetivos" : "Resultados objetivos";
+  return `${narrative || resolved.profile.resultSummary}\n${noun}: ${evidence}.`;
+}
+
+function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  // Exceção expressa do projeto: não alterar o comportamento do Raio-X.
+  if (resolved.model.id === "img_raio_x_unico") return legacyTechnicalConclusion(resolved, rows);
+
+  const evidence = reportEvidenceRows(resolved, rows)
+    .slice(0, 2)
+    .map((row) => `${row[0]}: ${row[1]}`)
+    .join("; ");
+  const conclusion = resolved.profile.conclusion?.trim() || resolved.profile.resultSummary;
+  if (!evidence || /personalizado/i.test(resolved.profile.id)) return conclusion;
+  return `${conclusion}\nSíntese objetiva: ${evidence}.`;
+}
+
 function resultSummaryFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
   const { model, profile } = resolved;
   const informative = rows.filter((row) => row[0] && row[1] && !isGenericResult(row[1]));
@@ -935,25 +1032,22 @@ function resultSummaryFromRows(resolved: AdaptiveResolvedExam, rows: string[][])
     return `${model.nome}: ${highlighted.join("; ")}.`;
   }
 
-  const highlighted = informative
-    .filter((row) => {
-      const parameter = model.parameters.find((item) => item.label === row[0]);
-      return parameter ? shouldUseAlteredResult(model, parameter, profile) : false;
-    })
+  const changed = profileChangedRows(resolved, rows);
+  const highlighted = (changed.length ? changed : informative)
     .slice(0, 4)
     .map((row) => `${row[0]}: ${row[1]}`);
 
   if (!highlighted.length) {
     return resolved.generationSeed % 2
-      ? `${model.nome}: achados atualizados permanecem compatíveis com o perfil ${profile.name.toLowerCase()}, conforme parâmetros descritos.`
+      ? `${model.nome}: resultados permanecem compatíveis com o perfil ${profile.name.toLowerCase()}, conforme parâmetros descritos.`
       : `${model.nome}: resultado compatível com o perfil ${profile.name.toLowerCase()}, conforme parâmetros descritos.`;
   }
   return resolved.generationSeed % 2
-    ? `${model.nome}: atualização dos achados — ${highlighted.join("; ")}.`
+    ? `${model.nome}: resultados principais — ${highlighted.join("; ")}.`
     : `${model.nome}: ${highlighted.join("; ")}.`;
 }
 
-function findingsFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
+function legacyFindingsFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
   const { model, profile } = resolved;
   const informative = rows.filter((row) => row[0] && row[1] && !isGenericResult(row[1]));
   const altered = informative.filter((row) => {
@@ -984,11 +1078,55 @@ function findingsFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
   return lines.join("\n");
 }
 
+const legacyNonImagingModels = new Set([
+  "func_espirometria",
+  "func_oximetria",
+  "func_potenciais_evocados",
+  "func_tilt_test",
+]);
+
+function isImagingReportModel(model: IntelligentExamModel) {
+  return model.structure.standard === "imagem" && !legacyNonImagingModels.has(model.id);
+}
+
+function curatedParameterFindingSentence(label: string, result: string) {
+  const cleanLabel = cleanTechnicalSentence(label);
+  const cleanResult = cleanTechnicalSentence(result);
+  if (!cleanLabel || !cleanResult) return "";
+  return `${cleanLabel}: ${cleanResult}.`;
+}
+
+function findingsFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  if (resolved.model.id === "img_raio_x_unico") return legacyFindingsFromRows(resolved, rows);
+
+  const { model, profile } = resolved;
+  const informative = rows.filter((row) => row[0] && row[1] && !isGenericResult(row[1]) && !/impressão|impressao|conclusão|conclusao/i.test(row[0]));
+  const changed = profileChangedRows(resolved, rows).filter((row) => informative.includes(row));
+  const changedSet = new Set(changed);
+  const stable = informative.filter((row) => !changedSet.has(row));
+  const opening = resolved.adapterValue
+    ? `${model.nome}. Região/tipo selecionado: ${resolved.adapterValue}.`
+    : `${model.nome}.`;
+  const context = resolved.clinicalContext ? ` Indicação clínica: ${resolved.clinicalContext}.` : "";
+
+  if (!informative.length) return `${opening}${context} ${profile.resultSummary}`;
+
+  const lines: string[] = [opening + context];
+  const primary = (profile.status === "normal" || profile.id === "normal" ? informative : (changed.length ? changed : informative)).slice(0, 7);
+  primary.forEach((row) => lines.push(curatedParameterFindingSentence(row[0], row[1])));
+
+  if (profile.status !== "normal" && profile.id !== "normal") {
+    stable.slice(0, 3).forEach((row) => lines.push(curatedParameterFindingSentence(row[0], row[1])));
+  }
+
+  return lines.filter(Boolean).join("\n");
+}
+
 export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
   const { model, profile } = resolved;
   const rows = parameterRows(resolved);
   const isLaboratory = model.structure.standard === "laboratorio";
-  const isImage = model.structure.standard === "imagem";
+  const isImage = isImagingReportModel(model);
   const adapterText = resolved.adapterValue ? `<p><strong>${htmlEscape(model.adapter.label)}:</strong> ${htmlEscape(resolved.adapterValue)}</p>` : "";
   const contextText = resolved.clinicalContext ? `<p><strong>Contexto clínico:</strong> ${htmlEscape(resolved.clinicalContext)}</p>` : "";
   const contrastField = resolved.dynamicFields.find((field) => field.id === "contraste");

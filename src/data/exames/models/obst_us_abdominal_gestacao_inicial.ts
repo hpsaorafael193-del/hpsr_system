@@ -196,7 +196,19 @@ export const obst_us_abdominal_gestacao_inicialModel: IntelligentExamModel = {
       "description": "Parâmetros compatíveis com evolução gestacional.",
       "resultSummary": "Ultrassonografia obstétrica compatível com gestação evolutiva.",
       "interpretation": "Achados biométricos e vitalidade fetal compatíveis com idade gestacional informada.",
-      "conclusion": "Gestação evolutiva conforme parâmetros ultrassonográficos avaliados."
+      "conclusion": "Gestação evolutiva conforme parâmetros ultrassonográficos avaliados.",
+      "results": {
+        "saco_gestacional": "Saco gestacional intrauterino tópico, de contornos regulares",
+        "localizacao": "Intrauterina",
+        "vesicula_vitelina": "Visualizada, de aspecto habitual",
+        "embriao": "Embrião único visualizado",
+        "batimentos_cardiacos": "Presentes",
+        "frequencia_cardiaca": "132",
+        "diametro_saco": "18",
+        "idade_gestacional": "6 semanas e 4 dias",
+        "achados_adicionais": "Sem hematoma subcoriônico significativo",
+        "impressao": "Gestação intrauterina única e viável, compatível com a idade gestacional estimada"
+      }
     },
     {
       "id": "gemelar",
@@ -205,7 +217,19 @@ export const obst_us_abdominal_gestacao_inicialModel: IntelligentExamModel = {
       "description": "Modelo para gestação gemelar.",
       "resultSummary": "Ultrassonografia obstétrica de gestação gemelar.",
       "interpretation": "Avaliar número de fetos, corionicidade/amnionicidade quando possível e biometria individual.",
-      "conclusion": "Gestação gemelar conforme achados descritos."
+      "conclusion": "Gestação gemelar conforme achados descritos.",
+      "results": {
+        "saco_gestacional": "Dois sacos gestacionais intrauterinos",
+        "localizacao": "Intrauterina",
+        "vesicula_vitelina": "Duas vesículas vitelinas visualizadas",
+        "embriao": "Dois embriões visualizados",
+        "batimentos_cardiacos": "Presentes em ambos",
+        "frequencia_cardiaca": "130 e 136",
+        "diametro_saco": "19 e 18",
+        "idade_gestacional": "6 semanas e 5 dias",
+        "achados_adicionais": "Sem hematoma subcoriônico significativo",
+        "impressao": "Gestação intrauterina gemelar viável"
+      }
     },
     {
       "id": "primeiro_trimestre",
@@ -214,7 +238,19 @@ export const obst_us_abdominal_gestacao_inicialModel: IntelligentExamModel = {
       "description": "Modelo para avaliação inicial.",
       "resultSummary": "Ultrassonografia obstétrica de primeiro trimestre.",
       "interpretation": "Avaliar saco gestacional, embrião/feto, BCF e datação conforme CCN quando aplicável.",
-      "conclusion": "Exame compatível com avaliação de primeiro trimestre."
+      "conclusion": "Exame compatível com avaliação de primeiro trimestre.",
+      "results": {
+        "saco_gestacional": "Saco gestacional intrauterino tópico, de contornos regulares",
+        "localizacao": "Intrauterina",
+        "vesicula_vitelina": "Visualizada, de aspecto habitual",
+        "embriao": "Embrião único visualizado",
+        "batimentos_cardiacos": "Presentes",
+        "frequencia_cardiaca": "132",
+        "diametro_saco": "18",
+        "idade_gestacional": "6 semanas e 4 dias",
+        "achados_adicionais": "Sem hematoma subcoriônico significativo",
+        "impressao": "Gestação intrauterina única e viável, compatível com a idade gestacional estimada"
+      }
     },
     {
       "id": "rciu",
@@ -223,16 +259,40 @@ export const obst_us_abdominal_gestacao_inicialModel: IntelligentExamModel = {
       "description": "Suspeita de restrição de crescimento intrauterino.",
       "resultSummary": "Ultrassonografia com parâmetros de crescimento abaixo do esperado.",
       "interpretation": "Biometria fetal e Doppler, quando aplicável, devem ser correlacionados à idade gestacional.",
-      "conclusion": "Achados podem sugerir restrição de crescimento, recomendando seguimento obstétrico."
+      "conclusion": "Achados podem sugerir restrição de crescimento, recomendando seguimento obstétrico.",
+      "results": {
+        "saco_gestacional": "Saco gestacional intrauterino tópico",
+        "localizacao": "Intrauterina",
+        "vesicula_vitelina": "Visualizada",
+        "embriao": "Embrião visualizado",
+        "batimentos_cardiacos": "Presentes",
+        "frequencia_cardiaca": "118",
+        "diametro_saco": "15",
+        "idade_gestacional": "7 semanas pela DUM; biometria aproximada de 6 semanas",
+        "achados_adicionais": "Discrepância biométrica inicial, requer controle evolutivo",
+        "impressao": "Gestação intrauterina viável com biometria menor que a esperada; controle recomendado"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Ultrassonografia obstétrica personalizada.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Ultrassonografia Abdominal – Obstetrica: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "saco_gestacional": "Saco gestacional intrauterino tópico, de contornos regulares",
+        "localizacao": "Intrauterina",
+        "vesicula_vitelina": "Visualizada, de aspecto habitual",
+        "embriao": "Embrião único visualizado",
+        "batimentos_cardiacos": "Presentes",
+        "frequencia_cardiaca": "132",
+        "diametro_saco": "18",
+        "idade_gestacional": "6 semanas e 4 dias",
+        "achados_adicionais": "Sem hematoma subcoriônico significativo",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -386,8 +446,8 @@ export const obst_us_abdominal_gestacao_inicialModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Ultrassonografia obstétrica abdominal de gestação inicial realizada para avaliação da localização gestacional, saco gestacional, vesícula vitelina, embrião e vitalidade quando demonstráveis.",
+  "method": "Exame ultrassonográfico por via abdominal, com medidas biométricas iniciais e documentação da atividade cardíaca embrionária quando presente.",
   "parameters": [
     {
       "id": "saco_gestacional",
@@ -483,14 +543,14 @@ export const obst_us_abdominal_gestacao_inicialModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Ultrassonografia Abdominal – Obstetrica compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Ultrassonografia Abdominal – Obstetrica com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Ultrassonografia Abdominal – Obstetrica com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Gestação evolutiva conforme parâmetros ultrassonográficos avaliados.",
-    "altered": "Achados podem sugerir restrição de crescimento, recomendando seguimento obstétrico.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Ultrassonografia Abdominal – Obstetrica sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Ultrassonografia Abdominal – Obstetrica alterado conforme resultados objetivos descritos.",
+    "undefined": "Ultrassonografia Abdominal – Obstetrica com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

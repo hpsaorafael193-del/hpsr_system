@@ -135,7 +135,11 @@ export const imgUltrassonografiaUnicaModel: IntelligentExamModel = {
       "description": "Sem alterações significativas no método.",
       "resultSummary": "Ultrassonografia sem alterações significativas.",
       "interpretation": "Estruturas avaliadas sem alterações relevantes para o método, região/tipo selecionado e contexto clínico informado.",
-      "conclusion": "Ultrassonografia sem alterações significativas."
+      "conclusion": "Ultrassonografia sem alterações significativas.",
+      "results": {
+        "qualidade_tecnica": "Janela acústica adequada para avaliação",
+        "regiao_tipo": "Conforme região selecionada"
+      }
     },
     {
       "id": "alterado",
@@ -143,8 +147,12 @@ export const imgUltrassonografiaUnicaModel: IntelligentExamModel = {
       "status": "alterado",
       "description": "Achados relevantes no método.",
       "resultSummary": "Ultrassonografia com alteração a caracterizar.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas, relação anatômica e limitações técnicas quando aplicável.",
-      "conclusion": "Ultrassonografia com alteração a correlacionar clinicamente."
+      "interpretation": "Os resultados principais (Região / tipo: Região selecionada com alteração focal demonstrável) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Ultrassonografia com alteração a correlacionar clinicamente.",
+      "results": {
+        "qualidade_tecnica": "Janela acústica adequada para avaliação",
+        "regiao_tipo": "Região selecionada com alteração focal demonstrável"
+      }
     },
     {
       "id": "indefinido",
@@ -152,17 +160,25 @@ export const imgUltrassonografiaUnicaModel: IntelligentExamModel = {
       "status": "indefinido",
       "description": "Achado limítrofe ou inespecífico.",
       "resultSummary": "Ultrassonografia com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode exigir comparação, seguimento ou método complementar.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "interpretation": "Os principais resultados (Qualidade técnica: Janela acústica parcialmente limitada, porém diagnóstica; Região / tipo: Alteração discreta e inespecífica na região selecionada) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Ultrassonografia com resultado limítrofe/inespecífico, destacando-se Qualidade técnica: Janela acústica parcialmente limitada, porém diagnóstica; Região / tipo: Alteração discreta e inespecífica na região selecionada.",
+      "results": {
+        "qualidade_tecnica": "Janela acústica parcialmente limitada, porém diagnóstica",
+        "regiao_tipo": "Alteração discreta e inespecífica na região selecionada"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Ultrassonografia personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Ultrassonografia: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "qualidade_tecnica": "Janela acústica adequada para avaliação",
+        "regiao_tipo": "Conforme região selecionada"
+      }
     }
   ],
   "variables": [
@@ -308,8 +324,8 @@ export const imgUltrassonografiaUnicaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme região/tipo selecionado pelo adaptador, com análise descritiva dos achados.",
+  "technique": "Ultrassonografia realizada por ultrassonografia com avaliação sistematizada das estruturas previstas para a região selecionada e medidas pertinentes.",
+  "method": "Aquisição ultrassonográfica em modo bidimensional, complementada por Doppler colorido/espectral quando indicado pelo tipo de exame e contexto clínico.",
   "parameters": [
     {
       "id": "qualidade_tecnica",
@@ -339,14 +355,14 @@ export const imgUltrassonografiaUnicaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método selecionado.",
-    "altered": "Achado relevante a caracterizar e correlacionar clinicamente.",
-    "undefined": "Achado inespecífico ou limítrofe, sem definição diagnóstica isolada."
+    "normal": "Resultados de Ultrassonografia compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Ultrassonografia com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Ultrassonografia com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Ultrassonografia sem alterações significativas.",
-    "altered": "Ultrassonografia com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Ultrassonografia sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Ultrassonografia alterado conforme resultados objetivos descritos.",
+    "undefined": "Ultrassonografia com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

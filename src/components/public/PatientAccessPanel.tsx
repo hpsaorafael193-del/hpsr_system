@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import {
   AlertCircle, Baby, BellRing, CalendarClock, ClipboardPlus, FileHeart, FlaskConical, HeartPulse, HelpCircle,
-  Loader2, LockKeyhole, LogIn, Plus, ShieldCheck, Trash2, UserPlus, UserRound, X,
+  KeyRound, Loader2, LockKeyhole, LogIn, MailX, Plus, ShieldCheck, Trash2, UserPlus, UserRound, X,
 } from "lucide-react";
 import { PatientRecordsPanel } from "@/components/public/PatientRecordsPanel";
 import { StyledSelect } from "@/components/ui/StyledSelect";
@@ -58,6 +58,13 @@ export function PatientAccessPanel() {
   const [followupLoading, setFollowupLoading] = useState(false);
   const [followupError, setFollowupError] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
+  const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [recoveryPassport, setRecoveryPassport] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
+  const [recoveryPassword, setRecoveryPassword] = useState("");
+  const [recoveryConfirmation, setRecoveryConfirmation] = useState("");
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [recoveryError, setRecoveryError] = useState("");
 
   const loadFollowups = useCallback(async (passport: string) => {
     if (!passport) { setFollowupData(null); setFollowupError(""); return; }
@@ -246,6 +253,53 @@ export function PatientAccessPanel() {
     } catch {
       setError("Não foi possível enviar a recuperação de senha.");
     } finally { setBusy(false); }
+  }
+
+  async function recoverWithoutEmail(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setRecoveryError("");
+    if (!recoveryPassport.trim() || !recoveryCode.trim()) {
+      setRecoveryError("Informe seu passaporte e o código de recuperação.");
+      return;
+    }
+    if (recoveryPassword.length < 6) {
+      setRecoveryError("A nova senha deve ter no mínimo 6 caracteres.");
+      return;
+    }
+    if (recoveryPassword !== recoveryConfirmation) {
+      setRecoveryError("As duas senhas precisam ser iguais.");
+      return;
+    }
+    setRecoveryBusy(true);
+    try {
+      const response = await fetch("/api/paciente/recuperar-sem-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          passport: recoveryPassport,
+          recoveryCode,
+          newPassword: recoveryPassword,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível recuperar seu acesso.");
+      const loginEmail = String(data.email || "").trim().toLowerCase();
+      if (loginEmail) {
+        setEmail(loginEmail);
+        try { window.localStorage.setItem(PATIENT_EMAIL_STORAGE_KEY, loginEmail); } catch {}
+      }
+      setPassword("");
+      setRecoveryPassport("");
+      setRecoveryCode("");
+      setRecoveryPassword("");
+      setRecoveryConfirmation("");
+      setRecoveryOpen(false);
+      setMessage(data.message || "Senha redefinida. Entre novamente com a nova senha.");
+    } catch (caught) {
+      setRecoveryError(caught instanceof Error ? caught.message : "Não foi possível recuperar seu acesso.");
+    } finally {
+      setRecoveryBusy(false);
+    }
   }
 
   async function createChild(event: FormEvent<HTMLFormElement>) {
@@ -485,7 +539,10 @@ export function PatientAccessPanel() {
               </div>
 
               <button onClick={login} disabled={busy || !email.trim() || !password} className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[18px] bg-hpsr-wine px-5 text-sm font-black text-white shadow-[0_14px_30px_rgba(103,38,20,.16)] transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />} Entrar</button>
-              <button onClick={recoverPassword} disabled={busy} className="mt-3 w-full text-center text-sm font-black text-hpsr-wineLight hover:text-hpsr-wine">Esqueci minha senha</button>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <button onClick={recoverPassword} disabled={busy} className="min-h-[42px] rounded-[13px] border border-hpsr-border bg-white px-3 text-center text-sm font-black text-hpsr-wineLight transition hover:border-hpsr-wine/30 hover:text-hpsr-wine">Esqueci minha senha</button>
+                <button type="button" onClick={() => { clearFeedback(); setRecoveryError(""); setRecoveryOpen(true); }} disabled={busy} className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-[#fffaf4] px-3 text-center text-sm font-black text-hpsr-wine transition hover:border-hpsr-wine/30"><MailX size={15}/>Não acesso meu e-mail</button>
+              </div>
             </div>
           </div>
         ) : (
@@ -568,6 +625,38 @@ export function PatientAccessPanel() {
         {error && <p className="mt-5 rounded-[14px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{error}</p>}
       </div>
     </div>
+    {recoveryOpen && (
+      <div className="fixed inset-0 z-[1260] flex items-center justify-center bg-[#1f0805]/60 p-3 sm:p-5" role="dialog" aria-modal="true" aria-label="Recuperar acesso sem e-mail">
+        <form onSubmit={recoverWithoutEmail} className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-[24px] border border-hpsr-border bg-white shadow-2xl">
+          <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#fff2e6_100%)] px-5 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span className="inline-flex items-center gap-2 rounded-full border border-hpsr-border bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[.13em] text-hpsr-wine"><KeyRound size={12}/>Recuperação segura</span>
+                <h3 className="mt-2 text-xl font-black text-hpsr-text">Sem acesso ao e-mail cadastrado</h3>
+                <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Use seu código pessoal de recuperação ou um código temporário fornecido pelo HPSR após confirmação de identidade. Seu e-mail cadastrado não será alterado.</p>
+              </div>
+              <button type="button" onClick={() => setRecoveryOpen(false)} aria-label="Fechar" className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] border border-hpsr-border bg-white text-hpsr-wine"><X size={17}/></button>
+            </div>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto p-5">
+            <div className="grid gap-4">
+              <Field label="Passaporte"><input className="portal-input uppercase" value={recoveryPassport} onChange={(e)=>setRecoveryPassport(e.target.value.toUpperCase())} autoComplete="off" required /></Field>
+              <Field label="Código de recuperação"><input className="portal-input uppercase" value={recoveryCode} onChange={(e)=>setRecoveryCode(e.target.value.toUpperCase())} autoComplete="one-time-code" placeholder="HPSR-.... ou código temporário" required /></Field>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label="Nova senha"><input className="portal-input" type="password" minLength={6} autoComplete="new-password" value={recoveryPassword} onChange={(e)=>setRecoveryPassword(e.target.value)} required /></Field>
+                <Field label="Repetir nova senha"><input className="portal-input" type="password" minLength={6} autoComplete="new-password" value={recoveryConfirmation} onChange={(e)=>setRecoveryConfirmation(e.target.value)} required /></Field>
+              </div>
+              <div className="rounded-[14px] border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs font-semibold leading-relaxed text-amber-950"><strong>Sem código?</strong> Procure a equipe do HPSR. Após confirmar sua identidade, um Diretor Técnico / Dev pode emitir um código temporário de uso único.</div>
+              {recoveryError && <p className="rounded-[13px] border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm font-bold text-rose-800">{recoveryError}</p>}
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-hpsr-border bg-[#fffaf4] p-4 sm:flex-row sm:justify-end">
+            <button type="button" onClick={() => setRecoveryOpen(false)} className="min-h-[44px] rounded-[13px] border border-hpsr-border bg-white px-4 text-sm font-black text-hpsr-text">Cancelar</button>
+            <button disabled={recoveryBusy} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">{recoveryBusy ? <Loader2 size={16} className="animate-spin"/> : <ShieldCheck size={16}/>}Redefinir senha</button>
+          </div>
+        </form>
+      </div>
+    )}
     <PatientPortalHelp open={helpOpen} onOpen={() => setHelpOpen(true)} onClose={() => setHelpOpen(false)} />
     </>
   );

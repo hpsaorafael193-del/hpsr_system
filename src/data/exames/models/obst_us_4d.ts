@@ -129,7 +129,14 @@ export const obst_us_4dModel: IntelligentExamModel = {
       "description": "Parâmetros compatíveis com evolução gestacional.",
       "resultSummary": "Ultrassonografia obstétrica compatível com gestação evolutiva.",
       "interpretation": "Achados biométricos e vitalidade fetal compatíveis com idade gestacional informada.",
-      "conclusion": "Gestação evolutiva conforme parâmetros ultrassonográficos avaliados."
+      "conclusion": "Gestação evolutiva conforme parâmetros ultrassonográficos avaliados.",
+      "results": {
+        "idade_gestacional": "28",
+        "movimentos_fetais": "Movimentos corporais e de membros presentes",
+        "expressao_facial": "Movimentos faciais observados",
+        "atividade_global": "Atividade fetal preservada no período examinado",
+        "impressao": "Atividade fetal observada em tempo real dentro do esperado"
+      }
     },
     {
       "id": "gemelar",
@@ -138,7 +145,14 @@ export const obst_us_4dModel: IntelligentExamModel = {
       "description": "Modelo para gestação gemelar.",
       "resultSummary": "Ultrassonografia obstétrica de gestação gemelar.",
       "interpretation": "Avaliar número de fetos, corionicidade/amnionicidade quando possível e biometria individual.",
-      "conclusion": "Gestação gemelar conforme achados descritos."
+      "conclusion": "Gestação gemelar conforme achados descritos.",
+      "results": {
+        "idade_gestacional": "28",
+        "movimentos_fetais": "Movimentos presentes em ambos os fetos",
+        "expressao_facial": "Movimentos faciais observados conforme posição",
+        "atividade_global": "Atividade global preservada nos dois fetos",
+        "impressao": "Gestação gemelar com atividade fetal presente em ambos os fetos"
+      }
     },
     {
       "id": "primeiro_trimestre",
@@ -147,7 +161,14 @@ export const obst_us_4dModel: IntelligentExamModel = {
       "description": "Modelo para avaliação inicial.",
       "resultSummary": "Ultrassonografia obstétrica de primeiro trimestre.",
       "interpretation": "Avaliar saco gestacional, embrião/feto, BCF e datação conforme CCN quando aplicável.",
-      "conclusion": "Exame compatível com avaliação de primeiro trimestre."
+      "conclusion": "Exame compatível com avaliação de primeiro trimestre.",
+      "results": {
+        "idade_gestacional": "12",
+        "movimentos_fetais": "Movimentos embriofetais presentes",
+        "expressao_facial": "Avaliação limitada pela idade gestacional",
+        "atividade_global": "Atividade presente",
+        "impressao": "Avaliação dinâmica compatível com primeiro trimestre"
+      }
     },
     {
       "id": "rciu",
@@ -156,16 +177,30 @@ export const obst_us_4dModel: IntelligentExamModel = {
       "description": "Suspeita de restrição de crescimento intrauterino.",
       "resultSummary": "Ultrassonografia com parâmetros de crescimento abaixo do esperado.",
       "interpretation": "Biometria fetal e Doppler, quando aplicável, devem ser correlacionados à idade gestacional.",
-      "conclusion": "Achados podem sugerir restrição de crescimento, recomendando seguimento obstétrico."
+      "conclusion": "Achados podem sugerir restrição de crescimento, recomendando seguimento obstétrico.",
+      "results": {
+        "idade_gestacional": "31",
+        "movimentos_fetais": "Movimentos presentes, com atividade global reduzida no período observado",
+        "expressao_facial": "Presentes",
+        "atividade_global": "Discretamente reduzida",
+        "impressao": "Atividade fetal discretamente reduzida em contexto de restrição de crescimento"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Ultrassonografia obstétrica personalizada.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Ultrassonografia Obstétrica 4D: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "idade_gestacional": "28",
+        "movimentos_fetais": "Movimentos corporais e de membros presentes",
+        "expressao_facial": "Movimentos faciais observados",
+        "atividade_global": "Atividade fetal preservada no período examinado",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -319,8 +354,8 @@ export const obst_us_4dModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Ultrassonografia obstétrica 4D realizada com aquisição volumétrica em tempo real para documentação de estruturas e movimentos fetais demonstráveis.",
+  "method": "Aquisição ultrassonográfica volumétrica dinâmica, complementar à avaliação bidimensional e aos parâmetros obstétricos convencionais.",
   "parameters": [
     {
       "id": "idade_gestacional",
@@ -376,14 +411,14 @@ export const obst_us_4dModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Ultrassonografia Obstétrica 4D compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Ultrassonografia Obstétrica 4D com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Ultrassonografia Obstétrica 4D com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Gestação evolutiva conforme parâmetros ultrassonográficos avaliados.",
-    "altered": "Achados podem sugerir restrição de crescimento, recomendando seguimento obstétrico.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Ultrassonografia Obstétrica 4D sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Ultrassonografia Obstétrica 4D alterado conforme resultados objetivos descritos.",
+    "undefined": "Ultrassonografia Obstétrica 4D com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

@@ -95,36 +95,64 @@ export const neuro_liquorModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Análise do Líquor (LCR) com Aspecto: Claro; Células: 3,6; Proteínas: 29,4.",
+      "interpretation": "Os parâmetros mensurados — Aspecto: Claro; Células: 3,6 cél/mm³; Proteínas: 29,4 mg/dL; Glicose: 2,2 mg/dL — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Análise do Líquor (LCR) com parâmetros compatíveis com o padrão esperado, incluindo Aspecto: Claro; Células: 3,6 cél/mm³.",
+      "results": {
+        "aspecto": "Claro",
+        "celulas": "3,6",
+        "proteinas": "29,4",
+        "glicose": "2,2",
+        "impressao": "Análise do Líquor (LCR) com parâmetros compatíveis com o padrão esperado, incluindo Aspecto: Claro; Células: 3,6 cél/mm³"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Análise do Líquor (LCR): Aspecto: Ligeiramente turvo; Células: 42; Proteínas: 78; Glicose: 42.",
+      "interpretation": "Os resultados principais (Aspecto: Ligeiramente turvo; Células: 42 cél/mm³; Proteínas: 78 mg/dL; Glicose: 42 mg/dL) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Análise do Líquor (LCR) com padrão alterado, documentado por Aspecto: Ligeiramente turvo; Células: 42 cél/mm³.",
+      "results": {
+        "aspecto": "Ligeiramente turvo",
+        "celulas": "42",
+        "proteinas": "78",
+        "glicose": "42",
+        "impressao": "Pleocitose e hiperproteinorraquia, padrão inflamatório/infeccioso a correlacionar clinicamente"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Análise do Líquor (LCR): Células: 6; Proteínas: 46; Glicose: 62.",
+      "interpretation": "Os principais resultados (Células: 6 cél/mm³; Proteínas: 46 mg/dL; Glicose: 62 mg/dL) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Análise do Líquor (LCR) com resultado limítrofe/inespecífico, destacando-se Células: 6 cél/mm³; Proteínas: 46 mg/dL.",
+      "results": {
+        "aspecto": "Claro",
+        "celulas": "6",
+        "proteinas": "46",
+        "glicose": "62",
+        "impressao": "Pleocitose e proteinorraquia discretamente limítrofes"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Análise do Líquor (LCR): modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "aspecto": "Claro",
+        "celulas": "3,6",
+        "proteinas": "29,4",
+        "glicose": "2,2",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -251,8 +279,8 @@ export const neuro_liquorModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Amostra de líquido cefalorraquidiano analisada quanto a aspectos físico-químicos, citológicos e outros parâmetros previstos no painel.",
+  "method": "Análise laboratorial do LCR com contagem celular, dosagens bioquímicas e avaliação microscópica/microbiológica conforme indicação clínica.",
   "parameters": [
     {
       "id": "aspecto",
@@ -297,14 +325,14 @@ export const neuro_liquorModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Análise do Líquor (LCR) compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Análise do Líquor (LCR) com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Análise do Líquor (LCR) com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Análise do Líquor (LCR) sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Análise do Líquor (LCR) alterado conforme resultados objetivos descritos.",
+    "undefined": "Análise do Líquor (LCR) com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

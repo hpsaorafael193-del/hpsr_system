@@ -166,36 +166,68 @@ export const gineco_us_transvaginal_completoModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Ultrassonografia Transvaginal com Útero: Normal; Espessura Endometrial: 8,6; Ovário Direito: Normal.",
+      "interpretation": "Os parâmetros mensurados — Útero: Normal; Espessura Endometrial: 8,6 mm; Ovário Direito: Normal; Ovário Esquerdo: Normal — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Ultrassonografia Transvaginal com parâmetros compatíveis com o padrão esperado, incluindo Útero: Normal; Espessura Endometrial: 8,6 mm.",
+      "results": {
+        "utero": "Normal",
+        "endométrio_mm": "8,6",
+        "ovario_direito": "Normal",
+        "ovario_esquerdo": "Normal",
+        "liquido_livre": "Ausente",
+        "impressao": "Ultrassonografia Transvaginal com parâmetros compatíveis com o padrão esperado, incluindo Útero: Normal; Espessura Endometrial: 8,6 mm"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Ultrassonografia Transvaginal: Útero: Útero de dimensões habituais, com mioma intramural de 2,3 cm; Espessura Endometrial: 13,6; Ovário Direito: Cisto simples de 3,1 cm; Ovário Esquerdo: Morfologia preservada.",
+      "interpretation": "Os resultados principais (Útero: Útero de dimensões habituais, com mioma intramural de 2,3 cm; Espessura Endometrial: 13,6 mm; Ovário Direito: Cisto simples de 3,1 cm; Ovário Esquerdo: Morfologia preservada) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Ultrassonografia Transvaginal com padrão alterado, documentado por Útero: Útero de dimensões habituais, com mioma intramural de 2,3 cm; Espessura Endometrial: 13,6 mm.",
+      "results": {
+        "utero": "Útero de dimensões habituais, com mioma intramural de 2,3 cm",
+        "endométrio_mm": "13,6",
+        "ovario_direito": "Cisto simples de 3,1 cm",
+        "ovario_esquerdo": "Morfologia preservada",
+        "liquido_livre": "Pequena lâmina em fundo de saco",
+        "impressao": "Mioma intramural e cisto ovariano simples à direita"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Ultrassonografia Transvaginal: Espessura Endometrial: 12,2; Ovário Direito: Folículo/cisto funcional simples de 2,5 cm; Líquido Livre em Fundo de Saco: Mínima lâmina fisiológica.",
+      "interpretation": "Os principais resultados (Espessura Endometrial: 12,2 mm; Ovário Direito: Folículo/cisto funcional simples de 2,5 cm; Líquido Livre em Fundo de Saco: Mínima lâmina fisiológica) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Ultrassonografia Transvaginal com resultado limítrofe/inespecífico, destacando-se Espessura Endometrial: 12,2 mm; Ovário Direito: Folículo/cisto funcional simples de 2,5 cm.",
+      "results": {
+        "utero": "Normal",
+        "endométrio_mm": "12,2",
+        "ovario_direito": "Folículo/cisto funcional simples de 2,5 cm",
+        "ovario_esquerdo": "Normal",
+        "liquido_livre": "Mínima lâmina fisiológica",
+        "impressao": "Espessura endometrial limítrofe e cisto funcional simples"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Ultrassonografia Transvaginal: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "utero": "Normal",
+        "endométrio_mm": "8,6",
+        "ovario_direito": "Normal",
+        "ovario_esquerdo": "Normal",
+        "liquido_livre": "Ausente",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -349,8 +381,8 @@ export const gineco_us_transvaginal_completoModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Ultrassonografia transvaginal realizada com avaliação do útero, endométrio, ovários, anexos e fundo de saco, incluindo medidas e características morfológicas relevantes.",
+  "method": "Exame ultrassonográfico por transdutor endocavitário multifrequencial, com modo bidimensional e Doppler quando clinicamente indicado.",
   "parameters": [
     {
       "id": "utero",
@@ -414,14 +446,14 @@ export const gineco_us_transvaginal_completoModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Ultrassonografia Transvaginal compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Ultrassonografia Transvaginal com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Ultrassonografia Transvaginal com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Ultrassonografia Transvaginal sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Ultrassonografia Transvaginal alterado conforme resultados objetivos descritos.",
+    "undefined": "Ultrassonografia Transvaginal com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

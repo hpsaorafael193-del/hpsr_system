@@ -109,36 +109,64 @@ export const cardio_teste_ergometricoModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Teste Ergométrico com Capacidade Funcional: Boa, 11,2 METs; FC Máxima Atingida: 168; Resposta Pressórica: Adequada.",
+      "interpretation": "Os parâmetros mensurados — Capacidade Funcional: Boa, 11,2 METs; FC Máxima Atingida: 168 bpm; Resposta Pressórica: Adequada; Sinais de Isquemia: Ausentes — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Teste Ergométrico com parâmetros compatíveis com o padrão esperado, incluindo Capacidade Funcional: Boa, 11,2 METs; FC Máxima Atingida: 168 bpm.",
+      "results": {
+        "capacidade_funcional": "Boa, 11,2 METs",
+        "fc_maxima_atingida": "168",
+        "resposta_pressorica": "Adequada",
+        "isquemia": "Ausentes",
+        "impressao": "Teste negativo para isquemia miocárdica induzível"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Teste Ergométrico: Capacidade Funcional: Regular, 7,4 METs; FC Máxima Atingida: 162; Resposta Pressórica: Resposta hipertensiva ao esforço; Sinais de Isquemia: Infradesnivelamento horizontal de ST de 1,5 mm no pico do esforço.",
+      "interpretation": "Os resultados principais (Capacidade Funcional: Regular, 7,4 METs; FC Máxima Atingida: 162 bpm; Resposta Pressórica: Resposta hipertensiva ao esforço; Sinais de Isquemia: Infradesnivelamento horizontal de ST de 1,5 mm no pico do esforço) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Teste Ergométrico com padrão alterado, documentado por Capacidade Funcional: Regular, 7,4 METs; FC Máxima Atingida: 162 bpm.",
+      "results": {
+        "capacidade_funcional": "Regular, 7,4 METs",
+        "fc_maxima_atingida": "162",
+        "resposta_pressorica": "Resposta hipertensiva ao esforço",
+        "isquemia": "Infradesnivelamento horizontal de ST de 1,5 mm no pico do esforço",
+        "impressao": "Teste positivo para isquemia miocárdica induzível pelo esforço"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Teste Ergométrico: Capacidade Funcional: Regular, 8,6 METs; Resposta Pressórica: Resposta pressórica limítrofe; Sinais de Isquemia: Alterações inespecíficas de ST-T sem critério diagnóstico de isquemia.",
+      "interpretation": "Os principais resultados (Capacidade Funcional: Regular, 8,6 METs; Resposta Pressórica: Resposta pressórica limítrofe; Sinais de Isquemia: Alterações inespecíficas de ST-T sem critério diagnóstico de isquemia) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Teste Ergométrico com resultado limítrofe/inespecífico, destacando-se Capacidade Funcional: Regular, 8,6 METs; Resposta Pressórica: Resposta pressórica limítrofe.",
+      "results": {
+        "capacidade_funcional": "Regular, 8,6 METs",
+        "fc_maxima_atingida": "168",
+        "resposta_pressorica": "Resposta pressórica limítrofe",
+        "isquemia": "Alterações inespecíficas de ST-T sem critério diagnóstico de isquemia",
+        "impressao": "Teste inconclusivo para isquemia por alterações inespecíficas"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Teste Ergométrico: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "capacidade_funcional": "Boa, 11,2 METs",
+        "fc_maxima_atingida": "168",
+        "resposta_pressorica": "Adequada",
+        "isquemia": "Ausentes",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -265,8 +293,8 @@ export const cardio_teste_ergometricoModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Teste ergométrico realizado sob esforço progressivo, com monitorização eletrocardiográfica, frequência cardíaca, pressão arterial, sintomas e capacidade funcional durante o protocolo.",
+  "method": "Protocolo de exercício graduado em esteira ou cicloergômetro, com registro eletrocardiográfico seriado e avaliação das respostas cronotrópica, pressórica e de repolarização.",
   "parameters": [
     {
       "id": "capacidade_funcional",
@@ -311,14 +339,14 @@ export const cardio_teste_ergometricoModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Teste Ergométrico compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Teste Ergométrico com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Teste Ergométrico com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Teste Ergométrico sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Teste Ergométrico alterado conforme resultados objetivos descritos.",
+    "undefined": "Teste Ergométrico com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

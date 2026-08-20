@@ -209,36 +209,88 @@ export const gineco_usg_monitorizacao_folicularModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Transvaginal com Monitorização Folicular com Útero: Útero em anteversoflexão, contornos regulares; Padrão endometrial: Padrão trilaminar; Espessura endometrial: 8,6.",
+      "interpretation": "Os parâmetros mensurados — Útero: Útero em anteversoflexão, contornos regulares; Padrão endometrial: Padrão trilaminar; Espessura endometrial: 8,6 mm; Ovário direito: Folículo dominante no ovário direito medindo 18 mm — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Transvaginal com Monitorização Folicular com parâmetros compatíveis com o padrão esperado, incluindo Útero: Útero em anteversoflexão, contornos regulares; Padrão endometrial: Padrão trilaminar.",
+      "results": {
+        "utero": "Útero em anteversoflexão, contornos regulares",
+        "endometrio": "Padrão trilaminar",
+        "espessura_endometrial": "8,6",
+        "ovario_direito": "Folículo dominante no ovário direito medindo 18 mm",
+        "foliculos_od": "18 mm, 12 mm e 10 mm",
+        "ovario_esquerdo": "Folículos antrais sem dominância",
+        "foliculos_oe": "11 mm, 9 mm e 8 mm",
+        "foliculo_dominante": "Folículo dominante de 18 mm à direita",
+        "sinais_ovulacao": "Sem sinais de ruptura folicular no momento",
+        "liquido_fundo_saco": "Ausente",
+        "impressao": "Monitorização compatível com fase pré-ovulatória"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Transvaginal com Monitorização Folicular: Padrão endometrial: Padrão homogêneo; Espessura endometrial: 5,2; Ovário direito: Sem folículo dominante; Folículos – Ovário direito: 10 mm, 9 mm e 8 mm.",
+      "interpretation": "Os resultados principais (Padrão endometrial: Padrão homogêneo; Espessura endometrial: 5,2 mm; Ovário direito: Sem folículo dominante; Folículos – Ovário direito: 10 mm, 9 mm e 8 mm) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Transvaginal com Monitorização Folicular com padrão alterado, documentado por Padrão endometrial: Padrão homogêneo; Espessura endometrial: 5,2 mm.",
+      "results": {
+        "utero": "Útero em anteversoflexão, contornos regulares",
+        "endometrio": "Padrão homogêneo",
+        "espessura_endometrial": "5,2",
+        "ovario_direito": "Sem folículo dominante",
+        "foliculos_od": "10 mm, 9 mm e 8 mm",
+        "ovario_esquerdo": "Sem folículo dominante",
+        "foliculos_oe": "11 mm, 9 mm e 7 mm",
+        "foliculo_dominante": "Não identificado",
+        "sinais_ovulacao": "Ausentes no momento do exame",
+        "liquido_fundo_saco": "Ausente",
+        "impressao": "Ausência de dominância folicular no momento avaliado"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Transvaginal com Monitorização Folicular: Espessura endometrial: 6,2; Folículo dominante: Folículo de 14 mm, ainda sem critérios de maturidade; Sinais ultrassonográficos de ovulação: Ausentes.",
+      "interpretation": "Os principais resultados (Espessura endometrial: 6,2 mm; Folículo dominante: Folículo de 14 mm, ainda sem critérios de maturidade; Sinais ultrassonográficos de ovulação: Ausentes) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Transvaginal com Monitorização Folicular com resultado limítrofe/inespecífico, destacando-se Espessura endometrial: 6,2 mm; Folículo dominante: Folículo de 14 mm, ainda sem critérios de maturidade.",
+      "results": {
+        "utero": "Útero em anteversoflexão, contornos regulares",
+        "endometrio": "Padrão trilaminar",
+        "espessura_endometrial": "6,2",
+        "ovario_direito": "Folículo dominante no ovário direito medindo 18 mm",
+        "foliculos_od": "18 mm, 12 mm e 10 mm",
+        "ovario_esquerdo": "Folículos antrais sem dominância",
+        "foliculos_oe": "11 mm, 9 mm e 8 mm",
+        "foliculo_dominante": "Folículo de 14 mm, ainda sem critérios de maturidade",
+        "sinais_ovulacao": "Ausentes",
+        "liquido_fundo_saco": "Ausente",
+        "impressao": "Desenvolvimento folicular em progressão, ainda sem maturidade ovulatória"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Transvaginal com Monitorização Folicular: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "utero": "Útero em anteversoflexão, contornos regulares",
+        "endometrio": "Padrão trilaminar",
+        "espessura_endometrial": "8,6",
+        "ovario_direito": "Folículo dominante no ovário direito medindo 18 mm",
+        "foliculos_od": "18 mm, 12 mm e 10 mm",
+        "ovario_esquerdo": "Folículos antrais sem dominância",
+        "foliculos_oe": "11 mm, 9 mm e 8 mm",
+        "foliculo_dominante": "Folículo dominante de 18 mm à direita",
+        "sinais_ovulacao": "Sem sinais de ruptura folicular no momento",
+        "liquido_fundo_saco": "Ausente",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -365,8 +417,8 @@ export const gineco_usg_monitorizacao_folicularModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Monitorização folicular por ultrassonografia transvaginal, com medidas seriadas dos folículos ovarianos, avaliação endometrial e pesquisa de sinais de ovulação.",
+  "method": "Exame ultrassonográfico endovaginal com mensuração dos folículos e do endométrio, comparado de forma evolutiva conforme a fase do ciclo.",
   "parameters": [
     {
       "id": "utero",
@@ -459,14 +511,14 @@ export const gineco_usg_monitorizacao_folicularModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Transvaginal com Monitorização Folicular compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Transvaginal com Monitorização Folicular com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Transvaginal com Monitorização Folicular com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Transvaginal com Monitorização Folicular sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Transvaginal com Monitorização Folicular alterado conforme resultados objetivos descritos.",
+    "undefined": "Transvaginal com Monitorização Folicular com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

@@ -90,36 +90,56 @@ export const pediatria_teste_rapido_viralModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Teste Rápido Viral com Vírus Pesquisado: SARS-CoV-2 / Influenza conforme kit selecionado; Resultado: Negativo.",
+      "interpretation": "Os parâmetros mensurados — Vírus Pesquisado: SARS-CoV-2 / Influenza conforme kit selecionado; Resultado: Negativo — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Teste Rápido Viral com parâmetros compatíveis com o padrão esperado, incluindo Vírus Pesquisado: SARS-CoV-2 / Influenza conforme kit selecionado; Resultado: Negativo.",
+      "results": {
+        "virus": "SARS-CoV-2 / Influenza conforme kit selecionado",
+        "resultado": "Negativo",
+        "impressao": "Teste rápido sem detecção do antígeno viral pesquisado"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Teste Rápido Viral: Vírus Pesquisado: Influenza A; Resultado: Positivo.",
+      "interpretation": "Os resultados principais (Vírus Pesquisado: Influenza A; Resultado: Positivo) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Teste Rápido Viral com padrão alterado, documentado por Vírus Pesquisado: Influenza A; Resultado: Positivo.",
+      "results": {
+        "virus": "Influenza A",
+        "resultado": "Positivo",
+        "impressao": "Teste rápido positivo para Influenza A"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Teste Rápido Viral: Vírus Pesquisado: SARS-CoV-2; Resultado: Inconclusivo / linha teste de baixa intensidade.",
+      "interpretation": "Os principais resultados (Vírus Pesquisado: SARS-CoV-2; Resultado: Inconclusivo / linha teste de baixa intensidade) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Teste Rápido Viral com resultado limítrofe/inespecífico, destacando-se Vírus Pesquisado: SARS-CoV-2; Resultado: Inconclusivo / linha teste de baixa intensidade.",
+      "results": {
+        "virus": "SARS-CoV-2",
+        "resultado": "Inconclusivo / linha teste de baixa intensidade",
+        "impressao": "Resultado inconclusivo; repetir conforme instruções do método"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Teste Rápido Viral: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "virus": "SARS-CoV-2 / Influenza conforme kit selecionado",
+        "resultado": "Negativo",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -246,8 +266,8 @@ export const pediatria_teste_rapido_viralModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Teste rápido viral realizado em amostra respiratória adequada para pesquisa do agente previsto no kit selecionado.",
+  "method": "Imunoensaio cromatográfico rápido para detecção de antígeno viral, com leitura dentro do tempo especificado pelo fabricante e controle interno válido.",
   "parameters": [
     {
       "id": "virus",
@@ -276,14 +296,14 @@ export const pediatria_teste_rapido_viralModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Teste Rápido Viral compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Teste Rápido Viral com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Teste Rápido Viral com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Teste Rápido Viral sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Teste Rápido Viral alterado conforme resultados objetivos descritos.",
+    "undefined": "Teste Rápido Viral com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

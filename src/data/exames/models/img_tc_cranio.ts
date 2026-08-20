@@ -166,36 +166,68 @@ export const img_tc_cranioModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Tomografia Computadorizada de Crânio com Uso de Contraste: Sem contraste; Hemorragia: Ausente; Sinais de Isquemia: Ausentes.",
+      "interpretation": "Os parâmetros mensurados — Uso de Contraste: Sem contraste; Hemorragia: Ausente; Sinais de Isquemia: Ausentes; Efeito de Massa: Ausente — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Tomografia Computadorizada de Crânio com parâmetros compatíveis com o padrão esperado, incluindo Uso de Contraste: Sem contraste; Hemorragia: Ausente.",
+      "results": {
+        "uso_contraste": "Sem contraste",
+        "hemorragia": "Ausente",
+        "isquemia": "Ausentes",
+        "efeito_massa": "Ausente",
+        "ventriculos": "Normal",
+        "impressao": "Tomografia Computadorizada de Crânio com parâmetros compatíveis com o padrão esperado, incluindo Uso de Contraste: Sem contraste; Hemorragia: Ausente"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Tomografia Computadorizada de Crânio: Hemorragia: Pequeno foco de hemorragia intraparenquimatosa frontal; Sinais de Isquemia: Sem sinais tomográficos definidos de isquemia aguda extensa; Efeito de Massa: Discreto efeito de massa local, sem desvio de linha média; Sistema Ventricular: Dimensões preservadas.",
+      "interpretation": "Os resultados principais (Hemorragia: Pequeno foco de hemorragia intraparenquimatosa frontal; Sinais de Isquemia: Sem sinais tomográficos definidos de isquemia aguda extensa; Efeito de Massa: Discreto efeito de massa local, sem desvio de linha média; Sistema Ventricular: Dimensões preservadas) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Tomografia Computadorizada de Crânio com padrão alterado, documentado por Hemorragia: Pequeno foco de hemorragia intraparenquimatosa frontal; Sinais de Isquemia: Sem sinais tomográficos definidos de isquemia aguda extensa.",
+      "results": {
+        "uso_contraste": "Sem contraste",
+        "hemorragia": "Pequeno foco de hemorragia intraparenquimatosa frontal",
+        "isquemia": "Sem sinais tomográficos definidos de isquemia aguda extensa",
+        "efeito_massa": "Discreto efeito de massa local, sem desvio de linha média",
+        "ventriculos": "Dimensões preservadas",
+        "impressao": "Pequeno foco hemorrágico intraparenquimatoso, sem desvio de linha média"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Tomografia Computadorizada de Crânio: Sinais de Isquemia: Hipodensidade puntiforme inespecífica de aspecto crônico; Sistema Ventricular: Discreta assimetria sem hidrocefalia.",
+      "interpretation": "Os principais resultados (Sinais de Isquemia: Hipodensidade puntiforme inespecífica de aspecto crônico; Sistema Ventricular: Discreta assimetria sem hidrocefalia) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Tomografia Computadorizada de Crânio com resultado limítrofe/inespecífico, destacando-se Sinais de Isquemia: Hipodensidade puntiforme inespecífica de aspecto crônico; Sistema Ventricular: Discreta assimetria sem hidrocefalia.",
+      "results": {
+        "uso_contraste": "Sem contraste",
+        "hemorragia": "Ausente",
+        "isquemia": "Hipodensidade puntiforme inespecífica de aspecto crônico",
+        "efeito_massa": "Ausente",
+        "ventriculos": "Discreta assimetria sem hidrocefalia",
+        "impressao": "Alterações crônicas/inespecíficas discretas, sem evento agudo definido"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Tomografia Computadorizada de Crânio: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "uso_contraste": "Sem contraste",
+        "hemorragia": "Ausente",
+        "isquemia": "Ausentes",
+        "efeito_massa": "Ausente",
+        "ventriculos": "Normal",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -342,8 +374,8 @@ export const img_tc_cranioModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Tomografia Computadorizada de Crânio realizada por aquisição tomográfica volumétrica da região selecionada, com reconstruções multiplanares e documentação das estruturas avaliadas.",
+  "method": "Tomografia computadorizada multislice com reconstruções nos planos adequados; meio de contraste iodado utilizado apenas quando indicado pelo protocolo clínico.",
   "parameters": [
     {
       "id": "uso_contraste",
@@ -407,14 +439,14 @@ export const img_tc_cranioModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Tomografia Computadorizada de Crânio compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Tomografia Computadorizada de Crânio com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Tomografia Computadorizada de Crânio com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Tomografia Computadorizada de Crânio sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Tomografia Computadorizada de Crânio alterado conforme resultados objetivos descritos.",
+    "undefined": "Tomografia Computadorizada de Crânio com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

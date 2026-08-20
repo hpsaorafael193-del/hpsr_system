@@ -150,36 +150,64 @@ export const img_rm_articulacaoModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Ressonância Magnética de Articulação com Articulação Avaliada: Conforme articulação selecionada; Ligamentos: Íntegros; Meniscos / Tendões: Preservados.",
+      "interpretation": "Os parâmetros mensurados — Articulação Avaliada: Conforme articulação selecionada; Ligamentos: Íntegros; Meniscos / Tendões: Preservados; Derrame Articular: Ausente — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Ressonância Magnética de Articulação com parâmetros compatíveis com o padrão esperado, incluindo Articulação Avaliada: Conforme articulação selecionada; Ligamentos: Íntegros.",
+      "results": {
+        "articulacao": "Conforme articulação selecionada",
+        "ligamentos": "Íntegros",
+        "meniscos_tendao": "Preservados",
+        "derrame_articular": "Ausente",
+        "impressao": "Estruturas osteoarticulares sem alterações relevantes por RM"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Ressonância Magnética de Articulação: Ligamentos: Espessamento e hipersinal de fibras ligamentares, sem ruptura completa; Meniscos / Tendões: Sinal degenerativo/lesão parcial na estrutura avaliada; Derrame Articular: Pequeno derrame articular.",
+      "interpretation": "Os resultados principais (Ligamentos: Espessamento e hipersinal de fibras ligamentares, sem ruptura completa; Meniscos / Tendões: Sinal degenerativo/lesão parcial na estrutura avaliada; Derrame Articular: Pequeno derrame articular) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Ressonância Magnética de Articulação com padrão alterado, documentado por Ligamentos: Espessamento e hipersinal de fibras ligamentares, sem ruptura completa; Meniscos / Tendões: Sinal degenerativo/lesão parcial na estrutura avaliada.",
+      "results": {
+        "articulacao": "Conforme articulação selecionada",
+        "ligamentos": "Espessamento e hipersinal de fibras ligamentares, sem ruptura completa",
+        "meniscos_tendao": "Sinal degenerativo/lesão parcial na estrutura avaliada",
+        "derrame_articular": "Pequeno derrame articular",
+        "impressao": "Alterações ligamentares e pequeno derrame articular"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Ressonância Magnética de Articulação: Ligamentos: Discreto espessamento sem descontinuidade; Meniscos / Tendões: Sinal intrassubstancial degenerativo sem ruptura definida; Derrame Articular: Mínimo derrame.",
+      "interpretation": "Os principais resultados (Ligamentos: Discreto espessamento sem descontinuidade; Meniscos / Tendões: Sinal intrassubstancial degenerativo sem ruptura definida; Derrame Articular: Mínimo derrame) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Ressonância Magnética de Articulação com resultado limítrofe/inespecífico, destacando-se Ligamentos: Discreto espessamento sem descontinuidade; Meniscos / Tendões: Sinal intrassubstancial degenerativo sem ruptura definida.",
+      "results": {
+        "articulacao": "Conforme articulação selecionada",
+        "ligamentos": "Discreto espessamento sem descontinuidade",
+        "meniscos_tendao": "Sinal intrassubstancial degenerativo sem ruptura definida",
+        "derrame_articular": "Mínimo derrame",
+        "impressao": "Alterações degenerativas discretas, sem lesão estrutural maior"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Ressonância Magnética de Articulação: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "articulacao": "Conforme articulação selecionada",
+        "ligamentos": "Íntegros",
+        "meniscos_tendao": "Preservados",
+        "derrame_articular": "Ausente",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -326,8 +354,8 @@ export const img_rm_articulacaoModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Ressonância Magnética de Articulação realizada com aquisição multiplanar de sequências de ressonância magnética adequadas à região selecionada, incluindo sequências adicionais quando clinicamente indicadas.",
+  "method": "Aquisição por ressonância magnética com sequências ponderadas e planos anatômicos apropriados ao protocolo, com contraste paramagnético somente quando indicado.",
   "parameters": [
     {
       "id": "articulacao",
@@ -383,14 +411,14 @@ export const img_rm_articulacaoModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Ressonância Magnética de Articulação compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Ressonância Magnética de Articulação com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Ressonância Magnética de Articulação com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Ressonância Magnética de Articulação sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Ressonância Magnética de Articulação alterado conforme resultados objetivos descritos.",
+    "undefined": "Ressonância Magnética de Articulação com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

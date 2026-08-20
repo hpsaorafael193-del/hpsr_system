@@ -156,7 +156,16 @@ export const lab_eletrolitos_completosModel: IntelligentExamModel = {
       "description": "Eletrólitos dentro da faixa de referência.",
       "resultSummary": "Eletrólitos séricos sem alterações relevantes.",
       "interpretation": "Sódio, potássio, cálcio e magnésio dentro dos intervalos de referência.",
-      "conclusion": "Equilíbrio eletrolítico preservado."
+      "conclusion": "Equilíbrio eletrolítico preservado.",
+      "results": {
+        "sodio": "140",
+        "potassio": "4,2",
+        "calcio_total": "9,4",
+        "magnesio": "2,0",
+        "padrao_eletrolitico": "Sem distúrbios eletrolíticos",
+        "correlacao_clinica": "Assintomático",
+        "impressao": "Eletrólitos séricos dentro das faixas de referência"
+      }
     },
     {
       "id": "hiponatremia",
@@ -165,7 +174,16 @@ export const lab_eletrolitos_completosModel: IntelligentExamModel = {
       "description": "Sódio reduzido.",
       "resultSummary": "Sódio sérico reduzido.",
       "interpretation": "Redução de sódio sérico compatível com hiponatremia laboratorial, devendo ser correlacionada ao estado clínico e osmolaridade quando indicado.",
-      "conclusion": "Hiponatremia laboratorial."
+      "conclusion": "Hiponatremia laboratorial.",
+      "results": {
+        "sodio": "128",
+        "potassio": "4,1",
+        "calcio_total": "9,2",
+        "magnesio": "2,0",
+        "padrao_eletrolitico": "Hiponatremia moderada",
+        "correlacao_clinica": "Correlacionar com volemia, medicações e sintomas",
+        "impressao": "Hiponatremia laboratorial"
+      }
     },
     {
       "id": "hipernatremia",
@@ -174,7 +192,16 @@ export const lab_eletrolitos_completosModel: IntelligentExamModel = {
       "description": "Sódio elevado.",
       "resultSummary": "Sódio sérico elevado.",
       "interpretation": "Elevação de sódio sérico compatível com hipernatremia laboratorial.",
-      "conclusion": "Hipernatremia laboratorial."
+      "conclusion": "Hipernatremia laboratorial.",
+      "results": {
+        "sodio": "151",
+        "potassio": "4,1",
+        "calcio_total": "9,3",
+        "magnesio": "2,0",
+        "padrao_eletrolitico": "Hipernatremia",
+        "correlacao_clinica": "Correlacionar com estado de hidratação e perdas",
+        "impressao": "Hipernatremia laboratorial"
+      }
     },
     {
       "id": "hipocalemia",
@@ -183,7 +210,16 @@ export const lab_eletrolitos_completosModel: IntelligentExamModel = {
       "description": "Potássio reduzido.",
       "resultSummary": "Potássio sérico reduzido.",
       "interpretation": "Redução de potássio sérico compatível com hipocalemia laboratorial.",
-      "conclusion": "Hipocalemia laboratorial."
+      "conclusion": "Hipocalemia laboratorial.",
+      "results": {
+        "sodio": "139",
+        "potassio": "3,0",
+        "calcio_total": "9,2",
+        "magnesio": "1,9",
+        "padrao_eletrolitico": "Hipocalemia",
+        "correlacao_clinica": "Correlacionar com perdas gastrointestinais/renais e medicações",
+        "impressao": "Hipocalemia laboratorial"
+      }
     },
     {
       "id": "hipercalemia",
@@ -192,7 +228,16 @@ export const lab_eletrolitos_completosModel: IntelligentExamModel = {
       "description": "Potássio elevado.",
       "resultSummary": "Potássio sérico elevado.",
       "interpretation": "Elevação de potássio sérico compatível com hipercalemia laboratorial.",
-      "conclusion": "Hipercalemia laboratorial."
+      "conclusion": "Hipercalemia laboratorial.",
+      "results": {
+        "sodio": "138",
+        "potassio": "5,8",
+        "calcio_total": "9,3",
+        "magnesio": "2,0",
+        "padrao_eletrolitico": "Hipercalemia",
+        "correlacao_clinica": "Recomenda-se excluir hemólise e correlacionar com função renal",
+        "impressao": "Hipercalemia laboratorial"
+      }
     },
     {
       "id": "indefinido",
@@ -201,16 +246,34 @@ export const lab_eletrolitos_completosModel: IntelligentExamModel = {
       "description": "Variação discreta sem definição isolada.",
       "resultSummary": "Eletrólitos com alteração discreta ou limítrofe.",
       "interpretation": "Alterações discretas devem ser interpretadas com hidratação, medicações e quadro clínico.",
-      "conclusion": "Distúrbio eletrolítico limítrofe/inespecífico."
+      "conclusion": "Distúrbio eletrolítico limítrofe/inespecífico.",
+      "results": {
+        "sodio": "134",
+        "potassio": "3,5",
+        "calcio_total": "8,6",
+        "magnesio": "1,7",
+        "padrao_eletrolitico": "Valores limítrofes em mais de um eletrólito",
+        "correlacao_clinica": "Sem repercussão definida isoladamente",
+        "impressao": "Painel eletrolítico limítrofe"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Eletrólitos Séricos: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "sodio": "140",
+        "potassio": "4,2",
+        "calcio_total": "9,4",
+        "magnesio": "2,0",
+        "padrao_eletrolitico": "Sem distúrbios eletrolíticos",
+        "correlacao_clinica": "Assintomático",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -333,8 +396,8 @@ export const lab_eletrolitos_completosModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Amostra sérica processada para determinação dos eletrólitos incluídos no painel, com controles internos e verificação de consistência analítica.",
+  "method": "Sódio e potássio determinados por eletrodo íon-seletivo; cálcio e magnésio por metodologia química automatizada compatível com o analisador do serviço.",
   "parameters": [
     {
       "id": "sodio",
@@ -406,14 +469,14 @@ export const lab_eletrolitos_completosModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Eletrólitos Séricos compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Eletrólitos Séricos com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Eletrólitos Séricos com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Eletrólitos Séricos sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Eletrólitos Séricos alterado conforme resultados objetivos descritos.",
+    "undefined": "Eletrólitos Séricos com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

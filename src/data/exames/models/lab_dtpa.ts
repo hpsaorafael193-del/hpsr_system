@@ -114,36 +114,60 @@ export const lab_dtpaModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "dTpa (Difteria, Tétano e Coqueluche) com Situação Vacinal: Esquema vacinal compatível com o histórico informado; Dose Avaliada: Dose de reforço / conforme calendário; Indicação Clínica: Profilaxia contra difteria, tétano e coqueluche.",
+      "interpretation": "Os parâmetros mensurados — Situação Vacinal: Esquema vacinal compatível com o histórico informado; Dose Avaliada: Dose de reforço / conforme calendário; Indicação Clínica: Profilaxia contra difteria, tétano e coqueluche — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "dTpa (Difteria, Tétano e Coqueluche) com parâmetros compatíveis com o padrão esperado, incluindo Situação Vacinal: Esquema vacinal compatível com o histórico informado; Dose Avaliada: Dose de reforço / conforme calendário.",
+      "results": {
+        "situacao_vacinal": "Esquema vacinal compatível com o histórico informado",
+        "dose": "Dose de reforço / conforme calendário",
+        "indicacao": "Profilaxia contra difteria, tétano e coqueluche",
+        "impressao": "Situação vacinal adequada ao contexto informado"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "dTpa (Difteria, Tétano e Coqueluche): Situação Vacinal: Esquema incompleto para o contexto informado; Dose Avaliada: Dose de reforço pendente; Indicação Clínica: Atualização vacinal recomendada conforme calendário aplicável.",
+      "interpretation": "Os resultados principais (Situação Vacinal: Esquema incompleto para o contexto informado; Dose Avaliada: Dose de reforço pendente; Indicação Clínica: Atualização vacinal recomendada conforme calendário aplicável) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "dTpa (Difteria, Tétano e Coqueluche) com padrão alterado, documentado por Situação Vacinal: Esquema incompleto para o contexto informado; Dose Avaliada: Dose de reforço pendente.",
+      "results": {
+        "situacao_vacinal": "Esquema incompleto para o contexto informado",
+        "dose": "Dose de reforço pendente",
+        "indicacao": "Atualização vacinal recomendada conforme calendário aplicável",
+        "impressao": "Situação vacinal incompleta para dTpa"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "dTpa (Difteria, Tétano e Coqueluche): Situação Vacinal: Histórico vacinal não comprovado; Dose Avaliada: Dose prévia não confirmada; Indicação Clínica: Revisar carteira/documentação vacinal.",
+      "interpretation": "Os principais resultados (Situação Vacinal: Histórico vacinal não comprovado; Dose Avaliada: Dose prévia não confirmada; Indicação Clínica: Revisar carteira/documentação vacinal) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "dTpa (Difteria, Tétano e Coqueluche) com resultado limítrofe/inespecífico, destacando-se Situação Vacinal: Histórico vacinal não comprovado; Dose Avaliada: Dose prévia não confirmada.",
+      "results": {
+        "situacao_vacinal": "Histórico vacinal não comprovado",
+        "dose": "Dose prévia não confirmada",
+        "indicacao": "Revisar carteira/documentação vacinal",
+        "impressao": "Situação vacinal indeterminada por ausência de comprovação"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "dTpa (Difteria, Tétano e Coqueluche): modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "situacao_vacinal": "Esquema vacinal compatível com o histórico informado",
+        "dose": "Dose de reforço / conforme calendário",
+        "indicacao": "Profilaxia contra difteria, tétano e coqueluche",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -266,8 +290,8 @@ export const lab_dtpaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Avaliação da situação vacinal relacionada à dTpa com base no histórico informado, registro de doses e indicação clínica vigente.",
+  "method": "Revisão documental e clínica do esquema vacinal; este modelo registra situação, dose e indicação e não representa uma dosagem laboratorial de anticorpos.",
   "parameters": [
     {
       "id": "situacao_vacinal",
@@ -315,14 +339,14 @@ export const lab_dtpaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de dTpa (Difteria, Tétano e Coqueluche) compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "dTpa (Difteria, Tétano e Coqueluche) com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "dTpa (Difteria, Tétano e Coqueluche) com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "dTpa (Difteria, Tétano e Coqueluche) sem alterações significativas nos parâmetros avaliados.",
+    "altered": "dTpa (Difteria, Tétano e Coqueluche) alterado conforme resultados objetivos descritos.",
+    "undefined": "dTpa (Difteria, Tétano e Coqueluche) com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

@@ -212,36 +212,76 @@ export const genetico_sexagem_fetalModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Sexagem Fetal com Método: PCR em tempo real para sequências do cromossomo Y; Idade gestacional: 9 semanas; Tipo de gestação: Gestação única.",
+      "interpretation": "Os parâmetros mensurados — Método: PCR em tempo real para sequências do cromossomo Y; Idade gestacional: 9 semanas; Tipo de gestação: Gestação única; Corionicidade / Zigosidade: Não aplicável em gestação única — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Sexagem Fetal com parâmetros compatíveis com o padrão esperado, incluindo Método: PCR em tempo real para sequências do cromossomo Y; Idade gestacional: 9 semanas.",
+      "results": {
+        "metodo": "PCR em tempo real para sequências do cromossomo Y",
+        "idade_gestacional": "9 semanas",
+        "tipo_gestacao": "Gestação única",
+        "corionicidade": "Não aplicável em gestação única",
+        "vitalidade_fetal": "Embrião/feto com atividade cardíaca documentada",
+        "resultado": "Sequências do cromossomo Y não detectadas",
+        "confiabilidade": "Amostra adequada para análise molecular",
+        "impressao": "Resultado compatível com sexo fetal feminino"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Sexagem Fetal: Vitalidade fetal (USG): Atividade cardíaca documentada por ultrassonografia; Resultado: Sequências do cromossomo Y detectadas; Confiabilidade da amostra: Amostra adequada, controle interno válido.",
+      "interpretation": "Os resultados principais (Vitalidade fetal (USG): Atividade cardíaca documentada por ultrassonografia; Resultado: Sequências do cromossomo Y detectadas; Confiabilidade da amostra: Amostra adequada, controle interno válido) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Sexagem Fetal com padrão alterado, documentado por Vitalidade fetal (USG): Atividade cardíaca documentada por ultrassonografia; Resultado: Sequências do cromossomo Y detectadas.",
+      "results": {
+        "metodo": "PCR em tempo real para sequências do cromossomo Y",
+        "idade_gestacional": "9 semanas",
+        "tipo_gestacao": "Gestação única",
+        "corionicidade": "Não aplicável em gestação única",
+        "vitalidade_fetal": "Atividade cardíaca documentada por ultrassonografia",
+        "resultado": "Sequências do cromossomo Y detectadas",
+        "confiabilidade": "Amostra adequada, controle interno válido",
+        "impressao": "Resultado compatível com sexo fetal masculino"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Sexagem Fetal: Resultado: Inconclusivo por baixa fração de DNA fetal; Confiabilidade da amostra: Fração fetal abaixo do limite técnico para conclusão segura.",
+      "interpretation": "Os principais resultados (Resultado: Inconclusivo por baixa fração de DNA fetal; Confiabilidade da amostra: Fração fetal abaixo do limite técnico para conclusão segura) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Sexagem Fetal com resultado limítrofe/inespecífico, destacando-se Resultado: Inconclusivo por baixa fração de DNA fetal; Confiabilidade da amostra: Fração fetal abaixo do limite técnico para conclusão segura.",
+      "results": {
+        "metodo": "PCR em tempo real para sequências do cromossomo Y",
+        "idade_gestacional": "9 semanas",
+        "tipo_gestacao": "Gestação única",
+        "corionicidade": "Não aplicável em gestação única",
+        "vitalidade_fetal": "Embrião/feto com atividade cardíaca documentada",
+        "resultado": "Inconclusivo por baixa fração de DNA fetal",
+        "confiabilidade": "Fração fetal abaixo do limite técnico para conclusão segura",
+        "impressao": "Sexagem fetal inconclusiva; recomenda-se nova amostra conforme idade gestacional"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Sexagem Fetal: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "metodo": "PCR em tempo real para sequências do cromossomo Y",
+        "idade_gestacional": "9 semanas",
+        "tipo_gestacao": "Gestação única",
+        "corionicidade": "Não aplicável em gestação única",
+        "vitalidade_fetal": "Embrião/feto com atividade cardíaca documentada",
+        "resultado": "Sequências do cromossomo Y não detectadas",
+        "confiabilidade": "Amostra adequada para análise molecular",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -368,8 +408,8 @@ export const genetico_sexagem_fetalModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Análise realizada em material biológico informado, utilizando marcadores compatíveis com a finalidade do exame.",
-  "method": "Comparação de marcadores genéticos conforme metodologia validada e tipo de vínculo investigado.",
+  "technique": "Análise molecular de DNA fetal livre circulante em amostra materna para pesquisa de sequências específicas do cromossomo Y, considerando idade gestacional e adequação da amostra.",
+  "method": "Extração de DNA circulante e amplificação por PCR em tempo real de alvos específicos, com controles internos de qualidade e interpretação conforme o protocolo analítico.",
   "parameters": [
     {
       "id": "metodo",
@@ -438,14 +478,14 @@ export const genetico_sexagem_fetalModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Resultado compatível com a hipótese técnica analisada.",
-    "altered": "Resultado incompatível ou alterado conforme finalidade do exame.",
-    "undefined": "Resultado inconclusivo/insuficiente para definição técnica segura."
+    "normal": "Resultados de Sexagem Fetal compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Sexagem Fetal com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Sexagem Fetal com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Sexagem Fetal sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Sexagem Fetal alterado conforme resultados objetivos descritos.",
+    "undefined": "Sexagem Fetal com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

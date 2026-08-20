@@ -90,36 +90,56 @@ export const derm_micologico_diretoModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Exame Microscópico Direto (Micológico) com Material Coletado: Raspado cutâneo; Fungos: Ausentes.",
+      "interpretation": "Os parâmetros mensurados — Material Coletado: Raspado cutâneo; Fungos: Ausentes — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Exame Microscópico Direto (Micológico) com parâmetros compatíveis com o padrão esperado, incluindo Material Coletado: Raspado cutâneo; Fungos: Ausentes.",
+      "results": {
+        "material": "Raspado cutâneo",
+        "fungos": "Ausentes",
+        "impressao": "Pesquisa micológica direta negativa"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Exame Microscópico Direto (Micológico): Material Coletado: Raspado de borda ativa de lesão cutânea; Fungos: Hifas hialinas septadas presentes.",
+      "interpretation": "Os resultados principais (Material Coletado: Raspado de borda ativa de lesão cutânea; Fungos: Hifas hialinas septadas presentes) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Exame Microscópico Direto (Micológico) com padrão alterado, documentado por Material Coletado: Raspado de borda ativa de lesão cutânea; Fungos: Hifas hialinas septadas presentes.",
+      "results": {
+        "material": "Raspado de borda ativa de lesão cutânea",
+        "fungos": "Hifas hialinas septadas presentes",
+        "impressao": "Exame micológico direto positivo para estruturas fúngicas"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Exame Microscópico Direto (Micológico): Fungos: Estruturas duvidosas/raras, sem confirmação inequívoca.",
+      "interpretation": "Os principais resultados (Fungos: Estruturas duvidosas/raras, sem confirmação inequívoca) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Exame Microscópico Direto (Micológico) com resultado limítrofe/inespecífico, destacando-se Fungos: Estruturas duvidosas/raras, sem confirmação inequívoca.",
+      "results": {
+        "material": "Raspado cutâneo",
+        "fungos": "Estruturas duvidosas/raras, sem confirmação inequívoca",
+        "impressao": "Exame micológico inconclusivo; considerar nova coleta"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Exame Microscópico Direto (Micológico): modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "material": "Raspado cutâneo",
+        "fungos": "Ausentes",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -246,8 +266,8 @@ export const derm_micologico_diretoModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Material coletado da área suspeita e preparado para pesquisa microscópica direta de estruturas fúngicas.",
+  "method": "Microscopia direta após clarificação da amostra, habitualmente com hidróxido de potássio, para pesquisa de hifas, leveduras ou outras estruturas compatíveis com fungos.",
   "parameters": [
     {
       "id": "material",
@@ -276,14 +296,14 @@ export const derm_micologico_diretoModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Exame Microscópico Direto (Micológico) compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Exame Microscópico Direto (Micológico) com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Exame Microscópico Direto (Micológico) com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Exame Microscópico Direto (Micológico) sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Exame Microscópico Direto (Micológico) alterado conforme resultados objetivos descritos.",
+    "undefined": "Exame Microscópico Direto (Micológico) com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

@@ -131,7 +131,15 @@ export const lab_funcao_renal_completaModel: IntelligentExamModel = {
       "description": "Marcadores renais dentro da referência.",
       "resultSummary": "Função renal sem alterações laboratoriais relevantes.",
       "interpretation": "Ureia, creatinina e estimativa de filtração glomerular dentro do padrão esperado para a referência informada.",
-      "conclusion": "Função renal preservada pelos parâmetros avaliados."
+      "conclusion": "Função renal preservada pelos parâmetros avaliados.",
+      "results": {
+        "ureia": "32",
+        "creatinina": "0,9",
+        "taxa_filtracao_glomerular": "104",
+        "estagio_drc": "Sem critério laboratorial isolado para DRC",
+        "relacao_ureia_creatinina": "15",
+        "impressao": "Função renal preservada nos parâmetros avaliados"
+      }
     },
     {
       "id": "reducao_funcao_renal",
@@ -140,7 +148,15 @@ export const lab_funcao_renal_completaModel: IntelligentExamModel = {
       "description": "Creatinina/ureia elevadas e TFG reduzida.",
       "resultSummary": "Exame com elevação de escórias nitrogenadas e redução da TFG estimada.",
       "interpretation": "Elevação de ureia e creatinina com TFG reduzida sugere redução da função renal, devendo ser correlacionada com hidratação, medicamentos, evolução e dados clínicos.",
-      "conclusion": "Achados compatíveis com redução da função renal."
+      "conclusion": "Creatinina elevada e TFG estimada reduzida, compatíveis com redução da função renal no contexto clínico apropriado.",
+      "results": {
+        "ureia": "58",
+        "creatinina": "1,6",
+        "taxa_filtracao_glomerular": "52",
+        "estagio_drc": "TFG na faixa G3a se persistente por ≥3 meses e conforme contexto clínico",
+        "relacao_ureia_creatinina": "18",
+        "impressao": "Redução da filtração glomerular estimada"
+      }
     },
     {
       "id": "azotemia",
@@ -149,7 +165,15 @@ export const lab_funcao_renal_completaModel: IntelligentExamModel = {
       "description": "Elevação de ureia e/ou creatinina.",
       "resultSummary": "Exame com azotemia laboratorial.",
       "interpretation": "Elevação de escórias nitrogenadas deve ser correlacionada com estado volêmico, função renal prévia e contexto clínico.",
-      "conclusion": "Azotemia laboratorial."
+      "conclusion": "Azotemia laboratorial.",
+      "results": {
+        "ureia": "78",
+        "creatinina": "1,5",
+        "taxa_filtracao_glomerular": "58",
+        "estagio_drc": "Classificação depende de cronicidade e marcadores adicionais",
+        "relacao_ureia_creatinina": "24",
+        "impressao": "Azotemia com elevação de ureia e creatinina"
+      }
     },
     {
       "id": "indefinido",
@@ -158,16 +182,32 @@ export const lab_funcao_renal_completaModel: IntelligentExamModel = {
       "description": "Alteração discreta ou limítrofe.",
       "resultSummary": "Função renal com alteração discreta/limítrofe.",
       "interpretation": "Variações discretas em parâmetros renais podem requerer repetição e correlação com histórico clínico.",
-      "conclusion": "Achado renal limítrofe/inespecífico."
+      "conclusion": "Parâmetros renais em faixa limítrofe, sem classificação definitiva em resultado isolado.",
+      "results": {
+        "ureia": "51",
+        "creatinina": "1,3",
+        "taxa_filtracao_glomerular": "86",
+        "estagio_drc": "Sem classificação definitiva em resultado isolado",
+        "relacao_ureia_creatinina": "20",
+        "impressao": "Função renal em faixa limítrofe"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Função Renal: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "ureia": "32",
+        "creatinina": "0,9",
+        "taxa_filtracao_glomerular": "104",
+        "estagio_drc": "Sem critério laboratorial isolado para DRC",
+        "relacao_ureia_creatinina": "15",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -290,8 +330,8 @@ export const lab_funcao_renal_completaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Amostra sérica processada para avaliação laboratorial da função renal, incluindo ureia, creatinina e estimativa da taxa de filtração glomerular.",
+  "method": "Ureia e creatinina determinadas por métodos bioquímicos automatizados; TFG estimada a partir da creatinina por equação validada, interpretada em conjunto com idade e contexto clínico.",
   "parameters": [
     {
       "id": "ureia",
@@ -355,14 +395,14 @@ export const lab_funcao_renal_completaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Função Renal compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Função Renal com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Função Renal com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Função Renal sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Função Renal alterado conforme resultados objetivos descritos.",
+    "undefined": "Função Renal com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

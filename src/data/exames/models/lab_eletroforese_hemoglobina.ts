@@ -99,36 +99,64 @@ export const lab_eletroforese_hemoglobinaModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Eletroforese de Hemoglobina com Hemoglobina A (HbA): 96,8; Hemoglobina A2 (HbA2): 2,8; Hemoglobina F (HbF): 0,4.",
+      "interpretation": "Os parâmetros mensurados — Hemoglobina A (HbA): 96,8 %; Hemoglobina A2 (HbA2): 2,8 %; Hemoglobina F (HbF): 0,4 %; Variantes de Hemoglobina: Ausentes — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Eletroforese de Hemoglobina com parâmetros compatíveis com o padrão esperado, incluindo Hemoglobina A (HbA): 96,8 %; Hemoglobina A2 (HbA2): 2,8 %.",
+      "results": {
+        "hemoglobina_a": "96,8",
+        "hemoglobina_a2": "2,8",
+        "hemoglobina_f": "0,4",
+        "hemoglobina_variantes": "Ausentes",
+        "impressao": "Padrão eletroforético adulto habitual"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Eletroforese de Hemoglobina: Hemoglobina A (HbA): 58,2; Hemoglobina A2 (HbA2): 3,2; Hemoglobina F (HbF): 0,6; Variantes de Hemoglobina: HbS: 38,0%.",
+      "interpretation": "Os resultados principais (Hemoglobina A (HbA): 58,2 %; Hemoglobina A2 (HbA2): 3,2 %; Hemoglobina F (HbF): 0,6 %; Variantes de Hemoglobina: HbS: 38,0%) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Eletroforese de Hemoglobina com padrão alterado, documentado por Hemoglobina A (HbA): 58,2 %; Hemoglobina A2 (HbA2): 3,2 %.",
+      "results": {
+        "hemoglobina_a": "58,2",
+        "hemoglobina_a2": "3,2",
+        "hemoglobina_f": "0,6",
+        "hemoglobina_variantes": "HbS: 38,0%",
+        "impressao": "Padrão eletroforético com variante HbS, compatível com traço falciforme no contexto apropriado"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Eletroforese de Hemoglobina: Hemoglobina A (HbA): 94,8; Hemoglobina A2 (HbA2): 3,6; Hemoglobina F (HbF): 1,6; Variantes de Hemoglobina: Sem variante majoritária definida.",
+      "interpretation": "Os principais resultados (Hemoglobina A (HbA): 94,8 %; Hemoglobina A2 (HbA2): 3,6 %; Hemoglobina F (HbF): 1,6 %; Variantes de Hemoglobina: Sem variante majoritária definida) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Eletroforese de Hemoglobina com resultado limítrofe/inespecífico, destacando-se Hemoglobina A (HbA): 94,8 %; Hemoglobina A2 (HbA2): 3,6 %.",
+      "results": {
+        "hemoglobina_a": "94,8",
+        "hemoglobina_a2": "3,6",
+        "hemoglobina_f": "1,6",
+        "hemoglobina_variantes": "Sem variante majoritária definida",
+        "impressao": "Distribuição de frações em faixa limítrofe, recomendando correlação hematológica"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Eletroforese de Hemoglobina: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "hemoglobina_a": "96,8",
+        "hemoglobina_a2": "2,8",
+        "hemoglobina_f": "0,4",
+        "hemoglobina_variantes": "Ausentes",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -251,8 +279,8 @@ export const lab_eletroforese_hemoglobinaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Amostra de sangue total processada para separação e quantificação das principais frações de hemoglobina.",
+  "method": "Separação das frações de hemoglobina por método eletroforético ou cromatográfico validado, com quantificação relativa e interpretação do padrão obtido.",
   "parameters": [
     {
       "id": "hemoglobina_a",
@@ -308,14 +336,14 @@ export const lab_eletroforese_hemoglobinaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Eletroforese de Hemoglobina compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Eletroforese de Hemoglobina com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Eletroforese de Hemoglobina com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Eletroforese de Hemoglobina sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Eletroforese de Hemoglobina alterado conforme resultados objetivos descritos.",
+    "undefined": "Eletroforese de Hemoglobina com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

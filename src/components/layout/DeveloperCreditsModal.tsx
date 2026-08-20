@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Braces,
   Cloud,
@@ -12,6 +13,10 @@ import {
   ServerCog,
   Sparkles,
   X,
+  MessageCircle,
+  Copy,
+  Check,
+  ExternalLink,
 } from "lucide-react";
 
 const technologies = [
@@ -27,7 +32,26 @@ const technologies = [
   { name: "pnpm", icon: Cloud },
 ];
 
-export function DeveloperCreditsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export type DeveloperCreditsModalProps = {
+  open: boolean;
+  onClose: () => void;
+};
+
+export function DeveloperCreditsModal({ open, onClose }: DeveloperCreditsModalProps) {
+  const [contactOpen, setContactOpen] = useState(false);
+  const [discordCopied, setDiscordCopied] = useState(false);
+  const developerDiscordLabel = "@lluidhy";
+
+  async function copyDiscordUsername() {
+    try {
+      await navigator.clipboard.writeText(developerDiscordLabel);
+      setDiscordCopied(true);
+      window.setTimeout(() => setDiscordCopied(false), 1800);
+    } catch {
+      setDiscordCopied(false);
+    }
+  }
+
   if (!open) return null;
 
   return (
@@ -68,10 +92,44 @@ export function DeveloperCreditsModal({ open, onClose }: { open: boolean; onClos
               <Code2 size={24} />
             </div>
             <p className="mt-4 text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Desenvolvido por</p>
-            <h3 className="mt-2 text-xl font-black uppercase tracking-[0.04em] text-hpsr-text sm:text-2xl">
+            <button
+              type="button"
+              onClick={() => setContactOpen((value) => !value)}
+              className="mt-2 inline-flex items-center gap-2 text-xl font-black uppercase tracking-[0.04em] text-hpsr-text transition hover:text-hpsr-wine focus:outline-none focus:ring-2 focus:ring-hpsr-wine/20 sm:text-2xl"
+              aria-expanded={contactOpen}
+            >
               Luidhy Conceição dos Santos
-            </h3>
+              <MessageCircle size={18} className="text-hpsr-wine" />
+            </button>
             <p className="mt-2 text-sm font-bold text-hpsr-muted">Developer &amp; Problem Solver</p>
+            {contactOpen && (
+              <div className="mx-auto mt-4 max-w-md rounded-[14px] border border-[#ead6c4] bg-[#fffaf4] px-4 py-3 text-left">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Contato do desenvolvedor</p>
+                <p className="mt-1 text-sm font-black text-hpsr-text">Discord</p>
+                <p className="mt-1 text-sm font-black text-hpsr-text">{developerDiscordLabel}</p>
+                <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">
+                  Para entrar em contato, copie o usuário e procure por ele no Discord.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={copyDiscordUsername}
+                    className="inline-flex min-h-[38px] items-center gap-2 rounded-[11px] bg-hpsr-wine px-3.5 text-xs font-black text-white transition hover:bg-hpsr-wineLight"
+                  >
+                    {discordCopied ? <Check size={15} /> : <Copy size={15} />}
+                    {discordCopied ? "Usuário copiado" : "Copiar usuário"}
+                  </button>
+                  <a
+                    href="https://discord.com/channels/@me"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-[38px] items-center gap-2 rounded-[11px] border border-[#dec4b1] bg-white px-3.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fff4eb]"
+                  >
+                    <ExternalLink size={15} /> Abrir Discord
+                  </a>
+                </div>
+              </div>
+            )}
           </div>
 
           <div>
@@ -99,7 +157,7 @@ export function DeveloperCreditsModal({ open, onClose }: { open: boolean; onClos
           <div className="rounded-[16px] border border-[#ead6c4] bg-[#f5e8dc] px-4 py-4 text-center">
             <p className="text-sm font-black text-hpsr-wine">Desenvolvido para o Hospital São Rafael - Eldorado</p>
             <p className="mt-2 text-xs font-semibold text-hpsr-muted">© 2026 Luidhy Conceição dos Santos. Todos os direitos reservados.</p>
-            <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Versão do sistema: 1.0.284</p>
+            <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Versão do sistema: 1.0.292</p>
           </div>
 
           <button

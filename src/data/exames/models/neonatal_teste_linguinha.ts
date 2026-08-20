@@ -86,36 +86,56 @@ export const neonatal_teste_linguinhaModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Teste da Linguinha com Frênulo Lingual: Normal; Impacto na Sucção: Ausente; Conduta: Observação.",
+      "interpretation": "Os parâmetros mensurados — Frênulo Lingual: Normal; Impacto na Sucção: Ausente; Conduta: Observação — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Teste da Linguinha com parâmetros compatíveis com o padrão esperado, incluindo Frênulo Lingual: Normal; Impacto na Sucção: Ausente.",
+      "results": {
+        "freio_lingual": "Normal",
+        "impacto_succao": "Ausente",
+        "conduta": "Observação"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Teste da Linguinha: Frênulo Lingual: Frênulo curto, com inserção anteriorizada; Impacto na Sucção: Limitação de elevação/protrusão lingual com dificuldade de pega; Conduta: Avaliação multiprofissional e seguimento conforme protocolo.",
+      "interpretation": "Os resultados principais (Frênulo Lingual: Frênulo curto, com inserção anteriorizada; Impacto na Sucção: Limitação de elevação/protrusão lingual com dificuldade de pega; Conduta: Avaliação multiprofissional e seguimento conforme protocolo) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Teste da Linguinha com padrão alterado, documentado por Frênulo Lingual: Frênulo curto, com inserção anteriorizada; Impacto na Sucção: Limitação de elevação/protrusão lingual com dificuldade de pega.",
+      "results": {
+        "freio_lingual": "Frênulo curto, com inserção anteriorizada",
+        "impacto_succao": "Limitação de elevação/protrusão lingual com dificuldade de pega",
+        "conduta": "Avaliação multiprofissional e seguimento conforme protocolo"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Teste da Linguinha: Frênulo Lingual: Frênulo discretamente curto; Impacto na Sucção: Impacto funcional duvidoso/discreto; Conduta: Reavaliar mamada e função lingual em seguimento.",
+      "interpretation": "Os principais resultados (Frênulo Lingual: Frênulo discretamente curto; Impacto na Sucção: Impacto funcional duvidoso/discreto; Conduta: Reavaliar mamada e função lingual em seguimento) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Teste da Linguinha com resultado limítrofe/inespecífico, destacando-se Frênulo Lingual: Frênulo discretamente curto; Impacto na Sucção: Impacto funcional duvidoso/discreto.",
+      "results": {
+        "freio_lingual": "Frênulo discretamente curto",
+        "impacto_succao": "Impacto funcional duvidoso/discreto",
+        "conduta": "Reavaliar mamada e função lingual em seguimento"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Teste da Linguinha: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "freio_lingual": "Normal",
+        "impacto_succao": "Ausente",
+        "conduta": "Observação"
+      }
     }
   ],
   "variables": [
@@ -242,8 +262,8 @@ export const neonatal_teste_linguinhaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Avaliação clínica do frênulo lingual e da mobilidade da língua no recém-nascido, considerando anatomia e repercussão funcional observada.",
+  "method": "Inspeção orofacial padronizada e avaliação funcional da língua durante movimentos e, quando possível, sucção/alimentação.",
   "parameters": [
     {
       "id": "freio_lingual",
@@ -272,14 +292,14 @@ export const neonatal_teste_linguinhaModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Teste da Linguinha compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Teste da Linguinha com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Teste da Linguinha com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Teste da Linguinha sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Teste da Linguinha alterado conforme resultados objetivos descritos.",
+    "undefined": "Teste da Linguinha com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

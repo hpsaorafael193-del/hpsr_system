@@ -90,36 +90,60 @@ export const oftalmo_acuidade_visualModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Acuidade Visual com Condição da avaliação: Com correção habitual; Acuidade visual – Olho Direito (OD): 20/20; Acuidade visual – Olho Esquerdo (OE): 20/20.",
+      "interpretation": "Os parâmetros mensurados — Condição da avaliação: Com correção habitual; Acuidade visual – Olho Direito (OD): 20/20; Acuidade visual – Olho Esquerdo (OE): 20/20 — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Acuidade Visual com parâmetros compatíveis com o padrão esperado, incluindo Condição da avaliação: Com correção habitual; Acuidade visual – Olho Direito (OD): 20/20.",
+      "results": {
+        "condicao_avaliacao": "Com correção habitual",
+        "acuidade_od": "20/20",
+        "acuidade_oe": "20/20",
+        "impressao": "Acuidade visual corrigida preservada bilateralmente"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Acuidade Visual: Acuidade visual – Olho Direito (OD): 20/80; Acuidade visual – Olho Esquerdo (OE): 20/40.",
+      "interpretation": "Os resultados principais (Acuidade visual – Olho Direito (OD): 20/80; Acuidade visual – Olho Esquerdo (OE): 20/40) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Acuidade Visual com padrão alterado, documentado por Acuidade visual – Olho Direito (OD): 20/80; Acuidade visual – Olho Esquerdo (OE): 20/40.",
+      "results": {
+        "condicao_avaliacao": "Com correção habitual",
+        "acuidade_od": "20/80",
+        "acuidade_oe": "20/40",
+        "impressao": "Redução de acuidade visual, mais acentuada em OD"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Acuidade Visual: Acuidade visual – Olho Direito (OD): 20/30; Acuidade visual – Olho Esquerdo (OE): 20/25.",
+      "interpretation": "Os principais resultados (Acuidade visual – Olho Direito (OD): 20/30; Acuidade visual – Olho Esquerdo (OE): 20/25) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Acuidade Visual com resultado limítrofe/inespecífico, destacando-se Acuidade visual – Olho Direito (OD): 20/30; Acuidade visual – Olho Esquerdo (OE): 20/25.",
+      "results": {
+        "condicao_avaliacao": "Com correção habitual",
+        "acuidade_od": "20/30",
+        "acuidade_oe": "20/25",
+        "impressao": "Redução visual discreta, com melhor acuidade em OE"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Acuidade Visual: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "condicao_avaliacao": "Com correção habitual",
+        "acuidade_od": "20/20",
+        "acuidade_oe": "20/20",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -246,8 +270,8 @@ export const oftalmo_acuidade_visualModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Avaliação da acuidade visual realizada separadamente em cada olho, com e sem correção conforme o contexto clínico.",
+  "method": "Mensuração optométrica por tabela padronizada de optotipos a distância apropriada, registrando a melhor acuidade visual obtida em cada olho.",
   "parameters": [
     {
       "id": "condicao_avaliacao",
@@ -284,14 +308,14 @@ export const oftalmo_acuidade_visualModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Acuidade Visual compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Acuidade Visual com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Acuidade Visual com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Acuidade Visual sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Acuidade Visual alterado conforme resultados objetivos descritos.",
+    "undefined": "Acuidade Visual com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

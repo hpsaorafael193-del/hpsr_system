@@ -138,36 +138,64 @@ export const neuro_enmgModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Eletroneuromiografia (ENMG) com Território Avaliado: Membros superiores e/ou inferiores conforme solicitação; Condução Nervosa: Normal; Atividade Muscular: Normal.",
+      "interpretation": "Os parâmetros mensurados — Território Avaliado: Membros superiores e/ou inferiores conforme solicitação; Condução Nervosa: Normal; Atividade Muscular: Normal; Padrão Neuropático: Ausente — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Eletroneuromiografia (ENMG) com parâmetros compatíveis com o padrão esperado, incluindo Território Avaliado: Membros superiores e/ou inferiores conforme solicitação; Condução Nervosa: Normal.",
+      "results": {
+        "territorio": "Membros superiores e/ou inferiores conforme solicitação",
+        "conducao_nervosa": "Normal",
+        "atividade_muscular": "Normal",
+        "padrao_neuropatico": "Ausente",
+        "impressao": "Estudo de condução nervosa e atividade muscular sem sinais de neuropatia ou miopatia"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Eletroneuromiografia (ENMG): Território Avaliado: Membro superior direito; Condução Nervosa: Redução da velocidade de condução sensitiva do nervo mediano; Atividade Muscular: Sinais de desnervação crônica discreta em território correspondente; Padrão Neuropático: Presente, focal.",
+      "interpretation": "Os resultados principais (Território Avaliado: Membro superior direito; Condução Nervosa: Redução da velocidade de condução sensitiva do nervo mediano; Atividade Muscular: Sinais de desnervação crônica discreta em território correspondente; Padrão Neuropático: Presente, focal) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Eletroneuromiografia (ENMG) com padrão alterado, documentado por Território Avaliado: Membro superior direito; Condução Nervosa: Redução da velocidade de condução sensitiva do nervo mediano.",
+      "results": {
+        "territorio": "Membro superior direito",
+        "conducao_nervosa": "Redução da velocidade de condução sensitiva do nervo mediano",
+        "atividade_muscular": "Sinais de desnervação crônica discreta em território correspondente",
+        "padrao_neuropatico": "Presente, focal",
+        "impressao": "Neuropatia do nervo mediano compatível com síndrome do túnel do carpo moderada"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Eletroneuromiografia (ENMG): Condução Nervosa: Velocidade sensitiva discretamente reduzida; Atividade Muscular: Sem desnervação ativa; Padrão Neuropático: Não definido.",
+      "interpretation": "Os principais resultados (Condução Nervosa: Velocidade sensitiva discretamente reduzida; Atividade Muscular: Sem desnervação ativa; Padrão Neuropático: Não definido) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Eletroneuromiografia (ENMG) com resultado limítrofe/inespecífico, destacando-se Condução Nervosa: Velocidade sensitiva discretamente reduzida; Atividade Muscular: Sem desnervação ativa.",
+      "results": {
+        "territorio": "Membros superiores e/ou inferiores conforme solicitação",
+        "conducao_nervosa": "Velocidade sensitiva discretamente reduzida",
+        "atividade_muscular": "Sem desnervação ativa",
+        "padrao_neuropatico": "Não definido",
+        "impressao": "Alteração de condução discreta e inespecífica, sem neuropatia estabelecida"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Eletroneuromiografia (ENMG): modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "territorio": "Membros superiores e/ou inferiores conforme solicitação",
+        "conducao_nervosa": "Normal",
+        "atividade_muscular": "Normal",
+        "padrao_neuropatico": "Ausente",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -294,8 +322,8 @@ export const neuro_enmgModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Eletroneuromiografia realizada para avaliação da condução nervosa periférica e da atividade elétrica muscular nos territórios selecionados.",
+  "method": "Estudos de condução motora e sensitiva associados à eletromiografia de agulha quando indicada, com análise de latências, amplitudes, velocidades e padrão de unidades motoras.",
   "parameters": [
     {
       "id": "territorio",
@@ -340,14 +368,14 @@ export const neuro_enmgModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Eletroneuromiografia (ENMG) compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Eletroneuromiografia (ENMG) com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Eletroneuromiografia (ENMG) com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Eletroneuromiografia (ENMG) sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Eletroneuromiografia (ENMG) alterado conforme resultados objetivos descritos.",
+    "undefined": "Eletroneuromiografia (ENMG) com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

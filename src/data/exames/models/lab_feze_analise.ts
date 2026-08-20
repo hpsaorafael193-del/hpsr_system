@@ -250,16 +250,42 @@ export const lab_feze_analiseModel: IntelligentExamModel = {
       "description": "Análise de fezes sem alterações relevantes.",
       "resultSummary": "Amostra fecal sem alterações laboratoriais relevantes.",
       "interpretation": "Aspectos macroscópicos e microscópicos dentro do padrão esperado, sem parasitas, sangue ou leucócitos detectáveis.",
-      "conclusion": "Exame de fezes sem alterações laboratoriais significativas."
+      "conclusion": "Exame de fezes sem alterações laboratoriais significativas.",
+      "results": {
+        "cor": "Marrom",
+        "consistencia": "Formada",
+        "muco": "Ausente",
+        "sangue_visivel": "Ausente",
+        "ph": "6,8",
+        "leucocitos": "Ausentes",
+        "hemacias": "Ausentes",
+        "gordura": "Ausente",
+        "parasitas": "Ausentes",
+        "ovos_cistos": "Ausentes",
+        "impressao": "Exame coproparasitológico e macroscópico sem alterações relevantes"
+      }
     },
     {
       "id": "inflamatorio",
       "name": "Processo inflamatório",
       "status": "alterado",
       "description": "Leucócitos/sangue ou muco presentes.",
-      "resultSummary": "Exame com achados inflamatórios nas fezes.",
+      "resultSummary": "Amostra fecal com muco presente, leucócitos numerosos e hemácias detectáveis, configurando padrão inflamatório.",
       "interpretation": "Presença de leucócitos, muco e/ou sangue pode indicar processo inflamatório/infeccioso intestinal, devendo ser correlacionada clinicamente.",
-      "conclusion": "Achados fecais sugestivos de processo inflamatório/infeccioso."
+      "conclusion": "Resultado fecal sugestivo de processo inflamatório/infeccioso, conforme parâmetros descritos.",
+      "results": {
+        "cor": "Marrom-amarelada",
+        "consistencia": "Pastosa",
+        "muco": "Presente",
+        "sangue_visivel": "Traços",
+        "ph": "6,2",
+        "leucocitos": "Numerosos",
+        "hemacias": "Presentes",
+        "gordura": "Ausente",
+        "parasitas": "Ausentes",
+        "ovos_cistos": "Ausentes",
+        "impressao": "Padrão fecal inflamatório com muco e leucócitos"
+      }
     },
     {
       "id": "parasitose",
@@ -268,7 +294,20 @@ export const lab_feze_analiseModel: IntelligentExamModel = {
       "description": "Pesquisa parasitológica positiva.",
       "resultSummary": "Exame com presença de parasitas/ovos/cistos.",
       "interpretation": "Identificação de formas parasitárias deve ser correlacionada com quadro clínico e epidemiologia.",
-      "conclusion": "Achados compatíveis com parasitose intestinal."
+      "conclusion": "Pesquisa parasitológica positiva, com cistos de Giardia duodenalis identificados.",
+      "results": {
+        "cor": "Marrom",
+        "consistencia": "Pastosa",
+        "muco": "Discreto",
+        "sangue_visivel": "Ausente",
+        "ph": "6,5",
+        "leucocitos": "Raros",
+        "hemacias": "Ausentes",
+        "gordura": "Ausente",
+        "parasitas": "Presentes",
+        "ovos_cistos": "Cistos de Giardia duodenalis identificados",
+        "impressao": "Pesquisa parasitológica positiva"
+      }
     },
     {
       "id": "sangramento",
@@ -277,7 +316,20 @@ export const lab_feze_analiseModel: IntelligentExamModel = {
       "description": "Presença de sangue/hemácias.",
       "resultSummary": "Exame com presença de sangue/hemácias nas fezes.",
       "interpretation": "Presença de sangue nas fezes deve ser correlacionada com sintomas, medicações e investigação clínica.",
-      "conclusion": "Achado fecal com sangue detectável."
+      "conclusion": "Sangue visível e hemácias detectadas na amostra fecal.",
+      "results": {
+        "cor": "Marrom escuro",
+        "consistencia": "Formada",
+        "muco": "Ausente",
+        "sangue_visivel": "Presente",
+        "ph": "6,7",
+        "leucocitos": "Raros",
+        "hemacias": "Numerosas",
+        "gordura": "Ausente",
+        "parasitas": "Ausentes",
+        "ovos_cistos": "Ausentes",
+        "impressao": "Presença de sangue e hemácias nas fezes"
+      }
     },
     {
       "id": "indefinido",
@@ -285,17 +337,43 @@ export const lab_feze_analiseModel: IntelligentExamModel = {
       "status": "indefinido",
       "description": "Achados discretos ou inespecíficos.",
       "resultSummary": "Exame com alteração discreta/inespecífica.",
-      "interpretation": "Achados discretos podem requerer repetição ou correlação clínica.",
-      "conclusion": "Achado fecal inespecífico/limítrofe."
+      "interpretation": "Alterações discretas e inespecíficas na amostra fecal, sem padrão etiológico definido no exame isolado.",
+      "conclusion": "Resultado fecal limítrofe/inespecífico, sem definição etiológica isolada.",
+      "results": {
+        "cor": "Marrom",
+        "consistencia": "Pastosa",
+        "muco": "Traços",
+        "sangue_visivel": "Ausente",
+        "ph": "6,0",
+        "leucocitos": "Raros",
+        "hemacias": "Raras",
+        "gordura": "Traços",
+        "parasitas": "Ausentes",
+        "ovos_cistos": "Ausentes",
+        "impressao": "Alterações discretas, sem padrão etiológico definido"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Fezes – Análise Completa: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "cor": "Marrom",
+        "consistencia": "Formada",
+        "muco": "Ausente",
+        "sangue_visivel": "Ausente",
+        "ph": "6,8",
+        "leucocitos": "Ausentes",
+        "hemacias": "Ausentes",
+        "gordura": "Ausente",
+        "parasitas": "Ausentes",
+        "ovos_cistos": "Ausentes",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -418,8 +496,8 @@ export const lab_feze_analiseModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Amostra fecal analisada quanto a características macroscópicas e pesquisa microscópica de elementos parasitológicos e outros componentes previstos no modelo.",
+  "method": "Exame macroscópico e microscópico de fezes, com técnicas de concentração e pesquisa parasitológica conforme indicação e qualidade da amostra.",
   "parameters": [
     {
       "id": "cor",
@@ -523,14 +601,14 @@ export const lab_feze_analiseModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Fezes – Análise Completa compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Fezes – Análise Completa com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Fezes – Análise Completa com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Fezes – Análise Completa sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Fezes – Análise Completa alterado conforme resultados objetivos descritos.",
+    "undefined": "Fezes – Análise Completa com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

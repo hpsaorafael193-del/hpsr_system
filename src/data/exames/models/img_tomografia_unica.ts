@@ -129,7 +129,11 @@ export const imgTomografiaUnicaModel: IntelligentExamModel = {
       "description": "Sem alterações significativas no método.",
       "resultSummary": "Tomografia Computadorizada sem alterações significativas.",
       "interpretation": "Estruturas avaliadas sem alterações relevantes para o método, região/tipo selecionado e contexto clínico informado.",
-      "conclusion": "Tomografia Computadorizada sem alterações significativas."
+      "conclusion": "Tomografia Computadorizada sem alterações significativas.",
+      "results": {
+        "qualidade_tecnica": "Exame com qualidade diagnóstica adequada",
+        "regiao_tipo": "Conforme região selecionada"
+      }
     },
     {
       "id": "alterado",
@@ -137,8 +141,12 @@ export const imgTomografiaUnicaModel: IntelligentExamModel = {
       "status": "alterado",
       "description": "Achados relevantes no método.",
       "resultSummary": "Tomografia Computadorizada com alteração a caracterizar.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas, relação anatômica e limitações técnicas quando aplicável.",
-      "conclusion": "Tomografia Computadorizada com alteração a correlacionar clinicamente."
+      "interpretation": "Os resultados principais (Região / tipo: Região selecionada com alteração focal demonstrável) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Tomografia Computadorizada com alteração a correlacionar clinicamente.",
+      "results": {
+        "qualidade_tecnica": "Exame com qualidade diagnóstica adequada",
+        "regiao_tipo": "Região selecionada com alteração focal demonstrável"
+      }
     },
     {
       "id": "indefinido",
@@ -146,17 +154,25 @@ export const imgTomografiaUnicaModel: IntelligentExamModel = {
       "status": "indefinido",
       "description": "Achado limítrofe ou inespecífico.",
       "resultSummary": "Tomografia Computadorizada com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode exigir comparação, seguimento ou método complementar.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "interpretation": "Os principais resultados (Qualidade técnica: Exame com artefatos discretos, ainda diagnóstico; Região / tipo: Alteração discreta e inespecífica na região selecionada) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Tomografia Computadorizada com resultado limítrofe/inespecífico, destacando-se Qualidade técnica: Exame com artefatos discretos, ainda diagnóstico; Região / tipo: Alteração discreta e inespecífica na região selecionada.",
+      "results": {
+        "qualidade_tecnica": "Exame com artefatos discretos, ainda diagnóstico",
+        "regiao_tipo": "Alteração discreta e inespecífica na região selecionada"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Tomografia Computadorizada personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Tomografia Computadorizada: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "qualidade_tecnica": "Exame com qualidade diagnóstica adequada",
+        "regiao_tipo": "Conforme região selecionada"
+      }
     }
   ],
   "variables": [
@@ -308,8 +324,8 @@ export const imgTomografiaUnicaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme região/tipo selecionado pelo adaptador, com análise descritiva dos achados.",
+  "technique": "Tomografia Computadorizada realizada por aquisição tomográfica volumétrica da região selecionada, com reconstruções multiplanares e documentação das estruturas avaliadas.",
+  "method": "Tomografia computadorizada multislice com reconstruções nos planos adequados; meio de contraste iodado utilizado apenas quando indicado pelo protocolo clínico.",
   "parameters": [
     {
       "id": "qualidade_tecnica",
@@ -339,14 +355,14 @@ export const imgTomografiaUnicaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método selecionado.",
-    "altered": "Achado relevante a caracterizar e correlacionar clinicamente.",
-    "undefined": "Achado inespecífico ou limítrofe, sem definição diagnóstica isolada."
+    "normal": "Resultados de Tomografia Computadorizada compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Tomografia Computadorizada com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Tomografia Computadorizada com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Tomografia Computadorizada sem alterações significativas.",
-    "altered": "Tomografia Computadorizada com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Tomografia Computadorizada sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Tomografia Computadorizada alterado conforme resultados objetivos descritos.",
+    "undefined": "Tomografia Computadorizada com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

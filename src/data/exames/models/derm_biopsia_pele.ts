@@ -94,36 +94,56 @@ export const derm_biopsia_peleModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Biópsia de Pele com Tipo de Biópsia: Punch de 4 mm; Resultado Histológico: Epiderme e derme sem alterações histopatológicas significativas.",
+      "interpretation": "Os parâmetros mensurados — Tipo de Biópsia: Punch de 4 mm; Resultado Histológico: Epiderme e derme sem alterações histopatológicas significativas — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Biópsia de Pele com parâmetros compatíveis com o padrão esperado, incluindo Tipo de Biópsia: Punch de 4 mm; Resultado Histológico: Epiderme e derme sem alterações histopatológicas significativas.",
+      "results": {
+        "tipo_biopsia": "Punch de 4 mm",
+        "resultado_histologico": "Epiderme e derme sem alterações histopatológicas significativas",
+        "impressao": "Fragmento cutâneo sem evidências histológicas de malignidade"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Biópsia de Pele: Resultado Histológico: Proliferação melanocítica atípica com assimetria arquitetural e atipia citológica.",
+      "interpretation": "Os resultados principais (Resultado Histológico: Proliferação melanocítica atípica com assimetria arquitetural e atipia citológica) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Biópsia de Pele com padrão alterado, documentado por Resultado Histológico: Proliferação melanocítica atípica com assimetria arquitetural e atipia citológica.",
+      "results": {
+        "tipo_biopsia": "Punch de 4 mm",
+        "resultado_histologico": "Proliferação melanocítica atípica com assimetria arquitetural e atipia citológica",
+        "impressao": "Lesão melanocítica atípica; recomenda-se correlação clínico-patológica e avaliação de margens"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Biópsia de Pele: Resultado Histológico: Alterações inflamatórias inespecíficas, sem critérios histológicos de malignidade.",
+      "interpretation": "Os principais resultados (Resultado Histológico: Alterações inflamatórias inespecíficas, sem critérios histológicos de malignidade) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Biópsia de Pele com resultado limítrofe/inespecífico, destacando-se Resultado Histológico: Alterações inflamatórias inespecíficas, sem critérios histológicos de malignidade.",
+      "results": {
+        "tipo_biopsia": "Punch de 4 mm",
+        "resultado_histologico": "Alterações inflamatórias inespecíficas, sem critérios histológicos de malignidade",
+        "impressao": "Dermatite inespecífica; correlacionar com aspecto clínico"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Biópsia de Pele: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "tipo_biopsia": "Punch de 4 mm",
+        "resultado_histologico": "Epiderme e derme sem alterações histopatológicas significativas",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -250,8 +270,8 @@ export const derm_biopsia_peleModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Fragmento cutâneo obtido por biópsia e encaminhado para processamento histopatológico, com descrição das alterações epidérmicas, dérmicas e anexiais observadas.",
+  "method": "Fixação e processamento histológico do tecido, confecção de cortes e coloração de rotina por hematoxilina-eosina, com colorações complementares quando indicadas.",
   "parameters": [
     {
       "id": "tipo_biopsia",
@@ -280,14 +300,14 @@ export const derm_biopsia_peleModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Biópsia de Pele compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Biópsia de Pele com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Biópsia de Pele com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Biópsia de Pele sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Biópsia de Pele alterado conforme resultados objetivos descritos.",
+    "undefined": "Biópsia de Pele com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

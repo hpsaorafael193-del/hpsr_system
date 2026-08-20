@@ -155,9 +155,9 @@ export const lab_uroculturaModel: IntelligentExamModel = {
       "results": {
         "crescimento_bacteriano": "Negativo",
         "microorganismo": "Não isolado",
-        "contagem_colonias": "< 1.000 UFC/mL",
-        "antibiograma": "Não realizado por ausência de isolamento bacteriano significativo",
-        "antibioticos_testados": "Sem painel de sensibilidade liberado",
+        "contagem_colonias": "< 1.000",
+        "antibiograma": "Não realizado por ausência de isolamento significativo",
+        "antibioticos_testados": "Não aplicável",
         "impressao": "Ausência de crescimento bacteriano significativo"
       },
       "interpretation": "Ausência de crescimento bacteriano significativo nas condições analisadas. Contagens muito baixas devem ser correlacionadas com sintomas, método de coleta e eventual uso prévio de antimicrobianos.",
@@ -172,10 +172,10 @@ export const lab_uroculturaModel: IntelligentExamModel = {
       "results": {
         "crescimento_bacteriano": "Positivo",
         "microorganismo": "Escherichia coli",
-        "contagem_colonias": "≥ 100.000 UFC/mL",
-        "antibiograma": "Sensibilidade conforme antimicrobianos testados",
-        "antibioticos_testados": "Nitrofurantoína sensível; Ciprofloxacino sensível; Amoxicilina-clavulanato resistente",
-        "impressao": "Crescimento bacteriano significativo"
+        "contagem_colonias": "180.000",
+        "antibiograma": "Sensível: nitrofurantoína e cefuroxima; resistente: ampicilina",
+        "antibioticos_testados": "Nitrofurantoína, cefuroxima, ciprofloxacino, ampicilina e sulfametoxazol-trimetoprima",
+        "impressao": "Crescimento monomicrobiano significativo de Escherichia coli"
       },
       "interpretation": "Crescimento bacteriano significativo, devendo ser correlacionado com sintomas urinários e exame de urina tipo I.",
       "conclusion": "Urocultura positiva para crescimento bacteriano significativo."
@@ -185,14 +185,14 @@ export const lab_uroculturaModel: IntelligentExamModel = {
       "name": "Provável contaminação",
       "status": "indefinido",
       "description": "Crescimento misto ou contagem sem significado isolado.",
-      "resultSummary": "Amostra com achado sugestivo de contaminação ou crescimento não conclusivo.",
+      "resultSummary": "Crescimento bacteriano misto em contagem não conclusiva, padrão sugestivo de contaminação da amostra.",
       "results": {
         "crescimento_bacteriano": "Crescimento misto",
-        "microorganismo": "Flora mista",
-        "contagem_colonias": "10.000–50.000 UFC/mL, flora mista",
-        "antibiograma": "Não liberado devido a crescimento misto",
-        "antibioticos_testados": "Painel de sensibilidade não liberado para flora mista",
-        "impressao": "Sugestivo de contaminação da amostra"
+        "microorganismo": "Flora bacteriana mista, sem predomínio",
+        "contagem_colonias": "35.000",
+        "antibiograma": "Não liberado por crescimento polimicrobiano",
+        "antibioticos_testados": "Não aplicável",
+        "impressao": "Padrão sugestivo de contaminação da amostra"
       },
       "interpretation": "Crescimento misto ou contagem baixa pode indicar contaminação da amostra, recomendando nova coleta quando clinicamente indicado.",
       "conclusion": "Resultado não conclusivo, sugestivo de contaminação da amostra."
@@ -202,9 +202,17 @@ export const lab_uroculturaModel: IntelligentExamModel = {
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Urocultura: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "crescimento_bacteriano": "Negativo",
+        "microorganismo": "Não isolado",
+        "contagem_colonias": "< 1.000",
+        "antibiograma": "Não realizado por ausência de isolamento significativo",
+        "antibioticos_testados": "Não aplicável",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -327,8 +335,8 @@ export const lab_uroculturaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Amostra de urina processada para pesquisa e quantificação de crescimento bacteriano clinicamente significativo.",
+  "method": "Semeadura quantitativa em meios apropriados, identificação do microrganismo isolado e teste de sensibilidade a antimicrobianos quando houver crescimento significativo.",
   "parameters": [
     {
       "id": "crescimento_bacteriano",
@@ -392,14 +400,14 @@ export const lab_uroculturaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Urocultura compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Urocultura com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Urocultura com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Urocultura sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Urocultura alterado conforme resultados objetivos descritos.",
+    "undefined": "Urocultura com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

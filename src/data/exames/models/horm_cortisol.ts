@@ -89,36 +89,56 @@ export const horm_cortisolModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Cortisol com Horário da Coleta: 08:00; Cortisol: 14,2.",
+      "interpretation": "Os parâmetros mensurados — Horário da Coleta: 08:00; Cortisol: 14,2 µg/dL — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Cortisol com parâmetros compatíveis com o padrão esperado, incluindo Horário da Coleta: 08:00; Cortisol: 14,2 µg/dL.",
+      "results": {
+        "horario_coleta": "08:00",
+        "valor": "14,2",
+        "impressao": "Cortisol matinal em faixa esperada"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Cortisol: Cortisol: 28,4.",
+      "interpretation": "Os resultados principais (Cortisol: 28,4 µg/dL) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Cortisol com padrão alterado, documentado por Cortisol: 28,4 µg/dL.",
+      "results": {
+        "horario_coleta": "08:00",
+        "valor": "28,4",
+        "impressao": "Cortisol matinal elevado"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Cortisol: Cortisol: 19,8.",
+      "interpretation": "Os principais resultados (Cortisol: 19,8 µg/dL) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Cortisol com resultado limítrofe/inespecífico, destacando-se Cortisol: 19,8 µg/dL.",
+      "results": {
+        "horario_coleta": "08:00",
+        "valor": "19,8",
+        "impressao": "Cortisol matinal em faixa limítrofe para o método"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Cortisol: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "horario_coleta": "08:00",
+        "valor": "14,2",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -241,8 +261,8 @@ export const horm_cortisolModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Amostra biológica processada para dosagem de cortisol, com registro do horário de coleta devido à variação circadiana do hormônio.",
+  "method": "Dosagem sérica de cortisol por imunoensaio validado pelo laboratório, interpretada segundo horário de coleta e intervalo de referência do método.",
   "parameters": [
     {
       "id": "horario_coleta",
@@ -282,14 +302,14 @@ export const horm_cortisolModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Cortisol compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Cortisol com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Cortisol com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Cortisol sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Cortisol alterado conforme resultados objetivos descritos.",
+    "undefined": "Cortisol com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

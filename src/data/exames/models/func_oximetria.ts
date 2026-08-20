@@ -81,36 +81,56 @@ export const func_oximetriaModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Oximetria de Pulso com Saturação de O₂: 102,6; Condição de Medida: Repouso.",
+      "interpretation": "Os parâmetros mensurados — Saturação de O₂: 102,6 %; Condição de Medida: Repouso — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Oximetria de Pulso com parâmetros compatíveis com o padrão esperado, incluindo Saturação de O₂: 102,6 %; Condição de Medida: Repouso.",
+      "results": {
+        "spo2": "102,6",
+        "condicao": "Repouso",
+        "impressao": "Oximetria de Pulso com parâmetros compatíveis com o padrão esperado, incluindo Saturação de O₂: 102,6 %; Condição de Medida: Repouso"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Oximetria de Pulso: Saturação de O₂: 90; Condição de Medida: Repouso em ar ambiente.",
+      "interpretation": "Os resultados principais (Saturação de O₂: 90 %; Condição de Medida: Repouso em ar ambiente) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Oximetria de Pulso com padrão alterado, documentado por Saturação de O₂: 90 %; Condição de Medida: Repouso em ar ambiente.",
+      "results": {
+        "spo2": "90",
+        "condicao": "Repouso em ar ambiente",
+        "impressao": "Dessaturação em repouso"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Oximetria de Pulso: Saturação de O₂: 94; Condição de Medida: Repouso em ar ambiente.",
+      "interpretation": "Os principais resultados (Saturação de O₂: 94 %; Condição de Medida: Repouso em ar ambiente) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Oximetria de Pulso com resultado limítrofe/inespecífico, destacando-se Saturação de O₂: 94 %; Condição de Medida: Repouso em ar ambiente.",
+      "results": {
+        "spo2": "94",
+        "condicao": "Repouso em ar ambiente",
+        "impressao": "Saturação periférica discretamente reduzida"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Oximetria de Pulso: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "spo2": "102,6",
+        "condicao": "Repouso",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -239,8 +259,8 @@ export const func_oximetriaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Oximetria de pulso realizada em condição clínica informada, com registro da saturação periférica de oxigênio e da condição da medida.",
+  "method": "Estimativa não invasiva da saturação arterial por fotopletismografia de pulso, após estabilização do sinal e verificação de qualidade da leitura.",
   "parameters": [
     {
       "id": "spo2",
@@ -280,14 +300,14 @@ export const func_oximetriaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Oximetria de Pulso compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Oximetria de Pulso com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Oximetria de Pulso com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Oximetria de Pulso sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Oximetria de Pulso alterado conforme resultados objetivos descritos.",
+    "undefined": "Oximetria de Pulso com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

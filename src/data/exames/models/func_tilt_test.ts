@@ -114,36 +114,60 @@ export const func_tilt_testModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Teste de Inclinação (Tilt Test) com Resposta Pressórica: Normal; Resposta da Frequência Cardíaca: Adequada; Sintomas Durante o Teste: Ausentes.",
+      "interpretation": "Os parâmetros mensurados — Resposta Pressórica: Normal; Resposta da Frequência Cardíaca: Adequada; Sintomas Durante o Teste: Ausentes — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Teste de Inclinação (Tilt Test) com parâmetros compatíveis com o padrão esperado, incluindo Resposta Pressórica: Normal; Resposta da Frequência Cardíaca: Adequada.",
+      "results": {
+        "resposta_pressorica": "Normal",
+        "frequencia_cardiaca": "Adequada",
+        "sintomas": "Ausentes",
+        "impressao": "Negativo"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Teste de Inclinação (Tilt Test): Resposta Pressórica: Queda sustentada da pressão arterial após ortostatismo; Resposta da Frequência Cardíaca: Elevação inicial seguida de resposta inadequada; Sintomas Durante o Teste: Tontura, náusea e pré-síncope reproduzidas.",
+      "interpretation": "Os resultados principais (Resposta Pressórica: Queda sustentada da pressão arterial após ortostatismo; Resposta da Frequência Cardíaca: Elevação inicial seguida de resposta inadequada; Sintomas Durante o Teste: Tontura, náusea e pré-síncope reproduzidas) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Teste de Inclinação (Tilt Test) com padrão alterado, documentado por Resposta Pressórica: Queda sustentada da pressão arterial após ortostatismo; Resposta da Frequência Cardíaca: Elevação inicial seguida de resposta inadequada.",
+      "results": {
+        "resposta_pressorica": "Queda sustentada da pressão arterial após ortostatismo",
+        "frequencia_cardiaca": "Elevação inicial seguida de resposta inadequada",
+        "sintomas": "Tontura, náusea e pré-síncope reproduzidas",
+        "impressao": "Teste positivo para resposta vasovagal"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Teste de Inclinação (Tilt Test): Resposta Pressórica: Queda discreta da pressão sem atingir critério diagnóstico; Resposta da Frequência Cardíaca: Resposta compensatória presente; Sintomas Durante o Teste: Tontura leve sem síncope.",
+      "interpretation": "Os principais resultados (Resposta Pressórica: Queda discreta da pressão sem atingir critério diagnóstico; Resposta da Frequência Cardíaca: Resposta compensatória presente; Sintomas Durante o Teste: Tontura leve sem síncope) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Teste de Inclinação (Tilt Test) com resultado limítrofe/inespecífico, destacando-se Resposta Pressórica: Queda discreta da pressão sem atingir critério diagnóstico; Resposta da Frequência Cardíaca: Resposta compensatória presente.",
+      "results": {
+        "resposta_pressorica": "Queda discreta da pressão sem atingir critério diagnóstico",
+        "frequencia_cardiaca": "Resposta compensatória presente",
+        "sintomas": "Tontura leve sem síncope",
+        "impressao": "Resposta ortostática limítrofe/inconclusiva"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Teste de Inclinação (Tilt Test): modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "resposta_pressorica": "Normal",
+        "frequencia_cardiaca": "Adequada",
+        "sintomas": "Ausentes",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -272,8 +296,8 @@ export const func_tilt_testModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Teste de inclinação ortostática realizado com monitorização contínua da frequência cardíaca e medidas seriadas da pressão arterial durante mudança controlada de posição.",
+  "method": "Protocolo de inclinação passiva em mesa basculante, com avaliação das respostas hemodinâmicas e dos sintomas durante as fases do teste.",
   "parameters": [
     {
       "id": "resposta_pressorica",
@@ -321,14 +345,14 @@ export const func_tilt_testModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Teste de Inclinação (Tilt Test) compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Teste de Inclinação (Tilt Test) com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Teste de Inclinação (Tilt Test) com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Teste de Inclinação (Tilt Test) sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Teste de Inclinação (Tilt Test) alterado conforme resultados objetivos descritos.",
+    "undefined": "Teste de Inclinação (Tilt Test) com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

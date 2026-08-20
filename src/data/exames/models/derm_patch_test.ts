@@ -94,36 +94,56 @@ export const derm_patch_testModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Teste de Contato (Patch Test) com Substância Testada: Bateria padrão de contato; Resultado: Negativo.",
+      "interpretation": "Os parâmetros mensurados — Substância Testada: Bateria padrão de contato; Resultado: Negativo — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Teste de Contato (Patch Test) com parâmetros compatíveis com o padrão esperado, incluindo Substância Testada: Bateria padrão de contato; Resultado: Negativo.",
+      "results": {
+        "substancia_testada": "Bateria padrão de contato",
+        "resultado": "Negativo",
+        "impressao": "Teste de contato sem reação positiva às substâncias avaliadas"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Teste de Contato (Patch Test): Substância Testada: Níquel (sulfato de níquel); Resultado: Positivo ++ em 48/96 horas.",
+      "interpretation": "Os resultados principais (Substância Testada: Níquel (sulfato de níquel); Resultado: Positivo ++ em 48/96 horas) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Teste de Contato (Patch Test) com padrão alterado, documentado por Substância Testada: Níquel (sulfato de níquel); Resultado: Positivo ++ em 48/96 horas.",
+      "results": {
+        "substancia_testada": "Níquel (sulfato de níquel)",
+        "resultado": "Positivo ++ em 48/96 horas",
+        "impressao": "Reação positiva compatível com sensibilização de contato ao níquel"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Teste de Contato (Patch Test): Resultado: Reação duvidosa (+/-) em 48 horas, não persistente.",
+      "interpretation": "Os principais resultados (Resultado: Reação duvidosa (+/-) em 48 horas, não persistente) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Teste de Contato (Patch Test) com resultado limítrofe/inespecífico, destacando-se Resultado: Reação duvidosa (+/-) em 48 horas, não persistente.",
+      "results": {
+        "substancia_testada": "Bateria padrão de contato",
+        "resultado": "Reação duvidosa (+/-) em 48 horas, não persistente",
+        "impressao": "Resposta limítrofe sem critério definitivo de sensibilização"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Teste de Contato (Patch Test): modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "substancia_testada": "Bateria padrão de contato",
+        "resultado": "Negativo",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -250,8 +270,8 @@ export const derm_patch_testModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Teste de contato realizado com aplicação padronizada de substâncias/alérgenos na pele íntegra e leituras seriadas das reações locais.",
+  "method": "Aplicação oclusiva de bateria de contato, com leitura clínica em tempos padronizados e graduação da resposta cutânea conforme intensidade observada.",
   "parameters": [
     {
       "id": "substancia_testada",
@@ -280,14 +300,14 @@ export const derm_patch_testModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Teste de Contato (Patch Test) compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Teste de Contato (Patch Test) com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Teste de Contato (Patch Test) com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Teste de Contato (Patch Test) sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Teste de Contato (Patch Test) alterado conforme resultados objetivos descritos.",
+    "undefined": "Teste de Contato (Patch Test) com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

@@ -77,7 +77,7 @@ function AuthCallbackContent() {
   }, [router, searchParams]);
 
   return (
-    <PublicShell>
+    <PublicShell showSystemFooter={false}>
       <section className="mx-auto grid min-h-[calc(100vh-82px)] max-w-3xl place-items-center px-4 py-12">
         <div className="hpsr-public-card w-full p-6 text-center shadow-soft">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Autenticação segura</p>

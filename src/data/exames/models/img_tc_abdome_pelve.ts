@@ -150,36 +150,64 @@ export const img_tc_abdome_pelveModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Sem alterações significativas no método.",
-      "resultSummary": "Exame de imagem sem alterações relevantes.",
-      "interpretation": "Estruturas avaliadas sem alterações significativas para o método e região examinada.",
-      "conclusion": "Estudo sem alterações significativas."
+      "resultSummary": "Tomografia Computadorizada de Abdome e Pelve com Uso de Contraste: Com contraste; Fígado: Normal; Rins: Normais.",
+      "interpretation": "Os parâmetros mensurados — Uso de Contraste: Com contraste; Fígado: Normal; Rins: Normais; Líquido Livre: Ausente — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Tomografia Computadorizada de Abdome e Pelve com parâmetros compatíveis com o padrão esperado, incluindo Uso de Contraste: Com contraste; Fígado: Normal.",
+      "results": {
+        "uso_contraste": "Com contraste",
+        "figado": "Normal",
+        "rins": "Normais",
+        "liquido_livre": "Ausente",
+        "impressao": "Tomografia Computadorizada de Abdome e Pelve com parâmetros compatíveis com o padrão esperado, incluindo Uso de Contraste: Com contraste; Fígado: Normal"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Achado estrutural ou funcional relevante.",
-      "resultSummary": "Exame de imagem com alteração.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas e relação anatômica quando aplicável.",
-      "conclusion": "Estudo com alteração a correlacionar clinicamente."
+      "resultSummary": "Tomografia Computadorizada de Abdome e Pelve: Uso de Contraste: Com contraste intravenoso; Fígado: Esteatose hepática difusa, sem lesão focal suspeita; Rins: Cálculo não obstrutivo de 4 mm no rim direito.",
+      "interpretation": "Os resultados principais (Uso de Contraste: Com contraste intravenoso; Fígado: Esteatose hepática difusa, sem lesão focal suspeita; Rins: Cálculo não obstrutivo de 4 mm no rim direito) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Tomografia Computadorizada de Abdome e Pelve com padrão alterado, documentado por Uso de Contraste: Com contraste intravenoso; Fígado: Esteatose hepática difusa, sem lesão focal suspeita.",
+      "results": {
+        "uso_contraste": "Com contraste intravenoso",
+        "figado": "Esteatose hepática difusa, sem lesão focal suspeita",
+        "rins": "Cálculo não obstrutivo de 4 mm no rim direito",
+        "liquido_livre": "Ausente",
+        "impressao": "Esteatose hepática e nefrolitíase direita não obstrutiva"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / inespecífico",
       "status": "indefinido",
       "description": "Achado inespecífico ou limítrofe.",
-      "resultSummary": "Exame de imagem com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode demandar comparação, seguimento ou outro método.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "resultSummary": "Tomografia Computadorizada de Abdome e Pelve: Fígado: Discreta redução difusa da atenuação, possível esteatose leve; Rins: Sem dilatação; microlitíase puntiforme à direita.",
+      "interpretation": "Os principais resultados (Fígado: Discreta redução difusa da atenuação, possível esteatose leve; Rins: Sem dilatação; microlitíase puntiforme à direita) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Tomografia Computadorizada de Abdome e Pelve com resultado limítrofe/inespecífico, destacando-se Fígado: Discreta redução difusa da atenuação, possível esteatose leve; Rins: Sem dilatação; microlitíase puntiforme à direita.",
+      "results": {
+        "uso_contraste": "Com contraste",
+        "figado": "Discreta redução difusa da atenuação, possível esteatose leve",
+        "rins": "Sem dilatação; microlitíase puntiforme à direita",
+        "liquido_livre": "Ausente",
+        "impressao": "Alterações discretas, com possível esteatose leve e microlitíase não obstrutiva"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame de imagem personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Tomografia Computadorizada de Abdome e Pelve: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "uso_contraste": "Com contraste",
+        "figado": "Normal",
+        "rins": "Normais",
+        "liquido_livre": "Ausente",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -326,8 +354,8 @@ export const img_tc_abdome_pelveModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme protocolo da região/tipo selecionado, com análise descritiva dos achados.",
+  "technique": "Tomografia Computadorizada de Abdome e Pelve realizada por aquisição tomográfica volumétrica da região selecionada, com reconstruções multiplanares e documentação das estruturas avaliadas.",
+  "method": "Tomografia computadorizada multislice com reconstruções nos planos adequados; meio de contraste iodado utilizado apenas quando indicado pelo protocolo clínico.",
   "parameters": [
     {
       "id": "uso_contraste",
@@ -383,14 +411,14 @@ export const img_tc_abdome_pelveModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método e região avaliados.",
-    "altered": "Achado de imagem relevante, devendo ser caracterizado e correlacionado clinicamente.",
-    "undefined": "Achado inespecífico, podendo exigir comparação, seguimento ou complementação."
+    "normal": "Resultados de Tomografia Computadorizada de Abdome e Pelve compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Tomografia Computadorizada de Abdome e Pelve com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Tomografia Computadorizada de Abdome e Pelve com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Estudo sem alterações significativas.",
-    "altered": "Estudo com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Tomografia Computadorizada de Abdome e Pelve sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Tomografia Computadorizada de Abdome e Pelve alterado conforme resultados objetivos descritos.",
+    "undefined": "Tomografia Computadorizada de Abdome e Pelve com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

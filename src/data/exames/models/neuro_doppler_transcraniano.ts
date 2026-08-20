@@ -114,36 +114,60 @@ export const neuro_doppler_transcranianoModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Doppler Transcraniano com Artérias Avaliadas: Artérias cerebrais médias, anteriores e posteriores bilateralmente; Fluxo Sanguíneo: Normal; Estenose: Ausente.",
+      "interpretation": "Os parâmetros mensurados — Artérias Avaliadas: Artérias cerebrais médias, anteriores e posteriores bilateralmente; Fluxo Sanguíneo: Normal; Estenose: Ausente — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Doppler Transcraniano com parâmetros compatíveis com o padrão esperado, incluindo Artérias Avaliadas: Artérias cerebrais médias, anteriores e posteriores bilateralmente; Fluxo Sanguíneo: Normal.",
+      "results": {
+        "arterias_avaliadas": "Artérias cerebrais médias, anteriores e posteriores bilateralmente",
+        "fluxo": "Normal",
+        "estenose": "Ausente",
+        "impressao": "Padrão hemodinâmico intracraniano preservado, sem estenose significativa"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Doppler Transcraniano: Fluxo Sanguíneo: Velocidades elevadas na artéria cerebral média direita; Estenose: Padrão hemodinâmico sugestivo de estenose moderada.",
+      "interpretation": "Os resultados principais (Fluxo Sanguíneo: Velocidades elevadas na artéria cerebral média direita; Estenose: Padrão hemodinâmico sugestivo de estenose moderada) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Doppler Transcraniano com padrão alterado, documentado por Fluxo Sanguíneo: Velocidades elevadas na artéria cerebral média direita; Estenose: Padrão hemodinâmico sugestivo de estenose moderada.",
+      "results": {
+        "arterias_avaliadas": "Artérias cerebrais médias, anteriores e posteriores bilateralmente",
+        "fluxo": "Velocidades elevadas na artéria cerebral média direita",
+        "estenose": "Padrão hemodinâmico sugestivo de estenose moderada",
+        "impressao": "Aumento focal de velocidade compatível com estenose intracraniana no território avaliado"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Doppler Transcraniano: Fluxo Sanguíneo: Velocidade discretamente elevada em segmento focal; Estenose: Sem critério hemodinâmico definitivo.",
+      "interpretation": "Os principais resultados (Fluxo Sanguíneo: Velocidade discretamente elevada em segmento focal; Estenose: Sem critério hemodinâmico definitivo) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Doppler Transcraniano com resultado limítrofe/inespecífico, destacando-se Fluxo Sanguíneo: Velocidade discretamente elevada em segmento focal; Estenose: Sem critério hemodinâmico definitivo.",
+      "results": {
+        "arterias_avaliadas": "Artérias cerebrais médias, anteriores e posteriores bilateralmente",
+        "fluxo": "Velocidade discretamente elevada em segmento focal",
+        "estenose": "Sem critério hemodinâmico definitivo",
+        "impressao": "Assimetria discreta de velocidades, sem estenose significativa definida"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Doppler Transcraniano: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "arterias_avaliadas": "Artérias cerebrais médias, anteriores e posteriores bilateralmente",
+        "fluxo": "Normal",
+        "estenose": "Ausente",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [
@@ -270,8 +294,8 @@ export const neuro_doppler_transcranianoModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo institucional e indicação clínica informada.",
-  "method": "Método técnico definido conforme exame solicitado.",
+  "technique": "Doppler transcraniano realizado para avaliação hemodinâmica das principais artérias intracranianas acessíveis pelas janelas acústicas usuais.",
+  "method": "Ultrassonografia Doppler pulsada transcraniana com mensuração de velocidades de fluxo, índices de resistência e comparação entre os territórios examinados.",
   "parameters": [
     {
       "id": "arterias_avaliadas",
@@ -308,14 +332,14 @@ export const neuro_doppler_transcranianoModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Sem alterações relevantes.",
-    "altered": "Alterações a correlacionar clinicamente.",
-    "undefined": "Achado indefinido, sem conclusão diagnóstica isolada."
+    "normal": "Resultados de Doppler Transcraniano compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Doppler Transcraniano com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Doppler Transcraniano com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Doppler Transcraniano sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Doppler Transcraniano alterado conforme resultados objetivos descritos.",
+    "undefined": "Doppler Transcraniano com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

@@ -129,7 +129,11 @@ export const imgRessonanciaUnicaModel: IntelligentExamModel = {
       "description": "Sem alterações significativas no método.",
       "resultSummary": "Ressonância Magnética sem alterações significativas.",
       "interpretation": "Estruturas avaliadas sem alterações relevantes para o método, região/tipo selecionado e contexto clínico informado.",
-      "conclusion": "Ressonância Magnética sem alterações significativas."
+      "conclusion": "Ressonância Magnética sem alterações significativas.",
+      "results": {
+        "qualidade_tecnica": "Exame com qualidade diagnóstica adequada",
+        "regiao_tipo": "Conforme região selecionada"
+      }
     },
     {
       "id": "alterado",
@@ -137,8 +141,12 @@ export const imgRessonanciaUnicaModel: IntelligentExamModel = {
       "status": "alterado",
       "description": "Achados relevantes no método.",
       "resultSummary": "Ressonância Magnética com alteração a caracterizar.",
-      "interpretation": "Achado deve ser descrito com localização, extensão, medidas, relação anatômica e limitações técnicas quando aplicável.",
-      "conclusion": "Ressonância Magnética com alteração a correlacionar clinicamente."
+      "interpretation": "Os resultados principais (Região / tipo: Região selecionada com alteração focal identificada) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Ressonância Magnética com alteração a correlacionar clinicamente.",
+      "results": {
+        "qualidade_tecnica": "Exame com qualidade diagnóstica adequada",
+        "regiao_tipo": "Região selecionada com alteração focal identificada"
+      }
     },
     {
       "id": "indefinido",
@@ -146,17 +154,25 @@ export const imgRessonanciaUnicaModel: IntelligentExamModel = {
       "status": "indefinido",
       "description": "Achado limítrofe ou inespecífico.",
       "resultSummary": "Ressonância Magnética com achado inespecífico.",
-      "interpretation": "Achado não permite definição diagnóstica isolada e pode exigir comparação, seguimento ou método complementar.",
-      "conclusion": "Achado inespecífico, recomendando correlação clínica."
+      "interpretation": "Os principais resultados (Qualidade técnica: Exame com artefatos discretos, ainda diagnóstico; Região / tipo: Pequena alteração inespecífica na região selecionada) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Ressonância Magnética com resultado limítrofe/inespecífico, destacando-se Qualidade técnica: Exame com artefatos discretos, ainda diagnóstico; Região / tipo: Pequena alteração inespecífica na região selecionada.",
+      "results": {
+        "qualidade_tecnica": "Exame com artefatos discretos, ainda diagnóstico",
+        "regiao_tipo": "Pequena alteração inespecífica na região selecionada"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Ressonância Magnética personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Ressonância Magnética: modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "qualidade_tecnica": "Exame com qualidade diagnóstica adequada",
+        "regiao_tipo": "Conforme região selecionada"
+      }
     }
   ],
   "variables": [
@@ -308,8 +324,8 @@ export const imgRessonanciaUnicaModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Exame realizado conforme protocolo técnico do método, com documentação das estruturas avaliadas e limitações quando presentes.",
-  "method": "Aquisição de imagens conforme região/tipo selecionado pelo adaptador, com análise descritiva dos achados.",
+  "technique": "Ressonância Magnética realizada com aquisição multiplanar de sequências de ressonância magnética adequadas à região selecionada, incluindo sequências adicionais quando clinicamente indicadas.",
+  "method": "Aquisição por ressonância magnética com sequências ponderadas e planos anatômicos apropriados ao protocolo, com contraste paramagnético somente quando indicado.",
   "parameters": [
     {
       "id": "qualidade_tecnica",
@@ -339,14 +355,14 @@ export const imgRessonanciaUnicaModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Sem achados relevantes no método selecionado.",
-    "altered": "Achado relevante a caracterizar e correlacionar clinicamente.",
-    "undefined": "Achado inespecífico ou limítrofe, sem definição diagnóstica isolada."
+    "normal": "Resultados de Ressonância Magnética compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Ressonância Magnética com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Ressonância Magnética com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Ressonância Magnética sem alterações significativas.",
-    "altered": "Ressonância Magnética com alteração a correlacionar clinicamente.",
-    "undefined": "Achado inespecífico, recomendando correlação clínica."
+    "normal": "Ressonância Magnética sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Ressonância Magnética alterado conforme resultados objetivos descritos.",
+    "undefined": "Ressonância Magnética com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

@@ -161,10 +161,10 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "results": {
         "tipo_exame": "Quantitativo",
         "resultado_qualitativo": "Negativo",
-        "beta_hcg_quantitativo": "2,1 mUI/mL",
-        "correspondencia_gestacional": "Não gestante",
+        "beta_hcg_quantitativo": "2,1",
+        "correspondencia_gestacional": "Faixa de não gestante",
         "evolucao_seriada": "Sem indicação de curva seriada neste resultado isolado",
-        "impressao": "Negativo"
+        "impressao": "β-hCG negativo"
       },
       "interpretation": "Resultado de β-hCG dentro da faixa considerada negativa para o método utilizado. Correlacionar com data da coleta, atraso menstrual, uso de medicações e contexto clínico quando necessário.",
       "conclusion": "β-hCG negativo no material analisado."
@@ -178,10 +178,10 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "results": {
         "tipo_exame": "Quantitativo",
         "resultado_qualitativo": "Positivo",
-        "beta_hcg_quantitativo": "1.248 mUI/mL",
-        "correspondencia_gestacional": "Compatível com gestação inicial, conforme correlação clínica",
-        "evolucao_seriada": "Avaliar evolução seriada se indicado",
-        "impressao": "Positivo"
+        "beta_hcg_quantitativo": "1840",
+        "correspondencia_gestacional": "Compatível com gestação inicial; correlacionar com idade gestacional",
+        "evolucao_seriada": "Controle seriado somente quando clinicamente indicado",
+        "impressao": "β-hCG positivo"
       },
       "interpretation": "Resultado positivo para β-hCG. A interpretação deve considerar idade gestacional estimada, data da última menstruação, contexto de FIV quando aplicável e evolução seriada dos valores.",
       "conclusion": "β-hCG positivo. Recomenda-se correlação clínica e acompanhamento conforme avaliação médica."
@@ -195,10 +195,10 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "results": {
         "tipo_exame": "Quantitativo",
         "resultado_qualitativo": "Indeterminado",
-        "beta_hcg_quantitativo": "12 mUI/mL",
-        "correspondencia_gestacional": "Valor baixo, sem definição isolada",
-        "evolucao_seriada": "Repetir conforme orientação médica",
-        "impressao": "Indeterminado"
+        "beta_hcg_quantitativo": "14",
+        "correspondencia_gestacional": "Faixa limítrofe, sem definição isolada",
+        "evolucao_seriada": "Repetir em 48–72 horas conforme avaliação clínica",
+        "impressao": "β-hCG em faixa indeterminada"
       },
       "interpretation": "Valor de β-hCG em faixa limítrofe, sem definição diagnóstica isolada. Pode ocorrer em fase muito inicial, variação analítica, seguimento pós-evento gestacional ou outras situações clínicas.",
       "conclusion": "β-hCG indeterminado/limítrofe. Recomenda-se repetir a dosagem e correlacionar clinicamente."
@@ -212,10 +212,10 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "results": {
         "tipo_exame": "Quantitativo",
         "resultado_qualitativo": "Detectável",
-        "beta_hcg_quantitativo": "186 mUI/mL",
-        "correspondencia_gestacional": "Faixa compatível com gestação muito inicial; interpretar pela evolução seriada",
-        "evolucao_seriada": "Comparar com dosagem anterior em 48–72 horas, conforme indicação clínica",
-        "impressao": "Seguimento"
+        "beta_hcg_quantitativo": "286",
+        "correspondencia_gestacional": "Compatível com gestação muito inicial; interpretar pela tendência",
+        "evolucao_seriada": "Comparar com dosagem anterior em 48–72 horas",
+        "impressao": "β-hCG em seguimento seriado"
       },
       "interpretation": "A avaliação seriada do β-hCG deve considerar intervalo entre coletas e tendência de elevação, estabilização ou queda dos valores.",
       "conclusion": "Resultado destinado a seguimento seriado. Correlacionar com evolução clínica e exames anteriores."
@@ -225,17 +225,17 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "β-hCG personalizado.",
+      "resultSummary": "β-hCG (Beta hCG): modelo personalizado preparado para edição dos resultados.",
       "results": {
-        "tipo_exame": "A preencher",
-        "resultado_qualitativo": "A preencher",
-        "beta_hcg_quantitativo": "A preencher mUI/mL",
-        "correspondencia_gestacional": "A preencher",
-        "evolucao_seriada": "A preencher",
-        "impressao": "A preencher"
+        "tipo_exame": "Quantitativo",
+        "resultado_qualitativo": "Negativo",
+        "beta_hcg_quantitativo": "2,1",
+        "correspondencia_gestacional": "Faixa de não gestante",
+        "evolucao_seriada": "Sem indicação de curva seriada neste resultado isolado",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
       },
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados."
     }
   ],
   "variables": [],
@@ -358,8 +358,8 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Dosagem de β-hCG realizada por método imunoquímico validado, com controles internos e referências aplicáveis ao ensaio.",
-  "method": "Resultado expresso de forma qualitativa e/ou quantitativa conforme método utilizado. Valores devem ser interpretados de acordo com contexto clínico e evolução seriada quando indicada.",
+  "technique": "Amostra sérica processada para determinação quantitativa de β-hCG, com interpretação conforme concentração obtida e contexto gestacional.",
+  "method": "Imunoensaio quantitativo para gonadotrofina coriônica humana beta, com resultado expresso em mUI/mL e comparação com faixas interpretativas do método.",
   "parameters": [
     {
       "id": "tipo_exame",
@@ -423,14 +423,14 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Resultado negativo para β-hCG conforme referência do método.",
-    "altered": "Resultado positivo/detectável para β-hCG, com interpretação dependente do contexto clínico e evolução seriada.",
-    "undefined": "Resultado limítrofe ou indeterminado, sem definição diagnóstica isolada."
+    "normal": "Resultados de β-hCG (Beta hCG) compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "β-hCG (Beta hCG) com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "β-hCG (Beta hCG) com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "β-hCG negativo.",
-    "altered": "β-hCG positivo/detectável, recomendando correlação clínica.",
-    "undefined": "β-hCG indeterminado/limítrofe, recomendando repetição e correlação clínica."
+    "normal": "β-hCG (Beta hCG) sem alterações significativas nos parâmetros avaliados.",
+    "altered": "β-hCG (Beta hCG) alterado conforme resultados objetivos descritos.",
+    "undefined": "β-hCG (Beta hCG) com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,

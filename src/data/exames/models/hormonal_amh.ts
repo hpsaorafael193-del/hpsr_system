@@ -101,36 +101,56 @@ export const hormonal_amhModel: IntelligentExamModel = {
       "name": "Normal",
       "status": "normal",
       "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Exame sem alterações relevantes.",
-      "interpretation": "Resultados dentro do esperado para método, referência e contexto clínico informado.",
-      "conclusion": "Exame sem alterações significativas."
+      "resultSummary": "Hormônio Anti-Mülleriano (AMH) com AMH: 2,2; Contexto clínico: Avaliação de reserva ovariana.",
+      "interpretation": "Os parâmetros mensurados — AMH: 2,2 ng/mL; Contexto clínico: Avaliação de reserva ovariana — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
+      "conclusion": "Hormônio Anti-Mülleriano (AMH) com parâmetros compatíveis com o padrão esperado, incluindo AMH: 2,2 ng/mL; Contexto clínico: Avaliação de reserva ovariana.",
+      "results": {
+        "amh_valor": "2,2",
+        "contexto_clinico": "Avaliação de reserva ovariana",
+        "impressao": "AMH em faixa compatível com reserva ovariana preservada"
+      }
     },
     {
       "id": "alterado",
       "name": "Alterado",
       "status": "alterado",
       "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Exame com alterações nos parâmetros avaliados.",
-      "interpretation": "Alterações devem ser correlacionadas com quadro clínico, medicamentos, evolução e exames complementares.",
-      "conclusion": "Exame alterado, recomendando correlação clínica."
+      "resultSummary": "Hormônio Anti-Mülleriano (AMH): AMH: 0,4.",
+      "interpretation": "Os resultados principais (AMH: 0,4 ng/mL) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
+      "conclusion": "Hormônio Anti-Mülleriano (AMH) com padrão alterado, documentado por AMH: 0,4 ng/mL.",
+      "results": {
+        "amh_valor": "0,4",
+        "contexto_clinico": "Avaliação de reserva ovariana",
+        "impressao": "AMH reduzido, compatível com baixa reserva ovariana no contexto adequado"
+      }
     },
     {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
       "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Exame com achado limítrofe ou inespecífico.",
-      "interpretation": "Resultado isolado não define diagnóstico e pode requerer repetição/seguimento conforme avaliação médica.",
-      "conclusion": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+      "resultSummary": "Hormônio Anti-Mülleriano (AMH): AMH: 0,9.",
+      "interpretation": "Os principais resultados (AMH: 0,9 ng/mL) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
+      "conclusion": "Hormônio Anti-Mülleriano (AMH) com resultado limítrofe/inespecífico, destacando-se AMH: 0,9 ng/mL.",
+      "results": {
+        "amh_valor": "0,9",
+        "contexto_clinico": "Avaliação de reserva ovariana",
+        "impressao": "AMH em faixa baixa/limítrofe"
+      }
     },
     {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
       "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Exame personalizado.",
-      "interpretation": "Interpretação a ser definida pelo médico.",
-      "conclusion": "Conclusão a ser definida pelo médico."
+      "resultSummary": "Hormônio Anti-Mülleriano (AMH): modelo personalizado preparado para edição dos resultados.",
+      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "results": {
+        "amh_valor": "2,2",
+        "contexto_clinico": "Avaliação de reserva ovariana",
+        "impressao": "A definir pelo médico conforme os dados inseridos"
+      }
     }
   ],
   "variables": [],
@@ -253,8 +273,8 @@ export const hormonal_amhModel: IntelligentExamModel = {
       }
     ]
   },
-  "technique": "Amostra processada conforme método laboratorial validado, com controles internos e referências aplicáveis ao exame.",
-  "method": "Método laboratorial compatível com o parâmetro analisado, conforme validação interna do serviço.",
+  "technique": "Amostra sérica processada para dosagem do hormônio anti-Mülleriano, marcador utilizado na avaliação laboratorial da reserva ovariana no contexto adequado.",
+  "method": "Quantificação de AMH por imunoensaio automatizado validado, com interpretação segundo método, faixa etária e contexto clínico.",
   "parameters": [
     {
       "id": "amh_valor",
@@ -294,14 +314,14 @@ export const hormonal_amhModel: IntelligentExamModel = {
     }
   ],
   "interpretation": {
-    "normal": "Parâmetros dentro dos valores de referência disponíveis.",
-    "altered": "Um ou mais parâmetros fora da referência, com significado dependente do contexto clínico.",
-    "undefined": "Alteração discreta, limítrofe ou inconclusiva, sem definição diagnóstica isolada."
+    "normal": "Resultados de Hormônio Anti-Mülleriano (AMH) compatíveis com os valores e padrões de referência aplicáveis ao método.",
+    "altered": "Hormônio Anti-Mülleriano (AMH) com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
+    "undefined": "Hormônio Anti-Mülleriano (AMH) com variações discretas ou limítrofes, sem definição clínica isolada."
   },
   "conclusion": {
-    "normal": "Exame sem alterações significativas.",
-    "altered": "Exame alterado, recomendando correlação clínica.",
-    "undefined": "Achado indefinido ou limítrofe, recomendando correlação clínica."
+    "normal": "Hormônio Anti-Mülleriano (AMH) sem alterações significativas nos parâmetros avaliados.",
+    "altered": "Hormônio Anti-Mülleriano (AMH) alterado conforme resultados objetivos descritos.",
+    "undefined": "Hormônio Anti-Mülleriano (AMH) com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
   },
   "attachments": {
     "enabled": false,
