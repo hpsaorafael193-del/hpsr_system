@@ -12,6 +12,15 @@ function sanitizeClinicalHtml(value: unknown) {
     .replace(/javascript:/gi, "");
 }
 
+function resolveRecordDate(payload: any, fallback: string) {
+  const performedAt = String(payload?.examPerformedAt || "").trim();
+  if (performedAt) return performedAt;
+  const date = String(payload?.examDate || "").trim();
+  const time = String(payload?.examTime || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return `${date}T${/^\d{2}:\d{2}$/.test(time) ? time : "00:00"}:00-03:00`;
+  return fallback;
+}
+
 function safeRecord(record: any) {
   const payload = record.payload || {};
   return {
@@ -19,7 +28,7 @@ function safeRecord(record: any) {
     type: record.record_type,
     title: payload.examName || payload.documentTitle || payload.title || record.record_type,
     doctor: payload.doctor?.name || payload.doctorName || "Equipe médica",
-    createdAt: record.created_at,
+    createdAt: resolveRecordDate(payload, record.created_at),
     updatedAt: record.updated_at,
     protocol: payload.protocol || null,
     html: sanitizeClinicalHtml(
@@ -62,7 +71,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await patientSession.supabase
       .from("clinical_records")
-      .select("id,record_type,created_at,updated_at,is_confidential,released_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,protocol:payload->>protocol")
+      .select("id,record_type,created_at,updated_at,is_confidential,released_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,protocol:payload->>protocol,exam_date:payload->>examDate,exam_time:payload->>examTime,exam_performed_at:payload->>examPerformedAt")
       .eq("patient_passport", targetPassport)
       .in("record_type", ["Exame", "Documento", "Vacina"])
       .eq("is_confidential", false)
@@ -76,7 +85,7 @@ export async function GET(request: NextRequest) {
       type: record.record_type,
       title: record.exam_name || record.document_title || record.title || record.record_type,
       doctor: record.doctor_name || record.doctor_name_flat || "Equipe médica",
-      createdAt: record.created_at,
+      createdAt: record.exam_performed_at || (record.exam_date ? `${record.exam_date}T${record.exam_time || "00:00"}:00-03:00` : record.created_at),
       updatedAt: record.updated_at,
       protocol: record.protocol || null,
       isConfidential: Boolean(record.is_confidential),

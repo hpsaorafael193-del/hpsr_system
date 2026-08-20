@@ -58,6 +58,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { hpsrSuccess } from "@/components/ui/HpsrToastProvider";
 import { ClinicalHistoryButton } from "@/components/dashboard/ClinicalHistoryButton";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { normalizeXrayKey, resolveXrayAttachmentAsset } from "@/lib/xray-attachment-resolver";
@@ -125,6 +126,9 @@ type SavedDraft = {
     automaticAttachmentNotes?: string;
   };
   savedAt: string;
+  manualExamDateTime?: boolean;
+  examDate?: string;
+  examTime?: string;
 };
 
 type PreviewState = {
@@ -234,10 +238,18 @@ function todayISO() {
 }
 
 function nowHHMM() {
-  return new Date().toLocaleTimeString("pt-BR", {
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
     hour: "2-digit",
     minute: "2-digit",
-  });
+    hourCycle: "h23",
+  }).format(new Date());
+}
+
+function brazilDateTimeIso(date: string, time: string) {
+  const safeDate = /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayISO();
+  const safeTime = /^\d{2}:\d{2}$/.test(time) ? time : nowHHMM();
+  return `${safeDate}T${safeTime}:00-03:00`;
 }
 
 function createProtocol() {
@@ -727,6 +739,9 @@ export default function ExamesPage() {
   const [examSearch, setExamSearch] = useState("");
   const [examNameInput, setExamNameInput] = useState("");
   const [protocol, setProtocol] = useState("");
+  const [manualExamDateTime, setManualExamDateTime] = useState(false);
+  const [examDate, setExamDate] = useState(todayISO());
+  const [examTime, setExamTime] = useState(nowHHMM());
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState("Sem alterações");
   const [isConfidential, setIsConfidential] = useState(true);
@@ -801,13 +816,13 @@ export default function ExamesPage() {
     () => ({
       examName: selectedExam?.nome || "Exame",
       protocol,
-      date: todayISO(),
-      time: nowHHMM(),
+      date: examDate,
+      time: examTime,
       patient,
       doctor,
       signatureImage,
     }),
-    [selectedExam?.nome, protocol, patient, doctor, signatureImage],
+    [selectedExam?.nome, protocol, patient, doctor, signatureImage, examDate, examTime],
   );
 
   const automaticRxAttachment = useMemo<AutomaticAttachment | null>(() => {
@@ -938,6 +953,9 @@ export default function ExamesPage() {
     if (editorRef.current) editorRef.current.innerHTML = draft.html || "";
     window.requestAnimationFrame(updateEditorPageGuides);
     setProtocol(draft.protocol || createProtocol());
+    setManualExamDateTime(Boolean(draft.manualExamDateTime));
+    setExamDate(draft.examDate || todayISO());
+    setExamTime(draft.examTime || nowHHMM());
     setLastSavedAt(
       draft.savedAt
         ? new Date(draft.savedAt).toLocaleTimeString("pt-BR", {
@@ -1083,6 +1101,9 @@ export default function ExamesPage() {
         adaptiveConfig,
         html,
         protocol,
+        manualExamDateTime,
+        examDate,
+        examTime,
         attachments,
         ui: {
           showCatalog,
@@ -1114,6 +1135,9 @@ export default function ExamesPage() {
       adaptiveConfig,
       html,
       protocol,
+      manualExamDateTime,
+      examDate,
+      examTime,
       attachments,
       ui: {
         showCatalog,
@@ -1133,7 +1157,7 @@ export default function ExamesPage() {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patient, doctor, selectedDoctorId, selectedExamId, adaptiveConfig, protocol, attachments, showCatalog, smartConfigOpen, catalogCategory, examSearch, attachmentEditorOpen, automaticAttachmentNotes]);
+  }, [patient, doctor, selectedDoctorId, selectedExamId, adaptiveConfig, protocol, manualExamDateTime, examDate, examTime, attachments, showCatalog, smartConfigOpen, catalogCategory, examSearch, attachmentEditorOpen, automaticAttachmentNotes]);
 
   useEffect(() => {
     function handlePageHide() {
@@ -1162,7 +1186,7 @@ export default function ExamesPage() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patient, doctor, selectedDoctorId, selectedExamId, adaptiveConfig, protocol, attachments, showCatalog, smartConfigOpen, catalogCategory, examSearch, attachmentEditorOpen, automaticAttachmentNotes]);
+  }, [patient, doctor, selectedDoctorId, selectedExamId, adaptiveConfig, protocol, manualExamDateTime, examDate, examTime, attachments, showCatalog, smartConfigOpen, catalogCategory, examSearch, attachmentEditorOpen, automaticAttachmentNotes]);
 
   useEffect(() => {
     updateEditorPageGuides();
@@ -1603,8 +1627,11 @@ export default function ExamesPage() {
     const html = cleanEditorHtml(
       editorRef.current?.innerHTML || editorHtmlRef.current,
     );
+    const effectiveMetadata = manualExamDateTime
+      ? metadata
+      : { ...metadata, date: todayISO(), time: nowHHMM() };
     const document = createFinalExamDocument({
-      metadata,
+      metadata: effectiveMetadata,
       reportHtml: html,
       manualAttachments: attachments,
       resolvedExam,
@@ -1639,6 +1666,9 @@ export default function ExamesPage() {
           adaptiveConfig,
           html,
           protocol,
+          manualExamDateTime,
+          examDate,
+          examTime,
           attachments,
           savedAt,
         });
@@ -1653,13 +1683,17 @@ export default function ExamesPage() {
           adaptiveConfig,
           html,
           protocol,
+          manualExamDateTime,
+          examDate,
+          examTime,
           attachments: [],
           savedAt,
         });
       }
 
       const client = createClient();
-      if (client) {
+      if (!client) throw new Error("Não foi possível conectar ao banco de dados.");
+      {
         const recordId = `exam-${Date.now()}-${Math.random().toString(16).slice(2)}`;
         const previewImages = (await Promise.all(
           document.pages.map((_, pageIndex) => renderPreviewPage(document, pageIndex, false)),
@@ -1677,7 +1711,10 @@ export default function ExamesPage() {
             appointmentTime: activeAppointment.time,
           } : {}),
           examId: selectedExam?.id || selectedExamId,
-          examName: metadata.examName,
+          examName: document.metadata.examName,
+          examDate: document.metadata.date,
+          examTime: document.metadata.time,
+          examPerformedAt: brazilDateTimeIso(document.metadata.date, document.metadata.time),
           reportHtml: html,
           previewImage: previewImages[0] || null,
           previewImages,
@@ -1703,7 +1740,8 @@ export default function ExamesPage() {
       setSaveStatus(`Salvo às ${time}`);
       setPreviewImage(null);
       setPreview({ open: true, document, pageIndex: 0 });
-      registerSystemActivity({ module: "Exames", action: "Exame salvo", description: `${metadata.examName} salvo para ${patient.name || "paciente não informado"}.`, actor: currentUserProfile.systemName, reference: currentUserProfile.passport });
+      registerSystemActivity({ module: "Exames", action: "Exame salvo", description: `${document.metadata.examName} salvo para ${patient.name || "paciente não informado"}.`, actor: currentUserProfile.systemName, reference: currentUserProfile.passport });
+      hpsrSuccess(`${document.metadata.examName} foi salvo no prontuário de ${patient.name}.`, "Exame salvo");
     } catch (error) {
       console.error("[HPSR][Exames] Falha ao salvar ou preparar o preview:", error);
       const message = error instanceof Error ? error.message : "Erro desconhecido ao salvar o exame.";
@@ -2336,6 +2374,55 @@ export default function ExamesPage() {
                     <FieldLabel>CRM</FieldLabel>
                     <p className="text-sm font-black text-hpsr-text">{doctor.crm || "-"}</p>
                   </div>
+                </div>
+                <div className="rounded-[15px] border border-[#e0c7b0] bg-[#fffaf4] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <FieldLabel>Data e hora do exame</FieldLabel>
+                      <p className="text-[11px] font-semibold leading-relaxed text-hpsr-muted">
+                        {manualExamDateTime ? "Data definida manualmente." : "Por padrão, será usada a data e hora atuais no momento do salvamento."}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (manualExamDateTime) {
+                          setManualExamDateTime(false);
+                          setExamDate(todayISO());
+                          setExamTime(nowHHMM());
+                        } else {
+                          setExamDate(todayISO());
+                          setExamTime(nowHHMM());
+                          setManualExamDateTime(true);
+                        }
+                      }}
+                      className="shrink-0 rounded-[11px] border border-hpsr-wine/20 bg-white px-3 py-2 text-[11px] font-black text-hpsr-wine hover:border-hpsr-wine/40"
+                    >
+                      {manualExamDateTime ? "Usar agora" : "Editar"}
+                    </button>
+                  </div>
+                  {manualExamDateTime && (
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div>
+                        <FieldLabel>Data</FieldLabel>
+                        <input
+                          type="date"
+                          value={examDate}
+                          onChange={(event) => setExamDate(event.target.value)}
+                          className="h-10 w-full rounded-[12px] border border-[#d8bfa9] bg-white px-3 text-sm font-semibold text-hpsr-text outline-none focus:border-hpsr-wine/55 focus:ring-2 focus:ring-hpsr-wine/10"
+                        />
+                      </div>
+                      <div>
+                        <FieldLabel>Hora</FieldLabel>
+                        <input
+                          type="time"
+                          value={examTime}
+                          onChange={(event) => setExamTime(event.target.value)}
+                          className="h-10 w-full rounded-[12px] border border-[#d8bfa9] bg-white px-3 text-sm font-semibold text-hpsr-text outline-none focus:border-hpsr-wine/55 focus:ring-2 focus:ring-hpsr-wine/10"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </Panel>

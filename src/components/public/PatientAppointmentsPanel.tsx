@@ -2,7 +2,7 @@
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, RefreshCcw, CalendarClock, MessageCircleWarning } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, RefreshCcw, CalendarClock, MessageCircleWarning, FileText, FlaskConical, Stethoscope } from "lucide-react";
 import { specialties } from "@/data/mock";
 
 type Appointment = {
@@ -196,6 +196,11 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
           <div className="mt-4 max-h-[420px] space-y-2 overflow-y-auto pr-1">
             {visibleAppointments.map((appointment) => {
               const isExpanded = expanded === appointment.id;
+              const consultationRecords = appointment.consultationRecords || [];
+              const examRecords = consultationRecords.filter((record) => record.type.toLowerCase().includes("exame"));
+              const documentRecords = consultationRecords.filter((record) => record.type.toLowerCase().includes("document"));
+              const otherRecords = consultationRecords.filter((record) => !record.type.toLowerCase().includes("exame") && !record.type.toLowerCase().includes("document"));
+              const hasConsultationSummary = Boolean(appointment.attendanceSummary || consultationRecords.length > 0 || ["Realizada", "Concluída"].includes(appointment.status));
               return (
                 <article key={appointment.id} className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3">
                   <button type="button" onClick={() => setExpanded(isExpanded ? null : appointment.id)} className="flex w-full items-center justify-between gap-3 text-left">
@@ -207,7 +212,86 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
                     </div>
                     <div className="flex shrink-0 items-center gap-2"><span className="rounded-full bg-[#f1dfcd] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{appointment.status}</span>{isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</div>
                   </button>
-                  {isExpanded && <div className="mt-3 grid gap-2 border-t border-hpsr-border pt-3 text-xs font-semibold text-hpsr-muted sm:grid-cols-2"><p><strong className="text-hpsr-text">Protocolo:</strong> {appointment.id}</p><p><strong className="text-hpsr-text">Médico:</strong> {appointment.physician}</p><p className="sm:col-span-2"><strong className="text-hpsr-text">Motivo:</strong> {appointment.reason || "Não informado"}</p>{appointment.flowType === "Outros" && appointment.flowDetails && <p className="sm:col-span-2"><strong className="text-hpsr-text">Objetivo informado:</strong> {appointment.flowDetails}</p>}{appointment.notes && <p className="sm:col-span-2"><strong className="text-hpsr-text">Observações:</strong> {appointment.notes}</p>}{(appointment.attendanceSummary || (appointment.consultationRecords?.length || 0) > 0 || ["Realizada", "Concluída"].includes(appointment.status)) && <div className="sm:col-span-2 rounded-[15px] border border-hpsr-border bg-white p-3"><p className="text-[10px] font-black uppercase tracking-[.13em] text-hpsr-wineLight">Resumo da consulta</p>{appointment.attendanceSummary && <p className="mt-2 text-xs font-semibold leading-relaxed text-hpsr-text">{appointment.attendanceSummary}</p>}<div className="mt-3 grid gap-2">{appointment.consultationRecords?.length ? appointment.consultationRecords.map((record) => <div key={record.id} className="flex items-center justify-between gap-3 rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-3 py-2"><div className="min-w-0"><p className="truncate text-xs font-black text-hpsr-text">{record.title}</p><p className="text-[10px] font-semibold text-hpsr-muted">{record.type}</p></div><button type="button" onClick={(event) => { event.stopPropagation(); onOpenRecords?.(); }} className="shrink-0 rounded-[10px] border border-emerald-200 bg-emerald-50 px-2 py-1 text-[9px] font-black text-emerald-700">Ver resultado</button></div>) : <p className="text-[11px] font-semibold text-hpsr-muted">Nenhum exame ou documento foi registrado nesta consulta.</p>}</div></div>}{appointment.answer && <div className={`sm:col-span-2 rounded-[14px] border p-3 ${appointment.status.toLowerCase().includes("recus") ? "border-rose-200 bg-rose-50 text-rose-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}><p className="font-black">Resposta da equipe</p><p className="mt-1 leading-relaxed">{appointment.answer}</p></div>}{appointment.status === "Reagendamento solicitado" && (
+                  {isExpanded && <div className="mt-3 grid gap-2 border-t border-hpsr-border pt-3 text-xs font-semibold text-hpsr-muted sm:grid-cols-2"><p><strong className="text-hpsr-text">Protocolo:</strong> {appointment.id}</p><p><strong className="text-hpsr-text">Médico:</strong> {appointment.physician}</p><p className="sm:col-span-2"><strong className="text-hpsr-text">Motivo:</strong> {appointment.reason || "Não informado"}</p>{appointment.flowType === "Outros" && appointment.flowDetails && <p className="sm:col-span-2"><strong className="text-hpsr-text">Objetivo informado:</strong> {appointment.flowDetails}</p>}{appointment.notes && <p className="sm:col-span-2"><strong className="text-hpsr-text">Observações:</strong> {appointment.notes}</p>}{hasConsultationSummary && (
+                    <div className="sm:col-span-2 overflow-hidden rounded-[18px] border border-hpsr-border bg-white shadow-[0_10px_24px_rgba(76,31,18,.06)]">
+                      <div className="flex items-start gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fff8f1_0%,#fffdf9_100%)] p-3.5 sm:p-4">
+                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-hpsr-wine text-white"><Stethoscope size={19} /></span>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Resumo da consulta</p>
+                          <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Veja o que foi registrado neste atendimento.</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 p-3.5 sm:p-4">
+                        <section className="rounded-[14px] border border-hpsr-border bg-[#fffaf4] p-3">
+                          <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Consulta</p>
+                          {appointment.attendanceSummary ? (
+                            <p className="mt-2 text-xs font-semibold leading-relaxed text-hpsr-text">{appointment.attendanceSummary}</p>
+                          ) : (
+                            <p className="mt-2 text-[11px] font-semibold leading-relaxed text-hpsr-muted">{["Realizada", "Concluída"].includes(appointment.status) ? "Consulta finalizada. Os registros feitos neste atendimento aparecem abaixo." : "Os registros deste atendimento aparecem abaixo conforme forem liberados."}</p>
+                          )}
+                        </section>
+
+                        <div className="grid gap-3 lg:grid-cols-2">
+                          <section className="rounded-[14px] border border-blue-200 bg-blue-50/60 p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-blue-700 text-white"><FlaskConical size={15} /></span>
+                                <div>
+                                  <p className="text-xs font-black text-blue-950">Exames</p>
+                                  <p className="text-[10px] font-semibold text-blue-700">Feitos nesta consulta</p>
+                                </div>
+                              </div>
+                              <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black text-blue-700">{examRecords.length}</span>
+                            </div>
+                            <div className="mt-3 space-y-2">
+                              {examRecords.length ? examRecords.map((record) => (
+                                <div key={record.id} className="flex items-center justify-between gap-3 rounded-[11px] border border-blue-100 bg-white px-3 py-2">
+                                  <p className="min-w-0 truncate text-[11px] font-black text-hpsr-text">{record.title}</p>
+                                  <button type="button" onClick={(event) => { event.stopPropagation(); onOpenRecords?.(); }} className="shrink-0 rounded-[9px] border border-blue-200 bg-blue-50 px-2 py-1 text-[9px] font-black text-blue-700">Ver resultado</button>
+                                </div>
+                              )) : <p className="rounded-[11px] border border-dashed border-blue-200 bg-white/70 px-3 py-2.5 text-[10px] font-semibold leading-relaxed text-blue-700">Nenhum exame foi registrado nesta consulta.</p>}
+                            </div>
+                          </section>
+
+                          <section className="rounded-[14px] border border-amber-200 bg-amber-50/60 p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="grid h-8 w-8 place-items-center rounded-[10px] bg-amber-600 text-white"><FileText size={15} /></span>
+                                <div>
+                                  <p className="text-xs font-black text-amber-950">Documentos</p>
+                                  <p className="text-[10px] font-semibold text-amber-700">Gerados neste atendimento</p>
+                                </div>
+                              </div>
+                              <span className="rounded-full bg-white px-2 py-1 text-[10px] font-black text-amber-700">{documentRecords.length}</span>
+                            </div>
+                            <div className="mt-3 space-y-2">
+                              {documentRecords.length ? documentRecords.map((record) => (
+                                <div key={record.id} className="flex items-center justify-between gap-3 rounded-[11px] border border-amber-100 bg-white px-3 py-2">
+                                  <p className="min-w-0 truncate text-[11px] font-black text-hpsr-text">{record.title}</p>
+                                  <button type="button" onClick={(event) => { event.stopPropagation(); onOpenRecords?.(); }} className="shrink-0 rounded-[9px] border border-amber-200 bg-amber-50 px-2 py-1 text-[9px] font-black text-amber-800">Ver documento</button>
+                                </div>
+                              )) : <p className="rounded-[11px] border border-dashed border-amber-200 bg-white/70 px-3 py-2.5 text-[10px] font-semibold leading-relaxed text-amber-700">Nenhum documento foi registrado nesta consulta.</p>}
+                            </div>
+                          </section>
+                        </div>
+
+                        {otherRecords.length > 0 && (
+                          <section className="rounded-[14px] border border-hpsr-border bg-white p-3">
+                            <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Outros registros</p>
+                            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                              {otherRecords.map((record) => (
+                                <button key={record.id} type="button" onClick={(event) => { event.stopPropagation(); onOpenRecords?.(); }} className="flex items-center justify-between gap-2 rounded-[11px] border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-left">
+                                  <span className="min-w-0 truncate text-[11px] font-black text-hpsr-text">{record.title}</span>
+                                  <span className="shrink-0 text-[9px] font-black text-hpsr-wine">Ver</span>
+                                </button>
+                              ))}
+                            </div>
+                          </section>
+                        )}
+                      </div>
+                    </div>
+                  )}{appointment.answer && <div className={`sm:col-span-2 rounded-[14px] border p-3 ${appointment.status.toLowerCase().includes("recus") ? "border-rose-200 bg-rose-50 text-rose-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}><p className="font-black">Resposta da equipe</p><p className="mt-1 leading-relaxed">{appointment.answer}</p></div>}{appointment.status === "Reagendamento solicitado" && (
                     <div className="sm:col-span-2 mt-2 rounded-[18px] border border-amber-300 bg-amber-50 p-4">
                       <p className="font-black text-amber-950"><CalendarClock className="mr-2 inline" size={16}/>Ajuste de agendamento em andamento</p>
                       <p className="mt-2 text-xs font-semibold leading-relaxed text-amber-900">Você não precisa escolher outro horário pelo Portal. O médico combina o novo horário com você pelo Discord ou dentro do RP.</p>

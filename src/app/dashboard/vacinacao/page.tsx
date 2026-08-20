@@ -7,6 +7,7 @@ import { StyledSelect } from "@/components/ui/StyledSelect";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
+import { hpsrSuccess } from "@/components/ui/HpsrToastProvider";
 import { createClient } from "@/lib/supabase";
 import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 import {
@@ -650,6 +651,7 @@ export default function VaccinationPage() {
     setVaccine(""); setLot(generateVaccinationLot());
     selectPatient(normalizedPassport);
     await loadHistory(normalizedPassport);
+    hpsrSuccess(`${vaccine.trim()} (${dose}) foi registrada para ${normalizedName}.`, "Vacina registrada");
   }
 
   async function removeApplication(item: VaccinationApplication) {

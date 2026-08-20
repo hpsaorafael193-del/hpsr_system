@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { HpsrDialogProvider } from "@/components/ui/HpsrDialogProvider";
+import { HpsrToastProvider } from "@/components/ui/HpsrToastProvider";
 
 export const metadata: Metadata = {
   title: "Hospital São Rafael - Eldorado",
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body><HpsrDialogProvider>{children}</HpsrDialogProvider></body>
+      <body><HpsrDialogProvider><HpsrToastProvider>{children}</HpsrToastProvider></HpsrDialogProvider></body>
     </html>
   );
 }

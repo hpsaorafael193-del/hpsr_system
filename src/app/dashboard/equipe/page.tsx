@@ -17,6 +17,7 @@ import {
   Code2,
   Crown,
   FileText,
+  History,
   Trash2,
   CalendarClock,
   MessageCircle,
@@ -1104,7 +1105,7 @@ export default function TeamPage() {
                 className="inline-flex min-h-[38px] w-full items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 text-xs font-black text-white transition md:min-h-[46px] md:w-auto md:rounded-[16px] md:px-5 md:text-sm"
               >
                 <UsersRound size={16} />
-                Candidatos
+                Histórico de formulários
               </button>
               </>)}
             </div>
@@ -1240,6 +1241,7 @@ export default function TeamPage() {
           onClose={() => setIsPendingModalOpen(false)}
           onOpenAnalysis={setSelectedApplication}
           onDelete={deleteRejectedApplication}
+          onOpenHistory={() => { setIsPendingModalOpen(false); setIsApplicationHistoryOpen(true); }}
         />
       )}
       {hasTeamAdminAccess && isApplicationHistoryOpen && <ApplicationHistoryModal items={allApplications} onClose={() => setIsApplicationHistoryOpen(false)} onOpenAnalysis={(item) => { setIsApplicationHistoryOpen(false); setSelectedApplication(item as PublicStaffApplication); }} />}
@@ -1455,11 +1457,13 @@ function PendingApplicationsModal({
   onClose,
   onOpenAnalysis,
   onDelete,
+  onOpenHistory,
 }: {
   items: PublicStaffApplication[];
   onClose: () => void;
   onOpenAnalysis: (item: PublicStaffApplication) => void;
   onDelete: (item: PublicStaffApplication) => void;
+  onOpenHistory: () => void;
 }) {
   const pendingCount = items.length;
   return (
@@ -1469,7 +1473,11 @@ function PendingApplicationsModal({
         <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Trabalhe Conosco</p><h2 className="mt-1 text-lg font-black text-hpsr-text">Formulários pendentes</h2><p className="mt-1 text-sm text-hpsr-muted">Somente candidaturas que ainda aguardam uma decisão final.</p></div>
-            <div className="flex flex-wrap items-center justify-end gap-2"><span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-800">{pendingCount} pendente{pendingCount === 1 ? "" : "s"}</span><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-wine"><X size={18} /></button></div>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-800">{pendingCount} pendente{pendingCount === 1 ? "" : "s"}</span>
+              <button type="button" onClick={onOpenHistory} className="inline-flex h-8 items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]"><History size={14}/>Histórico</button>
+              <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-wine"><X size={18} /></button>
+            </div>
           </div>
         </div>
         <div className="max-h-[76vh] overflow-y-auto p-3.5"><div className="grid gap-3">{items.map((item) => <ApplicationCard key={item.protocol} item={item} onOpenAnalysis={onOpenAnalysis} onDelete={onDelete} />)}{items.length === 0 && <div className="rounded-[16px] border border-dashed border-hpsr-border bg-white p-6 text-center"><p className="font-black text-hpsr-text">Nenhum formulário pendente.</p></div>}</div></div>
@@ -1502,6 +1510,7 @@ function ApplicationAnalysisModal({
   onDelete: (item: PublicStaffApplication) => void;
 }) {
   const [draft, setDraft] = useState(item);
+  const [editingFormData, setEditingFormData] = useState(false);
   const correctAnswers = draft.quizAnswers?.filter((answer) => answer.correct).length || 0;
 
   const approveTriage = () => {
@@ -1645,30 +1654,53 @@ function ApplicationAnalysisModal({
                       Dados enviados pelo candidato no formulário público Trabalhe Conosco.
                     </p>
                   </div>
-                  {draft.quizAnswers?.length ? (
-                    <span className="rounded-full border border-hpsr-border bg-[#fff8f0] px-3 py-1 text-xs font-black text-hpsr-wine">
-                      {correctAnswers}/{draft.quizAnswers.length} respostas corretas
-                    </span>
-                  ) : null}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {draft.quizAnswers?.length ? (
+                      <span className="rounded-full border border-hpsr-border bg-[#fff8f0] px-3 py-1 text-xs font-black text-hpsr-wine">
+                        {correctAnswers}/{draft.quizAnswers.length} respostas corretas
+                      </span>
+                    ) : null}
+                    <button type="button" onClick={() => setEditingFormData((value) => !value)} className="rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]">{editingFormData ? "Cancelar edição" : "Editar dados"}</button>
+                    {editingFormData && <button type="button" onClick={() => { onSave(draft); setEditingFormData(false); }} className="rounded-[12px] bg-hpsr-wine px-3 py-2 text-xs font-black text-white">Salvar dados</button>}
+                  </div>
                 </div>
 
-                <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
-                  <Info label="Passaporte" value={draft.passport} />
-                  <Info label="Nascimento" value={[draft.birthDay, draft.birthMonth].filter(Boolean).join(" de ")} />
-                  <Info label="Discord" value={draft.discord} />
-                  <Info label="Telefone" value={draft.cityPhone} />
-                  <Info label="Objetivo no hospital" value={draft.objective} />
-                  <Info label="Disponibilidade externa" value={draft.externalAvailability} />
-                  <Info label="Disponibilidade de horário" value={draft.availability} />
-                  <Info label="Data do envio" value={draft.createdAt} />
-                </div>
+                {editingFormData ? (
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <EditableApplicationField label="Nome" value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} />
+                    <EditableApplicationField label="Passaporte" value={draft.passport || ""} onChange={(value) => setDraft({ ...draft, passport: value })} />
+                    <EditableApplicationField label="Cargo desejado" value={draft.desiredRole || ""} onChange={(value) => setDraft({ ...draft, desiredRole: value })} />
+                    <EditableApplicationField label="Área de interesse" value={draft.interestArea || ""} onChange={(value) => setDraft({ ...draft, interestArea: value })} />
+                    <EditableApplicationField label="Discord" value={draft.discord || ""} onChange={(value) => setDraft({ ...draft, discord: value })} />
+                    <EditableApplicationField label="Telefone" value={draft.cityPhone || ""} onChange={(value) => setDraft({ ...draft, cityPhone: value })} />
+                    <EditableApplicationField label="Disponibilidade de horário" value={draft.availability || ""} onChange={(value) => setDraft({ ...draft, availability: value })} />
+                    <EditableApplicationField label="Disponibilidade externa" value={draft.externalAvailability || ""} onChange={(value) => setDraft({ ...draft, externalAvailability: value })} />
+                    <div className="rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5"><p className="text-[10px] font-black uppercase tracking-[.1em] text-hpsr-wineLight">Data do envio</p><p className="mt-1 text-sm font-bold text-hpsr-text">{draft.createdAt || "Não informada"}</p></div>
+                    <EditableApplicationArea label="Objetivo no hospital" value={draft.objective || ""} onChange={(value) => setDraft({ ...draft, objective: value })} />
+                    <EditableApplicationArea label="Possui experiência prévia?" value={draft.experience || ""} onChange={(value) => setDraft({ ...draft, experience: value })} />
+                    <EditableApplicationArea label="Experiência anterior em RP médico" value={draft.priorExperience || ""} onChange={(value) => setDraft({ ...draft, priorExperience: value })} />
+                    <EditableApplicationArea label="Motivação" value={draft.motivation || ""} onChange={(value) => setDraft({ ...draft, motivation: value })} />
+                    <EditableApplicationArea label="Observações" value={draft.notes || ""} onChange={(value) => setDraft({ ...draft, notes: value })} />
+                  </div>
+                ) : (<>
+                  <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
+                    <Info label="Passaporte" value={draft.passport} />
+                    <Info label="Nascimento" value={[draft.birthDay, draft.birthMonth].filter(Boolean).join(" de ")} />
+                    <Info label="Discord" value={draft.discord} />
+                    <Info label="Telefone" value={draft.cityPhone} />
+                    <Info label="Objetivo no hospital" value={draft.objective} />
+                    <Info label="Disponibilidade externa" value={draft.externalAvailability} />
+                    <Info label="Disponibilidade de horário" value={draft.availability} />
+                    <Info label="Data do envio" value={draft.createdAt} />
+                  </div>
 
-                <div className="mt-4 grid gap-3">
-                  <LongInfo label="Possui experiência prévia?" value={draft.experience} />
-                  <LongInfo label="Experiência anterior em RP médico" value={draft.priorExperience} />
-                  <LongInfo label="Motivação" value={draft.motivation} />
-                  <LongInfo label="Observações" value={draft.notes} />
-                </div>
+                  <div className="mt-4 grid gap-3">
+                    <LongInfo label="Possui experiência prévia?" value={draft.experience} />
+                    <LongInfo label="Experiência anterior em RP médico" value={draft.priorExperience} />
+                    <LongInfo label="Motivação" value={draft.motivation} />
+                    <LongInfo label="Observações" value={draft.notes} />
+                  </div>
+                </>)}
               </section>
 
               <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-sm md:p-5">
@@ -1814,6 +1846,14 @@ function ApplicationAnalysisModal({
 }
 
 
+
+function EditableApplicationField({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return <label className="text-xs font-black text-hpsr-text">{label}<input className={`${modalInputClass} mt-1`} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
+}
+
+function EditableApplicationArea({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return <label className="text-xs font-black text-hpsr-text sm:col-span-2 xl:col-span-3">{label}<textarea className={`${modalInputClass} mt-1 min-h-20`} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
+}
 
 function QuizAnswerCard({ index, answer }: { index: number; answer: NonNullable<PublicStaffApplication["quizAnswers"]>[number] }) {
   return (

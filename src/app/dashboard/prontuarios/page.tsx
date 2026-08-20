@@ -35,6 +35,7 @@ import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvi
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { notifyPatientRegistryUpdated } from "@/lib/patient-sync";
 import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
+import { hpsrSuccess } from "@/components/ui/HpsrToastProvider";
 import { createClient } from "@/lib/supabase";
 import { ClinicalRecordsPortalPanel } from "@/components/dashboard/ClinicalRecordsPortalPanel";
 import { specialties } from "@/data/mock";
@@ -244,7 +245,7 @@ export default function RecordsPage() {
       setIsLoadingPatients(true);
       const [registryResult, recordsResult, appointmentsResult, portalResult] = await Promise.all([
         supabase.from("patient_registry").select("passport,name,age,birth_date,sex,blood_type,city_phone,email,follow_up,portal_specialties,created_at,updated_at").order("created_at", { ascending: false }),
-        supabase.from("clinical_records").select("id,patient_passport,record_type,created_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,summary:payload->>summary").order("created_at", { ascending: false }),
+        supabase.from("clinical_records").select("id,patient_passport,record_type,created_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,summary:payload->>summary,exam_date:payload->>examDate").order("created_at", { ascending: false }),
         supabase.from("appointments").select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,doctor_name:payload->>doctor,reason:payload->>reason,notes:payload->>notes").order("created_at", { ascending: false }),
         supabase.from("patient_portal_access").select("id,patient_passport,email,access_enabled,triage_status,schedule_assignments,created_at").order("created_at", { ascending: false }),
       ]);
@@ -369,7 +370,7 @@ export default function RecordsPage() {
           patientPassport: passport,
           type: kind,
           title: row.exam_name || row.document_title || row.title || row.record_type,
-          date: String(row.created_at || "").slice(0, 10),
+          date: String((recordType.includes("exame") && row.exam_date) || row.created_at || "").slice(0, 10),
           doctor: row.doctor_name || row.doctor_name_flat || "Equipe médica",
           status: "Concluído",
           summary: row.summary || "Registro armazenado no prontuário.",
@@ -933,6 +934,7 @@ export default function RecordsPage() {
     ));
     setActiveTab("timeline");
     setIsClinicalRecordOpen(false);
+    hpsrSuccess(`${data.recordTitle.trim()} foi salvo no prontuário de ${selectedPatient.name}.`, "Registro salvo");
   }
 
   return (

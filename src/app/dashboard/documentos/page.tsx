@@ -40,6 +40,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { hpsrSuccess } from "@/components/ui/HpsrToastProvider";
 import { ClinicalHistoryButton } from "@/components/dashboard/ClinicalHistoryButton";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
@@ -1668,11 +1669,7 @@ export default function DocumentsPage() {
       setPreviewImages(Array.from({ length: pages.length }, (_, index) => renderedImages[index] || ""));
       setPreviewPageIndex(0);
       setPreviewOpen(true);
-      setAppDialog({
-        title: "Documento salvo no sistema",
-        message: `O documento foi vinculado ao prontuário de ${patient.name} e já pode ser consultado conforme a configuração de sigilo.`,
-        actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
-      });
+      hpsrSuccess(`O documento foi salvo no prontuário de ${patient.name}.`, "Documento salvo");
     } catch (error) {
       setAppDialog({
         title: "Não foi possível salvar o documento",

@@ -380,7 +380,7 @@ export default function AppointmentsPage() {
         .replace(/[\u0300-\u036f]/g, "");
 
       const isTargetedFollowup = item.flowType === "Acompanhamento com especialista" && Boolean(item.requestedDoctorId);
-      const isManager = ["Total", "Diretor Técnico / Dev"].includes(currentUserProfile.accessLevel) || ["Diretora", "Vice Diretor", "Diretor Clínico"].includes(currentUserProfile.role);
+      const isManager = ["Total", "Diretor Técnico / Dev"].includes(currentUserProfile.accessLevel) || ["Diretora", "Vice Diretor", "Vice-Diretor"].includes(currentUserProfile.role);
       const belongsToDoctor = !isTargetedFollowup || item.requestedDoctorId === currentUserProfile.id || isManager;
       return belongsToDoctor && pendingMarkers.some((marker) => normalizedStatus.includes(marker));
     });
