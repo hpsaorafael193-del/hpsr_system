@@ -25,6 +25,7 @@ import {
 import { profileDocuments } from "@/data/current-user-profile";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
+import { ClinicalCapacitySettings } from "@/components/dashboard/ClinicalCapacitySettings";
 import { createClient } from "@/lib/supabase";
 import { readSystemActivities, registerSystemActivity, type SystemActivity } from "@/lib/administrative-storage";
 
@@ -392,8 +393,10 @@ export default function PerfilPage() {
             )}
           </section>
 
+          <ClinicalCapacitySettings />
+
           <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
-            <article className="rounded-[24px] border border-hpsr-border bg-white/[0.86] p-3.5">
+            <article id="assinatura" className="scroll-mt-24 rounded-[24px] border border-hpsr-border bg-white/[0.86] p-3.5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Documentos médicos</p>

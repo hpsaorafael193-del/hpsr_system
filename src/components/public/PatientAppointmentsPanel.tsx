@@ -74,6 +74,8 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
   const [requestFlowType, setRequestFlowType] = useState("Consulta comum");
   const [requestSpecialty, setRequestSpecialty] = useState("");
   const [discordId, setDiscordId] = useState("");
+  const [capacityAvailable, setCapacityAvailable] = useState<boolean | null>(null);
+  const [capacityLoading, setCapacityLoading] = useState(false);
   const requestInFlightRef = useRef<Promise<void> | null>(null);
   const lastLoadedAtRef = useRef(0);
   const onSessionExpiredRef = useRef(onSessionExpired);
@@ -88,6 +90,22 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
   useEffect(() => {
     onSessionExpiredRef.current = onSessionExpired;
   }, [onSessionExpired]);
+
+  useEffect(() => {
+    if (view !== "request" || !requestSpecialty) { setCapacityAvailable(null); return; }
+    let active = true;
+    setCapacityLoading(true);
+    void fetch(`/api/paciente/capacidade?specialty=${encodeURIComponent(requestSpecialty)}`, { cache: "no-store" })
+      .then(async (response) => ({ response, data: await response.json() }))
+      .then(({ response, data }) => {
+        if (!active) return;
+        if (response.status === 401) { onSessionExpiredRef.current?.(); return; }
+        setCapacityAvailable(Boolean(response.ok && data.ok && data.available));
+      })
+      .catch(() => { if (active) setCapacityAvailable(null); })
+      .finally(() => { if (active) setCapacityLoading(false); });
+    return () => { active = false; };
+  }, [requestSpecialty, view]);
 
   const loadAppointments = useCallback(async ({ silent = false, force = false }: { silent?: boolean; force?: boolean } = {}) => {
     const now = Date.now();
@@ -155,6 +173,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
       formElement.reset();
       setRequestFlowType("Consulta comum");
       setRequestSpecialty("");
+      setCapacityAvailable(null);
       setDiscordId("");
       await loadAppointments({ silent: true, force: true });
     } catch (submitError) {
@@ -212,7 +231,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
                     </div>
                     <div className="flex shrink-0 items-center gap-2"><span className="rounded-full bg-[#f1dfcd] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{appointment.status}</span>{isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</div>
                   </button>
-                  {isExpanded && <div className="mt-3 grid gap-2 border-t border-hpsr-border pt-3 text-xs font-semibold text-hpsr-muted sm:grid-cols-2"><p><strong className="text-hpsr-text">Protocolo:</strong> {appointment.id}</p><p><strong className="text-hpsr-text">Médico:</strong> {appointment.physician}</p><p className="sm:col-span-2"><strong className="text-hpsr-text">Motivo:</strong> {appointment.reason || "Não informado"}</p>{appointment.flowType === "Outros" && appointment.flowDetails && <p className="sm:col-span-2"><strong className="text-hpsr-text">Objetivo informado:</strong> {appointment.flowDetails}</p>}{appointment.notes && <p className="sm:col-span-2"><strong className="text-hpsr-text">Observações:</strong> {appointment.notes}</p>}{hasConsultationSummary && (
+                  {isExpanded && <div className="mt-3 grid gap-2 border-t border-hpsr-border pt-3 text-xs font-semibold text-hpsr-muted sm:grid-cols-2"><p><strong className="text-hpsr-text">Protocolo:</strong> {appointment.id}</p><p><strong className="text-hpsr-text">Médico:</strong> {appointment.physician}</p><p className="sm:col-span-2"><strong className="text-hpsr-text">Motivo:</strong> {appointment.reason || "Não informado"}</p>{["Acompanhamento", "Outros"].includes(appointment.flowType || "") && appointment.flowDetails && <p className="sm:col-span-2"><strong className="text-hpsr-text">Objetivo informado:</strong> {appointment.flowDetails}</p>}{appointment.notes && <p className="sm:col-span-2"><strong className="text-hpsr-text">Observações:</strong> {appointment.notes}</p>}{hasConsultationSummary && (
                     <div className="sm:col-span-2 overflow-hidden rounded-[18px] border border-hpsr-border bg-white shadow-[0_10px_24px_rgba(76,31,18,.06)]">
                       <div className="flex items-start gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fff8f1_0%,#fffdf9_100%)] p-3.5 sm:p-4">
                         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-hpsr-wine text-white"><Stethoscope size={19} /></span>
@@ -316,15 +335,19 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Tipo de consulta
             <StyledSelect name="flowType" required value={requestFlowType} onChange={(event) => setRequestFlowType(event.target.value)} className={`${fieldClass} mt-1.5`}>
               <option>Consulta comum</option>
-              <option value="Outros">Outro motivo</option>
+              <option value="Acompanhamento">Acompanhamento</option>
             </StyledSelect>
-            <span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Para uma consulta nova, escolha “Consulta comum”. Exames têm uma área própria; acompanhamentos ficam em Meus agendamentos e os horários publicados ficam em Horários do médico.</span>
+            <span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Escolha “Consulta comum” para um atendimento isolado ou “Acompanhamento” para um processo com retornos, como pré-natal ou fertilização. Exames têm uma área própria.</span>
           </label>
-          {requestFlowType === "Outros" && (
-            <label className="text-xs font-black text-hpsr-muted sm:col-span-2">O que você precisa?
-              <textarea name="flowDetails" required rows={3} placeholder="Conte em poucas palavras o que você precisa." className={`${fieldClass} mt-1.5 py-3`} />
+          {requestFlowType === "Acompanhamento" && (
+            <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Qual acompanhamento você precisa?
+              <textarea name="flowDetails" required rows={3} placeholder="Ex.: pré-natal, fertilização ou outro acompanhamento contínuo." className={`${fieldClass} mt-1.5 py-3`} />
             </label>
           )}
+          {requestSpecialty && <div className={`sm:col-span-2 rounded-[14px] border px-3.5 py-3 ${capacityAvailable === false ? "border-rose-200 bg-rose-50" : "border-emerald-200 bg-emerald-50"}`}>
+            <p className={`text-xs font-black ${capacityAvailable === false ? "text-rose-800" : "text-emerald-800"}`}>{capacityLoading ? "Consultando vagas..." : capacityAvailable === false ? "Sem vagas no momento" : capacityAvailable === true ? "Há profissional com vaga" : "Disponibilidade será confirmada ao enviar"}</p>
+            <p className={`mt-1 text-[11px] font-semibold ${capacityAvailable === false ? "text-rose-700" : "text-emerald-700"}`}>{capacityAvailable === false ? "Esta especialidade está com a capacidade preenchida e não receberá novos pedidos agora." : "A solicitação será mostrada somente aos profissionais elegíveis dessa especialidade."}</p>
+          </div>}
           <div className="sm:col-span-2 rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3.5">
             <p className="text-xs font-black text-hpsr-text">Valores da consulta</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -351,7 +374,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Observações<textarea name="notes" rows={3} className={`${fieldClass} mt-1.5 py-3`} /></label>
           {message && <p className="sm:col-span-2 rounded-[12px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800"><CheckCircle2 className="mr-2 inline" size={16} />{message}</p>}
           {error && <p className="sm:col-span-2 rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-800">{error}</p>}
-          <button disabled={saving} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50 sm:col-span-2">{saving ? <Loader2 className="animate-spin" size={17} /> : <Clock3 size={17} />} Enviar pedido</button>
+          <button disabled={saving || capacityLoading || capacityAvailable === false} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50 sm:col-span-2">{saving ? <Loader2 className="animate-spin" size={17} /> : <Clock3 size={17} />} Enviar pedido</button>
         </form>
       </section>}
     </div>

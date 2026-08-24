@@ -166,13 +166,13 @@ export function ClinicalFollowupPlanner({
       frequency: plan.frequency,
       customDays: plan.frequency === "Personalizada" ? current.customDays : current.customDays,
       endMode: "consultations",
-      consultations: String(plan.total_consultations || 1),
+      consultations: String(plan.total_consultations || 9),
       endDate: plan.end_date || plan.start_date,
     }));
     const patientExists = patients.some((item) => normalizeClinicalPassport(item.passport) === normalizeClinicalPassport(plan.patient_passport));
     setManualPatient(!patientExists);
     setManualPatientData({ name: plan.patient_name, passport: plan.patient_passport });
-    setMessage("Editando planejamento. As consultas já confirmadas serão preservadas.");
+    setMessage(plan.status === "Pendente de planejamento" ? "Acompanhamento aceito pelo Portal. Configure agora a frequência e as referências do planejamento." : "Editando planejamento. As consultas já confirmadas serão preservadas.");
     setError("");
   }
 
@@ -211,6 +211,13 @@ export function ClinicalFollowupPlanner({
   const selectedPatient = patients.find((patient) => patient.passport === form.passport);
   const plannedPassports = new Set(plans.filter((plan) => plan.status !== "Encerrado").map((plan) => normalizeClinicalPassport(plan.patient_passport)));
   const patientsWithoutFollowup = patients.filter((patient) => !plannedPassports.has(normalizeClinicalPassport(patient.passport)));
+  const plansBySpecialty = useMemo(() => {
+    const grouped = new Map<string, Plan[]>();
+    [...plans]
+      .sort((a, b) => a.specialty.localeCompare(b.specialty, "pt-BR") || a.patient_name.localeCompare(b.patient_name, "pt-BR"))
+      .forEach((plan) => grouped.set(plan.specialty, [...(grouped.get(plan.specialty) || []), plan]));
+    return Array.from(grouped.entries());
+  }, [plans]);
 
   return (
     <section className={embedded ? "space-y-4" : "overflow-hidden rounded-[20px] border border-hpsr-border bg-white shadow-[0_12px_35px_rgba(93,45,24,0.05)]"}>
@@ -344,14 +351,19 @@ export function ClinicalFollowupPlanner({
             <span className="rounded-full bg-[#fff4ea] px-3 py-1 text-xs font-black text-hpsr-wine">Ver lista</span>
           </summary>
           <div className="max-h-[252px] space-y-2 overflow-y-auto border-t border-hpsr-border p-3" style={{ scrollbarGutter: "stable" }}>
-            {plans.length ? plans.map((plan) => (
-              <div key={plan.id} className="flex items-center gap-3 rounded-[14px] border border-hpsr-border bg-[#fffdf9] p-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#fff4ea] text-hpsr-wine"><Clock3 size={17} /></div>
-                <div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{plan.patient_name}</p><p className="mt-0.5 truncate text-xs font-semibold text-hpsr-muted">{plan.specialty} · {plan.total_consultations || 0} referências planejadas</p><p className="mt-1 text-[11px] text-hpsr-muted">{displayDate(plan.start_date)}{plan.end_date ? ` até ${displayDate(plan.end_date)}` : ""}</p></div>
-                <div className="flex shrink-0 gap-1.5">
-                  <button type="button" aria-label="Editar planejamento" disabled={busy} onClick={() => startEditing(plan)} className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-hpsr-border text-hpsr-wine transition hover:bg-[#fff4ea]"><Pencil size={15}/></button>
-                  <button type="button" aria-label="Excluir planejamento" disabled={busy} onClick={() => void remove(plan)} className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-rose-100 text-rose-700 transition hover:bg-rose-50"><Trash2 size={15} /></button>
-                </div>
+            {plansBySpecialty.length ? plansBySpecialty.map(([specialty, specialtyPlans]) => (
+              <div key={specialty} className="space-y-2">
+                <div className="flex items-center gap-2 px-1 pt-1"><span className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{specialty}</span><span className="h-px flex-1 bg-hpsr-border"/><span className="text-[10px] font-black text-hpsr-muted">{specialtyPlans.length}</span></div>
+                {specialtyPlans.map((plan) => (
+                  <div key={plan.id} className="flex items-center gap-3 rounded-[14px] border border-hpsr-border bg-[#fffdf9] p-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#fff4ea] text-hpsr-wine"><Clock3 size={17} /></div>
+                    <div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{plan.patient_name}</p><p className="mt-0.5 truncate text-xs font-semibold text-hpsr-muted">{plan.status === "Pendente de planejamento" ? "Planejamento pendente" : `${plan.frequency} · ${plan.total_consultations || 0} referências planejadas`}</p><p className="mt-1 text-[11px] text-hpsr-muted">{plan.status === "Pendente de planejamento" ? "Aceito pelo Portal · configure frequência e referências" : `${displayDate(plan.start_date)}${plan.end_date ? ` até ${displayDate(plan.end_date)}` : ""}`}</p></div>
+                    <div className="flex shrink-0 gap-1.5">
+                      <button type="button" aria-label="Editar planejamento" disabled={busy} onClick={() => startEditing(plan)} className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-hpsr-border text-hpsr-wine transition hover:bg-[#fff4ea]"><Pencil size={15}/></button>
+                      <button type="button" aria-label="Excluir planejamento" disabled={busy} onClick={() => void remove(plan)} className="flex h-9 w-9 items-center justify-center rounded-[11px] border border-rose-100 text-rose-700 transition hover:bg-rose-50"><Trash2 size={15} /></button>
+                    </div>
+                  </div>
+                ))}
               </div>
             )) : <p className="rounded-[14px] border border-dashed border-hpsr-border p-4 text-center text-sm text-hpsr-muted">Nenhum acompanhamento cadastrado.</p>}
           </div>

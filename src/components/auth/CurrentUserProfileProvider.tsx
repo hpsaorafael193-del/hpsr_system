@@ -10,7 +10,7 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase";
 export type CurrentUserProfile = typeof localDevProfile;
 
 type ProfileUpdate = Partial<Pick<CurrentUserProfile,
-  "characterName" | "passport" | "crm" | "cityPhone" | "email" | "department" | "signatureName" | "serviceStatus"
+  "characterName" | "passport" | "crm" | "cityPhone" | "email" | "department" | "signatureName" | "serviceStatus" | "specialtyCapacity"
 >>;
 
 type CurrentUserProfileContextValue = {
@@ -27,7 +27,7 @@ function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage
   const role = String(row.role || "Médico Clínico");
   const systemRole = resolvedSystemRole || (role === "Diretor Técnico / Dev" ? role : "");
   const specialty = String(row.specialty || "Clínico Geral");
-  const specialties = [...new Set(specialty.split(",").map((item) => item.trim()).filter(Boolean))];
+  const specialties = [...new Set(specialty.split(/[,;/|]+/).map((item) => item.trim()).filter(Boolean))];
   const passport = String(row.passport || "—");
   const crm = String(row.crm || "—");
   const cityPhone = formatPhoneDisplay(String(row.city_phone || ""));
@@ -46,6 +46,7 @@ function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage
     department: "Hospital São Rafael",
     specialty,
     specialties: specialties.length ? specialties : [specialty],
+    specialtyCapacity: (row.specialty_capacity && typeof row.specialty_capacity === "object" ? row.specialty_capacity : {}) as Record<string, number>,
     crm,
     cityPhone,
     discordId: String(row.discord || ""),
@@ -86,7 +87,7 @@ export function CurrentUserProfileProvider({ children }: { children: React.React
 
     const { data, error } = await client
       .from("profiles")
-      .select("id, name, email, passport, crm, role, specialty, city_phone, discord, service_status, signature_path, created_at")
+      .select("id, name, email, passport, crm, role, specialty, city_phone, discord, service_status, signature_path, specialty_capacity, created_at")
       .eq("id", user.id)
       .maybeSingle();
 
@@ -141,13 +142,14 @@ export function CurrentUserProfileProvider({ children }: { children: React.React
     const user = sessionData.session?.user;
     if (!user) return { ok: false, error: "Sessão não encontrada." };
 
-    const payload: Record<string, string | null> = {};
+    const payload: Record<string, string | null | Record<string, number>> = {};
     if (changes.characterName !== undefined) payload.name = changes.characterName.trim();
     if (changes.passport !== undefined) payload.passport = changes.passport.trim() || null;
     if (changes.crm !== undefined) payload.crm = changes.crm.trim() || null;
     if (changes.cityPhone !== undefined) payload.city_phone = changes.cityPhone.trim() || null;
     if (changes.email !== undefined) payload.email = changes.email.trim() || null;
     if (changes.serviceStatus !== undefined) payload.service_status = changes.serviceStatus;
+    if (changes.specialtyCapacity !== undefined) payload.specialty_capacity = changes.specialtyCapacity;
     payload.updated_at = brazilIso();
 
     const { error } = await client.from("profiles").update(payload).eq("id", user.id);

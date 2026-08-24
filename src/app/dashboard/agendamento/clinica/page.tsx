@@ -182,6 +182,7 @@ export default function ClinicalSchedulePage() {
   const [appointmentSearch, setAppointmentSearch] = useState("");
   const [scheduleScope, setScheduleScope] = useState<"mine" | "all">("mine");
   const [showCompletedAppointments, setShowCompletedAppointments] = useState(false);
+  const [completedSearch, setCompletedSearch] = useState("");
   const [quickStatusSavingId, setQuickStatusSavingId] = useState<string | null>(null);
 
   const dateKey = toDateKey(selectedDate);
@@ -209,7 +210,7 @@ export default function ClinicalSchedulePage() {
           doctorId: String(payload.doctorId || payload.doctor_id || ""),
           date: String(row.status === "Reagendamento aceito" ? payload.proposedDate || payload.preferredDate || payload.date || "" : payload.preferredDate || payload.date || ""),
           time: String(row.status === "Reagendamento aceito" ? payload.proposedTime || payload.time || "09:00" : payload.time || payload.preferredTime || (payload.preferredPeriod === "Tarde" ? "14:00" : payload.preferredPeriod === "Noite" ? "19:00" : "09:00")),
-          status: String(row.status === "Aceita" ? "Agendada" : row.status),
+          status: String(row.status),
         };
       }));
   }, []);
@@ -253,7 +254,13 @@ export default function ClinicalSchedulePage() {
   const activeDoctorAppointments = doctorAppointments.filter((appointment) => !completedStatuses.has(appointment.status));
   const completedDoctorAppointments = doctorAppointments
     .filter((appointment) => completedStatuses.has(appointment.status))
-    .sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
+    .sort((a, b) => a.specialty.localeCompare(b.specialty, "pt-BR") || `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
+  const filteredCompletedDoctorAppointments = completedDoctorAppointments.filter((appointment) => {
+    const query = completedSearch.trim().toLocaleLowerCase("pt-BR");
+    if (!query) return true;
+    return [appointment.patient, appointment.passport, appointment.specialty, appointment.physician, appointment.status]
+      .some((value) => value.toLocaleLowerCase("pt-BR").includes(query));
+  });
 
   const appointmentsOnSelectedDay = activeDoctorAppointments
     .filter((appointment) => appointment.date === dateKey)
@@ -265,8 +272,9 @@ export default function ClinicalSchedulePage() {
     return [appointment.patient, appointment.passport, appointment.specialty, appointment.physician, appointment.status, appointment.time]
       .some((value) => value.toLocaleLowerCase("pt-BR").includes(query));
   }).sort((left, right) => {
+    const specialtyDifference = left.specialty.localeCompare(right.specialty, "pt-BR");
     const sectionDifference = appointmentSectionOrder[appointmentSection(left.status)] - appointmentSectionOrder[appointmentSection(right.status)];
-    return sectionDifference || left.time.localeCompare(right.time);
+    return specialtyDifference || sectionDifference || left.time.localeCompare(right.time);
   });
 
   const todayKey = toDateKey(brasiliaToday);
@@ -388,31 +396,6 @@ export default function ClinicalSchedulePage() {
       return;
     }
 
-    await loadAppointments();
-  }
-
-  async function handleDeleteOldAppointment(appointment: Appointment) {
-    const confirmed = await hpsrConfirm(
-      `Excluir definitivamente a consulta antiga de ${appointment.patient}, em ${appointment.date.split("-").reverse().join("/")} às ${appointment.time}? Ela será removida da agenda, mas a ação continuará registrada na auditoria do sistema.`,
-      "Excluir consulta antiga?"
-    );
-    if (!confirmed) return;
-
-    const client = createClient();
-    if (!client) {
-      await hpsrAlert("Não foi possível acessar o banco de dados.", "Falha ao excluir consulta");
-      return;
-    }
-
-    const { data, error } = await client.rpc("delete_clinical_appointment", { p_appointment_id: appointment.id });
-    if (error) {
-      await hpsrAlert(error.message, "Falha ao excluir consulta");
-      return;
-    }
-    if (!(data as { deleted?: boolean } | null)?.deleted) {
-      await hpsrAlert("O banco não confirmou a exclusão da consulta.", "Consulta não excluída");
-      return;
-    }
     await loadAppointments();
   }
 
@@ -670,8 +653,8 @@ export default function ClinicalSchedulePage() {
           ) : (
             <div className="grid gap-3">
               {visibleAppointmentsOnSelectedDay.map((appointment, index) => {
-                const section = appointmentSection(appointment.status);
-                const previousSection = index > 0 ? appointmentSection(visibleAppointmentsOnSelectedDay[index - 1].status) : "";
+                const section = `${appointment.specialty} · ${appointmentSection(appointment.status)}`;
+                const previousSection = index > 0 ? `${visibleAppointmentsOnSelectedDay[index - 1].specialty} · ${appointmentSection(visibleAppointmentsOnSelectedDay[index - 1].status)}` : "";
                 const isClosedAppointment = section === "Concluídas";
                 return (
                 <div key={appointment.id}>
@@ -753,11 +736,12 @@ export default function ClinicalSchedulePage() {
             <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Histórico da agenda</p><h2 className="mt-1 text-lg font-black text-hpsr-text">Consultas finalizadas</h2><p className="mt-1 text-xs font-semibold text-hpsr-muted">Consultas realizadas, concluídas, canceladas ou marcadas como ausência não aparecem no calendário ativo.</p></div>
             <button type="button" onClick={() => setShowCompletedAppointments(false)} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Ocultar histórico</button>
           </div>
+          <div className="mb-3 flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-[#fffaf6] px-3"><Search size={15} className="text-hpsr-wineLight"/><input value={completedSearch} onChange={(event) => setCompletedSearch(event.target.value)} placeholder="Buscar paciente, passaporte, médico ou especialidade" className="h-10 min-w-0 flex-1 bg-transparent text-xs font-semibold text-hpsr-text outline-none"/></div>
           <div className="hpsr-touch-scroll max-h-[420px] space-y-2 overflow-y-auto pr-1">
-            {completedDoctorAppointments.length ? completedDoctorAppointments.map((appointment) => (
+            {filteredCompletedDoctorAppointments.length ? filteredCompletedDoctorAppointments.map((appointment) => (
               <article key={`completed-${appointment.id}`} className="flex flex-col gap-3 rounded-[15px] border border-hpsr-border bg-[#fffdf9] p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-black", statusClasses(appointment.status))}>{appointment.status}</span><span className="text-xs font-semibold text-hpsr-muted">{appointment.date.split("-").reverse().join("/")} às {appointment.time}</span></div><p className="mt-2 truncate text-sm font-black text-hpsr-text">{appointment.patient}</p><p className="mt-1 truncate text-xs font-semibold text-hpsr-muted">{appointment.specialty} · {appointment.physician} · Passaporte {appointment.passport}</p></div>
-                <div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => setModal({ mode: "patient", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Ver dados</button><button type="button" onClick={() => setModal({ mode: "reschedule", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Editar/Reagendar</button><button type="button" onClick={() => void handleDeleteOldAppointment(appointment)} className="inline-flex items-center gap-1.5 rounded-[11px] border border-rose-200 bg-white px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-50"><Trash2 size={14} />Excluir</button></div>
+                <div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => setModal({ mode: "patient", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Ver dados</button><button type="button" onClick={() => setModal({ mode: "reschedule", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Editar/Reagendar</button></div>
               </article>
             )) : <div className="rounded-[15px] border border-dashed border-hpsr-border p-6 text-center text-sm text-hpsr-muted">Nenhuma consulta finalizada encontrada.</div>}
           </div>

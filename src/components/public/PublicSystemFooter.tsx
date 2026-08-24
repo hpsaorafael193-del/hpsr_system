@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { Code2, ShieldCheck } from "lucide-react";
-import { DeveloperCreditsModal } from "@/components/layout/DeveloperCreditsModal";
+const DeveloperCreditsModal = dynamic(
+  () => import("@/components/layout/DeveloperCreditsModal").then((module) => module.DeveloperCreditsModal),
+  { ssr: false },
+);
 
 export function PublicSystemFooter() {
   const [creditsOpen, setCreditsOpen] = useState(false);
@@ -32,7 +36,7 @@ export function PublicSystemFooter() {
         </div>
       </footer>
 
-      <DeveloperCreditsModal open={creditsOpen} onClose={() => setCreditsOpen(false)} />
+      {creditsOpen && <DeveloperCreditsModal open onClose={() => setCreditsOpen(false)} />}
     </>
   );
 }

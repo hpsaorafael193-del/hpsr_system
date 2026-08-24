@@ -1,9 +1,9 @@
 "use client";
 
-import { brazilDate } from "@/lib/brazil-datetime";
-
-import { StyledSelect } from "@/components/ui/StyledSelect";
-import { FormEvent, useState, type ReactNode } from "react";
+import { isClinicalProfessional } from "@/lib/clinical-scheduling";
+import { createClient } from "@/lib/supabase";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import {
   AlertTriangle,
   Baby,
@@ -12,32 +12,34 @@ import {
   Clock3,
   HeartPulse,
   Hospital,
+  Loader2,
   MapPin,
+  Pencil,
   Plus,
-  Save,
   ShieldAlert,
   Sparkles,
   Stethoscope,
-  TimerReset,
   UsersRound,
-  X,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 
-type ProcedureType =
-  | "parto-normal"
-  | "cesarea"
-  | "parto-humanizado"
-  | "fiv"
-  | "procedimento-geral";
+import {
+  getProcedureLabel,
+  getProcedureRule,
+  procedureDurations,
+  type DoctorOption,
+  type ProcedureFormState,
+  type ProcedureProfessional,
+  type ProcedureType,
+} from "@/lib/procedure-schedule";
 
-type ProcedureProfessional = {
-  name: string;
-  passport: string;
-};
+const ScheduleProcedureModal = dynamic(
+  () => import("@/components/dashboard/ScheduleProcedureModal").then((module) => module.ScheduleProcedureModal),
+  { ssr: false },
+);
 
 type ProcedureRequest = {
   id: string;
@@ -51,45 +53,9 @@ type ProcedureRequest = {
   room: string;
   date: string;
   start: string;
-  status: string;
+  status: "solicitado" | "confirmado";
   observations?: string;
 };
-
-type ProcedureFormState = {
-  patient: string;
-  passport: string;
-  procedureType: ProcedureType;
-  room: string;
-  date: string;
-  start: string;
-  observations: string;
-  professionals: ProcedureProfessional[];
-};
-
-const directorRoles = ["Diretora", "Vice Diretor", "Diretor Clínico"];
-
-const procedureDurations: Record<ProcedureType, number> = {
-  "parto-normal": 4,
-  cesarea: 4,
-  "parto-humanizado": 4,
-  fiv: 1,
-  "procedimento-geral": 2,
-};
-
-const procedureOptions: Array<{ value: ProcedureType; label: string }> = [
-  { value: "parto-normal", label: "Parto normal" },
-  { value: "cesarea", label: "Cesárea" },
-  { value: "parto-humanizado", label: "Parto humanizado" },
-  { value: "fiv", label: "FIV" },
-  { value: "procedimento-geral", label: "Procedimento geral" },
-];
-
-const roomOptions = [
-  "Sala Cirúrgica 01",
-  "Sala de Procedimentos 02",
-  "Centro Obstétrico",
-  "Sala de Observação",
-];
 
 const procedureTheme: Record<ProcedureType, { label: string; icon: ReactNode; accent: string; soft: string }> = {
   "parto-normal": {
@@ -124,23 +90,15 @@ const procedureTheme: Record<ProcedureType, { label: string; icon: ReactNode; ac
   },
 };
 
-const initialProcedureRequests: ProcedureRequest[] = [];
-
-const nextAvailableSlots = [
-  { date: "2026-07-22", start: "22:00", room: "Sala Cirúrgica 01", fit: "FIV ou procedimento geral" },
-  { date: "2026-07-23", start: "18:00", room: "Centro Obstétrico", fit: "Partos e cesáreas" },
-  { date: "2026-07-23", start: "21:00", room: "Sala de Procedimentos 02", fit: "FIV" },
-  { date: "2026-07-24", start: "22:00", room: "Centro Obstétrico", fit: "FIV ou procedimento geral" },
-];
-
 function timeToMinutes(time: string) {
   const [hours, minutes] = time.split(":").map(Number);
   return hours * 60 + minutes;
 }
 
 function minutesToTime(minutes: number) {
-  const hours = Math.floor(minutes / 60).toString().padStart(2, "0");
-  const mins = (minutes % 60).toString().padStart(2, "0");
+  const normalized = ((minutes % 1440) + 1440) % 1440;
+  const hours = Math.floor(normalized / 60).toString().padStart(2, "0");
+  const mins = (normalized % 60).toString().padStart(2, "0");
   return `${hours}:${mins}`;
 }
 
@@ -150,70 +108,240 @@ function getEndTime(item: ProcedureRequest) {
 
 function formatDate(value: string) {
   const [year, month, day] = value.split("-");
-  return `${day}/${month}/${year}`;
+  return year && month && day ? `${day}/${month}/${year}` : value;
 }
 
 function hasRoomConflict(item: ProcedureRequest, procedures: ProcedureRequest[]) {
   const itemStart = timeToMinutes(item.start);
-  const itemEnd = timeToMinutes(getEndTime(item));
+  const itemEnd = itemStart + procedureDurations[item.procedureType] * 60;
 
   return procedures.some((other) => {
     if (other.id === item.id) return false;
     if (other.date !== item.date || other.room !== item.room) return false;
 
     const otherStart = timeToMinutes(other.start);
-    const otherEnd = timeToMinutes(getEndTime(other));
+    const otherEnd = otherStart + procedureDurations[other.procedureType] * 60;
 
     return itemStart < otherEnd && itemEnd > otherStart;
   });
 }
 
-function getProcedureRule(type: ProcedureType) {
-  if (type === "parto-normal" || type === "cesarea" || type === "parto-humanizado") return "4 horas";
-  if (type === "fiv") return "1 hora";
-  return "2 horas";
+function normalizeProfessionals(value: unknown): ProcedureProfessional[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((entry) => {
+      const item = (entry || {}) as Record<string, unknown>;
+      const name = String(item.name || "").trim();
+      const id = String(item.id || "").trim();
+      if (!name || !id) return null;
+      return {
+        id,
+        name,
+        passport: String(item.passport || "").trim(),
+        role: String(item.role || "Médico").trim(),
+        specialty: String(item.specialty || "").trim(),
+      };
+    })
+    .filter(Boolean) as ProcedureProfessional[];
 }
 
-function getProcedureLabel(type: ProcedureType) {
-  return procedureOptions.find((option) => option.value === type)?.label ?? "Procedimento geral";
-}
-
-function createInitialForm(): ProcedureFormState {
+function procedureFromRow(row: Record<string, unknown>): ProcedureRequest {
+  const procedureType = String(row.procedure_type || "procedimento-geral") as ProcedureType;
+  const professionals = normalizeProfessionals(row.professionals);
   return {
-    patient: "",
-    passport: "",
-    procedureType: "procedimento-geral",
-    room: "Sala Cirúrgica 01",
-    date: brazilDate(),
-    start: "18:00",
-    observations: "",
-    professionals: [{ name: "", passport: "" }],
+    id: String(row.id || ""),
+    passport: String(row.patient_passport || "").trim(),
+    patient: String(row.patient_name || "Paciente").trim(),
+    procedure: getProcedureLabel(procedureType),
+    procedureType,
+    responsible: professionals[0]?.name || "A definir",
+    team: professionals.map((professional) => professional.name),
+    professionals,
+    room: String(row.room || "").trim(),
+    date: String(row.procedure_date || ""),
+    start: String(row.start_time || "").slice(0, 5),
+    status: String(row.status || "solicitado") === "confirmado" ? "confirmado" : "solicitado",
+    observations: String(row.observations || "").trim(),
   };
+}
+
+function sortProcedures(items: ProcedureRequest[]) {
+  return [...items].sort((a, b) => `${a.date}T${a.start}`.localeCompare(`${b.date}T${b.start}`));
+}
+
+function readableError(caught: unknown) {
+  if (caught instanceof Error) return caught.message;
+  if (caught && typeof caught === "object" && "message" in caught) return String((caught as { message?: unknown }).message || "Falha desconhecida");
+  return "Falha desconhecida";
+}
+
+let procedureLoadInFlight: Promise<ProcedureRequest[]> | null = null;
+let doctorsLoadInFlight: Promise<DoctorOption[]> | null = null;
+let doctorsCache: { savedAt: number; data: DoctorOption[] } | null = null;
+const DOCTORS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+async function fetchProcedureRows() {
+  if (procedureLoadInFlight) return procedureLoadInFlight;
+
+  const request = (async () => {
+    const client = createClient();
+    if (!client) return [] as ProcedureRequest[];
+
+    const { data, error } = await client
+      .from("clinical_procedures")
+      .select("id,patient_passport,patient_name,procedure_type,room,procedure_date,start_time,status,observations,professionals")
+      .order("procedure_date", { ascending: true })
+      .order("start_time", { ascending: true });
+
+    if (error) throw error;
+    return sortProcedures((data || []).map((row) => procedureFromRow(row as Record<string, unknown>)));
+  })();
+
+  procedureLoadInFlight = request;
+  try {
+    return await request;
+  } finally {
+    procedureLoadInFlight = null;
+  }
+}
+
+async function fetchProcedureDoctors() {
+  if (doctorsCache && Date.now() - doctorsCache.savedAt < DOCTORS_CACHE_TTL_MS) return doctorsCache.data;
+  if (doctorsLoadInFlight) return doctorsLoadInFlight;
+
+  const request = (async () => {
+    const client = createClient();
+    if (!client) return [] as DoctorOption[];
+
+    const { data, error } = await client
+      .from("profiles")
+      .select("id,name,passport,role,specialty,crm")
+      .eq("access_status", "Aprovado")
+      .order("name");
+
+    if (error) throw error;
+
+    const available = (data || [])
+      .filter((row) => isClinicalProfessional(row))
+      .map((row) => ({
+        id: String(row.id || ""),
+        name: String(row.name || "Médico").trim(),
+        passport: String(row.passport || "").trim(),
+        role: String(row.role || "Médico").trim(),
+        specialty: String(row.specialty || "").trim(),
+      }))
+      .filter((doctor) => doctor.id && doctor.name)
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+
+    doctorsCache = { savedAt: Date.now(), data: available };
+    return available;
+  })();
+
+  doctorsLoadInFlight = request;
+  try {
+    return await request;
+  } finally {
+    doctorsLoadInFlight = null;
+  }
 }
 
 export default function ProcedureSchedulePage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
-  const [procedures, setProcedures] = useState<ProcedureRequest[]>(initialProcedureRequests);
+  const [procedures, setProcedures] = useState<ProcedureRequest[]>([]);
+  const [proceduresLoading, setProceduresLoading] = useState(true);
+  const [doctors, setDoctors] = useState<DoctorOption[]>([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [editingProcedure, setEditingProcedure] = useState<ProcedureRequest | null>(null);
 
-  const canScheduleProcedures =
-    directorRoles.includes(currentUserProfile.role) ||
-    currentUserProfile.systemRole === "Diretor Técnico / Dev";
+  const canScheduleProcedures = useMemo(() => {
+    const roles = [currentUserProfile.role, currentUserProfile.systemRole];
+    return roles.some((role) => ["Diretora", "Vice Diretor", "Vice-Diretor", "Diretor Técnico / Dev"].includes(role));
+  }, [currentUserProfile.role, currentUserProfile.systemRole]);
 
+  const loadProcedures = useCallback(async () => {
+    setProceduresLoading(true);
+    try {
+      setProcedures(await fetchProcedureRows());
+    } catch (caught) {
+      const message = readableError(caught);
+      console.error("[HPSR] Falha ao carregar procedimentos:", message);
+      void hpsrAlert(`Não foi possível carregar a agenda de procedimentos: ${message}`, "Agenda de procedimentos");
+    } finally {
+      setProceduresLoading(false);
+    }
+  }, []);
 
-  function handleCreateProcedure(form: ProcedureFormState) {
-    const professionals = form.professionals.filter((professional) =>
-      professional.name.trim() && professional.passport.trim()
-    );
+  useEffect(() => {
+    void loadProcedures();
 
-    const procedure: ProcedureRequest = {
-      id: `proc-${Date.now()}`,
+    const client = createClient();
+    if (!client) return;
+
+    const channel = client
+      .channel("clinical-procedures-shared")
+      .on("postgres_changes", { event: "*", schema: "public", table: "clinical_procedures" }, (payload: any) => {
+        if (payload.eventType === "DELETE") {
+          const removedId = String(payload.old?.id || "");
+          setProcedures((current) => current.filter((item) => item.id !== removedId));
+          return;
+        }
+
+        const next = procedureFromRow((payload.new || {}) as Record<string, unknown>);
+        if (!next.id) return;
+        setProcedures((current) => sortProcedures([...current.filter((item) => item.id !== next.id), next]));
+      })
+      .subscribe();
+
+    return () => {
+      void client.removeChannel(channel);
+    };
+  }, [loadProcedures]);
+
+  useEffect(() => {
+    const modalNeedsDoctors = canScheduleProcedures && (scheduleOpen || Boolean(editingProcedure));
+    if (!modalNeedsDoctors) return;
+
+    let active = true;
+    setDoctorsLoading(true);
+    void fetchProcedureDoctors()
+      .then((available) => {
+        if (!active) return;
+        setDoctors(available);
+      })
+      .catch((caught) => {
+        if (!active) return;
+        const message = readableError(caught);
+        console.error("[HPSR] Falha ao carregar profissionais para procedimentos:", message);
+        void hpsrAlert(`Não foi possível carregar os médicos: ${message}`, "Agenda de procedimentos");
+      })
+      .finally(() => {
+        if (active) setDoctorsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [canScheduleProcedures, editingProcedure, scheduleOpen]);
+
+  async function handleCreateProcedure(form: ProcedureFormState) {
+    const professionals = form.professionals.filter((professional) => professional.id && professional.name.trim());
+    if (!form.patient.trim() || !form.passport.trim()) {
+      await hpsrAlert("Selecione um paciente cadastrado para o procedimento.", "Paciente obrigatório");
+      return;
+    }
+    if (!professionals.length) {
+      await hpsrAlert("Selecione pelo menos um médico para o procedimento.", "Equipe obrigatória");
+      return;
+    }
+
+    const candidate: ProcedureRequest = {
+      id: "novo",
       passport: form.passport.trim(),
       patient: form.patient.trim(),
       procedure: getProcedureLabel(form.procedureType),
       procedureType: form.procedureType,
-      responsible: professionals[0]?.name || currentUserProfile.systemName,
+      responsible: professionals[0].name,
       team: professionals.map((professional) => professional.name),
       professionals,
       room: form.room,
@@ -223,20 +351,58 @@ export default function ProcedureSchedulePage() {
       observations: form.observations.trim(),
     };
 
-    setProcedures((current) => [procedure, ...current]);
+    if (hasRoomConflict(candidate, procedures)) {
+      await hpsrAlert("Já existe outro procedimento usando esta sala dentro do mesmo intervalo.", "Conflito de sala");
+      return;
+    }
+
+    const client = createClient();
+    if (!client) return;
+    const { data, error } = await client
+      .from("clinical_procedures")
+      .insert({
+        patient_passport: candidate.passport,
+        patient_name: candidate.patient,
+        procedure_type: candidate.procedureType,
+        room: candidate.room,
+        procedure_date: candidate.date,
+        start_time: candidate.start,
+        status: "solicitado",
+        observations: candidate.observations || null,
+        professionals,
+      })
+      .select("id,patient_passport,patient_name,procedure_type,room,procedure_date,start_time,status,observations,professionals")
+      .single();
+
+    if (error) {
+      await hpsrAlert(`Não foi possível agendar o procedimento: ${error.message}`, "Agendamento não salvo");
+      return;
+    }
+
+    const saved = procedureFromRow(data as Record<string, unknown>);
+    setProcedures((current) => sortProcedures([...current.filter((item) => item.id !== saved.id), saved]));
     setScheduleOpen(false);
   }
 
-  function handleUpdateProcedure(form: ProcedureFormState) {
+  async function handleUpdateProcedure(form: ProcedureFormState) {
     if (!editingProcedure) return;
-    const professionals = form.professionals.filter((professional) => professional.name.trim() && professional.passport.trim());
-    setProcedures((current) => current.map((item) => item.id === editingProcedure.id ? {
-      ...item,
+    const professionals = form.professionals.filter((professional) => professional.id && professional.name.trim());
+    if (!form.patient.trim() || !form.passport.trim()) {
+      await hpsrAlert("Selecione um paciente cadastrado para o procedimento.", "Paciente obrigatório");
+      return;
+    }
+    if (!professionals.length) {
+      await hpsrAlert("Selecione pelo menos um médico para o procedimento.", "Equipe obrigatória");
+      return;
+    }
+
+    const candidate: ProcedureRequest = {
+      ...editingProcedure,
       passport: form.passport.trim(),
       patient: form.patient.trim(),
       procedure: getProcedureLabel(form.procedureType),
       procedureType: form.procedureType,
-      responsible: professionals[0]?.name || item.responsible,
+      responsible: professionals[0].name,
       team: professionals.map((professional) => professional.name),
       professionals,
       room: form.room,
@@ -244,14 +410,63 @@ export default function ProcedureSchedulePage() {
       start: form.start,
       observations: form.observations.trim(),
       status: "solicitado",
-    } : item));
+    };
+
+    if (hasRoomConflict(candidate, procedures)) {
+      await hpsrAlert("Já existe outro procedimento usando esta sala dentro do mesmo intervalo.", "Conflito de sala");
+      return;
+    }
+
+    const client = createClient();
+    if (!client) return;
+    const { data, error } = await client
+      .from("clinical_procedures")
+      .update({
+        patient_passport: candidate.passport,
+        patient_name: candidate.patient,
+        procedure_type: candidate.procedureType,
+        room: candidate.room,
+        procedure_date: candidate.date,
+        start_time: candidate.start,
+        status: "solicitado",
+        observations: candidate.observations || null,
+        professionals,
+        updated_by: currentUserProfile.id || null,
+      })
+      .eq("id", editingProcedure.id)
+      .select("id,patient_passport,patient_name,procedure_type,room,procedure_date,start_time,status,observations,professionals")
+      .single();
+
+    if (error) {
+      await hpsrAlert(`Não foi possível atualizar o procedimento: ${error.message}`, "Alteração não salva");
+      return;
+    }
+
+    const saved = procedureFromRow(data as Record<string, unknown>);
+    setProcedures((current) => sortProcedures([...current.filter((item) => item.id !== saved.id), saved]));
     setEditingProcedure(null);
   }
 
   async function analyzeProcedure(item: ProcedureRequest) {
     const conflict = hasRoomConflict(item, procedures);
-    if (conflict) { void hpsrAlert("Não é possível confirmar enquanto houver conflito de sala.", "Conflito de agendamento"); return; }
-    if (!(await hpsrConfirm(`Confirmar a análise e aprovar o procedimento de ${item.patient}?`, "Aprovar procedimento"))) return;
+    if (conflict) {
+      await hpsrAlert("Não é possível confirmar enquanto houver conflito de sala.", "Conflito de agendamento");
+      return;
+    }
+    if (!(await hpsrConfirm(`Confirmar o procedimento de ${item.patient}?`, "Confirmar procedimento"))) return;
+
+    const client = createClient();
+    if (!client) return;
+    const { error } = await client
+      .from("clinical_procedures")
+      .update({ status: "confirmado", updated_by: currentUserProfile.id || null })
+      .eq("id", item.id);
+
+    if (error) {
+      await hpsrAlert(`Não foi possível confirmar o procedimento: ${error.message}`, "Confirmação não salva");
+      return;
+    }
+
     setProcedures((current) => current.map((procedure) => procedure.id === item.id ? { ...procedure, status: "confirmado" } : procedure));
   }
 
@@ -260,7 +475,7 @@ export default function ProcedureSchedulePage() {
       <PageHeader
         eyebrow="Agendamentos"
         title="Agenda de Procedimentos"
-        description="Organização de procedimentos com bloqueio de sala, equipe e tempo conforme o procedimento."
+        description="Visão compartilhada dos procedimentos, pacientes e médicos escalados."
       />
 
       <section className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-4 py-3 text-hpsr-text lg:px-5">
@@ -271,10 +486,10 @@ export default function ProcedureSchedulePage() {
               Centro de procedimentos
             </span>
             <h2 className="mt-2 max-w-4xl text-[clamp(1.25rem,2vw,1.75rem)] font-black leading-tight tracking-tight">
-              Planejamento de procedimentos com tempo reservado e equipe definida
+              Procedimentos organizados com paciente, sala e equipe médica definida
             </h2>
             <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-hpsr-muted">
-              Partos bloqueiam 4 horas, procedimentos gerais 2 horas e FIV 1 hora. Somente Diretoria pode agendar, analisar ou reagendar procedimentos.
+              Toda a equipe pode acompanhar os procedimentos agendados. Criação, edição e confirmação ficam restritas à Direção responsável pela agenda.
             </p>
           </div>
 
@@ -299,7 +514,7 @@ export default function ProcedureSchedulePage() {
         <RuleCard icon={<Stethoscope size={18} />} title="Demais procedimentos" description="Procedimentos restantes bloqueiam 2h." highlight="2h" />
       </section>
 
-      <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="overflow-hidden rounded-[16px] border border-hpsr-border bg-white">
           <div className="flex flex-col gap-3 border-b border-hpsr-border bg-[#fcf6ee] px-4 py-3 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
@@ -307,23 +522,31 @@ export default function ProcedureSchedulePage() {
                 <Hospital size={20} />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-hpsr-text">Mapa de procedimentos</h2>
-                <p className="text-xs text-hpsr-muted">Cards com duração, sala, equipe, médicos participantes e permissão.</p>
+                <h2 className="text-lg font-bold text-hpsr-text">Procedimentos agendados</h2>
+                <p className="text-xs text-hpsr-muted">Resumo compartilhado com paciente, horário, sala e médicos escalados.</p>
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              <span className="rounded-2xl border border-hpsr-border bg-white/[0.86] px-3 py-2 text-xs font-semibold text-hpsr-wine">
-                Sala + médicos + paciente
-              </span>
-              <span className="rounded-2xl border border-hpsr-border bg-white/[0.86] px-3 py-2 text-xs font-semibold text-hpsr-wine">
-                Sem sobreposição
-              </span>
-            </div>
+            <span className="rounded-2xl border border-hpsr-border bg-white/[0.86] px-3 py-2 text-xs font-semibold text-hpsr-wine">
+              {procedures.length} {procedures.length === 1 ? "procedimento" : "procedimentos"}
+            </span>
           </div>
 
           <div className="grid gap-3 p-3.5">
-            {procedures.map((item) => {
+            {proceduresLoading ? (
+              <div className="flex min-h-[220px] items-center justify-center gap-2 text-sm font-semibold text-hpsr-muted">
+                <Loader2 size={18} className="animate-spin" />
+                Carregando procedimentos...
+              </div>
+            ) : procedures.length === 0 ? (
+              <div className="grid min-h-[220px] place-items-center rounded-[16px] border border-dashed border-hpsr-border bg-[#fffaf4] p-6 text-center">
+                <div>
+                  <Hospital size={28} className="mx-auto text-hpsr-wineLight" />
+                  <h3 className="mt-3 text-base font-black text-hpsr-text">Nenhum procedimento agendado</h3>
+                  <p className="mt-1 text-sm text-hpsr-muted">Quando a Direção registrar um procedimento, ele aparecerá aqui para toda a equipe.</p>
+                </div>
+              </div>
+            ) : procedures.map((item) => {
               const conflict = hasRoomConflict(item, procedures);
               const theme = procedureTheme[item.procedureType];
 
@@ -336,7 +559,7 @@ export default function ProcedureSchedulePage() {
                 >
                   <div className={`h-1.5 bg-gradient-to-r ${theme.accent}`} />
 
-                  <div className="grid gap-3 p-3.5 lg:grid-cols-[minmax(0,1fr)_210px] lg:items-stretch">
+                  <div className="grid gap-3 p-3.5 lg:grid-cols-[minmax(0,1fr)_200px] lg:items-stretch">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-bold ${theme.soft}`}>
@@ -357,78 +580,87 @@ export default function ProcedureSchedulePage() {
 
                       <h3 className="mt-3 text-lg font-bold text-hpsr-text">{item.procedure}</h3>
                       <p className="mt-1 text-sm text-hpsr-muted">
-                        {item.patient} · Passaporte {item.passport} · Responsável: {item.responsible}
+                        {item.patient} · Passaporte {item.passport}
                       </p>
 
-                      <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="mt-4 grid gap-2 sm:grid-cols-3">
                         <InfoPill icon={<CalendarClock size={14} />} label="Data" value={formatDate(item.date)} />
                         <InfoPill icon={<Clock3 size={14} />} label="Horário" value={`${item.start} às ${getEndTime(item)}`} />
                         <InfoPill icon={<MapPin size={14} />} label="Sala" value={item.room} />
-                        <InfoPill icon={<UsersRound size={14} />} label="Equipe" value={item.team.join(", ") || "—"} />
                       </div>
 
                       <div className="mt-3 rounded-[14px] border border-hpsr-border bg-[#fcf6ee] px-4 py-3">
                         <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">
                           <UsersRound size={14} />
-                          Médicos participantes
+                          Médicos escalados
                         </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {item.professionals.map((professional) => (
-                            <span
-                              key={`${professional.name}-${professional.passport}`}
-                              className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-xs font-bold text-hpsr-text"
-                            >
-                              {professional.name} · Passaporte {professional.passport}
-                            </span>
+                        <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                          {item.professionals.map((professional, index) => (
+                            <div key={professional.id} className="rounded-[12px] border border-hpsr-border bg-white px-3 py-2">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="truncate text-xs font-black text-hpsr-text">{professional.name}</p>
+                                  <p className="mt-0.5 truncate text-[11px] font-semibold text-hpsr-muted">
+                                    {professional.specialty || professional.role || "Corpo médico"}
+                                  </p>
+                                </div>
+                                {index === 0 && (
+                                  <span className="shrink-0 rounded-full bg-[#f7ede3] px-2 py-1 text-[9px] font-black uppercase tracking-[0.08em] text-hpsr-wine">
+                                    Responsável
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           ))}
                         </div>
                       </div>
 
                       {item.observations && (
                         <p className="mt-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-4 py-3 text-xs font-semibold text-hpsr-muted">
-                          <strong className="text-hpsr-wine">Observações:</strong> {item.observations}
+                          <strong className="text-hpsr-wine">Resumo:</strong> {item.observations}
                         </p>
                       )}
 
                       {conflict && (
                         <p className="mt-3 inline-flex items-start gap-2 rounded-[14px] border border-rose-200 bg-rose-50 px-4 py-3 text-xs font-semibold text-rose-700">
                           <AlertTriangle size={15} className="mt-0.5 shrink-0" />
-                          Existe outro procedimento usando a mesma sala dentro deste intervalo. Confirmação deve ficar bloqueada até ajustar horário ou sala.
+                          Existe outro procedimento usando a mesma sala dentro deste intervalo. A confirmação fica bloqueada até o ajuste.
                         </p>
                       )}
                     </div>
 
                     <div className="flex flex-col justify-between rounded-[16px] border border-hpsr-border bg-[#fcf6ee] p-3">
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-hpsr-wineLight">Tempo reservado</p>
-                        <p className="mt-1 text-lg font-bold text-hpsr-text">
-                          {procedureDurations[item.procedureType]}h
-                        </p>
-                        <p className="mt-1 text-xs text-hpsr-muted">Bloqueio automático no mapa de procedimentos.</p>
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-hpsr-wineLight">Responsável</p>
+                        <p className="mt-1 text-sm font-black text-hpsr-text">{item.responsible}</p>
+                        <p className="mt-2 text-xs text-hpsr-muted">{item.professionals.length} {item.professionals.length === 1 ? "médico escalado" : "médicos escalados"}</p>
                       </div>
 
                       {canScheduleProcedures ? (
                         <div className="mt-4 grid gap-2">
-                          <button
-                            type="button"
-                            onClick={() => analyzeProcedure(item)}
-                            title="Analisar procedimento"
-                            className="rounded-2xl bg-[linear-gradient(135deg,#672614,#74321e)] px-3 py-2.5 text-xs font-semibold text-white transition"
-                          >
-                            Analisar
-                          </button>
+                          {item.status !== "confirmado" && (
+                            <button
+                              type="button"
+                              onClick={() => void analyzeProcedure(item)}
+                              title="Confirmar procedimento"
+                              className="rounded-2xl bg-[linear-gradient(135deg,#672614,#74321e)] px-3 py-2.5 text-xs font-semibold text-white transition"
+                            >
+                              Confirmar
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => setEditingProcedure(item)}
-                            title="Reagendar procedimento"
-                            className="rounded-2xl border border-hpsr-border bg-white px-3 py-2.5 text-xs font-semibold text-hpsr-wine transition hover:bg-[#fffaf4]"
+                            title="Editar procedimento"
+                            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-hpsr-border bg-white px-3 py-2.5 text-xs font-semibold text-hpsr-wine transition hover:bg-[#fffaf4]"
                           >
-                            Reagendar
+                            <Pencil size={13} />
+                            Editar
                           </button>
                         </div>
                       ) : (
                         <div className="mt-4 rounded-[14px] border border-hpsr-border bg-white px-3 py-2.5 text-xs font-semibold text-hpsr-muted">
-                          Visualização liberada. Agendamento e alterações são restritos à Diretoria.
+                          Visualização liberada. Alterações são restritas à Direção.
                         </div>
                       )}
                     </div>
@@ -443,40 +675,25 @@ export default function ProcedureSchedulePage() {
           <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[#fcf6ee] text-hpsr-wine">
-                <TimerReset size={20} />
+                <UsersRound size={20} />
               </div>
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">Reagendamento</p>
-                <h3 className="text-lg font-bold text-hpsr-text">Horários livres</h3>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">Visibilidade</p>
+                <h3 className="text-lg font-bold text-hpsr-text">Resumo para a equipe</h3>
               </div>
             </div>
-
             <p className="mt-3 text-sm leading-relaxed text-hpsr-muted">
-              O sistema exibe horários compatíveis, mas apenas a Diretoria pode confirmar ou reagendar procedimentos.
+              Médicos e demais membros do hospital consultam paciente, horário, sala, status e profissionais escalados sem poder alterar o agendamento.
             </p>
-
-            <div className="mt-4 grid gap-3">
-              {nextAvailableSlots.map((slot) => (
-                <div key={`${slot.date}-${slot.start}-${slot.room}`} className="rounded-[16px] border border-hpsr-border bg-[#fcf6ee] p-3 transition hover:bg-[#fffdf9]">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-bold text-hpsr-text">{formatDate(slot.date)} · {slot.start}</p>
-                      <p className="mt-0.5 text-xs text-hpsr-muted">{slot.room}</p>
-                    </div>
-                    <CheckCircle2 size={17} className="text-emerald-600" />
-                  </div>
-                  <p className="mt-2 rounded-[14px] border border-hpsr-border bg-white/78 px-3 py-2 text-xs font-semibold text-hpsr-wine">
-                    {slot.fit}
-                  </p>
-                </div>
-              ))}
+            <div className="mt-3 rounded-[14px] border border-hpsr-border bg-[#fcf6ee] px-3 py-2.5 text-xs font-bold text-hpsr-wine">
+              {canScheduleProcedures ? "Seu perfil possui permissão de gestão." : "Seu perfil possui acesso somente para consulta."}
             </div>
           </div>
 
           <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[#fcf6ee] text-hpsr-wine">
-                <UsersRound size={20} />
+                <CheckCircle2 size={20} />
               </div>
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">Equipe mínima</p>
@@ -485,8 +702,8 @@ export default function ProcedureSchedulePage() {
             </div>
 
             <div className="mt-4 grid gap-3">
-              <ChecklistItem title="Partos e cesáreas" description="Obstetra, enfermagem, apoio neonatal quando aplicável e sala definida." />
-              <ChecklistItem title="Procedimentos gerais" description="Médico responsável, apoio de enfermagem e sala disponível por 2h." />
+              <ChecklistItem title="Partos e cesáreas" description="Obstetra, apoio neonatal quando aplicável e sala definida." />
+              <ChecklistItem title="Procedimentos gerais" description="Médico responsável, equipe compatível e sala disponível por 2h." />
               <ChecklistItem title="FIV" description="Especialista responsável, apoio clínico e sala por 1h." />
             </div>
           </div>
@@ -495,12 +712,16 @@ export default function ProcedureSchedulePage() {
 
       {scheduleOpen && (
         <ScheduleProcedureModal
+          doctors={doctors}
+          doctorsLoading={doctorsLoading}
           onClose={() => setScheduleOpen(false)}
           onSave={handleCreateProcedure}
         />
       )}
       {editingProcedure && (
         <ScheduleProcedureModal
+          doctors={doctors}
+          doctorsLoading={doctorsLoading}
           initialForm={{
             patient: editingProcedure.patient,
             passport: editingProcedure.passport,
@@ -509,9 +730,9 @@ export default function ProcedureSchedulePage() {
             date: editingProcedure.date,
             start: editingProcedure.start,
             observations: editingProcedure.observations || "",
-            professionals: editingProcedure.professionals.length ? editingProcedure.professionals : [{ name: editingProcedure.responsible, passport: "" }],
+            professionals: editingProcedure.professionals,
           }}
-          title="Reagendar procedimento"
+          title="Editar procedimento"
           onClose={() => setEditingProcedure(null)}
           onSave={handleUpdateProcedure}
         />
@@ -520,224 +741,6 @@ export default function ProcedureSchedulePage() {
   );
 }
 
-function ScheduleProcedureModal({
-  onClose,
-  onSave,
-  initialForm,
-  title = "Agendar procedimento",
-}: {
-  onClose: () => void;
-  onSave: (form: ProcedureFormState) => void;
-  initialForm?: ProcedureFormState;
-  title?: string;
-}) {
-  const [form, setForm] = useState<ProcedureFormState>(() => initialForm || createInitialForm());
-
-  function updateField<K extends keyof ProcedureFormState>(field: K, value: ProcedureFormState[K]) {
-    setForm((current) => ({ ...current, [field]: value }));
-  }
-
-  function updateProfessional(index: number, field: keyof ProcedureProfessional, value: string) {
-    setForm((current) => ({
-      ...current,
-      professionals: current.professionals.map((professional, currentIndex) =>
-        currentIndex === index ? { ...professional, [field]: value } : professional
-      ),
-    }));
-  }
-
-  function addProfessional() {
-    setForm((current) => ({
-      ...current,
-      professionals: [...current.professionals, { name: "", passport: "" }],
-    }));
-  }
-
-  function removeProfessional(index: number) {
-    setForm((current) => ({
-      ...current,
-      professionals: current.professionals.length === 1
-        ? current.professionals
-        : current.professionals.filter((_, currentIndex) => currentIndex !== index),
-    }));
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    onSave(form);
-  }
-
-  return (
-    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
-      <button
-        type="button"
-        aria-label="Fechar formulário"
-        onClick={onClose}
-        className="fixed inset-0 bg-[#1f0805]/55"
-      />
-
-      <form
-        onSubmit={handleSubmit}
-        className="relative z-10 w-full max-w-4xl overflow-hidden rounded-[16px] border border-hpsr-border bg-[#fffaf4]"
-      >
-        <div className="flex items-start justify-between gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f7eadb_100%)] px-4 py-3">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Diretoria</p>
-            <h2 className="mt-1 text-lg font-black text-hpsr-text">{title}</h2>
-            <p className="mt-1 text-sm font-semibold text-hpsr-muted">
-              Informe paciente, tipo, profissionais participantes e observações opcionais.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-2xl border border-hpsr-border bg-white p-3 text-hpsr-wine transition hover:bg-[#fff8f0]"
-            aria-label="Fechar"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="max-h-[74vh] overflow-y-auto p-3.5">
-          <section className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
-            <h3 className="text-lg font-black text-hpsr-text">Dados do procedimento</h3>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <FormInput
-                label="Nome do paciente *"
-                value={form.patient}
-                onChange={(value) => updateField("patient", value)}
-                required
-              />
-              <FormInput
-                label="Passaporte do paciente *"
-                value={form.passport}
-                onChange={(value) => updateField("passport", value)}
-                required
-              />
-
-              <label className="block">
-                <span className="text-xs font-black uppercase tracking-[0.1em] text-hpsr-wineLight">Tipo de procedimento *</span>
-                <StyledSelect
-                  required
-                  value={form.procedureType}
-                  onChange={(event) => updateField("procedureType", event.target.value as ProcedureType)}
-                  className="mt-1.5 min-h-[38px] w-full rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-3 text-sm font-semibold text-hpsr-text outline-none"
-                >
-                  {procedureOptions.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
-                  ))}
-                </StyledSelect>
-              </label>
-
-              <label className="block">
-                <span className="text-xs font-black uppercase tracking-[0.1em] text-hpsr-wineLight">Sala *</span>
-                <StyledSelect
-                  required
-                  value={form.room}
-                  onChange={(event) => updateField("room", event.target.value)}
-                  className="mt-1.5 min-h-[38px] w-full rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-3 text-sm font-semibold text-hpsr-text outline-none"
-                >
-                  {roomOptions.map((room) => (
-                    <option key={room}>{room}</option>
-                  ))}
-                </StyledSelect>
-              </label>
-
-              <FormInput
-                label="Data *"
-                type="date"
-                value={form.date}
-                onChange={(value) => updateField("date", value)}
-                required
-              />
-              <FormInput
-                label="Horário inicial *"
-                type="time"
-                value={form.start}
-                onChange={(value) => updateField("start", value)}
-                required
-              />
-            </div>
-          </section>
-
-          <section className="mt-4 rounded-[16px] border border-hpsr-border bg-white p-3.5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-black text-hpsr-text">Profissionais participantes</h3>
-                <p className="mt-1 text-sm font-semibold text-hpsr-muted">Informe apenas nome e passaporte.</p>
-              </div>
-              <button
-                type="button"
-                onClick={addProfessional}
-                className="inline-flex items-center gap-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-xs font-black text-hpsr-wine transition hover:bg-white"
-              >
-                <Plus size={15} />
-                Adicionar profissional
-              </button>
-            </div>
-
-            <div className="mt-4 grid gap-3">
-              {form.professionals.map((professional, index) => (
-                <div key={index} className="grid gap-3 rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3 md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-end">
-                  <FormInput
-                    label={`Nome do profissional ${index + 1} *`}
-                    value={professional.name}
-                    onChange={(value) => updateProfessional(index, "name", value)}
-                    required
-                  />
-                  <FormInput
-                    label="Passaporte *"
-                    value={professional.passport}
-                    onChange={(value) => updateProfessional(index, "passport", value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeProfessional(index)}
-                    disabled={form.professionals.length === 1}
-                    className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-45"
-                  >
-                    Remover
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="mt-4 rounded-[16px] border border-hpsr-border bg-white p-3.5">
-            <label className="block">
-              <span className="text-xs font-black uppercase tracking-[0.1em] text-hpsr-wineLight">Observações opcionais</span>
-              <textarea
-                value={form.observations}
-                onChange={(event) => updateField("observations", event.target.value)}
-                rows={4}
-                className="mt-1.5 w-full resize-none rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-sm font-semibold text-hpsr-text outline-none"
-                placeholder="Ex.: orientações, preparo, prioridade, observações clínicas ou logísticas."
-              />
-            </label>
-          </section>
-        </div>
-
-        <div className="flex flex-col-reverse gap-2 border-t border-hpsr-border bg-[#fff8f0] px-4 py-3 sm:flex-row sm:justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-2xl border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-wine transition hover:bg-[#fffaf4]"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 py-3 text-sm font-black text-white transition"
-          >
-            <Save size={16} />
-            {title === "Reagendar procedimento" ? "Salvar reagendamento" : "Salvar agendamento"}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
 
 function RuleCard({
   icon,
@@ -793,32 +796,5 @@ function ChecklistItem({ title, description }: { title: string; description: str
         </div>
       </div>
     </div>
-  );
-}
-
-function FormInput({
-  label,
-  value,
-  onChange,
-  type = "text",
-  required,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: string;
-  required?: boolean;
-}) {
-  return (
-    <label className="block">
-      <span className="text-xs font-black uppercase tracking-[0.1em] text-hpsr-wineLight">{label}</span>
-      <input
-        required={required}
-        type={type}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-1.5 min-h-[38px] w-full rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-3 text-sm font-semibold text-hpsr-text outline-none"
-      />
-    </label>
   );
 }

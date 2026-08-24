@@ -133,6 +133,17 @@ async function renderVaccinationCard({
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
+  if (group === "crianca") {
+    // Reforço visual discreto sem redesenhar o template: duas faixas translúcidas
+    // nas bordas externas preservam todos os campos e a aparência documental.
+    ctx.save();
+    ctx.globalAlpha = 0.055;
+    ctx.fillStyle = "#2563eb";
+    ctx.fillRect(0, 0, canvas.width, Math.max(4, canvas.height * 0.018));
+    ctx.fillStyle = "#f59e0b";
+    ctx.fillRect(0, canvas.height - Math.max(4, canvas.height * 0.014), canvas.width, Math.max(4, canvas.height * 0.014));
+    ctx.restore();
+  }
 
   const brown = "#5a260f";
   const blue = "#1d58a7";

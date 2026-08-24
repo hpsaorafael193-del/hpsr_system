@@ -73,6 +73,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, code: "CONTACT_REQUIRED", error: "Este paciente não possui e-mail cadastrado. Informe o ID do Discord para permitir o contato da equipe." }, { status: 400 });
     }
 
+    const { data: capacityCandidates, error: capacityError } = await valid.supabase.rpc("hpsr_specialty_capacity_candidates", { p_specialty: specialty });
+    if (capacityError) throw capacityError;
+    if (!Array.isArray(capacityCandidates) || capacityCandidates.length === 0) {
+      return NextResponse.json({ ok: false, code: "NO_CAPACITY", error: "Sem vagas no momento para esta especialidade." }, { status: 409 });
+    }
+
     const now = brazilIso();
     const id = `HPSR-EXM-${Date.now()}-${randomUUID().slice(0, 6).toUpperCase()}`;
     const patient = String(patientRow.name || "Paciente").trim();

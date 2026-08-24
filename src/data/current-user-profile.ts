@@ -9,6 +9,7 @@ export const currentUserProfile = {
   department: "Hospital São Rafael",
   specialty: "Clínico Geral",
   specialties: ["Clínico Geral", "Obstetra", "Cardiologia", "Pediatra", "Nutricionista"],
+  specialtyCapacity: {} as Record<string, number>,
   crm: "CRM-RP 193-001",
   cityPhone: "(055) 193-000",
   discordId: "1717123456789",

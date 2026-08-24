@@ -35,6 +35,8 @@ type PatientSelectionContextValue = {
   selectPatient: (patientOrPassport: SharedPatient | string | null) => void;
   upsertPatient: (patient: SharedPatient) => Promise<boolean>;
   refreshPatients: () => Promise<void>;
+  _retainConsumer: () => void;
+  _releaseConsumer: () => void;
 };
 
 const PatientSelectionContext = createContext<PatientSelectionContextValue | null>(null);
@@ -90,14 +92,42 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
   const [patients, setPatients] = useState<SharedPatient[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPassport, setSelectedPassport] = useState("");
+  const [active, setActive] = useState(false);
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
   const lastRefreshAtRef = useRef(0);
+  const consumerCountRef = useRef(0);
+  const deactivateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const cached = readPatientCache();
     if (cached.patients.length) setPatients(cached.patients);
     if (cached.savedAt) lastRefreshAtRef.current = cached.savedAt;
     setSelectedPassport(normalizePassport(localStorage.getItem(SELECTED_PATIENT_KEY)));
+  }, []);
+
+  const retainConsumer = useCallback(() => {
+    if (deactivateTimerRef.current) {
+      clearTimeout(deactivateTimerRef.current);
+      deactivateTimerRef.current = null;
+    }
+    consumerCountRef.current += 1;
+    if (consumerCountRef.current === 1) setActive(true);
+  }, []);
+
+  const releaseConsumer = useCallback(() => {
+    consumerCountRef.current = Math.max(0, consumerCountRef.current - 1);
+    if (consumerCountRef.current > 0) return;
+    if (deactivateTimerRef.current) clearTimeout(deactivateTimerRef.current);
+    // Pequeno atraso evita abrir/fechar o canal em remounts do React e em
+    // navegações rápidas entre páginas que usam o mesmo seletor.
+    deactivateTimerRef.current = setTimeout(() => {
+      if (consumerCountRef.current === 0) setActive(false);
+      deactivateTimerRef.current = null;
+    }, 450);
+  }, []);
+
+  useEffect(() => () => {
+    if (deactivateTimerRef.current) clearTimeout(deactivateTimerRef.current);
   }, []);
 
   const refreshPatients = useCallback(async () => {
@@ -155,6 +185,8 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
   }, []);
 
   useEffect(() => {
+    if (!active) return;
+
     const cacheIsFresh = Date.now() - lastRefreshAtRef.current < PATIENT_CACHE_TTL_MS;
     if (!cacheIsFresh) void refreshPatients();
     else setLoading(false);
@@ -204,7 +236,7 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
     return () => {
       void client.removeChannel(channel);
     };
-  }, [refreshPatients]);
+  }, [active, refreshPatients]);
 
   const upsertPatient = useCallback(async (patient: SharedPatient) => {
     const normalized = normalizePatient(patient);
@@ -263,8 +295,20 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
     [patients, selectedPassport],
   );
 
+  const contextValue = useMemo<PatientSelectionContextValue>(() => ({
+    patients,
+    loading,
+    selectedPatient,
+    selectedPassport,
+    selectPatient,
+    upsertPatient,
+    refreshPatients,
+    _retainConsumer: retainConsumer,
+    _releaseConsumer: releaseConsumer,
+  }), [patients, loading, selectedPatient, selectedPassport, selectPatient, upsertPatient, refreshPatients, retainConsumer, releaseConsumer]);
+
   return (
-    <PatientSelectionContext.Provider value={{ patients, loading, selectedPatient, selectedPassport, selectPatient, upsertPatient, refreshPatients }}>
+    <PatientSelectionContext.Provider value={contextValue}>
       {children}
     </PatientSelectionContext.Provider>
   );
@@ -273,5 +317,11 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
 export function usePatientSelection() {
   const value = useContext(PatientSelectionContext);
   if (!value) throw new Error("usePatientSelection deve ser usado dentro de PatientSelectionProvider");
+
+  useEffect(() => {
+    value._retainConsumer();
+    return () => value._releaseConsumer();
+  }, [value._retainConsumer, value._releaseConsumer]);
+
   return value;
 }

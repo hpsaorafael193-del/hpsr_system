@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     const accountEmail = patientPassport === normalizePassport(valid.access.patient_passport) ? String(valid.access.email || "").trim().toLowerCase() : "";
     const registryEmail = String(patientRow.email || "").trim().toLowerCase();
     const contactEmail = registryEmail || accountEmail;
-    const allowedFlowTypes = ["Consulta comum", "Outros"];
+    const allowedFlowTypes = ["Consulta comum", "Acompanhamento"];
 
     if (["Acompanhamento com especialista", "Exames"].includes(flowType)) {
       return NextResponse.json({
@@ -47,8 +47,8 @@ export async function POST(request: NextRequest) {
     if (!contactEmail && !discordId) {
       return NextResponse.json({ ok: false, code: "CONTACT_REQUIRED", error: "Este paciente não possui e-mail cadastrado. Informe o ID do Discord para que o médico consiga entrar em contato." }, { status: 400 });
     }
-    if (flowType === "Outros" && !flowDetails) {
-      return NextResponse.json({ ok: false, error: "Descreva o objetivo da solicitação selecionada como Outros." }, { status: 400 });
+    if (flowType === "Acompanhamento" && !flowDetails) {
+      return NextResponse.json({ ok: false, error: "Informe qual acompanhamento você precisa iniciar." }, { status: 400 });
     }
 
     const activeBookingResult = await valid.supabase.rpc("hpsr_patient_has_active_booking", {
@@ -62,6 +62,12 @@ export async function POST(request: NextRequest) {
         { ok: false, error: `Você já possui uma consulta ativa em ${specialty}. Aguarde ela ser realizada, cancelada ou encerrada antes de solicitar outra.` },
         { status: 409 },
       );
+    }
+
+    const { data: capacityCandidates, error: capacityError } = await valid.supabase.rpc("hpsr_specialty_capacity_candidates", { p_specialty: specialty });
+    if (capacityError) throw capacityError;
+    if (!Array.isArray(capacityCandidates) || capacityCandidates.length === 0) {
+      return NextResponse.json({ ok: false, code: "NO_CAPACITY", error: "Sem vagas no momento para esta especialidade." }, { status: 409 });
     }
 
     const now = brazilIso();
@@ -83,7 +89,7 @@ export async function POST(request: NextRequest) {
       reason,
       notes,
       flowType,
-      flowDetails: flowType === "Outros" ? flowDetails : "",
+      flowDetails: flowType === "Acompanhamento" ? flowDetails : "",
       source: "patient_portal",
       physician: "A definir",
       doctorNotificationUnread: true,

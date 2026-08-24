@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Braces,
   Cloud,
@@ -40,13 +40,22 @@ export type DeveloperCreditsModalProps = {
 export function DeveloperCreditsModal({ open, onClose }: DeveloperCreditsModalProps) {
   const [contactOpen, setContactOpen] = useState(false);
   const [discordCopied, setDiscordCopied] = useState(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const developerDiscordLabel = "@lluidhy";
+
+  useEffect(() => () => {
+    if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+  }, []);
 
   async function copyDiscordUsername() {
     try {
       await navigator.clipboard.writeText(developerDiscordLabel);
       setDiscordCopied(true);
-      window.setTimeout(() => setDiscordCopied(false), 1800);
+      if (copiedTimerRef.current) clearTimeout(copiedTimerRef.current);
+      copiedTimerRef.current = setTimeout(() => {
+        setDiscordCopied(false);
+        copiedTimerRef.current = null;
+      }, 1800);
     } catch {
       setDiscordCopied(false);
     }
@@ -157,7 +166,7 @@ export function DeveloperCreditsModal({ open, onClose }: DeveloperCreditsModalPr
           <div className="rounded-[16px] border border-[#ead6c4] bg-[#f5e8dc] px-4 py-4 text-center">
             <p className="text-sm font-black text-hpsr-wine">Desenvolvido para o Hospital São Rafael - Eldorado</p>
             <p className="mt-2 text-xs font-semibold text-hpsr-muted">© 2026 Luidhy Conceição dos Santos. Todos os direitos reservados.</p>
-            <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Versão do sistema: 1.0.292</p>
+            <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Versão do sistema: 1.0.297</p>
           </div>
 
           <button

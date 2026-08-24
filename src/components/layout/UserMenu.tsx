@@ -104,6 +104,11 @@ export function UserMenu() {
     if (!client) return;
     setNotificationsLoading(true);
     try {
+      const capacityEntries = await Promise.all(medicalSpecialties.map(async (specialty) => {
+        const { data } = await client.rpc("hpsr_my_clinical_capacity", { p_specialty: specialty });
+        return [normalizeClinicalSpecialty(specialty), Number((data as { available?: number } | null)?.available || 0)] as const;
+      }));
+      const capacityBySpecialty = Object.fromEntries(capacityEntries);
       const columns = "id,patient,passport,status,payload,created_at,updated_at";
       const directQuery = client
         .from("appointments")
@@ -139,9 +144,13 @@ export function UserMenu() {
           const requestedDoctorId = String(payload.requestedDoctorId || "");
           const doctorId = String(payload.doctorId || "");
           const readBy = Array.isArray(payload.notificationReadBy) ? payload.notificationReadBy.map(String) : [];
+          const normalizedSpecialty = normalizeClinicalSpecialty(payload.specialty);
           const directlyRelated = requestedDoctorId === userId || doctorId === userId;
-          const specialtyRelated = !requestedDoctorId && normalizedMedicalSpecialties.includes(normalizeClinicalSpecialty(payload.specialty));
+          const specialtyRelated = !requestedDoctorId && normalizedMedicalSpecialties.includes(normalizedSpecialty);
+          const declinedBy = Array.isArray(payload.declinedBy) ? payload.declinedBy.map(String) : [];
+          if (declinedBy.includes(userId)) return null;
           if (!directlyRelated && !specialtyRelated) return null;
+          if (Number(capacityBySpecialty[normalizedSpecialty] || 0) <= 0) return null;
 
           const flowType = String(payload.flowType || "Consulta comum");
           const patient = String(row.patient || payload.patient || "Paciente");
@@ -417,6 +426,7 @@ export function UserMenu() {
               {clock.status === "Em pausa" && <div className="grid grid-cols-2 gap-2"><ActionButton icon={<RotateCcw size={16}/>} label="Retornar" onClick={() => handleAction("return")} loading={actionLoading} primary/><ActionButton icon={<Square size={16}/>} label="Finalizar" onClick={() => handleAction("finish")} loading={actionLoading} danger /></div>}
             </div>
 
+            {!currentUserProfile.signaturePath && <button type="button" role="menuitem" onClick={() => { setOpen(false); router.push("/dashboard/perfil#assinatura"); }} className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] font-black text-amber-800 transition hover:bg-amber-100"><UserRound size={15}/> Perfil incompleto · falta assinatura</button>}
             {canUseMedicalNotifications && <button type="button" role="menuitem" onClick={() => { setOpen(false); setNotificationsOpen(true); void loadNotifications(); }} className="relative flex w-full items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5 text-[11px] font-black text-hpsr-wine transition hover:bg-[#f7f2ea]"><BellRing size={15}/> Minhas notificações{unreadNotificationCount > 0 && <span className="ml-auto rounded-full bg-red-600 px-2 py-0.5 text-[9px] font-black text-white">{unreadNotificationCount}</span>}</button>}
             <button type="button" role="menuitem" onClick={() => { setOpen(false); router.push("/dashboard/perfil"); }} className="flex w-full items-center justify-center gap-2 rounded-[12px] px-3 py-2 text-[11px] font-bold text-hpsr-wine transition hover:bg-[#f7f2ea]"><UserRound size={15}/> Ver perfil completo</button>
             <button type="button" role="menuitem" onClick={handleLogout} className="flex w-full items-center justify-center gap-2 rounded-[12px] px-3 py-2 text-[11px] font-bold text-hpsr-muted transition hover:bg-[#f7f2ea]"><LogOut size={15}/> Sair</button>
@@ -448,9 +458,10 @@ export function UserMenu() {
                 <div className="grid gap-2.5">
                   {notifications.map((notification) => {
                     const Icon = notification.category === "Acompanhamento" ? Stethoscope : notification.category === "Reagendamento" ? CalendarCheck2 : notification.category === "Exame" ? FlaskConical : ClipboardList;
+                    const notificationSpecialty = typeof notification.payload.specialty === "string" ? notification.payload.specialty.trim() : "";
                     return <button key={notification.id} type="button" onClick={() => { if (notification.unread) void markNotificationsRead([notification.id]); setNotificationsOpen(false); router.push("/dashboard/agendamento"); }} className={cn("group flex w-full items-start gap-3 rounded-[17px] border p-3.5 text-left transition", notification.unread ? "border-red-200 bg-white shadow-sm" : "border-hpsr-border bg-white/70 hover:bg-white")}>
                       <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-[14px]", notification.unread ? "bg-red-50 text-red-700" : "bg-[#f7eee9] text-hpsr-wine")}><Icon size={18}/></div>
-                      <div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><p className="text-sm font-black text-hpsr-text">{notification.title}</p>{notification.unread && <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-600 animate-pulse" />}</div><p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">{notification.description}</p><div className="mt-2 flex flex-wrap items-center gap-2"><span className="rounded-full bg-[#f7eee9] px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-hpsr-wine">{notification.category}</span><span className="text-[10px] font-semibold text-hpsr-muted">{formatNotificationDate(notification.createdAt)}</span></div></div>
+                      <div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><p className="text-sm font-black text-hpsr-text">{notification.title}</p>{notification.unread && <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-600 animate-pulse" />}</div><p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">{notification.description}</p><div className="mt-2 flex flex-wrap items-center gap-2"><span className="rounded-full bg-[#f7eee9] px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-hpsr-wine">{notification.category}</span>{notificationSpecialty && <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[9px] font-black text-hpsr-muted">{notificationSpecialty}</span>}<span className="text-[10px] font-semibold text-hpsr-muted">{formatNotificationDate(notification.createdAt)}</span></div></div>
                     </button>;
                   })}
                 </div>

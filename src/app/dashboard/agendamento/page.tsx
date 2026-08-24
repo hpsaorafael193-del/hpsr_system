@@ -29,8 +29,10 @@ import {
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
-import { doctorCanAccessSpecialty, doctorVisibleSpecialties } from "@/data/appointment-rules";
+import { doctorCanAccessSpecialty, doctorVisibleSpecialties, normalizeSpecialty } from "@/data/appointment-rules";
 import { createClient } from "@/lib/supabase";
+import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
+import { ClinicalFollowupPlanner } from "@/components/dashboard/ClinicalFollowupPlanner";
 
 type TabId = "solicitacoes" | "exames" | "consultas" | "acompanhamentos" | "reagendamentos" | "cobrancas";
 
@@ -129,7 +131,7 @@ const billingIssues: Array<{ id: string; patient: string; passport: string; appo
 const availableSlots: Array<{ specialty: string; doctor: string; date: string; times: string[]; type: string }> = [];
 
 const tabs: Array<{ id: TabId; label: string; icon: ReactNode }> = [
-  { id: "solicitacoes", label: "Consultas", icon: <CalendarDays size={15} /> },
+  { id: "solicitacoes", label: "Solicitações", icon: <CalendarDays size={15} /> },
   { id: "exames", label: "Exames", icon: <FlaskConical size={15} /> },
   { id: "consultas", label: "Consultas", icon: <Stethoscope size={15} /> },
   { id: "acompanhamentos", label: "Acompanhamentos", icon: <HeartPulse size={15} /> },
@@ -210,6 +212,7 @@ export default function AppointmentsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [publicRequests, setPublicRequests] = useState<PublicAppointmentRequest[]>([]);
   const [requestsModalOpen, setRequestsModalOpen] = useState(false);
+  const [capacityBySpecialty, setCapacityBySpecialty] = useState<Record<string, number>>({});
 
   const loadAppointments = useCallback(async () => {
     const client = createClient();
@@ -231,6 +234,18 @@ export default function AppointmentsPage() {
 
     setPublicRequests((data || []).map(mapAppointmentRow));
   }, []);
+
+  useEffect(() => {
+    const client = createClient();
+    if (!client || !currentUserProfile.id) return;
+    const userSpecialties = (currentUserProfile.specialties || []).map((item) => String(item).trim()).filter(Boolean);
+    let active = true;
+    void Promise.all(userSpecialties.map(async (specialty) => {
+      const { data } = await client.rpc("hpsr_my_clinical_capacity", { p_specialty: specialty });
+      return [normalizeSpecialty(specialty), Number((data as { available?: number } | null)?.available || 0)] as const;
+    })).then((entries) => { if (active) setCapacityBySpecialty(Object.fromEntries(entries)); });
+    return () => { active = false; };
+  }, [currentUserProfile.id, currentUserProfile.specialties, publicRequests]);
 
   useEffect(() => {
     const client = createClient();
@@ -268,6 +283,23 @@ export default function AppointmentsPage() {
     status: string,
     details?: { proposedDate?: string; proposedTime?: string; reason?: string }
   ) {
+    const client = createClient();
+    if ((status === "Aceita" || status === "Recusada") && client) {
+      const rpcName = status === "Aceita" ? "hpsr_claim_clinical_request" : "hpsr_decline_clinical_request";
+      const { data, error } = await client.rpc(rpcName, { p_request_id: request.id });
+      const result = (data || {}) as { ok?: boolean; error?: string; status?: string };
+      if (error || !result.ok) {
+        await hpsrAlert(result.error || error?.message || "Não foi possível atualizar esta solicitação.", "Solicitação não atualizada");
+        await loadAppointments();
+        return;
+      }
+      await loadAppointments();
+      if (status === "Aceita" && ["Acompanhamento", "Acompanhamento com especialista"].includes(request.flowType || "")) {
+        setActiveTab("acompanhamentos");
+      }
+      return;
+    }
+
     const updatedRequest: PublicAppointmentRequest = {
       ...request,
       status,
@@ -284,59 +316,12 @@ export default function AppointmentsPage() {
       } : {}),
     };
 
-    const client = createClient();
     if (client) {
-      if (status === "Acompanhamento confirmado") {
-        if (request.requestedDoctorId && request.requestedDoctorId !== currentUserProfile.id) {
-          console.error("[HPSR][Agendamento] Este acompanhamento foi direcionado a outro médico.");
-          return;
-        }
-        const startDate = request.preferredDate || todayInSaoPaulo();
-        const dates = Array.from({ length: 9 }, (_, index) => {
-          const date = new Date(`${startDate}T12:00:00`);
-          date.setDate(date.getDate() + index * 7);
-          return brazilDate(date);
-        });
-        const { data: plan, error: planError } = await client.from("clinical_followup_plans").insert({
-          doctor_id: currentUserProfile.id,
-          doctor_name: currentUserProfile.systemName,
-          patient_passport: request.passport.trim().toUpperCase(),
-          patient_name: request.patient,
-          specialty: request.specialty,
-          frequency: "Semanal",
-          interval_days: 7,
-          start_date: dates[0],
-          end_date: dates[dates.length - 1],
-          total_consultations: dates.length,
-          status: "Ativo",
-        }).select("id").single();
-        if (planError || !plan) {
-          console.error("[HPSR][Agendamento] Falha ao confirmar acompanhamento:", planError);
-          return;
-        }
-        const { error: occurrenceError } = await client.from("clinical_followup_occurrences").insert(dates.map((plannedDate) => ({
-          plan_id: plan.id,
-          doctor_id: currentUserProfile.id,
-          patient_passport: request.passport.trim().toUpperCase(),
-          patient_name: request.patient,
-          specialty: request.specialty,
-          planned_date: plannedDate,
-          status: "Planejada",
-        })));
-        if (occurrenceError) {
-          await client.from("clinical_followup_plans").delete().eq("id", plan.id);
-          console.error("[HPSR][Agendamento] Falha ao criar ocorrências:", occurrenceError);
-          return;
-        }
-        updatedRequest.followupPlanId = String(plan.id);
-        updatedRequest.doctorNotificationUnread = false;
-        updatedRequest.answer = `Acompanhamento confirmado por ${currentUserProfile.systemName}. O médico responsável entrará em contato pelo e-mail cadastrado ou pelo Discord informado para combinar os próximos atendimentos.`;
-      }
       const payload = {
         ...request,
         ...updatedRequest,
         physician:
-          status === "Aceita" || status === "Reagendamento solicitado" || status === "Acompanhamento confirmado"
+          status === "Aceita" || status === "Reagendamento solicitado"
             ? currentUserProfile.systemName
             : request.doctor || "A definir",
         source: request.source || "patient_portal",
@@ -380,12 +365,16 @@ export default function AppointmentsPage() {
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "");
 
-      const isTargetedFollowup = item.flowType === "Acompanhamento com especialista" && Boolean(item.requestedDoctorId);
+      const declinedBy = Array.isArray((item as any).declinedBy) ? (item as any).declinedBy.map(String) : [];
+      if (declinedBy.includes(String(currentUserProfile.id))) return false;
       const isManager = ["Total", "Diretor Técnico / Dev"].includes(currentUserProfile.accessLevel) || ["Diretora", "Vice Diretor", "Vice-Diretor"].includes(currentUserProfile.role);
-      const belongsToDoctor = !isTargetedFollowup || item.requestedDoctorId === currentUserProfile.id || isManager;
+      const requestedDoctorId = String(item.requestedDoctorId || "");
+      const specialtyMatch = (currentUserProfile.specialties || []).some((specialty) => normalizeSpecialty(String(specialty)) === normalizeSpecialty(item.specialty));
+      const hasCapacity = Number(capacityBySpecialty[normalizeSpecialty(item.specialty)] || 0) > 0;
+      const belongsToDoctor = isManager || (specialtyMatch && hasCapacity && (!requestedDoctorId || requestedDoctorId === currentUserProfile.id));
       return belongsToDoctor && pendingMarkers.some((marker) => normalizedStatus.includes(marker));
     });
-  }, [publicRequests, currentUserProfile.accessLevel, currentUserProfile.id, currentUserProfile.role]);
+  }, [publicRequests, currentUserProfile.accessLevel, currentUserProfile.id, currentUserProfile.role, currentUserProfile.specialties, capacityBySpecialty]);
 
   const publicAcceptedAppointments = useMemo(() => {
     return publicRequests
@@ -405,7 +394,7 @@ export default function AppointmentsPage() {
           specialty: item.specialty,
           doctor: item.doctor || currentUserProfile.systemName,
           type: item.flowType || "Consulta comum",
-          status: item.status === "Aceita" ? "Aguardando contato" : item.status === "Reagendamento aceito" ? "Confirmada" : item.status,
+          status: item.status === "Reagendamento aceito" ? "Confirmada" : item.status,
           acceptedAt: item.acceptedAt,
           acceptedById: item.acceptedById,
           acceptedByName: item.acceptedByName,
@@ -444,10 +433,17 @@ export default function AppointmentsPage() {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     return publicRequests.filter((item) => {
       if (item.flowType !== "Exames") return false;
+      const isManager = ["Total", "Diretor Técnico / Dev"].includes(currentUserProfile.accessLevel) || ["Diretora", "Vice Diretor", "Vice-Diretor"].includes(currentUserProfile.role);
+      const pending = ["Solicitação enviada", "Aguardando análise"].includes(item.status);
+      const acceptedBySelf = item.acceptedById === currentUserProfile.id || (item as any).doctorId === currentUserProfile.id;
+      const specialtyMatch = (currentUserProfile.specialties || []).some((specialty) => normalizeSpecialty(String(specialty)) === normalizeSpecialty(item.specialty));
+      const declinedBy = Array.isArray((item as any).declinedBy) ? (item as any).declinedBy.map(String) : [];
+      const eligiblePending = pending && specialtyMatch && Number(capacityBySpecialty[normalizeSpecialty(item.specialty)] || 0) > 0 && !declinedBy.includes(String(currentUserProfile.id));
+      if (!isManager && !acceptedBySelf && !eligiblePending) return false;
       if (!normalizedSearch) return true;
       return item.patient.toLowerCase().includes(normalizedSearch) || item.passport.includes(normalizedSearch) || item.specialty.toLowerCase().includes(normalizedSearch) || (item.reason || "").toLowerCase().includes(normalizedSearch);
     });
-  }, [publicRequests, searchTerm]);
+  }, [publicRequests, searchTerm, currentUserProfile.accessLevel, currentUserProfile.id, currentUserProfile.role, currentUserProfile.specialties, capacityBySpecialty]);
 
   const loggedDoctorConsultationsToday = visibleAppointments.filter(
     (item) => item.date === brazilDate() && item.doctor === currentUserProfile.systemName
@@ -728,6 +724,8 @@ function RequestsCenterModal({
   ) => void;
   onClose: () => void;
 }) {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
+
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     const previousPaddingRight = document.body.style.paddingRight;
@@ -811,7 +809,7 @@ function RequestsCenterModal({
             {activeTab === "solicitacoes" && <RequestsTab requests={filteredRequests} onUpdateStatus={onUpdateStatus} />}
             {activeTab === "exames" && <ExamRequestsTab requests={filteredExamRequests} onUpdateStatus={onUpdateStatus} />}
             {activeTab === "consultas" && <ConsultationsTab appointments={visibleAppointments} />}
-            {activeTab === "acompanhamentos" && <FollowUpsTab />}
+            {activeTab === "acompanhamentos" && <FollowUpsTab doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} defaultSpecialty={currentUserProfile.specialty || "Clínico Geral"} />}
             {activeTab === "reagendamentos" && <ReschedulesTab />}
             {activeTab === "cobrancas" && <BillingTab />}
           </div>
@@ -823,11 +821,12 @@ function RequestsCenterModal({
 
 function ExamRequestsTab({ requests, onUpdateStatus }: { requests: PublicAppointmentRequest[]; onUpdateStatus: (request: PublicAppointmentRequest, status: string) => void }) {
   const actionable = new Set(["Solicitação enviada", "Aguardando análise"]);
+  const orderedRequests = [...requests].sort((a, b) => a.specialty.localeCompare(b.specialty, "pt-BR") || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
   return (
     <div className="grid gap-3">
       <SectionTitle icon={<FlaskConical size={18} />} title="Solicitações de exame" description="Pedidos de exame ficam separados das consultas e nunca entram automaticamente no Agendamento Geral." />
-      {requests.length ? <div className="max-h-[540px] overflow-y-auto pr-2"><div className="grid gap-3">{requests.map((item) => <AppointmentCard
-        key={item.id}
+      {orderedRequests.length ? <div className="max-h-[540px] overflow-y-auto pr-2"><div className="grid gap-3">{orderedRequests.map((item, index) => <div key={item.id}>{(index === 0 || orderedRequests[index - 1].specialty !== item.specialty) && <div className="mb-2 mt-1 flex items-center gap-2"><span className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{item.specialty}</span><span className="h-px flex-1 bg-hpsr-border"/></div>}<AppointmentCard
+        
         title={item.patient}
         subtitle={`Passaporte ${item.passport} · ${item.specialty}`}
         status={<StatusBadge status={item.status} />}
@@ -835,7 +834,7 @@ function ExamRequestsTab({ requests, onUpdateStatus }: { requests: PublicAppoint
         alert={item.answer || undefined}
         alertTone={item.status === "Recusada" ? "warning" : "success"}
         actions={actionable.has(item.status) ? <><ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Aceita")}>Receber solicitação</ActionButton><ActionButton variant="danger" onClick={() => onUpdateStatus(item, "Recusada")}>Recusar</ActionButton></> : <span className="rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-muted">Fluxo de exame · {item.status}</span>}
-      />)}</div></div> : <EmptyState title="Nenhuma solicitação de exame" description="Os pedidos de exame enviados pelo Portal aparecerão aqui, separados das consultas." />}
+      /></div>)}</div></div> : <EmptyState title="Nenhuma solicitação de exame" description="Os pedidos de exame enviados pelo Portal aparecerão aqui, separados das consultas." />}
     </div>
   );
 }
@@ -855,6 +854,7 @@ function RequestsTab({
   const [proposedDate, setProposedDate] = useState("");
   const [proposedTime, setProposedTime] = useState("");
   const [rescheduleReason, setRescheduleReason] = useState("");
+  const orderedRequests = [...requests].sort((a, b) => a.specialty.localeCompare(b.specialty, "pt-BR") || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
 
   function openReschedule(request: PublicAppointmentRequest) {
     setRescheduleRequest(request);
@@ -881,10 +881,10 @@ function RequestsTab({
         description="Pedidos enviados pelo Portal do Paciente. O modal exibe até 3 solicitações por vez e libera rolagem quando houver mais."
       />
 
-      {requests.length > 0 ? (
+      {orderedRequests.length > 0 ? (
         <div className="max-h-[540px] overflow-y-auto pr-2">
           <div className="grid gap-3">
-            {requests.map((item) => {
+            {orderedRequests.map((item, index) => {
               const patientAcceptedReschedule = item.status === "Reagendamento aceito";
               const patientAnsweredReschedule = [
                 "Nova proposta do paciente",
@@ -900,8 +900,9 @@ function RequestsTab({
                   : undefined;
 
               return (
+                <div key={item.id ?? item.passport}>
+                  {(index === 0 || orderedRequests[index - 1].specialty !== item.specialty) && <div className="mb-2 mt-1 flex items-center gap-2"><span className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{item.specialty}</span><span className="h-px flex-1 bg-hpsr-border"/></div>}
                 <AppointmentCard
-                  key={item.id ?? item.passport}
                   title={item.patient}
                   subtitle={`Passaporte ${item.passport} · ${item.specialty} · Data e horário definidos após contato médico`}
                   status={<StatusBadge status={item.status} />}
@@ -909,7 +910,7 @@ function RequestsTab({
                     ["Fluxo", item.flowType || "Consulta comum"],
                     ["Contato", item.contactEmail ? item.contactEmail : (item.discordId || item.discord) ? `Discord ID ${item.discordId || item.discord}` : "Não informado"],
                     ...(item.flowType === "Acompanhamento com especialista" ? [["Médico solicitado", item.requestedDoctorName || "Não informado"] as [string, string]] : []),
-                    ["Objetivo", item.flowType === "Outros" ? (item.flowDetails || "Não informado") : (item.reason || "Aguardando análise médica")],
+                    ["Objetivo", ["Acompanhamento", "Outros"].includes(item.flowType || "") ? (item.flowDetails || item.reason || "Não informado") : (item.reason || "Aguardando análise médica")],
                     ...(patientAnsweredReschedule ? [["Resposta do paciente", item.patientResponse || item.status] as [string, string]] : []),
                     ...(patientAcceptedReschedule ? [["Data confirmada", `${formatDate(item.proposedDate || item.preferredDate || "")} · ${item.proposedTime || item.preferredTime || "A definir"}`] as [string, string]] : []),
                   ]}
@@ -923,7 +924,7 @@ function RequestsTab({
                       </span>
                     ) : item.flowType === "Acompanhamento com especialista" ? (
                       <>
-                        <ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Acompanhamento confirmado")}>Confirmar acompanhamento</ActionButton>
+                        <ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Aceita")}>Confirmar acompanhamento</ActionButton>
                         <ActionButton variant="danger" onClick={() => onUpdateStatus(item, "Recusada")}>Recusar vínculo</ActionButton>
                       </>
                     ) : (
@@ -934,6 +935,7 @@ function RequestsTab({
                     )
                   }
                 />
+                </div>
               );
             })}
           </div>
@@ -1052,47 +1054,23 @@ function ConsultationsTab({ appointments }: { appointments: typeof scheduledAppo
   );
 }
 
-function FollowUpsTab() {
+function FollowUpsTab({
+  doctorId,
+  doctorName,
+  defaultSpecialty,
+}: {
+  doctorId?: string;
+  doctorName: string;
+  defaultSpecialty: string;
+}) {
   return (
     <div className="grid gap-3">
       <SectionTitle
         icon={<HeartPulse size={18} />}
-        title="Acompanhamentos"
-        description="Pacientes em acompanhamento não definem horários pelo Portal. Os próximos atendimentos são combinados diretamente com o médico responsável."
+        title="Acompanhamentos e planejamentos"
+        description="Solicitações de acompanhamento aceitas entram aqui automaticamente. Organize os pacientes por especialidade e configure frequência e referências somente quando fizer sentido clínico."
       />
-
-      {followUps.map((item) => (
-        <AppointmentCard
-          key={item.passport}
-          title={item.patient}
-          subtitle={`Passaporte ${item.passport} · ${item.program} · ${item.doctor}`}
-          status={<span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-black text-emerald-700">Acompanhamento</span>}
-          meta={[
-            ["Especialidade", item.specialty],
-            ["Próximo horário", item.nextSlot],
-            ["Disponibilidade", item.availability.join(" · ")],
-          ]}
-          actions={
-            <>
-              <ActionButton variant="primary">Registrar horário combinado</ActionButton>
-              <ActionButton>Contato / histórico</ActionButton>
-            </>
-          }
-        />
-      ))}
-
-      <div className="rounded-[16px] border border-hpsr-border bg-[#fcf6ee] p-3.5">
-        <p className="text-sm font-bold text-hpsr-text">Horários disponíveis para reagendamento</p>
-        <div className="mt-3 grid gap-2 md:grid-cols-3">
-          {availableSlots.map((slot) => (
-            <div key={`${slot.specialty}-${slot.date}`} className="rounded-[16px] border border-hpsr-border bg-white p-3">
-              <p className="text-sm font-bold text-hpsr-text">{slot.specialty}</p>
-              <p className="mt-1 text-xs text-hpsr-muted">{slot.doctor} · {slot.type}</p>
-              <p className="mt-2 text-xs font-semibold text-hpsr-wine">{slot.date}: {slot.times.join(" · ")}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+      <ClinicalFollowupPlanner doctorId={doctorId} doctorName={doctorName} defaultSpecialty={defaultSpecialty} embedded />
     </div>
   );
 }

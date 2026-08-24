@@ -3,16 +3,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
 import { ChevronDown, Code2, Menu } from "lucide-react";
 import { adminNavigation, mainNavigation, toolsNavigation } from "@/data/navigation";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { cn } from "@/lib/utils";
-import { DeveloperCreditsModal } from "./DeveloperCreditsModal";
 
-export function Sidebar({ collapsed, onToggle, hasPendingAppointmentRequest = false }: { collapsed: boolean; onToggle: () => void; hasPendingAppointmentRequest?: boolean }) {
+export function Sidebar({ collapsed, onToggle, onOpenSystemInfo, hasPendingAppointmentRequest = false }: { collapsed: boolean; onToggle: () => void; onOpenSystemInfo: () => void; hasPendingAppointmentRequest?: boolean }) {
   const pathname = usePathname();
-  const [creditsOpen, setCreditsOpen] = useState(false);
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const canSeeTeamAdmin =
     currentUserProfile.systemRole === "Diretor Técnico / Dev" ||
@@ -63,7 +60,7 @@ export function Sidebar({ collapsed, onToggle, hasPendingAppointmentRequest = fa
       <div className="border-t border-white/10 p-3">
         <button
           type="button"
-          onClick={() => setCreditsOpen(true)}
+          onClick={onOpenSystemInfo}
           title="Sobre o sistema"
           className={cn(
             "w-full rounded-[16px] border border-white/10 bg-white/10 text-orange-50/85 transition hover:border-white/20 hover:bg-white/15 hover:text-white",
@@ -73,7 +70,6 @@ export function Sidebar({ collapsed, onToggle, hasPendingAppointmentRequest = fa
           {collapsed ? <Code2 size={18} /> : "Hospital São Rafael · Eldorado"}
         </button>
       </div>
-      <DeveloperCreditsModal open={creditsOpen} onClose={() => setCreditsOpen(false)} />
     </aside>
   );
 }

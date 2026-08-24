@@ -6,12 +6,10 @@ import { useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 import { adminNavigation, mainNavigation, toolsNavigation } from "@/data/navigation";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
-import { DeveloperCreditsModal } from "./DeveloperCreditsModal";
 
-export function MobileSidebar({ hasPendingAppointmentRequest = false }: { hasPendingAppointmentRequest?: boolean }) {
+export function MobileSidebar({ onOpenSystemInfo, hasPendingAppointmentRequest = false }: { onOpenSystemInfo: () => void; hasPendingAppointmentRequest?: boolean }) {
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const [open, setOpen] = useState(false);
-  const [creditsOpen, setCreditsOpen] = useState(false);
   const canSeeTeamAdmin =
     currentUserProfile.systemRole === "Diretor Técnico / Dev" ||
     ["Diretora", "Vice Diretor"].includes(currentUserProfile.role);
@@ -108,7 +106,7 @@ export function MobileSidebar({ hasPendingAppointmentRequest = false }: { hasPen
                 type="button"
                 onClick={() => {
                   setOpen(false);
-                  setCreditsOpen(true);
+                  onOpenSystemInfo();
                 }}
                 className="w-full rounded-[16px] border border-white/10 bg-white/10 px-4 py-3 text-left text-xs font-semibold text-orange-50/90 transition hover:bg-white/15 hover:text-white"
               >
@@ -118,7 +116,6 @@ export function MobileSidebar({ hasPendingAppointmentRequest = false }: { hasPen
           </aside>
         </div>
       )}
-      <DeveloperCreditsModal open={creditsOpen} onClose={() => setCreditsOpen(false)} />
     </>
   );
 }
