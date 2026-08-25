@@ -4,6 +4,7 @@ import { StyledSelect } from "@/components/ui/StyledSelect";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, RefreshCcw, CalendarClock, MessageCircleWarning, FileText, FlaskConical, Stethoscope } from "lucide-react";
 import { specialties } from "@/data/mock";
+import { formatServicePrice, servicePricing } from "@/data/service-pricing";
 
 type Appointment = {
   id: string;
@@ -351,8 +352,8 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
           <div className="sm:col-span-2 rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3.5">
             <p className="text-xs font-black text-hpsr-text">Valores da consulta</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              <div className="rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5"><p className="text-[11px] font-semibold text-hpsr-muted">Consulta especializada</p><p className="mt-0.5 text-sm font-black text-hpsr-text">R$ 5.000</p></div>
-              <div className="rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5"><p className="text-[11px] font-semibold text-hpsr-muted">Psicologia e Psiquiatria</p><p className="mt-0.5 text-sm font-black text-hpsr-text">R$ 3.000</p></div>
+              <div className="rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5"><p className="text-[11px] font-semibold text-hpsr-muted">Consulta especializada</p><p className="mt-0.5 text-sm font-black text-hpsr-text">{formatServicePrice(servicePricing.specialistConsultation)}</p></div>
+              <div className="rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5"><p className="text-[11px] font-semibold text-hpsr-muted">Psicologia e Psiquiatria</p><p className="mt-0.5 text-sm font-black text-hpsr-text">{formatServicePrice(servicePricing.psychologyConsultation)}</p></div>
             </div>
             <p className="mt-2 text-[11px] font-semibold leading-relaxed text-hpsr-muted">Exames e outros serviços são cobrados à parte. Convênios podem alterar o valor final.</p>
           </div>

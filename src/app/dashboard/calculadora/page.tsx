@@ -27,6 +27,7 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { registerSystemActivity, saveFinancialReceipt, type FinancialReceipt } from "@/lib/administrative-storage";
 import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
+import { servicePricing } from "@/data/service-pricing";
 
 type CategoryId = "medicamentos" | "procedimentos";
 type ConvenioId = "sem" | "plano" | "parceria";
@@ -46,7 +47,7 @@ const medicamentos: Product[] = [
     id: "m0",
     nome: "KIT MÉDICO",
     descricao: "Kit completo para primeiros socorros.",
-    preco: 150000,
+    preco: 200000,
     precoPm: 100000,
     imagem: "Icones/produtos/Kit medico.webp",
   },
@@ -54,14 +55,14 @@ const medicamentos: Product[] = [
     id: "m1",
     nome: "BANDAGEM",
     descricao: "Utilizada para curativos rápidos.",
-    preco: 30000,
+    preco: 40000,
     imagem: "Icones/produtos/Bandagem.webp",
   },
   {
     id: "m2",
     nome: "ATADURA",
     descricao: "Faixa de suporte e imobilização.",
-    preco: 20000,
+    preco: 30000,
     precoPm: 10000,
     imagem: "Icones/produtos/Atadura.png",
   },
@@ -108,7 +109,7 @@ const procedimentos: Product[] = [
     id: "p0",
     nome: "TRATAMENTO NORTE",
     descricao: "Tratamento realizado na região Norte.",
-    preco: 100000,
+    preco: 150000,
     imagem: "Icones/procedimentos/Tratamento.webp",
   },
   {
@@ -136,7 +137,7 @@ const procedimentos: Product[] = [
     id: "p3",
     nome: "RAIO-X",
     descricao: "Exame radiográfico.",
-    preco: 200000,
+    preco: 250000,
     imagem: "Icones/procedimentos/Exames_imagem.webp",
   },
   {
@@ -157,14 +158,14 @@ const procedimentos: Product[] = [
     id: "p6",
     nome: "CONSULTA COM ESPECIALISTA",
     descricao: "Consulta médica especializada.",
-    preco: 500000,
+    preco: servicePricing.specialistConsultation,
     imagem: "Icones/procedimentos/Consultas.png",
   },
   {
     id: "p7",
     nome: "CONSULTA COM PSICÓLOGO",
     descricao: "Consulta e acompanhamento psicológico e psiquiátrico.",
-    preco: 300000,
+    preco: servicePricing.psychologyConsultation,
     imagem: "Icones/procedimentos/Consultas.png",
   },
   {
