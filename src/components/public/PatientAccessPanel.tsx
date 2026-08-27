@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import dynamic from "next/dynamic";
 import {
   AlertCircle, Baby, BellRing, CalendarClock, ClipboardPlus, FileHeart, FlaskConical, HeartPulse, HelpCircle,
@@ -65,6 +65,32 @@ export function PatientAccessPanel() {
   const [followupError, setFollowupError] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const portalContentRef = useRef<HTMLDivElement>(null);
+  const shouldFocusPortalSectionRef = useRef(false);
+
+  const focusPortalContent = useCallback(() => {
+    const content = portalContentRef.current;
+    if (!content) return;
+    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    content.focus({ preventScroll: true });
+    content.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  }, []);
+
+  const openPortalSection = useCallback((section: PortalSection) => {
+    if (section === portalSection) {
+      window.requestAnimationFrame(focusPortalContent);
+      return;
+    }
+    shouldFocusPortalSectionRef.current = true;
+    setPortalSection(section);
+  }, [focusPortalContent, portalSection]);
+
+  useEffect(() => {
+    if (stage !== "portal" || !shouldFocusPortalSectionRef.current) return;
+    shouldFocusPortalSectionRef.current = false;
+    const frame = window.requestAnimationFrame(focusPortalContent);
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusPortalContent, portalSection, stage]);
 
   const loadFollowups = useCallback(async (passport: string) => {
     if (!passport) { setFollowupData(null); setFollowupError(""); return; }
@@ -343,7 +369,7 @@ export function PatientAccessPanel() {
                       value={selectedPassport}
                       onChange={(event) => {
                         setSelectedPassport(event.target.value);
-                        setPortalSection("home");
+                        openPortalSection("home");
                       }}
                     >
                       {accessiblePatients.map((item) => (
@@ -354,7 +380,7 @@ export function PatientAccessPanel() {
                     </StyledSelect>
                   </div>
                 )}
-                <button type="button" onClick={() => setPortalSection("profile")} className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[12px] border px-3 text-xs font-black shadow-sm ${portalSection === "profile" ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-wine"}`}><UserRound size={15}/>Meus dados</button>
+                <button type="button" onClick={() => openPortalSection("profile")} className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[12px] border px-3 text-xs font-black shadow-sm ${portalSection === "profile" ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-wine"}`}><UserRound size={15}/>Meus dados</button>
                 <button type="button" onClick={() => setChildOpen(true)} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine shadow-sm"><Baby size={15}/>Solicitar vínculo de criança</button>
                 </div>
               </div>
@@ -366,7 +392,7 @@ export function PatientAccessPanel() {
                     <button
                       key={id}
                       type="button"
-                      onClick={() => setPortalSection(id)}
+                      onClick={() => openPortalSection(id)}
                       className={`flex min-h-[42px] items-center justify-center gap-2 rounded-[12px] border px-3 py-2 text-xs font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white shadow-sm" : "border-hpsr-border bg-white text-hpsr-text hover:border-hpsr-wine/35 hover:bg-[#fffdf9]"}`}
                     >
                       <Icon size={16} />
@@ -393,8 +419,9 @@ export function PatientAccessPanel() {
                   <p className="mt-2 text-xs font-semibold leading-relaxed text-amber-900">O prontuário já foi localizado ou preparado pelo sistema, mas os dados clínicos só serão liberados após a validação.</p>
                 </div>
               )}
+              <div ref={portalContentRef} tabIndex={-1} className="scroll-mt-24 outline-none sm:scroll-mt-20" aria-live="polite">
               {Boolean(followupData?.agendaAvailableCount) && portalSection === "home" && (
-                <button type="button" onClick={() => setPortalSection("followups")} className="mb-3 flex w-full items-start gap-3 rounded-[16px] border-2 border-blue-300 bg-[linear-gradient(135deg,#eff7ff_0%,#dfeeff_100%)] p-3.5 text-left shadow-[0_10px_22px_rgba(37,99,235,.07)]">
+                <button type="button" onClick={() => openPortalSection("followups")} className="mb-3 flex w-full items-start gap-3 rounded-[16px] border-2 border-blue-300 bg-[linear-gradient(135deg,#eff7ff_0%,#dfeeff_100%)] p-3.5 text-left shadow-[0_10px_22px_rgba(37,99,235,.07)]">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-blue-700 text-white"><BellRing size={18}/></span>
                   <span className="min-w-0"><strong className="block text-sm font-black text-blue-950">Novos horários do médico</strong><span className="mt-1 block text-xs font-semibold leading-relaxed text-blue-900">Seu médico publicou horários em {followupData?.agendaAvailableCount} atendimento{followupData?.agendaAvailableCount === 1 ? "" : "s"}. Toque para ver e confirmar.</span></span>
                 </button>
@@ -407,7 +434,7 @@ export function PatientAccessPanel() {
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {sections.map(({ id, icon: Icon, title, subtitle }) => (
-                      <button key={id} type="button" onClick={() => setPortalSection(id)} className="group flex min-h-[92px] items-start gap-3 rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3.5 text-left transition hover:border-hpsr-wine/35 hover:bg-white hover:shadow-sm">
+                      <button key={id} type="button" onClick={() => openPortalSection(id)} className="group flex min-h-[92px] items-start gap-3 rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3.5 text-left transition hover:border-hpsr-wine/35 hover:bg-white hover:shadow-sm">
                         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-white text-hpsr-wine shadow-sm"><Icon size={18}/></span>
                         <span className="min-w-0">
                           <strong className="block text-sm font-black text-hpsr-text">{title}</strong>
@@ -418,13 +445,14 @@ export function PatientAccessPanel() {
                   </div>
                 </div>
               )}
-              {portalSection === "appointments" && <div className="space-y-4"><PatientFollowupSummaryPanel data={followupData} loading={followupLoading} error={followupError} onOpenHours={() => setPortalSection("followups")} /><PatientAppointmentsPanel view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => setPortalSection("records")} /></div>}
+              {portalSection === "appointments" && <div className="space-y-4"><PatientFollowupSummaryPanel data={followupData} loading={followupLoading} error={followupError} onOpenHours={() => openPortalSection("followups")} /><PatientAppointmentsPanel view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => openPortalSection("records")} /></div>}
               {portalSection === "request" && <PatientAppointmentsPanel view="request" passport={selectedPassport} hasClinicalContact={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasClinicalContact} onSessionExpired={handleSessionExpired} />}
               {portalSection === "followups" && <PatientFollowupsPanel data={followupData} loading={followupLoading} error={followupError} passport={selectedPassport} onRefresh={() => void loadFollowups(selectedPassport)} />}
               {portalSection === "exam-request" && <PatientExamRequestsPanel passport={selectedPassport} hasClinicalContact={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasClinicalContact} onSessionExpired={handleSessionExpired} />}
               {portalSection === "records" && <PatientRecordsPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
-              {portalSection === "pending" && <PatientAppointmentsPanel view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => setPortalSection("records")} />}
+              {portalSection === "pending" && <PatientAppointmentsPanel view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => openPortalSection("records")} />}
               {portalSection === "profile" && <PatientProfilePanel onSessionExpired={handleSessionExpired} onSaved={async () => { await checkSession(); }} />}
+              </div>
             </div>
           </main>
         </div>
