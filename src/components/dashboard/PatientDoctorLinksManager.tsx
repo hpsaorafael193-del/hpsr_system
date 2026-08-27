@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Link2, Loader2, Pencil, Trash2, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Link2, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { createClient } from "@/lib/supabase";
 import { specialties } from "@/data/mock";
@@ -34,6 +34,7 @@ export function PatientDoctorLinksManager() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<EditingLink>(null);
   const [form, setForm] = useState({ passport: "", doctorId: "", specialty: "Clínico Geral" });
@@ -43,6 +44,7 @@ export function PatientDoctorLinksManager() {
     if (!client) return;
     setLoading(true);
     setError("");
+    setWarning("");
     try {
       const [profilesResult, linksResult] = await Promise.all([
         client.from("profiles").select("id,name,role,specialty,crm").eq("access_status", "Aprovado").order("name"),
@@ -87,6 +89,7 @@ export function PatientDoctorLinksManager() {
     setForm({ passport: row.patient_passport, doctorId: row.doctor_id, specialty: row.specialty });
     setMessage("");
     setError("");
+    setWarning("");
   }
 
   async function writeLink(enabled: boolean, values: { passport: string; doctorId: string; specialty: string }) {
@@ -94,7 +97,7 @@ export function PatientDoctorLinksManager() {
     if (!client) throw new Error("Supabase não configurado.");
     const doctor = doctors.find((item) => item.id === values.doctorId);
     if (!doctor) throw new Error("Selecione um médico válido.");
-    const { error: rpcError } = await client.rpc("set_patient_schedule_link", {
+    const { data, error: rpcError } = await client.rpc("set_patient_schedule_link", {
       target_passport: normalizeClinicalPassport(values.passport),
       target_doctor_id: values.doctorId,
       target_doctor_name: doctor.name,
@@ -102,6 +105,13 @@ export function PatientDoctorLinksManager() {
       target_enabled: enabled,
     });
     if (rpcError) throw rpcError;
+    const result = (data || {}) as { ok?: boolean; linked?: boolean; verified?: boolean; portal_access?: boolean; warning?: string | null };
+    if (!result.ok || !result.verified || Boolean(result.linked) !== enabled) {
+      throw new Error(enabled
+        ? "O sistema não conseguiu confirmar que o vínculo foi salvo. Nenhuma confirmação foi registrada."
+        : "O sistema não conseguiu confirmar que o vínculo foi removido.");
+    }
+    return result;
   }
 
   async function save() {
@@ -110,24 +120,28 @@ export function PatientDoctorLinksManager() {
       setError("Selecione paciente, médico e especialidade.");
       return;
     }
-    setBusy(true); setError(""); setMessage("");
+    setBusy(true); setError(""); setMessage(""); setWarning("");
     try {
+      let result: Awaited<ReturnType<typeof writeLink>> | null = null;
       if (editing) {
         const changed = editing.passport !== passport || editing.doctorId !== form.doctorId || editing.specialty !== form.specialty;
         if (changed) {
           await writeLink(false, editing);
           try {
-            await writeLink(true, { passport, doctorId: form.doctorId, specialty: form.specialty });
+            result = await writeLink(true, { passport, doctorId: form.doctorId, specialty: form.specialty });
           } catch (caught) {
             await writeLink(true, editing).catch(() => undefined);
             throw caught;
           }
+        } else {
+          result = await writeLink(true, { passport, doctorId: form.doctorId, specialty: form.specialty });
         }
-        setMessage("Vínculo atualizado. O Portal do Paciente passará a usar esta associação explícita para mostrar os horários compatíveis.");
+        setMessage("Vínculo atualizado e verificado no banco. O Portal usará exatamente este médico nesta especialidade.");
       } else {
-        await writeLink(true, { passport, doctorId: form.doctorId, specialty: form.specialty });
-        setMessage("Vínculo criado. Os horários publicados por este médico nesta especialidade já podem aparecer para o paciente.");
+        result = await writeLink(true, { passport, doctorId: form.doctorId, specialty: form.specialty });
+        setMessage("Vínculo criado e verificado no banco. Os horários publicados por este médico nesta especialidade podem aparecer para o paciente.");
       }
+      if (result?.warning) setWarning(String(result.warning));
       resetForm();
       await load();
     } catch (caught) {
@@ -146,7 +160,7 @@ export function PatientDoctorLinksManager() {
       "Remover vínculo?"
     );
     if (!confirmed) return;
-    setBusy(true); setError(""); setMessage("");
+    setBusy(true); setError(""); setMessage(""); setWarning("");
     try {
       await writeLink(false, { passport: row.patient_passport, doctorId: row.doctor_id, specialty: row.specialty });
       setMessage("Vínculo de agenda removido.");
@@ -164,6 +178,7 @@ export function PatientDoctorLinksManager() {
     setForm({ passport: row.patient_passport, doctorId: row.doctor_id, specialty: row.specialty });
     setMessage("Acompanhamento formal encontrado sem vínculo administrativo explícito. Confira os dados e clique em Criar vínculo.");
     setError("");
+    setWarning("");
   }
 
   return (
@@ -207,6 +222,7 @@ export function PatientDoctorLinksManager() {
         </div>
         {selectedDoctor?.specialty && <p className="mt-2 text-xs font-semibold text-hpsr-muted">Especialidades cadastradas de {selectedDoctor.name}: {selectedDoctor.specialty}</p>}
         {message && <p className="mt-3 rounded-[12px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800"><CheckCircle2 size={16} className="mr-2 inline"/>{message}</p>}
+        {warning && <p className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-bold text-amber-800"><AlertTriangle size={16} className="mr-2 inline"/>{warning}</p>}
         {error && <p className="mt-3 rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-800">{error}</p>}
       </section>
 
@@ -215,6 +231,13 @@ export function PatientDoctorLinksManager() {
           <div><p className="text-sm font-black text-hpsr-text">Vínculos atuais</p><p className="mt-1 text-xs text-hpsr-muted">Mostra vínculos explícitos e acompanhamentos formais para facilitar a conferência.</p></div>
           <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar paciente, médico ou especialidade" className="min-h-[42px] w-full rounded-[12px] border border-hpsr-border bg-white px-3 text-sm font-semibold outline-none focus:border-hpsr-wine sm:max-w-[340px]" />
         </div>
+
+        {links.some((row) => row.active_plan_count > 0 && !row.has_schedule_link) && (
+          <div className="mt-4 rounded-[13px] border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm font-bold text-amber-900">
+            <AlertTriangle size={16} className="mr-2 inline"/>
+            Há {links.filter((row) => row.active_plan_count > 0 && !row.has_schedule_link).length} acompanhamento(s) com médico definido, mas sem vínculo explícito de agenda. Revise os itens marcados abaixo.
+          </div>
+        )}
 
         <div className="mt-4 space-y-2">
           {loading ? <div className="flex items-center justify-center gap-2 p-8 text-sm font-bold text-hpsr-muted"><Loader2 size={18} className="animate-spin"/>Carregando vínculos...</div> : filteredLinks.length ? filteredLinks.map((row) => (

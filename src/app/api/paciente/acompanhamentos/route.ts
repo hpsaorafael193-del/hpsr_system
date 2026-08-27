@@ -18,9 +18,7 @@ function isFinalOccurrenceStatus(value: unknown) {
 function specialtyMatches(left: unknown, right: unknown) {
   const leftTokens = String(left || "").split(/[,;/|]+/).map(normalizeClinicalSpecialty).filter(Boolean);
   const rightTokens = String(right || "").split(/[,;/|]+/).map(normalizeClinicalSpecialty).filter(Boolean);
-  return leftTokens.some((leftToken) => rightTokens.some((rightToken) =>
-    leftToken === rightToken || leftToken.includes(rightToken) || rightToken.includes(leftToken)
-  ));
+  return leftTokens.some((leftToken) => rightTokens.includes(leftToken));
 }
 
 export async function GET(request: NextRequest) {
