@@ -11,12 +11,14 @@ import {
   CalendarClock,
   CalendarDays,
   CheckCircle2,
+  ChevronRight,
   Clock3,
+  Copy,
   FileClock,
   FlaskConical,
   Hash,
   HeartPulse,
-  Mail,
+  Phone,
   RotateCcw,
   Scissors,
   Search,
@@ -34,7 +36,7 @@ import { createClient } from "@/lib/supabase";
 import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 import { ClinicalFollowupPlanner } from "@/components/dashboard/ClinicalFollowupPlanner";
 
-type TabId = "solicitacoes" | "exames" | "consultas" | "acompanhamentos" | "reagendamentos" | "cobrancas";
+type TabId = "solicitacoes" | "aceitas" | "exames" | "consultas" | "acompanhamentos" | "reagendamentos" | "cobrancas";
 
 type PublicAppointmentRequest = {
   id: string;
@@ -71,10 +73,13 @@ type PublicAppointmentRequest = {
   doctorNotificationUnread?: boolean;
   contactEmail?: string;
   discordId?: string;
-  contactChannel?: "email" | "discord";
+  contactChannel?: "discord" | "city_phone";
   acceptedAt?: string;
   acceptedById?: string;
   acceptedByName?: string;
+  doctorId?: string;
+  sourceRequestId?: string;
+  syncedScheduleId?: string;
 };
 
 function publicRequestPreferred(item: PublicAppointmentRequest) {
@@ -95,7 +100,7 @@ function buildPublicAnswer(
   }
 
   if (status === "Aceita") {
-    return `Solicitação aceita por ${doctorName}. O médico responsável entrará em contato pelo e-mail cadastrado ou, quando necessário, pelo ID do Discord informado para combinar o dia e o horário.`;
+    return `Solicitação aceita por ${doctorName}. O médico responsável entrará em contato pelo ID do Discord informado ou pelo telefone da cidade cadastrado para combinar o dia e o horário.`;
   }
 
   if (status === "Recusada") {
@@ -119,7 +124,7 @@ function buildPublicAnswer(
 const inputClass =
   "min-w-0 w-full rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-medium text-hpsr-text outline-none transition placeholder:text-zinc-400 focus:border-hpsr-wineLight focus:bg-white focus:ring-2 focus:ring-hpsr-wineLight/20";
 
-type ScheduledAppointment = { id: string; time: string; date: string; passport: string; patient: string; specialty: string; doctor: string; type: string; status: string; acceptedAt?: string; acceptedById?: string; acceptedByName?: string; acceptedBySelf?: boolean; contactEmail?: string; discordId?: string; reason?: string; notes?: string; createdAt?: string };
+type ScheduledAppointment = { id: string; time: string; date: string; passport: string; patient: string; specialty: string; doctor: string; type: string; status: string; acceptedAt?: string; acceptedById?: string; acceptedByName?: string; acceptedBySelf?: boolean; contactEmail?: string; discordId?: string; cityPhone?: string; reason?: string; notes?: string; createdAt?: string };
 const scheduledAppointments: ScheduledAppointment[] = [];
 
 const followUps: Array<{ passport: string; patient: string; program: string; specialty: string; doctor: string; availability: string[]; nextSlot: string }> = [];
@@ -132,6 +137,7 @@ const availableSlots: Array<{ specialty: string; doctor: string; date: string; t
 
 const tabs: Array<{ id: TabId; label: string; icon: ReactNode }> = [
   { id: "solicitacoes", label: "Solicitações", icon: <CalendarDays size={15} /> },
+  { id: "aceitas", label: "Meus aceites", icon: <UserCheck size={15} /> },
   { id: "exames", label: "Exames", icon: <FlaskConical size={15} /> },
   { id: "consultas", label: "Consultas", icon: <Stethoscope size={15} /> },
   { id: "acompanhamentos", label: "Acompanhamentos", icon: <HeartPulse size={15} /> },
@@ -232,7 +238,13 @@ export default function AppointmentsPage() {
       return;
     }
 
-    setPublicRequests((data || []).map(mapAppointmentRow));
+    const mapped = (data || []).map(mapAppointmentRow);
+    const passports = Array.from(new Set(mapped.map((item) => item.passport).filter(Boolean)));
+    const { data: patientContacts } = passports.length
+      ? await client.from("patient_registry").select("passport,city_phone").in("passport", passports)
+      : { data: [] as any[] };
+    const cityPhoneByPassport = new Map((patientContacts || []).map((item: any) => [String(item.passport || ""), String(item.city_phone || "").trim()]));
+    setPublicRequests(mapped.map((item) => ({ ...item, cityPhone: item.cityPhone || cityPhoneByPassport.get(item.passport) || "" })));
   }, []);
 
   useEffect(() => {
@@ -294,8 +306,12 @@ export default function AppointmentsPage() {
         return;
       }
       await loadAppointments();
-      if (status === "Aceita" && ["Acompanhamento", "Acompanhamento com especialista"].includes(request.flowType || "")) {
-        setActiveTab("acompanhamentos");
+      if (status === "Aceita") {
+        if (["Acompanhamento", "Acompanhamento com especialista"].includes(request.flowType || "")) {
+          setActiveTab("acompanhamentos");
+        } else {
+          setActiveTab("aceitas");
+        }
       }
       return;
     }
@@ -377,8 +393,34 @@ export default function AppointmentsPage() {
   }, [publicRequests, currentUserProfile.accessLevel, currentUserProfile.id, currentUserProfile.role, currentUserProfile.specialties, capacityBySpecialty]);
 
   const publicAcceptedAppointments = useMemo(() => {
+    const scheduledRows = publicRequests.filter((item) =>
+      item.flowType !== "Exames" &&
+      ["Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento", "Realizada", "Concluída", "Adiada", "Atrasada", "Não compareceu", "Cancelada"].includes(item.status)
+    );
+
+    const hasScheduledCounterpart = (accepted: PublicAppointmentRequest) => scheduledRows.some((scheduled) => {
+      if (scheduled.id === accepted.id) return false;
+
+      // Vínculos explícitos têm prioridade. Isso cobre os dados novos e os registros
+      // históricos reconciliados pela migration de compatibilidade.
+      if (String(accepted.syncedScheduleId || "") === scheduled.id) return true;
+      if (String(scheduled.sourceRequestId || "") === accepted.id) return true;
+
+      // Fallback apenas para registros legados ainda sem vínculo explícito.
+      const samePatient = String(scheduled.passport || "").trim().toLowerCase() === String(accepted.passport || "").trim().toLowerCase();
+      const sameSpecialty = normalizeSpecialty(scheduled.specialty) === normalizeSpecialty(accepted.specialty);
+      const acceptedDoctorId = String(accepted.doctorId || accepted.acceptedById || "");
+      const scheduledDoctorId = String(scheduled.doctorId || scheduled.acceptedById || "");
+      const sameDoctor = acceptedDoctorId && scheduledDoctorId
+        ? acceptedDoctorId === scheduledDoctorId
+        : String(accepted.doctor || "").trim().toLowerCase() === String(scheduled.doctor || "").trim().toLowerCase();
+      const scheduledAfterAccepted = !accepted.createdAt || !scheduled.createdAt || new Date(scheduled.createdAt).getTime() >= new Date(accepted.createdAt).getTime();
+      return samePatient && sameSpecialty && sameDoctor && scheduledAfterAccepted;
+    });
+
     return publicRequests
       .filter((item) => item.flowType !== "Exames" && ["Aceita", "Reagendamento aceito", "Agendada", "Confirmada", "Em atendimento", "Realizada", "Concluída", "Adiada", "Atrasada", "Não compareceu", "Cancelada"].includes(item.status))
+      .filter((item) => item.status !== "Aceita" || !hasScheduledCounterpart(item))
       .map((item) => {
         const wasRescheduled = item.status === "Reagendamento aceito" || Boolean(item.proposedDate || item.proposedTime);
         return {
@@ -399,8 +441,8 @@ export default function AppointmentsPage() {
           acceptedById: item.acceptedById,
           acceptedByName: item.acceptedByName,
           acceptedBySelf: Boolean(item.acceptedById && item.acceptedById === currentUserProfile.id),
-          contactEmail: item.contactEmail,
           discordId: item.discordId || item.discord,
+          cityPhone: item.cityPhone,
           reason: item.reason,
           notes: item.notes,
           createdAt: item.createdAt,
@@ -411,6 +453,42 @@ export default function AppointmentsPage() {
   const visibleAppointments = useMemo(
     () => [...publicAcceptedAppointments, ...scheduledAppointments],
     [publicAcceptedAppointments]
+  );
+
+  const myAcceptedRequests = useMemo(() => {
+    const doctorId = String(currentUserProfile.id || "");
+    const doctorName = String(currentUserProfile.systemName || "").trim().toLowerCase();
+
+    return publicRequests
+      .filter((item) => {
+        if (String(item.source || "patient_portal") !== "patient_portal") return false;
+        const acceptedById = String(item.acceptedById || item.doctorId || "");
+        const acceptedByName = String(item.acceptedByName || item.doctor || "").trim().toLowerCase();
+        const belongsToCurrentDoctor = acceptedById
+          ? acceptedById === doctorId
+          : Boolean(doctorName && acceptedByName === doctorName && (item.acceptedAt || item.status === "Aceita"));
+        if (!belongsToCurrentDoctor) return false;
+        return Boolean(item.acceptedAt) || ["Aceita", "Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento", "Realizada", "Concluída", "Adiada", "Atrasada", "Não compareceu", "Cancelada"].includes(item.status);
+      })
+      .sort((a, b) => String(b.acceptedAt || b.updatedAt || b.createdAt || "").localeCompare(String(a.acceptedAt || a.updatedAt || a.createdAt || "")));
+  }, [publicRequests, currentUserProfile.id, currentUserProfile.systemName]);
+
+  const filteredAcceptedRequests = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+    if (!normalizedSearch) return myAcceptedRequests;
+    return myAcceptedRequests.filter((item) => {
+      const contact = `${item.discordId || item.discord || ""} ${item.cityPhone || ""}`.toLowerCase();
+      return item.patient.toLowerCase().includes(normalizedSearch)
+        || item.passport.toLowerCase().includes(normalizedSearch)
+        || item.specialty.toLowerCase().includes(normalizedSearch)
+        || (item.flowType || "Consulta comum").toLowerCase().includes(normalizedSearch)
+        || contact.includes(normalizedSearch);
+    });
+  }, [myAcceptedRequests, searchTerm]);
+
+  const acceptedForContactCount = useMemo(() =>
+    myAcceptedRequests.filter((item) => item.status === "Aceita" && !item.syncedScheduleId).length,
+    [myAcceptedRequests]
   );
 
   const filteredRequests = useMemo(() => {
@@ -501,7 +579,7 @@ export default function AppointmentsPage() {
           </div>
         </div>
 
-        <div className="grid gap-2 md:grid-cols-3">
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
           <ScheduleCard
             icon={Stethoscope}
             title="Agenda Clínica"
@@ -517,6 +595,25 @@ export default function AppointmentsPage() {
             href="/dashboard/agendamento/cirurgias"
             count={4}
           />
+
+          <button
+            type="button"
+            onClick={() => { setActiveTab("aceitas"); setRequestsModalOpen(true); }}
+            className="group rounded-[17px] border border-hpsr-border bg-[#fffdfb] p-3.5 text-left transition hover:border-hpsr-wineLight/50 hover:bg-[#fff8f3]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[#f7e9e3] text-hpsr-wine shadow-sm">
+                <UserCheck size={19} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="truncate text-sm font-black text-hpsr-text">Aceitos para contato</h3>
+                  <span className="rounded-full bg-hpsr-wine px-2.5 py-1 text-[10px] font-black text-white">{acceptedForContactCount}</span>
+                </div>
+                <p className="mt-1 text-xs font-semibold text-hpsr-muted">Passaporte e contato de quem você assumiu.</p>
+              </div>
+            </div>
+          </button>
 
           <button
             type="button"
@@ -549,6 +646,7 @@ export default function AppointmentsPage() {
           setSearchTerm={setSearchTerm}
           filteredRequests={filteredRequests}
           filteredExamRequests={filteredExamRequests}
+          myAcceptedRequests={filteredAcceptedRequests}
           visibleAppointments={visibleAppointments}
           onUpdateStatus={updatePublicRequestStatus}
           onClose={() => setRequestsModalOpen(false)}
@@ -562,19 +660,30 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
   const [recentOnly, setRecentOnly] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<ScheduledAppointment | null>(null);
   const [relatedRecords, setRelatedRecords] = useState<Array<{ id: string; type: string; title: string; released: boolean }>>([]);
+  const [selectedPatientContact, setSelectedPatientContact] = useState<{ cityPhone: string }>({ cityPhone: "" });
+  const [copiedDetail, setCopiedDetail] = useState("");
 
-  const loadRelatedRecords = useCallback(async (appointment: ScheduledAppointment | null) => {
+  const loadAppointmentDetails = useCallback(async (appointment: ScheduledAppointment | null) => {
     setRelatedRecords([]);
+    setSelectedPatientContact({ cityPhone: "" });
     if (!appointment) return;
     const client = createClient();
     if (!client) return;
-    const { data } = await client.from("clinical_records")
-      .select("id,record_type,is_confidential,released_at,payload")
-      .eq("patient_passport", appointment.passport)
-      .eq("payload->>appointmentId", appointment.id)
-      .order("created_at", { ascending: true })
-      .limit(50);
-    setRelatedRecords((data || []).map((row: any) => {
+
+    const [recordsResult, patientResult] = await Promise.all([
+      client.from("clinical_records")
+        .select("id,record_type,is_confidential,released_at,payload")
+        .eq("patient_passport", appointment.passport)
+        .eq("payload->>appointmentId", appointment.id)
+        .order("created_at", { ascending: true })
+        .limit(50),
+      client.from("patient_registry")
+        .select("city_phone")
+        .eq("passport", appointment.passport)
+        .maybeSingle(),
+    ]);
+
+    setRelatedRecords((recordsResult.data || []).map((row: any) => {
       const payload = (row.payload || {}) as Record<string, unknown>;
       return {
         id: String(row.id),
@@ -583,9 +692,24 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
         released: !row.is_confidential && Boolean(row.released_at),
       };
     }));
+
+    setSelectedPatientContact({
+      cityPhone: String(patientResult.data?.city_phone || appointment.cityPhone || ""),
+    });
   }, []);
 
-  useEffect(() => { void loadRelatedRecords(selectedAppointment); }, [selectedAppointment, loadRelatedRecords]);
+  async function copyDetail(value: string, key: string) {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedDetail(key);
+      window.setTimeout(() => setCopiedDetail((current) => current === key ? "" : current), 1600);
+    } catch {
+      await hpsrAlert("Não foi possível copiar automaticamente. Selecione o valor exibido.", "Cópia indisponível");
+    }
+  }
+
+  useEffect(() => { void loadAppointmentDetails(selectedAppointment); }, [selectedAppointment, loadAppointmentDetails]);
 
   const recentCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const recentlyAcceptedCount = appointments.filter((item) => item.acceptedAt && new Date(item.acceptedAt).getTime() >= recentCutoff).length;
@@ -607,6 +731,7 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
     };
     return timestamp(second) - timestamp(first);
   });
+  const selectedPhone = selectedPatientContact.cityPhone || selectedAppointment?.cityPhone || "";
 
   return (
     <>
@@ -615,7 +740,7 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Visão geral</p>
             <h2 className="mt-0.5 text-lg font-black text-hpsr-text">Agendamento geral</h2>
-            <p className="mt-0.5 text-xs leading-relaxed text-hpsr-muted">Solicitações aceitas aparecem aqui mesmo antes da definição de data e horário. Clique no paciente para ver os detalhes.</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-hpsr-muted">Solicitações aceitas ficam aguardando o agendamento manual. Quando a consulta for marcada na Agenda Clínica, esta visão é sincronizada com a data e o horário reais.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => setRecentOnly(false)} className={`rounded-[12px] border px-3 py-2 text-xs font-black transition ${!recentOnly ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-wine"}`}>Todos</button>
@@ -624,34 +749,40 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
           </div>
         </div>
 
-        <div className="grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-contain p-3 pr-2 [scrollbar-gutter:stable]">
+        <div className="grid min-h-0 flex-1 content-start gap-3.5 overflow-y-auto overscroll-contain p-4 pr-3 [scrollbar-gutter:stable]">
           {sortedAppointments.length ? sortedAppointments.map((item) => (
             <button
               type="button"
               key={item.id}
               onClick={() => setSelectedAppointment(item)}
-              className="grid w-full gap-3 rounded-[16px] border border-hpsr-border bg-white p-3 text-left shadow-[0_4px_14px_rgba(89,44,30,0.04)] transition hover:border-hpsr-wineLight/50 hover:bg-[#fffaf8] lg:grid-cols-[minmax(0,1.3fr)_minmax(180px,0.7fr)_140px_140px]"
+              className={`group relative grid min-h-[118px] w-full gap-5 overflow-hidden rounded-[20px] border bg-white p-5 text-left shadow-[0_6px_22px_rgba(89,44,30,0.05)] transition duration-200 hover:border-hpsr-wineLight/60 hover:bg-[#fffdfb] hover:shadow-[0_12px_32px_rgba(89,44,30,0.09)] lg:grid-cols-[minmax(0,1.35fr)_minmax(210px,0.8fr)_minmax(180px,0.6fr)_180px] lg:items-center ${item.status === "Aceita" ? "border-amber-200/90" : "border-hpsr-border"}`}
             >
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Paciente</p>
-                <h3 className="mt-1 text-sm font-black text-hpsr-text">{item.patient}</h3>
-                <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Passaporte {item.passport} · {item.specialty}</p>
+              <span className={`absolute inset-y-0 left-0 w-1.5 ${item.status === "Aceita" ? "bg-amber-400" : item.status === "Agendada" || item.status === "Confirmada" ? "bg-emerald-500" : "bg-hpsr-wine/60"}`} />
+
+              <div className="pl-2">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Paciente</p>
+                <h3 className="mt-1.5 text-[17px] font-black leading-tight text-hpsr-text">{item.patient}</h3>
+                <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                  <span className="rounded-[10px] border border-hpsr-border bg-[#fffaf7] px-2.5 py-1 text-[11px] font-black text-hpsr-muted">Passaporte {item.passport}</span>
+                  <span className="rounded-[10px] bg-[#f7eee9] px-2.5 py-1 text-[11px] font-black text-hpsr-wine">{item.specialty}</span>
+                </div>
               </div>
 
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Médico responsável</p>
-                <p className="mt-1 text-sm font-black text-hpsr-text">{item.doctor}</p>
-                <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{item.type}</p>
+              <div className="lg:border-l lg:border-hpsr-border/70 lg:pl-5">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Médico responsável</p>
+                <p className="mt-1.5 text-[15px] font-black text-hpsr-text">{item.doctor}</p>
+                <p className="mt-1 text-xs font-semibold text-hpsr-muted">{item.type}</p>
               </div>
 
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Data e hora</p>
-                <p className="mt-1 text-sm font-black text-hpsr-text">{item.date && item.date !== "A definir" ? formatDate(item.date) : "A definir"}</p>
-                <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{item.time || "A definir"}</p>
+              <div className="lg:border-l lg:border-hpsr-border/70 lg:pl-5">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Data e hora</p>
+                <p className="mt-1.5 text-[15px] font-black text-hpsr-text">{item.status === "Aceita" ? "Aguardando agendamento" : (item.date && item.date !== "A definir" ? formatDate(item.date) : "A definir")}</p>
+                <p className="mt-1 text-xs font-semibold text-hpsr-muted">{item.status === "Aceita" ? "Definição manual" : (item.time && item.time !== "A definir" ? item.time : "Horário a definir")}</p>
               </div>
 
-              <div className="flex items-center lg:justify-end">
-                <span className={`rounded-full border px-3 py-1 text-xs font-black ${consultationStatusClass(item.status)}`}>{item.status}</span>
+              <div className="flex items-center justify-between gap-3 border-t border-hpsr-border/70 pt-4 lg:grid lg:justify-items-end lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+                <span className={`rounded-full border px-3.5 py-1.5 text-xs font-black ${consultationStatusClass(item.status)}`}>{item.status}</span>
+                <span className="inline-flex items-center gap-1.5 rounded-[11px] border border-hpsr-wine/15 bg-[#fff8f4] px-3 py-2 text-[11px] font-black text-hpsr-wine transition group-hover:border-hpsr-wine/30 group-hover:bg-hpsr-wine group-hover:text-white">Ver detalhes <ChevronRight size={14}/></span>
               </div>
             </button>
           )) : <EmptyState title={recentOnly ? "Nenhum aceite recente" : "Nenhum paciente no agendamento geral"} description={recentOnly ? "Não há solicitações aceitas nos últimos 7 dias." : "As solicitações aceitas aparecerão aqui para continuidade do contato e agendamento."} />}
@@ -671,15 +802,42 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
               <button type="button" onClick={() => setSelectedAppointment(null)} className="rounded-[12px] border border-hpsr-border bg-white p-2.5 text-hpsr-wine"><X size={18}/></button>
             </div>
             <div className="grid gap-3 p-4 sm:grid-cols-2">
+              <div className="sm:col-span-2 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-[16px] border border-[#dfc5bb] bg-[linear-gradient(135deg,#fff8f3_0%,#fffdfb_100%)] p-3.5 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-[.15em] text-hpsr-wineLight">Passaporte</p>
+                      <p className="mt-1 text-lg font-black text-hpsr-text">{selectedAppointment.passport}</p>
+                    </div>
+                    <button type="button" onClick={() => void copyDetail(selectedAppointment.passport, "passport")} className="inline-flex items-center gap-1.5 rounded-[11px] bg-hpsr-wine px-2.5 py-2 text-[10px] font-black text-white shadow-sm transition hover:bg-[#7b2f1a]">
+                      <Copy size={13}/>{copiedDetail === "passport" ? "Copiado" : "Copiar"}
+                    </button>
+                  </div>
+                </div>
+                <div className="rounded-[16px] border border-[#dfc5bb] bg-[linear-gradient(135deg,#fff8f3_0%,#fffdfb_100%)] p-3.5 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-black uppercase tracking-[.15em] text-hpsr-wineLight">Telefone</p>
+                      <p className={`mt-1 break-all text-lg font-black ${selectedPhone ? "text-hpsr-text" : "text-amber-800"}`}>{selectedPhone || "Não informado"}</p>
+                    </div>
+                    {selectedPhone && <button type="button" onClick={() => void copyDetail(selectedPhone, "phone")} className="inline-flex shrink-0 items-center gap-1.5 rounded-[11px] bg-hpsr-wine px-2.5 py-2 text-[10px] font-black text-white shadow-sm transition hover:bg-[#7b2f1a]">
+                      <Phone size={13}/>{copiedDetail === "phone" ? "Copiado" : "Copiar"}
+                    </button>}
+                  </div>
+                </div>
+              </div>
               <DetailCard label="Médico responsável" value={selectedAppointment.doctor || "A definir"} />
               <DetailCard label="Situação" value={selectedAppointment.status} />
-              <DetailCard label="Data" value={selectedAppointment.date && selectedAppointment.date !== "A definir" ? formatDate(selectedAppointment.date) : "A definir após contato"} />
-              <DetailCard label="Horário" value={selectedAppointment.time && selectedAppointment.time !== "A definir" ? selectedAppointment.time : "A definir após contato"} />
+              <DetailCard label="Data" value={selectedAppointment.status === "Aceita" ? "Aguardando agendamento manual" : (selectedAppointment.date && selectedAppointment.date !== "A definir" ? formatDate(selectedAppointment.date) : "A definir")} />
+              <DetailCard label="Horário" value={selectedAppointment.status === "Aceita" ? "Será definido manualmente" : (selectedAppointment.time && selectedAppointment.time !== "A definir" ? selectedAppointment.time : "A definir")} />
               <DetailCard label="Aceita em" value={selectedAppointment.acceptedAt ? new Date(selectedAppointment.acceptedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Registro anterior sem informação"} />
               <DetailCard label="Aceita por" value={selectedAppointment.acceptedBySelf ? `Você (${selectedAppointment.acceptedByName || "usuário atual"})` : (selectedAppointment.acceptedByName || "Registro anterior sem informação")} />
               <div className="sm:col-span-2 rounded-[15px] border border-hpsr-border bg-[#fffaf5] p-3">
-                <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Contato para agendamento</p>
-                {selectedAppointment.contactEmail ? <p className="mt-2 flex items-center gap-2 break-all text-sm font-black text-hpsr-text"><Mail size={15} className="text-hpsr-wine"/>{selectedAppointment.contactEmail}</p> : selectedAppointment.discordId ? <p className="mt-2 flex items-center gap-2 break-all text-sm font-black text-hpsr-text"><Hash size={15} className="text-hpsr-wine"/>Discord ID {selectedAppointment.discordId}</p> : <p className="mt-2 text-sm font-bold text-amber-800">Contato não registrado nesta solicitação antiga.</p>}
+                <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Outros contatos</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {selectedAppointment.discordId && <button type="button" onClick={() => void copyDetail(selectedAppointment.discordId || "", "discord")} className="inline-flex items-center gap-2 rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-text transition hover:border-hpsr-wineLight/50"><Hash size={14} className="text-hpsr-wine"/>Discord ID {selectedAppointment.discordId}<Copy size={12} className="text-hpsr-muted"/></button>}
+                  {!selectedAppointment.discordId && !selectedPhone && <p className="text-sm font-bold text-amber-800">Nenhum telefone da cidade ou ID do Discord registrado para este paciente.</p>}
+                </div>
               </div>
               {selectedAppointment.reason && <DetailCard wide label="Motivo da solicitação" value={selectedAppointment.reason} />}
               {selectedAppointment.notes && <DetailCard wide label="Observações" value={selectedAppointment.notes} />}
@@ -706,6 +864,7 @@ function RequestsCenterModal({
   setSearchTerm,
   filteredRequests,
   filteredExamRequests,
+  myAcceptedRequests,
   visibleAppointments,
   onUpdateStatus,
   onClose,
@@ -716,6 +875,7 @@ function RequestsCenterModal({
   setSearchTerm: (value: string) => void;
   filteredRequests: PublicAppointmentRequest[];
   filteredExamRequests: PublicAppointmentRequest[];
+  myAcceptedRequests: PublicAppointmentRequest[];
   visibleAppointments: typeof scheduledAppointments;
   onUpdateStatus: (
     request: PublicAppointmentRequest,
@@ -759,7 +919,7 @@ function RequestsCenterModal({
             </p>
             <h2 className="mt-1 text-lg font-black text-hpsr-text">Solicitações e fluxos clínicos</h2>
             <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">
-              Consultas e solicitações de exames ficam separadas para preservar cada fluxo sem perder o contexto do paciente.
+              Solicitações, aceites do médico e exames ficam separados para facilitar o contato sem transformar um aceite em consulta.
             </p>
           </div>
           <button
@@ -807,6 +967,7 @@ function RequestsCenterModal({
 
           <div className="min-h-0 flex-1 overflow-y-auto p-3.5">
             {activeTab === "solicitacoes" && <RequestsTab requests={filteredRequests} onUpdateStatus={onUpdateStatus} />}
+            {activeTab === "aceitas" && <MyAcceptedRequestsTab requests={myAcceptedRequests} />}
             {activeTab === "exames" && <ExamRequestsTab requests={filteredExamRequests} onUpdateStatus={onUpdateStatus} />}
             {activeTab === "consultas" && <ConsultationsTab appointments={visibleAppointments} />}
             {activeTab === "acompanhamentos" && <FollowUpsTab doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} defaultSpecialty={currentUserProfile.specialty || "Clínico Geral"} />}
@@ -814,6 +975,134 @@ function RequestsCenterModal({
             {activeTab === "cobrancas" && <BillingTab />}
           </div>
         </div>
+      </section>
+    </div>
+  );
+}
+
+
+function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentRequest[] }) {
+  const [copied, setCopied] = useState("");
+  const scheduledStatuses = new Set(["Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento", "Realizada", "Concluída", "Adiada", "Atrasada", "Não compareceu", "Cancelada"]);
+
+  async function copyValue(value: string, key: string) {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(key);
+      window.setTimeout(() => setCopied((current) => current === key ? "" : current), 1600);
+    } catch {
+      await hpsrAlert("Não foi possível copiar automaticamente. Selecione o valor exibido no card.", "Cópia indisponível");
+    }
+  }
+
+  const forContact = requests.filter((item) => item.status === "Aceita" && !item.syncedScheduleId);
+  const forwarded = requests.filter((item) => item.status !== "Aceita" || Boolean(item.syncedScheduleId));
+
+  const groupBySpecialty = (items: PublicAppointmentRequest[]) => {
+    const groups = new Map<string, PublicAppointmentRequest[]>();
+    [...items]
+      .sort((a, b) => a.specialty.localeCompare(b.specialty, "pt-BR") || String(b.acceptedAt || b.updatedAt || b.createdAt || "").localeCompare(String(a.acceptedAt || a.updatedAt || a.createdAt || "")))
+      .forEach((item) => {
+        const specialty = item.specialty || "Clínico Geral";
+        groups.set(specialty, [...(groups.get(specialty) || []), item]);
+      });
+    return Array.from(groups.entries());
+  };
+
+  const renderRequest = (item: PublicAppointmentRequest) => {
+    const contact = item.discordId || item.discord || item.cityPhone || "";
+    const contactLabel = (item.discordId || item.discord) ? `Discord ID ${item.discordId || item.discord}` : item.cityPhone ? `Telefone ${item.cityPhone}` : "Não informado";
+    const isExam = item.flowType === "Exames";
+    const alreadyScheduled = Boolean(item.syncedScheduleId) || scheduledStatuses.has(item.status);
+    const acceptedDate = item.acceptedAt || item.updatedAt || item.createdAt || "";
+
+    return (
+      <div key={item.id} className="rounded-[17px] border border-hpsr-border bg-white p-4 shadow-[0_4px_14px_rgba(89,44,30,0.04)]">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-base font-black text-hpsr-text">{item.patient}</h3>
+              <StatusBadge status={alreadyScheduled ? item.status : "Aceita"} />
+              <span className="rounded-full border border-hpsr-border bg-[#fffaf5] px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-hpsr-wine">{item.specialty}</span>
+              <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[9px] font-black text-hpsr-muted">{isExam ? "Exame" : (item.flowType || "Consulta comum")}</span>
+            </div>
+            <p className="mt-2 text-xs font-semibold text-hpsr-muted">
+              {alreadyScheduled ? "Solicitação já encaminhada após o aceite." : isExam ? "Solicitação de exame recebida. Use os dados abaixo para contato." : "Aceita e aguardando contato/agendamento manual."}
+            </p>
+          </div>
+          {acceptedDate && <span className="shrink-0 text-[10px] font-bold text-hpsr-muted">Aceita em {new Date(acceptedDate).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</span>}
+        </div>
+
+        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-[13px] border border-hpsr-border bg-[#fffaf5] p-3">
+            <p className="text-[9px] font-black uppercase tracking-[.13em] text-hpsr-wineLight">Passaporte</p>
+            <p className="mt-1 text-sm font-black text-hpsr-text">{item.passport}</p>
+          </div>
+          <div className="rounded-[13px] border border-hpsr-border bg-[#fffaf5] p-3 sm:col-span-1 lg:col-span-2">
+            <p className="text-[9px] font-black uppercase tracking-[.13em] text-hpsr-wineLight">Contato</p>
+            <p className="mt-1 break-all text-sm font-black text-hpsr-text">{contactLabel}</p>
+          </div>
+          <div className="rounded-[13px] border border-hpsr-border bg-[#fffaf5] p-3">
+            <p className="text-[9px] font-black uppercase tracking-[.13em] text-hpsr-wineLight">Situação</p>
+            <p className="mt-1 text-sm font-black text-hpsr-text">{alreadyScheduled ? (item.status === "Aceita" ? "Agendamento vinculado" : item.status) : "Para contato"}</p>
+          </div>
+        </div>
+
+        {(item.reason || item.flowDetails) && <p className="mt-3 rounded-[13px] border border-hpsr-border bg-white px-3 py-2 text-xs font-semibold text-hpsr-muted"><span className="font-black text-hpsr-text">Objetivo:</span> {item.flowDetails || item.reason}</p>}
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <ActionButton variant="primary" onClick={() => void copyValue(item.passport, `passport-${item.id}`)}>{copied === `passport-${item.id}` ? "Passaporte copiado" : "Copiar passaporte"}</ActionButton>
+          {contact && <ActionButton onClick={() => void copyValue(contact, `contact-${item.id}`)}>{copied === `contact-${item.id}` ? "Contato copiado" : "Copiar contato"}</ActionButton>}
+          {!contact && <span className="rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-800">Contato não informado</span>}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="grid gap-5">
+      <SectionTitle icon={<UserCheck size={18} />} title="Meus aceites" description="Fila pessoal do médico. Aceitar apenas assume a solicitação; o agendamento continua sendo feito manualmente." />
+
+      <section className="grid gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-black text-hpsr-text">Para contato</h3>
+            <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Solicitações que você assumiu e que ainda precisam de continuidade.</p>
+          </div>
+          <span className="rounded-full bg-hpsr-wine px-3 py-1.5 text-xs font-black text-white">{forContact.length}</span>
+        </div>
+        {forContact.length ? <div className="grid gap-4">{groupBySpecialty(forContact).map(([specialty, items]) => (
+          <div key={`contact-${specialty}`} className="overflow-hidden rounded-[18px] border border-hpsr-border bg-[#fffdfb]">
+            <div className="flex items-center justify-between gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fff8f3_0%,#f8ebe4_100%)] px-4 py-3">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Especialidade</p>
+                <h4 className="mt-0.5 text-sm font-black text-hpsr-text">{specialty}</h4>
+              </div>
+              <span className="rounded-full bg-hpsr-wine px-2.5 py-1 text-[10px] font-black text-white">{items.length}</span>
+            </div>
+            <div className="grid gap-3 p-3">{items.map(renderRequest)}</div>
+          </div>
+        ))}</div> : <EmptyState title="Nenhum aceite aguardando contato" description="Quando você aceitar uma nova solicitação, os dados dela aparecerão aqui imediatamente." />}
+      </section>
+
+      <section className="grid gap-3 border-t border-hpsr-border pt-4">
+        <div>
+          <h3 className="text-sm font-black text-hpsr-text">Histórico de aceites</h3>
+          <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Solicitações que você aceitou e que já foram encaminhadas, agendadas ou finalizadas, mantendo a organização por especialidade.</p>
+        </div>
+        {forwarded.length ? <div className="grid gap-4">{groupBySpecialty(forwarded).map(([specialty, items]) => (
+          <div key={`history-${specialty}`} className="overflow-hidden rounded-[18px] border border-hpsr-border bg-[#fffdfb]">
+            <div className="flex items-center justify-between gap-3 border-b border-hpsr-border bg-[#fffaf6] px-4 py-3">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Especialidade</p>
+                <h4 className="mt-0.5 text-sm font-black text-hpsr-text">{specialty}</h4>
+              </div>
+              <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{items.length}</span>
+            </div>
+            <div className="grid gap-3 p-3">{items.map(renderRequest)}</div>
+          </div>
+        ))}</div> : <p className="text-xs font-semibold text-hpsr-muted">Nenhum aceite anterior sincronizado.</p>}
       </section>
     </div>
   );
@@ -830,7 +1119,7 @@ function ExamRequestsTab({ requests, onUpdateStatus }: { requests: PublicAppoint
         title={item.patient}
         subtitle={`Passaporte ${item.passport} · ${item.specialty}`}
         status={<StatusBadge status={item.status} />}
-        meta={[["Fluxo", "Exame"], ["Necessidade", item.reason || "Não informada"], ["Contato", item.contactEmail ? item.contactEmail : item.discordId ? `Discord ID ${item.discordId}` : "Não informado"]]}
+        meta={[["Fluxo", "Exame"], ["Necessidade", item.reason || "Não informada"], ["Contato", item.discordId ? `Discord ID ${item.discordId}` : item.cityPhone ? `Telefone ${item.cityPhone}` : "Não informado"]]}
         alert={item.answer || undefined}
         alertTone={item.status === "Recusada" ? "warning" : "success"}
         actions={actionable.has(item.status) ? <><ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Aceita")}>Receber solicitação</ActionButton><ActionButton variant="danger" onClick={() => onUpdateStatus(item, "Recusada")}>Recusar</ActionButton></> : <span className="rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-muted">Fluxo de exame · {item.status}</span>}
@@ -908,7 +1197,7 @@ function RequestsTab({
                   status={<StatusBadge status={item.status} />}
                   meta={[
                     ["Fluxo", item.flowType || "Consulta comum"],
-                    ["Contato", item.contactEmail ? item.contactEmail : (item.discordId || item.discord) ? `Discord ID ${item.discordId || item.discord}` : "Não informado"],
+                    ["Contato", (item.discordId || item.discord) ? `Discord ID ${item.discordId || item.discord}` : item.cityPhone ? `Telefone ${item.cityPhone}` : "Não informado"],
                     ...(item.flowType === "Acompanhamento com especialista" ? [["Médico solicitado", item.requestedDoctorName || "Não informado"] as [string, string]] : []),
                     ["Objetivo", ["Acompanhamento", "Outros"].includes(item.flowType || "") ? (item.flowDetails || item.reason || "Não informado") : (item.reason || "Aguardando análise médica")],
                     ...(patientAnsweredReschedule ? [["Resposta do paciente", item.patientResponse || item.status] as [string, string]] : []),

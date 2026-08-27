@@ -60,17 +60,15 @@ export async function POST(request: NextRequest) {
 
     const { data: patientRow, error: patientError } = await valid.supabase
       .from("patient_registry")
-      .select("name,email")
+      .select("name,city_phone")
       .eq("passport", patientPassport)
       .maybeSingle();
     if (patientError) throw patientError;
     if (!patientRow) return NextResponse.json({ ok: false, error: "Paciente não encontrado no prontuário." }, { status: 404 });
 
-    const accountEmail = patientPassport === normalizePassport(valid.access.patient_passport) ? String(valid.access.email || "").trim().toLowerCase() : "";
-    const registryEmail = String(patientRow.email || "").trim().toLowerCase();
-    const contactEmail = registryEmail || accountEmail;
-    if (!contactEmail && !discordId) {
-      return NextResponse.json({ ok: false, code: "CONTACT_REQUIRED", error: "Este paciente não possui e-mail cadastrado. Informe o ID do Discord para permitir o contato da equipe." }, { status: 400 });
+    const cityPhone = String(patientRow.city_phone || "").trim();
+    if (!cityPhone && !discordId) {
+      return NextResponse.json({ ok: false, code: "CONTACT_REQUIRED", error: "Este paciente não possui telefone da cidade cadastrado. Informe o ID do Discord para permitir o contato da equipe." }, { status: 400 });
     }
 
     const { data: capacityCandidates, error: capacityError } = await valid.supabase.rpc("hpsr_specialty_capacity_candidates", { p_specialty: specialty });
@@ -92,9 +90,9 @@ export async function POST(request: NextRequest) {
       specialty,
       reason,
       notes,
-      contactEmail,
-      discordId: contactEmail ? "" : discordId,
-      contactChannel: contactEmail ? "email" : "discord",
+      cityPhone,
+      discordId,
+      contactChannel: discordId ? "discord" : "city_phone",
       source: "patient_portal",
       doctorNotificationUnread: true,
       createdAt: now,

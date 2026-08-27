@@ -37,7 +37,7 @@ import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvi
 import { hpsrConfirm, hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { specialties } from "@/data/mock";
-import { findSpecialtyScheduleConflict } from "@/data/appointment-rules";
+import { findSpecialtyScheduleConflict, normalizeSpecialty } from "@/data/appointment-rules";
 import { isClinicalProfessional, normalizeClinicalPassport } from "@/lib/clinical-scheduling";
 
 const BRAZIL_TIMEZONE = "America/Sao_Paulo";
@@ -1020,10 +1020,54 @@ function NewAppointmentForm({
     const now = brazilIso();
     const id = `appointment-${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const selectedDoctor = doctors.find((doctor) => doctor.name === physician);
-    const payload = { patient: patientName, passport: patientPassport, specialty, physician, doctor: physician, doctorId: selectedDoctor?.id || currentUserProfile.id, date, preferredDate: date, time, source: "clinical_schedule", createdAt: now, updatedAt: now };
-    const { error } = await client.from("appointments").insert({ id, passport: patientPassport, patient: patientName, status: "Agendada", payload, created_at: now, updated_at: now });
-    if (error) { setMessage({ type: "error", text: error.message }); return; }
-    setMessage({ type: "success", text: "Consulta salva e sincronizada com a visão geral e o prontuário." });
+    const doctorId = selectedDoctor?.id || currentUserProfile.id;
+
+    const { data: acceptedRows, error: acceptedLookupError } = await client
+      .from("appointments")
+      .select("id,payload,created_at,updated_at")
+      .eq("passport", patientPassport)
+      .eq("status", "Aceita")
+      .neq("payload->>flowType", "Exames")
+      .order("updated_at", { ascending: false })
+      .limit(20);
+    if (acceptedLookupError) {
+      setMessage({ type: "error", text: `Não foi possível verificar a solicitação aceita: ${acceptedLookupError.message}` });
+      return;
+    }
+
+    const acceptedRequest = (acceptedRows || []).find((row: any) => {
+      const requestPayload = row?.payload || {};
+      const sameSpecialty = normalizeSpecialty(String(requestPayload.specialty || "")) === normalizeSpecialty(specialty);
+      const requestDoctorId = String(requestPayload.doctorId || requestPayload.acceptedById || "");
+      const sameDoctor = requestDoctorId ? requestDoctorId === doctorId : String(requestPayload.physician || requestPayload.doctor || "") === physician;
+      return sameSpecialty && sameDoctor;
+    }) as any | undefined;
+
+    const basePayload = (acceptedRequest?.payload || {}) as Record<string, unknown>;
+    const payload = {
+      ...basePayload,
+      patient: patientName,
+      passport: patientPassport,
+      specialty,
+      physician,
+      doctor: physician,
+      doctorId,
+      date,
+      preferredDate: date,
+      time,
+      preferredTime: time,
+      source: "clinical_schedule",
+      schedulingMode: "staff_manual_schedule",
+      sourceRequestId: acceptedRequest?.id || undefined,
+      createdAt: String(basePayload.createdAt || acceptedRequest?.created_at || now),
+      updatedAt: now,
+    };
+
+    const saveResult = acceptedRequest
+      ? await client.from("appointments").update({ patient: patientName, status: "Agendada", payload, updated_at: now }).eq("id", acceptedRequest.id)
+      : await client.from("appointments").insert({ id, passport: patientPassport, patient: patientName, status: "Agendada", payload, created_at: now, updated_at: now });
+    if (saveResult.error) { setMessage({ type: "error", text: saveResult.error.message }); return; }
+    setMessage({ type: "success", text: acceptedRequest ? "Agendamento manual salvo e sincronizado com a solicitação aceita, sem duplicar o atendimento." : "Consulta salva e sincronizada com a visão geral e o prontuário." });
   }
 
   return (

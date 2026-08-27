@@ -18,7 +18,7 @@ import { formatPhoneNumber } from "@/lib/phone";
 
 type Stage = "checking" | "login" | "register" | "portal";
 type PortalSection = "home" | "appointments" | "request" | "followups" | "exam-request" | "records" | "pending" | "profile";
-type PortalPatient = { passport: string; name: string; relationship: string; access_type: string; hasEmail?: boolean };
+type PortalPatient = { passport: string; name: string; relationship: string; access_type: string; hasClinicalContact?: boolean };
 type PendingChildLink = { passport: string; name: string; relationship: string; status: string };
 type SessionResponse = { authenticated?: boolean; patientName?: string; accessiblePatients?: PortalPatient[]; pendingChildLinks?: PendingChildLink[] };
 
@@ -419,9 +419,9 @@ export function PatientAccessPanel() {
                 </div>
               )}
               {portalSection === "appointments" && <div className="space-y-4"><PatientFollowupSummaryPanel data={followupData} loading={followupLoading} error={followupError} onOpenHours={() => setPortalSection("followups")} /><PatientAppointmentsPanel view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => setPortalSection("records")} /></div>}
-              {portalSection === "request" && <PatientAppointmentsPanel view="request" passport={selectedPassport} hasEmail={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasEmail} onSessionExpired={handleSessionExpired} />}
+              {portalSection === "request" && <PatientAppointmentsPanel view="request" passport={selectedPassport} hasClinicalContact={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasClinicalContact} onSessionExpired={handleSessionExpired} />}
               {portalSection === "followups" && <PatientFollowupsPanel data={followupData} loading={followupLoading} error={followupError} passport={selectedPassport} onRefresh={() => void loadFollowups(selectedPassport)} />}
-              {portalSection === "exam-request" && <PatientExamRequestsPanel passport={selectedPassport} hasEmail={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasEmail} onSessionExpired={handleSessionExpired} />}
+              {portalSection === "exam-request" && <PatientExamRequestsPanel passport={selectedPassport} hasClinicalContact={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasClinicalContact} onSessionExpired={handleSessionExpired} />}
               {portalSection === "records" && <PatientRecordsPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
               {portalSection === "pending" && <PatientAppointmentsPanel view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => setPortalSection("records")} />}
               {portalSection === "profile" && <PatientProfilePanel onSessionExpired={handleSessionExpired} onSaved={async () => { await checkSession(); }} />}
@@ -566,7 +566,7 @@ export function PatientAccessPanel() {
                 </div>
               )}
               <Field label="Telefone"><input inputMode="numeric" maxLength={13} placeholder="(055) 626-323" value={register.phone} onChange={(e) => setRegister(v => ({...v, phone:formatPhoneNumber(e.target.value)}))} className="portal-input" /></Field>
-              <Field label="E-mail para acesso e agendamento" wide><input type="email" autoComplete="email" value={register.email} onChange={(e) => setRegister(v => ({...v, email:e.target.value}))} className="portal-input" /><span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Mantenha este e-mail correto para sua conta. Quando for preciso combinar uma consulta, o médico pode falar com você pelo Discord ou dentro do RP.</span></Field>
+              <Field label="E-mail da conta" wide><input type="email" autoComplete="email" value={register.email} onChange={(e) => setRegister(v => ({...v, email:e.target.value}))} className="portal-input" /><span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Este e-mail é usado somente para acesso, recuperação de senha e funções do sistema. Para atendimento, a equipe usa o telefone da cidade ou o ID do Discord.</span></Field>
               <Field label="Senha"><input type="password" autoComplete="new-password" value={register.password} onChange={(e) => setRegister(v => ({...v, password:e.target.value}))} className="portal-input" minLength={6} placeholder="Mínimo de 6 caracteres" /></Field>
               <Field label="Confirmar senha"><input type="password" autoComplete="new-password" value={register.confirmation} minLength={6} onChange={(e) => setRegister(v => ({...v, confirmation:e.target.value}))} className="portal-input" /></Field>
               </div>

@@ -54,14 +54,12 @@ export async function GET(request: NextRequest) {
     const accessibleList = (accessiblePatients || []) as any[];
     const accessiblePassports = accessibleList.map((item) => String(item.passport || "")).filter(Boolean);
     const { data: patientContacts } = accessiblePassports.length
-      ? await supabase.from("patient_registry").select("passport,email").in("passport", accessiblePassports)
+      ? await supabase.from("patient_registry").select("passport,city_phone").in("passport", accessiblePassports)
       : { data: [] as any[] };
-    const emailByPassport = new Map((patientContacts || []).map((item: any) => [String(item.passport || ""), String(item.email || "").trim()]));
+    const cityPhoneByPassport = new Map((patientContacts || []).map((item: any) => [String(item.passport || ""), String(item.city_phone || "").trim()]));
     const accessibleWithContact = accessibleList.map((item) => {
       const itemPassport = String(item.passport || "");
-      const registryEmail = emailByPassport.get(itemPassport) || "";
-      const accountEmail = itemPassport === passport ? String(access.email || "").trim() : "";
-      return { ...item, hasEmail: Boolean(registryEmail || accountEmail) };
+      return { ...item, hasClinicalContact: Boolean(cityPhoneByPassport.get(itemPassport)) };
     });
     const passportHint = passport.length > 4 ? `${passport.slice(0, 2)}•••${passport.slice(-2)}` : "••••";
     return NextResponse.json({ authenticated: true, expiresAt: session.expires_at, passportHint, patientName: patient?.name || "Paciente", accessiblePatients: accessibleWithContact, pendingChildLinks });

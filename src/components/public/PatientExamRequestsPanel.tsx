@@ -19,7 +19,7 @@ type ExamRequest = {
 
 const fieldClass = "min-h-[44px] w-full rounded-[14px] border border-hpsr-border bg-white px-3 text-sm font-bold text-hpsr-text outline-none focus:border-hpsr-wine";
 
-export function PatientExamRequestsPanel({ passport, hasEmail, onSessionExpired }: { passport?: string; hasEmail?: boolean; onSessionExpired?: () => void }) {
+export function PatientExamRequestsPanel({ passport, hasClinicalContact, onSessionExpired }: { passport?: string; hasClinicalContact?: boolean; onSessionExpired?: () => void }) {
   const [requests, setRequests] = useState<ExamRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -118,13 +118,14 @@ export function PatientExamRequestsPanel({ passport, hasEmail, onSessionExpired 
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Observações
             <textarea name="notes" rows={3} className={`${fieldClass} mt-1.5 py-3`} />
           </label>
-          <div className={`sm:col-span-2 rounded-[16px] border px-3.5 py-3 ${hasEmail ? "border-emerald-200 bg-emerald-50" : "border-blue-200 bg-blue-50"}`}>
-            <p className={`text-xs font-black ${hasEmail ? "text-emerald-800" : "text-blue-900"}`}>{hasEmail ? "Contato cadastrado" : "ID do Discord necessário"}</p>
-            <p className={`mt-1 text-[11px] font-semibold leading-relaxed ${hasEmail ? "text-emerald-700" : "text-blue-800"}`}>{hasEmail ? "Se a equipe precisar falar com você sobre o exame, usará o contato cadastrado ou falará com você dentro do RP." : "Informe seu ID numérico do Discord como contato de apoio."}</p>
+          <div className={`sm:col-span-2 rounded-[16px] border px-3.5 py-3 ${hasClinicalContact ? "border-emerald-200 bg-emerald-50" : "border-blue-200 bg-blue-50"}`}>
+            <p className={`text-xs font-black ${hasClinicalContact ? "text-emerald-800" : "text-blue-900"}`}>{hasClinicalContact ? "Telefone da cidade cadastrado" : "ID do Discord necessário"}</p>
+            <p className={`mt-1 text-[11px] font-semibold leading-relaxed ${hasClinicalContact ? "text-emerald-700" : "text-blue-800"}`}>{hasClinicalContact ? "Se a equipe precisar falar com você sobre o exame, usará o telefone da cidade cadastrado. Você também pode informar o ID do Discord quando necessário." : "Informe seu ID numérico do Discord para contato da equipe."}</p>
           </div>
-          {!hasEmail && <label className="text-xs font-black text-hpsr-muted sm:col-span-2">ID do Discord
-            <input name="discordId" inputMode="numeric" pattern="[0-9]+" required value={discordId} onChange={(event) => setDiscordId(event.target.value.replace(/\D/g, ""))} placeholder="Somente números" className={`${fieldClass} mt-1.5`} />
-          </label>}
+          <label className="text-xs font-black text-hpsr-muted sm:col-span-2">ID do Discord {hasClinicalContact ? "(opcional)" : "para contato"}
+            <input name="discordId" inputMode="numeric" pattern="[0-9]+" required={!hasClinicalContact} value={discordId} onChange={(event) => setDiscordId(event.target.value.replace(/\D/g, ""))} placeholder="Somente números" className={`${fieldClass} mt-1.5`} />
+            <span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">O e-mail da conta não é usado para contato clínico.</span>
+          </label>
           {message && <p className="sm:col-span-2 rounded-[12px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800"><CheckCircle2 className="mr-2 inline" size={16}/>{message}</p>}
           {error && <p className="sm:col-span-2 rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-800">{error}</p>}
           <button disabled={saving || capacityLoading || capacityAvailable === false} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50 sm:col-span-2">{saving ? <Loader2 className="animate-spin" size={17}/> : <FlaskConical size={17}/>} Enviar solicitação de exame</button>

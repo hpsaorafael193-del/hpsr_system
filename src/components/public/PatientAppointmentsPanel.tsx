@@ -65,7 +65,7 @@ function DiscordSchedulingNotice({ compact = false }: { compact?: boolean }) {
   );
 }
 
-export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view = "scheduled", passport, hasEmail }: { onSessionExpired?: () => void; onOpenRecords?: () => void; view?: PatientAppointmentsView; passport?: string; hasEmail?: boolean }) {
+export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view = "scheduled", passport, hasClinicalContact }: { onSessionExpired?: () => void; onOpenRecords?: () => void; view?: PatientAppointmentsView; passport?: string; hasClinicalContact?: boolean }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -361,16 +361,14 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
             <p className="text-xs font-black text-amber-950">Este é só um pedido de consulta</p>
             <p className="mt-1 text-[11px] font-semibold leading-relaxed text-amber-900">Você ainda não está marcando um horário. Depois do aceite, o médico combina o atendimento com você.</p>
           </div>
-          <div className={`sm:col-span-2 rounded-[16px] border px-3.5 py-3 ${hasEmail ? "border-emerald-200 bg-emerald-50" : "border-blue-200 bg-blue-50"}`}>
-            <p className={`text-xs font-black ${hasEmail ? "text-emerald-800" : "text-blue-900"}`}>{hasEmail ? "Contato cadastrado" : "ID do Discord necessário"}</p>
-            <p className={`mt-1 text-[11px] font-semibold leading-relaxed ${hasEmail ? "text-emerald-700" : "text-blue-800"}`}>{hasEmail ? "Seu contato está cadastrado. O médico pode combinar o atendimento pelo Discord ou dentro do RP." : "Não encontramos um contato disponível para este paciente. Informe o ID numérico do Discord como contato de apoio."}</p>
+          <div className={`sm:col-span-2 rounded-[16px] border px-3.5 py-3 ${hasClinicalContact ? "border-emerald-200 bg-emerald-50" : "border-blue-200 bg-blue-50"}`}>
+            <p className={`text-xs font-black ${hasClinicalContact ? "text-emerald-800" : "text-blue-900"}`}>{hasClinicalContact ? "Telefone da cidade cadastrado" : "ID do Discord necessário"}</p>
+            <p className={`mt-1 text-[11px] font-semibold leading-relaxed ${hasClinicalContact ? "text-emerald-700" : "text-blue-800"}`}>{hasClinicalContact ? "O médico poderá usar o telefone da cidade cadastrado. Se preferir, você também pode informar seu ID do Discord." : "Não encontramos telefone da cidade para este paciente. Informe o ID numérico do Discord para contato."}</p>
           </div>
-          {!hasEmail && (
-            <label className="text-xs font-black text-hpsr-muted sm:col-span-2">ID do Discord para contato
-              <input name="discordId" inputMode="numeric" pattern="[0-9]+" required value={discordId} onChange={(event) => setDiscordId(event.target.value.replace(/\D/g, ""))} placeholder="Somente números" className={`${fieldClass} mt-1.5`} />
-              <span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Use somente o ID numérico da sua conta do Discord.</span>
-            </label>
-          )}
+          <label className="text-xs font-black text-hpsr-muted sm:col-span-2">ID do Discord {hasClinicalContact ? "(opcional)" : "para contato"}
+            <input name="discordId" inputMode="numeric" pattern="[0-9]+" required={!hasClinicalContact} value={discordId} onChange={(event) => setDiscordId(event.target.value.replace(/\D/g, ""))} placeholder="Somente números" className={`${fieldClass} mt-1.5`} />
+            <span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Use somente o ID numérico da sua conta do Discord. O e-mail da conta não é usado para contato clínico.</span>
+          </label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Por que você precisa da consulta?<textarea name="reason" required rows={4} placeholder="Conte em poucas palavras por que você precisa da consulta." className={`${fieldClass} mt-1.5 py-3`} /></label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Observações<textarea name="notes" rows={3} className={`${fieldClass} mt-1.5 py-3`} /></label>
           {message && <p className="sm:col-span-2 rounded-[12px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800"><CheckCircle2 className="mr-2 inline" size={16} />{message}</p>}

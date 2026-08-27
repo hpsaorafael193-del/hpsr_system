@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     const resolvedPassport = await resolvePortalPatientPassport(request, valid);
     if (!resolvedPassport) return NextResponse.json({ ok: false, error: "Paciente não autorizado para esta sessão." }, { status: 403 });
     const patientPassport = normalizePassport(resolvedPassport);
-    const { data: patientRow, error: patientError } = await valid.supabase.from("patient_registry").select("name,email").eq("passport", patientPassport).maybeSingle();
+    const { data: patientRow, error: patientError } = await valid.supabase.from("patient_registry").select("name,city_phone").eq("passport", patientPassport).maybeSingle();
     if (patientError) throw patientError;
     if (!patientRow) return NextResponse.json({ ok: false, error: "Paciente não encontrado no prontuário." }, { status: 404 });
     const patient = String(patientRow.name || body.patient || "").trim();
@@ -27,9 +27,7 @@ export async function POST(request: NextRequest) {
     const flowType = String(body.flowType || "Consulta comum").trim();
     const flowDetails = String(body.flowDetails || "").trim();
     const discordId = String(body.discordId || "").replace(/\D/g, "").trim();
-    const accountEmail = patientPassport === normalizePassport(valid.access.patient_passport) ? String(valid.access.email || "").trim().toLowerCase() : "";
-    const registryEmail = String(patientRow.email || "").trim().toLowerCase();
-    const contactEmail = registryEmail || accountEmail;
+    const cityPhone = String(patientRow.city_phone || "").trim();
     const allowedFlowTypes = ["Consulta comum", "Acompanhamento"];
 
     if (["Acompanhamento com especialista", "Exames"].includes(flowType)) {
@@ -44,8 +42,8 @@ export async function POST(request: NextRequest) {
     if (!patient || !specialty || !reason || !allowedFlowTypes.includes(flowType)) {
       return NextResponse.json({ ok: false, error: "Preencha os campos obrigatórios." }, { status: 400 });
     }
-    if (!contactEmail && !discordId) {
-      return NextResponse.json({ ok: false, code: "CONTACT_REQUIRED", error: "Este paciente não possui e-mail cadastrado. Informe o ID do Discord para que o médico consiga entrar em contato." }, { status: 400 });
+    if (!cityPhone && !discordId) {
+      return NextResponse.json({ ok: false, code: "CONTACT_REQUIRED", error: "Este paciente não possui telefone da cidade cadastrado. Informe o ID do Discord para que o médico consiga entrar em contato." }, { status: 400 });
     }
     if (flowType === "Acompanhamento" && !flowDetails) {
       return NextResponse.json({ ok: false, error: "Informe qual acompanhamento você precisa iniciar." }, { status: 400 });
@@ -82,10 +80,10 @@ export async function POST(request: NextRequest) {
       preferredPeriod,
       preferredTime,
       schedulingMode: "medical_contact",
-      schedulingNotice: "O paciente apenas solicita a consulta. O médico entra em contato pelo e-mail cadastrado ou, quando indisponível, pelo ID do Discord informado para combinar o dia e o horário.",
-      contactEmail,
-      discordId: contactEmail ? "" : discordId,
-      contactChannel: contactEmail ? "email" : "discord",
+      schedulingNotice: "O paciente apenas solicita a consulta. O médico entra em contato pelo ID do Discord informado ou pelo telefone da cidade cadastrado para combinar o dia e o horário.",
+      cityPhone,
+      discordId,
+      contactChannel: discordId ? "discord" : "city_phone",
       reason,
       notes,
       flowType,
