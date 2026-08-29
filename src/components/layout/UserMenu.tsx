@@ -14,7 +14,8 @@ type MedicalNotification = {
   id: string;
   title: string;
   description: string;
-  category: "Acompanhamento" | "Consulta" | "Reagendamento" | "Exame";
+  category: "Acompanhamento" | "Consulta" | "Reagendamento" | "Exame" | "Formulário";
+  source: "appointments" | "staff_applications";
   createdAt: string;
   unread: boolean;
   payload: Record<string, unknown>;
@@ -95,8 +96,22 @@ export function UserMenu() {
     return Boolean(currentUserProfile.id && (medicalSpecialties.length || role.includes("médic") || role.includes("diretor clínico")));
   }, [currentUserProfile.id, currentUserProfile.role, currentUserProfile.systemRole, medicalSpecialties.length]);
 
+  const canUseDirectorNotifications = useMemo(() => {
+    const role = `${currentUserProfile.role || ""} ${currentUserProfile.systemRole || ""}`
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLocaleLowerCase("pt-BR");
+    return Boolean(currentUserProfile.id && (
+      role.includes("diretor tecnico / dev")
+      || role.includes("diretora")
+      || role.includes("vice diretor")
+    ));
+  }, [currentUserProfile.id, currentUserProfile.role, currentUserProfile.systemRole]);
+
+  const canUseNotifications = canUseMedicalNotifications || canUseDirectorNotifications;
+
   const loadNotifications = useCallback(async () => {
-    if (!canUseMedicalNotifications || !currentUserProfile.id) {
+    if (!canUseNotifications || !currentUserProfile.id) {
       setNotifications([]);
       return;
     }
@@ -104,98 +119,133 @@ export function UserMenu() {
     if (!client) return;
     setNotificationsLoading(true);
     try {
-      const capacityEntries = await Promise.all(medicalSpecialties.map(async (specialty) => {
-        const { data } = await client.rpc("hpsr_my_clinical_capacity", { p_specialty: specialty });
-        return [normalizeClinicalSpecialty(specialty), Number((data as { available?: number } | null)?.available || 0)] as const;
-      }));
-      const capacityBySpecialty = Object.fromEntries(capacityEntries);
-      const columns = "id,patient,passport,status,payload,created_at,updated_at";
-      const directQuery = client
-        .from("appointments")
-        .select(columns)
-        .or(`payload->>doctorId.eq.${currentUserProfile.id},payload->>requestedDoctorId.eq.${currentUserProfile.id}`)
-        .in("status", ["Solicitação enviada", "Aguardando análise", "Acompanhamento aguardando confirmação"])
-        .order("updated_at", { ascending: false })
-        .limit(40);
+      const combined: MedicalNotification[] = [];
+      const userId = String(currentUserProfile.id);
 
-      const { data: directRows, error: directError } = await directQuery;
-      if (directError) throw directError;
-
-      let specialtyRows: any[] = [];
-      if (medicalSpecialties.length) {
-        const { data, error: specialtyError } = await client
+      if (canUseMedicalNotifications) {
+        const capacityEntries = await Promise.all(medicalSpecialties.map(async (specialty) => {
+          const { data } = await client.rpc("hpsr_my_clinical_capacity", { p_specialty: specialty });
+          return [normalizeClinicalSpecialty(specialty), Number((data as { available?: number } | null)?.available || 0)] as const;
+        }));
+        const capacityBySpecialty = Object.fromEntries(capacityEntries);
+        const columns = "id,patient,passport,status,payload,created_at,updated_at";
+        const directQuery = client
           .from("appointments")
           .select(columns)
-          .in("payload->>specialty", medicalSpecialties)
+          .or(`payload->>doctorId.eq.${currentUserProfile.id},payload->>requestedDoctorId.eq.${currentUserProfile.id}`)
           .in("status", ["Solicitação enviada", "Aguardando análise", "Acompanhamento aguardando confirmação"])
-          .order("created_at", { ascending: false })
-          .limit(50);
-        if (specialtyError) throw specialtyError;
-        specialtyRows = data || [];
+          .order("updated_at", { ascending: false })
+          .limit(40);
+
+        const { data: directRows, error: directError } = await directQuery;
+        if (directError) throw directError;
+
+        let specialtyRows: any[] = [];
+        if (medicalSpecialties.length) {
+          const { data, error: specialtyError } = await client
+            .from("appointments")
+            .select(columns)
+            .in("payload->>specialty", medicalSpecialties)
+            .in("status", ["Solicitação enviada", "Aguardando análise", "Acompanhamento aguardando confirmação"])
+            .order("created_at", { ascending: false })
+            .limit(50);
+          if (specialtyError) throw specialtyError;
+          specialtyRows = data || [];
+        }
+
+        const rows = [...(directRows || []), ...specialtyRows];
+        const unique = new Map<string, any>();
+        rows.forEach((row: any) => unique.set(String(row.id), row));
+        const mapped = [...unique.values()]
+          .map((row: any): MedicalNotification | null => {
+            const payload = (row.payload || {}) as Record<string, unknown>;
+            const requestedDoctorId = String(payload.requestedDoctorId || "");
+            const doctorId = String(payload.doctorId || "");
+            const readBy = Array.isArray(payload.notificationReadBy) ? payload.notificationReadBy.map(String) : [];
+            const normalizedSpecialty = normalizeClinicalSpecialty(payload.specialty);
+            const directlyRelated = requestedDoctorId === userId || doctorId === userId;
+            const specialtyRelated = !requestedDoctorId && normalizedMedicalSpecialties.includes(normalizedSpecialty);
+            const declinedBy = Array.isArray(payload.declinedBy) ? payload.declinedBy.map(String) : [];
+            if (declinedBy.includes(userId)) return null;
+            if (!directlyRelated && !specialtyRelated) return null;
+            if (Number(capacityBySpecialty[normalizedSpecialty] || 0) <= 0) return null;
+
+            const flowType = String(payload.flowType || "Consulta comum");
+            const patient = String(row.patient || payload.patient || "Paciente");
+            const specialty = String(payload.specialty || "Especialidade não informada");
+            let category: MedicalNotification["category"] = "Consulta";
+            let title = `Nova solicitação de ${patient}`;
+            let description = `${flowType} · ${specialty}`;
+
+            if (row.status === "Acompanhamento aguardando confirmação") {
+              category = "Acompanhamento";
+              title = `${patient} solicitou acompanhamento`;
+              description = `Pré-registro direcionado para você em ${specialty}.`;
+            } else if (flowType === "Exames") {
+              category = "Exame";
+              title = `${patient} enviou uma solicitação de exame`;
+              description = String(payload.otherFlowDescription || payload.reason || payload.notes || specialty);
+            }
+
+            const actionableStatuses = ["Solicitação enviada", "Aguardando análise", "Acompanhamento aguardando confirmação"];
+            if (!actionableStatuses.includes(String(row.status))) return null;
+            return {
+              id: String(row.id),
+              title,
+              description,
+              category,
+              source: "appointments",
+              createdAt: String(row.updated_at || row.created_at || ""),
+              unread: !readBy.includes(userId) && (Boolean(payload.doctorNotificationUnread) || actionableStatuses.includes(String(row.status))),
+              payload,
+              status: String(row.status),
+            };
+          })
+          .filter((item: MedicalNotification | null): item is MedicalNotification => Boolean(item));
+        combined.push(...mapped);
       }
 
-      const rows = [...(directRows || []), ...specialtyRows];
-      const unique = new Map<string, any>();
-      rows.forEach((row: any) => unique.set(String(row.id), row));
-      const userId = String(currentUserProfile.id);
-      const mapped = [...unique.values()]
-        .map((row: any): MedicalNotification | null => {
+      if (canUseDirectorNotifications) {
+        const { data: applicationRows, error: applicationError } = await client
+          .from("staff_applications")
+          .select("id,passport,name,desired_role,status,payload,created_at,updated_at")
+          .eq("status", "Pendente")
+          .order("created_at", { ascending: false })
+          .limit(50);
+        if (applicationError) throw applicationError;
+
+        for (const row of applicationRows || []) {
           const payload = (row.payload || {}) as Record<string, unknown>;
-          const requestedDoctorId = String(payload.requestedDoctorId || "");
-          const doctorId = String(payload.doctorId || "");
-          const readBy = Array.isArray(payload.notificationReadBy) ? payload.notificationReadBy.map(String) : [];
-          const normalizedSpecialty = normalizeClinicalSpecialty(payload.specialty);
-          const directlyRelated = requestedDoctorId === userId || doctorId === userId;
-          const specialtyRelated = !requestedDoctorId && normalizedMedicalSpecialties.includes(normalizedSpecialty);
-          const declinedBy = Array.isArray(payload.declinedBy) ? payload.declinedBy.map(String) : [];
-          if (declinedBy.includes(userId)) return null;
-          if (!directlyRelated && !specialtyRelated) return null;
-          if (Number(capacityBySpecialty[normalizedSpecialty] || 0) <= 0) return null;
-
-          const flowType = String(payload.flowType || "Consulta comum");
-          const patient = String(row.patient || payload.patient || "Paciente");
-          const specialty = String(payload.specialty || "Especialidade não informada");
-          let category: MedicalNotification["category"] = "Consulta";
-          let title = `Nova solicitação de ${patient}`;
-          let description = `${flowType} · ${specialty}`;
-
-          if (row.status === "Acompanhamento aguardando confirmação") {
-            category = "Acompanhamento";
-            title = `${patient} solicitou acompanhamento`;
-            description = `Pré-registro direcionado para você em ${specialty}.`;
-          } else if (flowType === "Exames") {
-            category = "Exame";
-            title = `${patient} enviou uma solicitação de exame`;
-            description = String(payload.otherFlowDescription || payload.reason || payload.notes || specialty);
-          }
-
-          const actionableStatuses = ["Solicitação enviada", "Aguardando análise", "Acompanhamento aguardando confirmação"];
-          if (!actionableStatuses.includes(String(row.status))) return null;
-          return {
+          const readBy = Array.isArray(payload.directorNotificationReadBy) ? payload.directorNotificationReadBy.map(String) : [];
+          const candidate = String(row.name || payload.name || "Candidato");
+          const desiredRole = String(row.desired_role || payload.desiredRole || "Cargo não informado");
+          const passport = String(row.passport || payload.passport || "Não informado");
+          combined.push({
             id: String(row.id),
-            title,
-            description,
-            category,
-            createdAt: String(row.updated_at || row.created_at || ""),
-            unread: !readBy.includes(userId) && (Boolean(payload.doctorNotificationUnread) || actionableStatuses.includes(String(row.status))),
+            title: `Novo formulário de ${candidate}`,
+            description: `${desiredRole} · Passaporte ${passport}`,
+            category: "Formulário",
+            source: "staff_applications",
+            createdAt: String(row.created_at || row.updated_at || ""),
+            unread: !readBy.includes(userId),
             payload,
-            status: String(row.status),
-          };
-        })
-        .filter((item: MedicalNotification | null): item is MedicalNotification => Boolean(item))
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-        .slice(0, 50);
-      setNotifications(mapped);
+            status: String(row.status || "Pendente"),
+          });
+        }
+      }
+
+      combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setNotifications(combined.slice(0, 60));
     } catch (caught) {
-      console.warn("[HPSR] Não foi possível carregar as notificações médicas.", caught);
+      console.warn("[HPSR] Não foi possível carregar as notificações.", caught);
     } finally {
       setNotificationsLoading(false);
     }
-  }, [canUseMedicalNotifications, currentUserProfile.id, medicalSpecialties, normalizedMedicalSpecialties]);
+  }, [canUseNotifications, canUseMedicalNotifications, canUseDirectorNotifications, currentUserProfile.id, medicalSpecialties, normalizedMedicalSpecialties]);
 
   useEffect(() => {
     void loadNotifications();
-    if (!canUseMedicalNotifications || !currentUserProfile.id) return;
+    if (!canUseNotifications || !currentUserProfile.id) return;
     const client = createClient();
     if (!client) return;
 
@@ -219,18 +269,22 @@ export function UserMenu() {
       return payload.eventType === "DELETE";
     };
 
-    const channel = client
-      .channel(`medical-notifications-${currentUserProfile.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, (payload: any) => {
+    let channel = client.channel(`user-notifications-${currentUserProfile.id}`);
+    if (canUseMedicalNotifications) {
+      channel = channel.on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, (payload: any) => {
         if (isPotentiallyRelevant(payload)) scheduleRefresh();
-      })
-      .subscribe();
+      });
+    }
+    if (canUseDirectorNotifications) {
+      channel = channel.on("postgres_changes", { event: "*", schema: "public", table: "staff_applications" }, scheduleRefresh);
+    }
+    channel.subscribe();
 
     return () => {
       if (refreshTimer !== null) window.clearTimeout(refreshTimer);
       void client.removeChannel(channel);
     };
-  }, [canUseMedicalNotifications, currentUserProfile.id, normalizedMedicalSpecialties, loadNotifications]);
+  }, [canUseNotifications, canUseMedicalNotifications, canUseDirectorNotifications, currentUserProfile.id, normalizedMedicalSpecialties, loadNotifications]);
 
   const unreadNotificationCount = notifications.filter((item) => item.unread).length;
 
@@ -239,6 +293,17 @@ export function UserMenu() {
     if (!client || !currentUserProfile.id || ids.length === 0) return;
     const selected = notifications.filter((item) => ids.includes(item.id));
     await Promise.all(selected.map(async (item) => {
+      if (item.source === "staff_applications") {
+        const currentReadBy = Array.isArray(item.payload.directorNotificationReadBy) ? item.payload.directorNotificationReadBy.map(String) : [];
+        const directorNotificationReadBy = Array.from(new Set([...currentReadBy, String(currentUserProfile.id)]));
+        const { error: updateError } = await client
+          .from("staff_applications")
+          .update({ payload: { ...item.payload, directorNotificationReadBy } })
+          .eq("id", item.id);
+        if (updateError) console.warn("[HPSR] Falha ao marcar notificação de formulário como lida.", updateError);
+        return;
+      }
+
       const currentReadBy = Array.isArray(item.payload.notificationReadBy) ? item.payload.notificationReadBy.map(String) : [];
       const notificationReadBy = Array.from(new Set([...currentReadBy, String(currentUserProfile.id)]));
       const { error: updateError } = await client
@@ -247,8 +312,30 @@ export function UserMenu() {
         .eq("id", item.id);
       if (updateError) console.warn("[HPSR] Falha ao marcar notificação como lida.", updateError);
     }));
-    setNotifications((current) => current.map((item) => ids.includes(item.id) ? { ...item, unread: false, payload: { ...item.payload, notificationReadBy: Array.from(new Set([...(Array.isArray(item.payload.notificationReadBy) ? item.payload.notificationReadBy.map(String) : []), String(currentUserProfile.id)])), doctorNotificationUnread: false } } : item));
+    setNotifications((current) => current.map((item) => {
+      if (!ids.includes(item.id)) return item;
+      if (item.source === "staff_applications") {
+        return {
+          ...item,
+          unread: false,
+          payload: {
+            ...item.payload,
+            directorNotificationReadBy: Array.from(new Set([...(Array.isArray(item.payload.directorNotificationReadBy) ? item.payload.directorNotificationReadBy.map(String) : []), String(currentUserProfile.id)])),
+          },
+        };
+      }
+      return {
+        ...item,
+        unread: false,
+        payload: {
+          ...item.payload,
+          notificationReadBy: Array.from(new Set([...(Array.isArray(item.payload.notificationReadBy) ? item.payload.notificationReadBy.map(String) : []), String(currentUserProfile.id)])),
+          doctorNotificationUnread: false,
+        },
+      };
+    }));
   }
+
 
 
   useEffect(() => {
@@ -427,7 +514,7 @@ export function UserMenu() {
             </div>
 
             {!currentUserProfile.signaturePath && <button type="button" role="menuitem" onClick={() => { setOpen(false); router.push("/dashboard/perfil#assinatura"); }} className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] font-black text-amber-800 transition hover:bg-amber-100"><UserRound size={15}/> Perfil incompleto · falta assinatura</button>}
-            {canUseMedicalNotifications && <button type="button" role="menuitem" onClick={() => { setOpen(false); setNotificationsOpen(true); void loadNotifications(); }} className="relative flex w-full items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5 text-[11px] font-black text-hpsr-wine transition hover:bg-[#f7f2ea]"><BellRing size={15}/> Minhas notificações{unreadNotificationCount > 0 && <span className="ml-auto rounded-full bg-red-600 px-2 py-0.5 text-[9px] font-black text-white">{unreadNotificationCount}</span>}</button>}
+            {canUseNotifications && <button type="button" role="menuitem" onClick={() => { setOpen(false); setNotificationsOpen(true); void loadNotifications(); }} className="relative flex w-full items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5 text-[11px] font-black text-hpsr-wine transition hover:bg-[#f7f2ea]"><BellRing size={15}/> Minhas notificações{unreadNotificationCount > 0 && <span className="ml-auto rounded-full bg-red-600 px-2 py-0.5 text-[9px] font-black text-white">{unreadNotificationCount}</span>}</button>}
             <button type="button" role="menuitem" onClick={() => { setOpen(false); router.push("/dashboard/perfil"); }} className="flex w-full items-center justify-center gap-2 rounded-[12px] px-3 py-2 text-[11px] font-bold text-hpsr-wine transition hover:bg-[#f7f2ea]"><UserRound size={15}/> Ver perfil completo</button>
             <button type="button" role="menuitem" onClick={handleLogout} className="flex w-full items-center justify-center gap-2 rounded-[12px] px-3 py-2 text-[11px] font-bold text-hpsr-muted transition hover:bg-[#f7f2ea]"><LogOut size={15}/> Sair</button>
           </div>
@@ -441,7 +528,7 @@ export function UserMenu() {
             <header className="flex shrink-0 items-start justify-between gap-4 border-b border-hpsr-border bg-white px-5 py-4">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-hpsr-wine text-white"><BellRing size={20}/>{unreadNotificationCount > 0 && <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-red-600 animate-pulse" />}</div>
-                <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.17em] text-hpsr-wineLight">Central pessoal</p><h2 className="mt-0.5 text-xl font-black text-hpsr-text">Minhas notificações</h2><p className="mt-1 text-xs font-semibold text-hpsr-muted">Pendências e movimentações relacionadas ao seu atendimento.</p></div>
+                <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.17em] text-hpsr-wineLight">Central pessoal</p><h2 className="mt-0.5 text-xl font-black text-hpsr-text">Minhas notificações</h2><p className="mt-1 text-xs font-semibold text-hpsr-muted">Pendências, formulários e movimentações relacionadas à sua atuação.</p></div>
               </div>
               <button type="button" onClick={() => setNotificationsOpen(false)} className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-muted hover:bg-[#fff8f0] hover:text-hpsr-wine"><X size={18}/></button>
             </header>
@@ -453,13 +540,13 @@ export function UserMenu() {
               {notificationsLoading && notifications.length === 0 ? (
                 <div className="grid min-h-[220px] place-items-center text-sm font-bold text-hpsr-muted">Carregando notificações...</div>
               ) : notifications.length === 0 ? (
-                <div className="flex min-h-[250px] flex-col items-center justify-center rounded-[18px] border border-dashed border-hpsr-border bg-white px-5 text-center"><div className="grid h-12 w-12 place-items-center rounded-[18px] bg-[#f7e8e4] text-hpsr-wine"><Bell size={22}/></div><h3 className="mt-4 text-lg font-black text-hpsr-text">Nenhuma pendência</h3><p className="mt-2 max-w-sm text-sm leading-relaxed text-hpsr-muted">Novas solicitações, confirmações e respostas relacionadas a você aparecerão aqui.</p></div>
+                <div className="flex min-h-[250px] flex-col items-center justify-center rounded-[18px] border border-dashed border-hpsr-border bg-white px-5 text-center"><div className="grid h-12 w-12 place-items-center rounded-[18px] bg-[#f7e8e4] text-hpsr-wine"><Bell size={22}/></div><h3 className="mt-4 text-lg font-black text-hpsr-text">Nenhuma pendência</h3><p className="mt-2 max-w-sm text-sm leading-relaxed text-hpsr-muted">Novas solicitações, formulários e movimentações relacionadas a você aparecerão aqui.</p></div>
               ) : (
                 <div className="grid gap-2.5">
                   {notifications.map((notification) => {
                     const Icon = notification.category === "Acompanhamento" ? Stethoscope : notification.category === "Reagendamento" ? CalendarCheck2 : notification.category === "Exame" ? FlaskConical : ClipboardList;
                     const notificationSpecialty = typeof notification.payload.specialty === "string" ? notification.payload.specialty.trim() : "";
-                    return <button key={notification.id} type="button" onClick={() => { if (notification.unread) void markNotificationsRead([notification.id]); setNotificationsOpen(false); router.push("/dashboard/agendamento"); }} className={cn("group flex w-full items-start gap-3 rounded-[17px] border p-3.5 text-left transition", notification.unread ? "border-red-200 bg-white shadow-sm" : "border-hpsr-border bg-white/70 hover:bg-white")}>
+                    return <button key={notification.id} type="button" onClick={() => { if (notification.unread) void markNotificationsRead([notification.id]); setNotificationsOpen(false); router.push(notification.source === "staff_applications" ? "/dashboard/equipe" : "/dashboard/agendamento"); }} className={cn("group flex w-full items-start gap-3 rounded-[17px] border p-3.5 text-left transition", notification.unread ? "border-red-200 bg-white shadow-sm" : "border-hpsr-border bg-white/70 hover:bg-white")}>
                       <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-[14px]", notification.unread ? "bg-red-50 text-red-700" : "bg-[#f7eee9] text-hpsr-wine")}><Icon size={18}/></div>
                       <div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><p className="text-sm font-black text-hpsr-text">{notification.title}</p>{notification.unread && <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-600 animate-pulse" />}</div><p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">{notification.description}</p><div className="mt-2 flex flex-wrap items-center gap-2"><span className="rounded-full bg-[#f7eee9] px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-hpsr-wine">{notification.category}</span>{notificationSpecialty && <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[9px] font-black text-hpsr-muted">{notificationSpecialty}</span>}<span className="text-[10px] font-semibold text-hpsr-muted">{formatNotificationDate(notification.createdAt)}</span></div></div>
                     </button>;

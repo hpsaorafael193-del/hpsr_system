@@ -341,7 +341,7 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
         name: application.name,
         desired_role: application.desiredRole,
         status: "Pendente",
-        payload: { ...application, status: "Pendente" },
+        payload: { ...application, status: "Pendente", directorNotificationReadBy: [], directorNotificationCreatedAt: now },
         created_at: application.createdAt,
         updated_at: now,
       });
