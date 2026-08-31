@@ -435,14 +435,14 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
   };
   const Icon = iconMap[title] || FileText;
   return (
-    <section className="overflow-hidden rounded-[18px] border border-[#e4d8ce] bg-white shadow-[0_8px_22px_rgba(42,7,0,0.04)]">
-      <div className="flex items-center gap-2.5 border-b border-[#eee5dd] bg-[#fcfaf8] px-3.5 py-3">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#f7e9df] text-hpsr-wine ring-1 ring-[#ead7c8]">
+    <section className="overflow-hidden rounded-[20px] border border-[#e5dcd4] bg-white shadow-[0_5px_16px_rgba(42,7,0,0.032)]">
+      <div className="flex items-center gap-3 border-b border-[#f0ebe6] bg-[#fbfaf8] px-4 py-3.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[#f6ece5] text-hpsr-wine ring-1 ring-[#eadfd6]">
           <Icon size={15} strokeWidth={2.3} />
         </span>
         <h3 className="text-[12px] font-black uppercase tracking-[0.08em] text-hpsr-text">{title}</h3>
       </div>
-      <div className="p-3.5">{children}</div>
+      <div className="p-4">{children}</div>
     </section>
   );
 }
@@ -1695,9 +1695,9 @@ export default function DocumentsPage() {
       <div className="hpsr-page gap-3 text-hpsr-text 2xl:h-[calc(100dvh-2.4rem)] 2xl:min-h-0 2xl:overflow-hidden">
         <div className="hpsr-topbar" />
 
-        <section className="grid min-h-0 flex-1 gap-4 overflow-visible xl:grid-cols-[360px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)] 2xl:overflow-hidden">
+        <section className="grid min-h-0 flex-1 gap-4 overflow-visible xl:grid-cols-[410px_minmax(0,1fr)] 2xl:grid-cols-[440px_minmax(0,1fr)] 2xl:overflow-hidden">
           <aside className="min-h-0 overflow-visible pr-0 xl:pr-2 2xl:overflow-y-auto no-print">
-            <div className="rounded-[22px] border border-[#dfd1c5] bg-white p-3.5 shadow-[0_14px_34px_rgba(42,7,0,0.055)]">
+            <div className="rounded-[24px] border border-[#e2d7ce] bg-[linear-gradient(180deg,#fff_0%,#fdfbf9_100%)] p-4 shadow-[0_10px_28px_rgba(42,7,0,0.045)] ring-1 ring-white">
               <PageHeader
                 eyebrow="Documentos"
                 title="Editor de documentos"
@@ -1787,7 +1787,7 @@ export default function DocumentsPage() {
                 </Panel>
 
                 <Panel title="Catálogo de documentos">
-                  <div className="mb-3 flex items-center gap-2 rounded-[15px] border border-[#d8c1ad] bg-white px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]">
+                  <div className="mb-3 flex h-11 items-center gap-2 rounded-[14px] border border-[#ddd2c8] bg-[#fbfaf9] px-3 shadow-[0_3px_10px_rgba(42,7,0,0.025)] transition focus-within:border-hpsr-wine/45 focus-within:ring-2 focus-within:ring-hpsr-wine/10">
                     <Search size={15} className="text-hpsr-muted" />
                     <input
                       value={catalogSearch}
@@ -1817,8 +1817,8 @@ export default function DocumentsPage() {
                     </div>
                   </div>
 
-                  <div className="max-h-[430px] overflow-y-auto pr-1">
-                    <div className="grid grid-cols-2 gap-2.5">
+                  <div className="max-h-[470px] overflow-y-auto pr-1">
+                    <div className="grid grid-cols-1 gap-2.5 2xl:grid-cols-2">
                       {filteredModels.map((model) => {
                         const Icon = model.icon;
                         const active = selectedModel?.id === model.id;
@@ -1827,7 +1827,7 @@ export default function DocumentsPage() {
                             key={model.id}
                             type="button"
                             onClick={() => selectModel(model.id)}
-                            className={`group relative min-h-[94px] overflow-hidden rounded-[16px] border p-3 text-left transition-all ${active ? "border-hpsr-wine bg-[#fff5eb] shadow-[0_10px_22px_rgba(103,38,20,0.10)] ring-1 ring-hpsr-wine/10" : "border-[#e3d7cd] bg-white shadow-[0_4px_12px_rgba(42,7,0,0.035)] hover:-translate-y-0.5 hover:border-hpsr-wine/35 hover:bg-[#fdfaf7]"}`}
+                            className={`group relative min-h-[98px] overflow-hidden rounded-[17px] border p-3.5 text-left transition-all duration-200 ${active ? "border-hpsr-wine/70 bg-[#fff7ef] shadow-[0_7px_18px_rgba(103,38,20,0.09)] ring-1 ring-hpsr-wine/10" : "border-[#e2d8cf] bg-white shadow-[0_3px_10px_rgba(42,7,0,0.025)] hover:-translate-y-0.5 hover:border-hpsr-wine/30 hover:bg-[#fdfaf7] hover:shadow-[0_7px_18px_rgba(42,7,0,0.05)]"}`}
                           >
                             <span className={`absolute inset-y-0 left-0 w-1 ${active ? "bg-hpsr-wine" : "bg-transparent group-hover:bg-hpsr-wine/20"}`} />
                             <div className="flex items-start gap-3">
@@ -1882,8 +1882,8 @@ export default function DocumentsPage() {
             </div>
           </aside>
 
-          <main className="hpsr-light-editor-shell flex min-h-0 flex-col overflow-visible rounded-[22px] 2xl:overflow-hidden border border-[#ded0c4] bg-white shadow-[0_18px_46px_rgba(42,7,0,0.08)]">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#ddc6b4] bg-white px-5 py-4 no-print">
+          <main className="hpsr-light-editor-shell flex min-h-0 flex-col overflow-visible rounded-[24px] 2xl:overflow-hidden border border-[#ddd4cc] bg-white shadow-[0_14px_38px_rgba(42,7,0,0.065)] ring-1 ring-white">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#ece5df] bg-[linear-gradient(180deg,#ffffff_0%,#fdfaf7_100%)] px-6 py-4 no-print">
               <div>
                 <h2 className="text-xl font-black tracking-[-0.01em] text-hpsr-text">
                   {selectedModel?.title || "Documento livre"}
@@ -1900,7 +1900,7 @@ export default function DocumentsPage() {
               </div>
             </div>
 
-            <div className="border-b border-[#ece4dd] bg-[#faf8f6] px-5 py-2.5 text-xs font-semibold text-hpsr-muted no-print">
+            <div className="border-b border-[#eee8e2] bg-[#fbfaf9] px-6 py-2.5 text-xs font-semibold text-hpsr-muted no-print">
               <div className="flex items-center gap-2">
                 <Check size={14} className="text-hpsr-wine" />
                 <span>Revise os dados do paciente, o conteúdo e a assinatura antes de salvar o documento.</span>
@@ -1908,24 +1908,24 @@ export default function DocumentsPage() {
             </div>
 
             <div
-              className="flex flex-wrap items-center gap-2 border-b border-[#d8c1ad] bg-[linear-gradient(180deg,#fffdf9_0%,#fff7ef_100%)] px-3 py-2.5 no-print"
+              className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-[#e7dfd8] bg-white/95 px-4 py-2.5 backdrop-blur-md no-print"
               onMouseDownCapture={(event) => {
                 rememberSelection();
                 if ((event.target as HTMLElement).closest("button")) event.preventDefault();
               }}
             >
-              <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+              <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-xs font-black text-hpsr-text" onClick={() => exec("undo")} title="Desfazer">↶</button>
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-xs font-black text-hpsr-text" onClick={() => exec("redo")} title="Refazer">↷</button>
               </div>
 
-              <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+              <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
                 <button type="button" className="inline-flex h-9 items-center gap-1.5 rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => applyFormatBlock("h1")}><Type size={14} /> Título</button>
                 <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => applyFormatBlock("h2")}>Seção</button>
                 <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => applyFormatBlock("p")}>Texto</button>
               </div>
 
-              <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+              <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
                 <label className="inline-flex h-9 items-center gap-2 rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-xs font-black text-hpsr-text">
                   <Type size={15} />
                   <StyledSelect defaultValue="3" onChange={(event) => exec("fontSize", event.target.value)} className="h-7 min-w-[88px] bg-transparent text-xs font-black text-hpsr-text outline-none" aria-label="Tamanho da fonte" title="Tamanho da fonte">
@@ -1934,7 +1934,7 @@ export default function DocumentsPage() {
                 </label>
               </div>
 
-              <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+              <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("bold")}><Bold size={15} /></button>
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("italic")}><Italic size={15} /></button>
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("underline")}><Underline size={15} /></button>
@@ -1943,13 +1943,13 @@ export default function DocumentsPage() {
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("removeFormat")} title="Remover formatação"><Eraser size={15} /></button>
               </div>
 
-              <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+              <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => void pasteWithoutFormatting()} title="Colar sem formatação"><ClipboardPaste size={15} /></button>
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => transformSelectionCase("upper")} title="Converter seleção para maiúsculas"><CaseUpper size={16} /></button>
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => transformSelectionCase("lower")} title="Converter seleção para minúsculas"><CaseLower size={16} /></button>
               </div>
 
-              <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+              <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("justifyLeft")}><AlignLeft size={15} /></button>
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("justifyCenter")}><AlignCenter size={15} /></button>
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("justifyRight")}><AlignRight size={15} /></button>
@@ -1957,7 +1957,7 @@ export default function DocumentsPage() {
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => insertList(true)}><ListOrdered size={15} /></button>
               </div>
 
-              <div className="relative flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+              <div className="relative flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
                 <button type="button" className="inline-flex h-9 items-center gap-2 rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => setTablePickerOpen(!tablePickerOpen)}><Table2 size={15} /> Tabela <ChevronDown size={13} /></button>
                 {tablePickerOpen && <div className="absolute left-0 top-12 z-30 w-64 rounded-[16px] border border-[#d8bfa9] bg-white p-3 shadow-[0_18px_45px_rgba(42,7,0,0.16)]">
                   <p className="mb-3 text-xs font-black uppercase tracking-[0.04em] text-hpsr-text">Inserir tabela</p>
@@ -1969,14 +1969,14 @@ export default function DocumentsPage() {
                 </div>}
               </div>
 
-              <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+              <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
                 <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => insertHtml("<blockquote>Observação: </blockquote><p><br></p>")}>Observação</button>
                 <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => insertHtml("<p><strong>Conclusão:</strong> </p>")}>Conclusão</button>
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto bg-[#f2eee9] p-4">
-              <div className="mx-auto min-h-full max-w-[1040px] rounded-[18px] border border-[#ddd3ca] bg-white p-8 shadow-[0_12px_30px_rgba(42,7,0,0.07)]">
+            <div className="min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f3f0ec_0%,#ebe7e2_100%)] p-5">
+              <div className="mx-auto min-h-full max-w-[1100px] rounded-[20px] border border-[#ded7d0] bg-white p-8 shadow-[0_14px_34px_rgba(42,7,0,0.065)] ring-1 ring-white">
                 <div className="relative">
                   {editorPageGuideTops.map((top, index) => (
                     <div key={index} className="pointer-events-none absolute left-0 right-0 z-10" style={{ top }}>
@@ -2006,7 +2006,7 @@ export default function DocumentsPage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#ddc6b4] bg-[#fcfaf8] px-5 py-3.5 no-print">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e9e1da] bg-[#fcfbfa] px-6 py-3.5 no-print">
               <label className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">
                 <input type="checkbox" checked={isConfidential} onChange={(event) => setIsConfidential(event.target.checked)} />
                 Sigilo no Portal do Paciente

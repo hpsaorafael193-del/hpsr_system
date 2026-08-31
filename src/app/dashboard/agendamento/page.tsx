@@ -20,7 +20,6 @@ import {
   HeartPulse,
   Phone,
   RotateCcw,
-  Scissors,
   Search,
   Stethoscope,
   UserCheck,
@@ -536,7 +535,7 @@ export default function AppointmentsPage() {
       <PageHeader
         eyebrow="Agendamentos"
         title="Central de agendamentos"
-        description="Painel geral para solicitações, consultas, acompanhamentos, reagendamentos e pendências de cobrança. Procedimentos seguem separados na agenda própria."
+        description="Painel geral para solicitações, consultas, acompanhamentos, reagendamentos e pendências de cobrança."
       />
 
       <section className="shrink-0 overflow-hidden rounded-[20px] border border-[#e6d2cd] bg-[linear-gradient(135deg,#fffaf7_0%,#fff4ee_100%)] shadow-sm">
@@ -579,7 +578,7 @@ export default function AppointmentsPage() {
           </div>
         </div>
 
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
           <ScheduleCard
             icon={Stethoscope}
             title="Agenda Clínica"
@@ -588,13 +587,6 @@ export default function AppointmentsPage() {
             count={visibleAppointments.length}
           />
 
-          <ScheduleCard
-            icon={Scissors}
-            title="Procedimentos"
-            description="Salas, equipes e duração específica."
-            href="/dashboard/agendamento/cirurgias"
-            count={4}
-          />
 
           <button
             type="button"
@@ -902,70 +894,90 @@ function RequestsCenterModal({
     };
   }, []);
 
+  const modalSummary = [
+    { label: "Novas solicitações", value: filteredRequests.length, icon: <CalendarDays size={16} /> },
+    { label: "Meus aceites", value: myAcceptedRequests.length, icon: <UserCheck size={16} /> },
+    { label: "Exames pendentes", value: filteredExamRequests.length, icon: <FlaskConical size={16} /> },
+  ];
+
   return (
-    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
+    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-3 py-3 sm:px-5 sm:py-5">
       <button
         type="button"
         aria-label="Fechar solicitações"
         onClick={onClose}
-        className="fixed inset-0 bg-[#1f0805]/65"
+        className="fixed inset-0 bg-[#1f0805]/70 backdrop-blur-[2px]"
       />
 
-      <section className="hpsr-modal-motion relative z-10 flex max-h-[88vh] w-full max-w-6xl flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-white">
-        <div className="flex items-start justify-between gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-3.5">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-hpsr-wineLight">
-              Central de solicitações
-            </p>
-            <h2 className="mt-1 text-lg font-black text-hpsr-text">Solicitações e fluxos clínicos</h2>
-            <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">
-              Solicitações, aceites do médico e exames ficam separados para facilitar o contato sem transformar um aceite em consulta.
-            </p>
+      <section className="hpsr-modal-motion relative z-10 flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[22px] border border-[#eadfd8] bg-white shadow-[0_22px_60px_rgba(42,14,7,0.22)]">
+        <header className="shrink-0 border-b border-hpsr-border bg-[#fffaf7] px-4 py-4 sm:px-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2 text-hpsr-wineLight">
+                <Stethoscope size={15} />
+                <span className="text-[10px] font-black uppercase tracking-[0.14em]">Central clínica</span>
+                <span className="text-[10px] font-bold text-hpsr-muted">• por fluxo e especialidade</span>
+              </div>
+              <h2 className="mt-1.5 text-xl font-black tracking-tight text-hpsr-text sm:text-2xl">Solicitações e atendimentos</h2>
+              <p className="mt-1 max-w-3xl text-xs font-semibold leading-relaxed text-hpsr-muted sm:text-sm">
+                Solicitações, aceites e exames organizados sem alterar o fluxo de agendamento manual.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] border border-hpsr-border bg-white text-hpsr-wine transition hover:bg-[#fff5ef]"
+              aria-label="Fechar"
+            >
+              <X size={18} />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-2xl border border-hpsr-border bg-white p-3 text-hpsr-wine transition hover:bg-[#fff8f0]"
-            aria-label="Fechar"
-          >
-            <X size={18} />
-          </button>
-        </div>
+
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
+            {modalSummary.map((item) => (
+              <div key={item.label} className="inline-flex items-center gap-2 text-xs font-bold text-hpsr-muted">
+                <span className="text-hpsr-wine">{item.icon}</span>
+                <span className="font-black text-hpsr-text">{item.value}</span>
+                <span>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </header>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-3.5">
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-center">
-              <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="shrink-0 border-b border-hpsr-border bg-white px-4 py-3 sm:px-6">
+            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-center">
+              <nav className="flex gap-1 overflow-x-auto" aria-label="Áreas da central de solicitações">
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
-                    className={`inline-flex shrink-0 items-center gap-2 rounded-[16px] border px-4 py-2.5 text-xs font-black transition ${
+                    className={`inline-flex shrink-0 items-center gap-2 rounded-[10px] px-3 py-2 text-xs font-black transition ${
                       activeTab === tab.id
-                        ? "border-hpsr-wine bg-[linear-gradient(135deg,#672614,#74321e)] text-white"
-                        : "border-hpsr-border bg-white text-hpsr-wine hover:bg-[#fffdf9]"
+                        ? "bg-hpsr-wine text-white"
+                        : "text-hpsr-wine hover:bg-[#fff5ef]"
                     }`}
                   >
                     {tab.icon}
                     {tab.label}
                   </button>
                 ))}
-              </div>
+              </nav>
 
               <div className="relative">
-                <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-hpsr-muted/45" />
+                <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-hpsr-wineLight" />
                 <input
-                  className={`${inputClass} pl-11`}
+                  className={`${inputClass} h-[42px] rounded-[12px] border-[#e5d5ca] bg-white pl-11 pr-4`}
                   value={searchTerm}
                   onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Buscar nome, passaporte ou especialidade"
+                  placeholder="Buscar paciente, passaporte ou especialidade"
                 />
               </div>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-3.5">
+          <div className="min-h-0 flex-1 overflow-y-auto bg-white p-4 sm:p-5">
             {activeTab === "solicitacoes" && <RequestsTab requests={filteredRequests} onUpdateStatus={onUpdateStatus} />}
             {activeTab === "aceitas" && <MyAcceptedRequestsTab requests={myAcceptedRequests} />}
             {activeTab === "exames" && <ExamRequestsTab requests={filteredExamRequests} onUpdateStatus={onUpdateStatus} />}

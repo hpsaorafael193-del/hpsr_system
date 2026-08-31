@@ -64,7 +64,6 @@ import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvi
 import { normalizeXrayKey, resolveXrayAttachmentAsset } from "@/lib/xray-attachment-resolver";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { createClient } from "@/lib/supabase";
-import { findActiveAppointmentContext } from "@/lib/appointment-context";
 import { drawRichTextElement, measureRichTextElement } from "@/lib/rich-text-canvas";
 import { handleRichEditorTableKeyDown } from "@/lib/rich-editor-behavior";
 import { registerSystemActivity } from "@/lib/administrative-storage";
@@ -108,14 +107,7 @@ type DoctorOption = DoctorDraft & {
   signatureImage?: string | null;
 };
 
-type AppointmentLinkOption = {
-  id: string;
-  status: string;
-  specialty: string;
-  doctorName: string;
-  date: string;
-  time: string;
-};
+
 
 type SavedDraft = {
   patient: PatientDraft;
@@ -235,10 +227,11 @@ function resolveExamIcon(icon?: string): LucideIcon {
 
 function resolvePanelIcon(title: string): LucideIcon {
   if (/paciente/i.test(title)) return FileText;
-  if (/profissional|médico/i.test(title)) return Stethoscope;
-  if (/motor|modo guiado/i.test(title)) return Wand2;
+  if (/profissional|médico|responsável|data/i.test(title)) return Stethoscope;
+  if (/consulta|vínculo/i.test(title)) return Activity;
+  if (/configuração|modo guiado|motor/i.test(title)) return Wand2;
+  if (/exame|catálogo|modelo|escolha/i.test(title)) return Microscope;
   if (/anexo/i.test(title)) return Paperclip;
-  if (/catálogo|modelo/i.test(title)) return Table2;
   return FileText;
 }
 
@@ -751,9 +744,6 @@ export default function ExamesPage() {
   const [manualExamDateTime, setManualExamDateTime] = useState(false);
   const [examDate, setExamDate] = useState(todayISO());
   const [examTime, setExamTime] = useState(nowHHMM());
-  const [appointmentLinkMode, setAppointmentLinkMode] = useState("auto");
-  const [appointmentOptions, setAppointmentOptions] = useState<AppointmentLinkOption[]>([]);
-  const [appointmentOptionsLoading, setAppointmentOptionsLoading] = useState(false);
   const [signatureImage, setSignatureImage] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState("Sem alterações");
   const [isConfidential, setIsConfidential] = useState(true);
@@ -999,73 +989,6 @@ export default function ExamesPage() {
     setDoctor({ name: selected.name, crm: selected.crm });
     setSignatureImage(selected.signatureImage || null);
   }, [selectedDoctorId, availableDoctors]);
-
-  useEffect(() => {
-    const passport = String(patient.passport || "").trim().toUpperCase();
-    setAppointmentLinkMode("auto");
-    setAppointmentOptions([]);
-    if (!passport) return;
-
-    const client = createClient();
-    if (!client) return;
-    let cancelled = false;
-    setAppointmentOptionsLoading(true);
-
-    void (async () => {
-      try {
-        const { data, error } = await client
-          .from("appointments")
-          .select("id,status,payload,created_at,updated_at")
-          .eq("passport", passport)
-          .order("created_at", { ascending: false })
-          .limit(60);
-
-        if (cancelled) return;
-        if (error) {
-          console.warn("[HPSR][Exames] Não foi possível carregar as consultas do paciente para vínculo manual:", error);
-          setAppointmentOptions([]);
-          return;
-        }
-
-        const allowedStatuses = new Set([
-          "Aceita",
-          "Reagendamento aceito",
-          "Agendada",
-          "Confirmada",
-          "Em atendimento",
-          "Realizada",
-          "Concluída",
-          "Adiada",
-          "Atrasada",
-          "Não compareceu",
-        ]);
-
-        const options = (data || [])
-          .filter((row: any) => {
-            const payload = (row?.payload || {}) as Record<string, unknown>;
-            return String(payload.flowType || "") !== "Exames" && allowedStatuses.has(String(row?.status || ""));
-          })
-          .map((row: any): AppointmentLinkOption => {
-            const payload = (row?.payload || {}) as Record<string, unknown>;
-            return {
-              id: String(row.id),
-              status: String(row.status || ""),
-              specialty: String(payload.specialty || "Consulta"),
-              doctorName: String(payload.physician || payload.doctor || payload.doctorName || "Médico não informado"),
-              date: String(payload.date || payload.preferredDate || payload.proposedDate || String(row.created_at || "").slice(0, 10)),
-              time: String(payload.time || payload.preferredTime || payload.proposedTime || ""),
-            };
-          });
-        setAppointmentOptions(options);
-      } finally {
-        if (!cancelled) setAppointmentOptionsLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [patient.passport]);
 
   useEffect(() => {
     if (!selectedExam) return;
@@ -1784,28 +1707,10 @@ export default function ExamesPage() {
         const previewImages = (await Promise.all(
           document.pages.map((_, pageIndex) => renderPreviewPage(document, pageIndex, false)),
         )).filter((item): item is string => typeof item === "string" && item.startsWith("data:image/"));
-        const automaticAppointment = appointmentLinkMode === "auto"
-          ? await findActiveAppointmentContext(client, patient.passport || "", { id: selectedDoctorId, name: doctor.name })
-          : null;
-        const manualAppointment = appointmentLinkMode !== "auto" && appointmentLinkMode !== "none"
-          ? appointmentOptions.find((item) => item.id === appointmentLinkMode) || null
-          : null;
-        if (appointmentLinkMode !== "auto" && appointmentLinkMode !== "none" && !manualAppointment) {
-          throw new Error("A consulta selecionada não está mais disponível para vínculo. Atualize o paciente e escolha novamente.");
-        }
-        const linkedAppointment = manualAppointment || automaticAppointment;
         const payload = {
           protocol,
           patient,
           doctor,
-          ...(linkedAppointment ? {
-            appointmentId: linkedAppointment.id,
-            appointmentSpecialty: linkedAppointment.specialty,
-            appointmentDoctor: linkedAppointment.doctorName,
-            appointmentDate: linkedAppointment.date,
-            appointmentTime: linkedAppointment.time,
-            appointmentLinkMode: manualAppointment ? "manual" : "automatic",
-          } : {}),
           examId: selectedExam?.id || selectedExamId,
           examName: document.metadata.examName,
           examDate: document.metadata.date,
@@ -2366,18 +2271,40 @@ export default function ExamesPage() {
     <div className="hpsr-page gap-3 text-hpsr-text 2xl:h-[calc(100dvh-2.4rem)] 2xl:min-h-0 2xl:overflow-hidden">
       <div className="hpsr-topbar" />
 
-      <section className="grid min-h-0 flex-1 gap-4 overflow-visible xl:grid-cols-[420px_minmax(0,1fr)] 2xl:grid-cols-[440px_minmax(0,1fr)] 2xl:overflow-hidden">
+      <section className="grid min-h-0 flex-1 gap-4 overflow-visible xl:grid-cols-[460px_minmax(0,1fr)] 2xl:grid-cols-[480px_minmax(0,1fr)] 2xl:overflow-hidden">
         <aside className="min-h-0 overflow-visible pr-0 xl:pr-2 2xl:overflow-y-auto">
-          <div className="rounded-[22px] border border-[#dfd1c5] bg-white p-3.5 shadow-[0_14px_34px_rgba(42,7,0,0.055)]">
+          <div className="rounded-[24px] border border-[#e2d7ce] bg-[linear-gradient(180deg,#fff_0%,#fdfbf9_100%)] p-4 shadow-[0_10px_28px_rgba(42,7,0,0.045)] ring-1 ring-white">
             <PageHeader
               eyebrow="Exames"
               title="Editor de laudos"
-              description="Motor inteligente para criar modelos clínicos editáveis."
+              description="Preencha os dados na ordem indicada e finalize o laudo no editor ao lado."
             />
 
+            <div className="mb-4 rounded-[18px] border border-[#eadfd6] bg-[#fbfaf8] p-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.13em] text-hpsr-wine">Fluxo de preenchimento</p>
+                  <p className="mt-1 text-[11px] font-semibold leading-relaxed text-hpsr-muted">Siga as etapas de cima para baixo. O editor é atualizado conforme o exame é configurado.</p>
+                </div>
+                <span className="shrink-0 rounded-full border border-[#e5d4c6] bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-muted">3 etapas</span>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-1.5">
+                {[
+                  ["1", "Identificação"],
+                  ["2", "Exame"],
+                  ["3", "Finalização"],
+                ].map(([number, label]) => (
+                  <div key={number} className="min-w-0 rounded-[12px] border border-[#ece4dd] bg-white px-2 py-2 text-center">
+                    <span className="mx-auto flex h-5 w-5 items-center justify-center rounded-full bg-[#f4e8df] text-[9px] font-black text-hpsr-wine">{number}</span>
+                    <p className="mt-1 truncate text-[9px] font-black text-hpsr-text">{label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="space-y-3">
-            <Panel title="Dados do paciente">
+            <SidebarStage number="1" title="Identificação" description="Quem é o paciente, quem assina o exame e quando ele foi realizado." />
+            <Panel title="Paciente" description="Selecione um cadastro existente ou informe os dados essenciais.">
               <div className="space-y-3">
                 <div>
                   <FieldLabel>Selecionar paciente</FieldLabel>
@@ -2446,7 +2373,7 @@ export default function ExamesPage() {
               </div>
             </Panel>
 
-            <Panel title="Profissional responsável">
+            <Panel title="Responsável e data" description="Confirme o profissional emitente e a data/hora do exame.">
               <div className="space-y-3">
                 <div>
                   <FieldLabel>Selecionar médico</FieldLabel>
@@ -2523,38 +2450,9 @@ export default function ExamesPage() {
               </div>
             </Panel>
 
-            <Panel title="Consulta relacionada">
-              <div className="space-y-2">
-                <div>
-                  <FieldLabel>Vincular este exame a uma consulta</FieldLabel>
-                  <SelectInput value={appointmentLinkMode} onChange={setAppointmentLinkMode}>
-                    <option value="auto">Automático — usar consulta em atendimento</option>
-                    <option value="none">Não vincular — exame avulso</option>
-                    {appointmentOptions.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {formatDateBR(item.date)}{item.time ? ` ${item.time}` : ""} · {item.specialty} · {item.doctorName} · {item.status}
-                      </option>
-                    ))}
-                  </SelectInput>
-                </div>
-                <p className="text-[11px] font-semibold leading-relaxed text-hpsr-muted">
-                  {appointmentOptionsLoading
-                    ? "Carregando consultas deste paciente..."
-                    : appointmentLinkMode === "auto"
-                      ? "Se houver uma consulta em atendimento com este médico, o vínculo será feito automaticamente. Se não houver, o exame será salvo como avulso."
-                      : appointmentLinkMode === "none"
-                        ? "O exame continuará no prontuário e em Exames, mas não aparecerá dentro do resumo de uma consulta específica."
-                        : "O exame será relacionado manualmente à consulta escolhida, mesmo que ela não esteja ativa agora. O registro original não é duplicado."}
-                </p>
-                {!appointmentOptionsLoading && patient.passport && appointmentOptions.length === 0 && (
-                  <p className="rounded-[12px] border border-dashed border-[#d8bfa9] bg-[#fffaf4] px-3 py-2 text-[11px] font-semibold text-hpsr-muted">
-                    Nenhuma consulta elegível foi encontrada para este paciente. Ainda é possível salvar o exame como avulso ou usar o vínculo automático quando uma consulta estiver em atendimento.
-                  </p>
-                )}
-              </div>
-            </Panel>
+            <SidebarStage number="2" title="Exame" description="Escolha o exame e ajuste apenas os parâmetros necessários para o caso." />
 
-            <Panel title="Catálogo de exames">
+            <Panel title="Escolha do exame" description="Busque pelo nome ou filtre por categoria para carregar o modelo correto.">
               {smartConfigOpen && !showCatalog ? (
                 <div className="rounded-[18px] border border-[#d7b796] bg-white px-4 py-3 shadow-[0_10px_22px_rgba(42,7,0,0.05)]">
                   <div className="flex items-center justify-between gap-3">
@@ -2579,7 +2477,7 @@ export default function ExamesPage() {
                 </div>
               ) : (
                 <>
-                  <div className="mb-3 rounded-[18px] border border-[#dfc9b6] bg-[linear-gradient(145deg,#fffdf9_0%,#fff7ef_100%)] p-3 shadow-[0_8px_20px_rgba(42,7,0,0.04)]">
+                  <div className="mb-3 rounded-[18px] border border-[#e3d8cf] bg-[#fbfaf8] p-3.5">
                     <div className="mb-2.5 flex items-center justify-between gap-3">
                       <div>
                         <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Selecionar exame</p>
@@ -2590,7 +2488,7 @@ export default function ExamesPage() {
                       </span>
                     </div>
 
-                    <div className="flex h-11 items-center gap-2 rounded-[14px] border border-[#d8c1ad] bg-white px-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition focus-within:border-hpsr-wine/55 focus-within:ring-2 focus-within:ring-hpsr-wine/10">
+                    <div className="flex h-11 items-center gap-2 rounded-[14px] border border-[#ddd2c8] bg-white px-3 shadow-[0_3px_10px_rgba(42,7,0,0.025)] transition focus-within:border-hpsr-wine/45 focus-within:ring-2 focus-within:ring-hpsr-wine/10">
                       <Search size={16} className="shrink-0 text-hpsr-wine" />
                       <input
                         value={examSearch}
@@ -2649,7 +2547,7 @@ export default function ExamesPage() {
                     </div>
                   </div>
 
-                  <div className="max-h-[430px] overflow-y-auto pr-1">
+                  <div className="max-h-[470px] overflow-y-auto pr-1">
                     {filteredCatalog.length > 0 ? (
                       <div className="space-y-2">
                         {filteredCatalog.map((exam) => {
@@ -2661,7 +2559,7 @@ export default function ExamesPage() {
                               type="button"
                               onClick={() => applyModelFor(exam)}
                               aria-pressed={isSelected}
-                              className={`group relative w-full overflow-hidden rounded-[15px] border px-3 py-2.5 text-left transition-all duration-200 ${isSelected ? "border-hpsr-wine bg-[linear-gradient(135deg,#fff8ee_0%,#ffead8_100%)] shadow-[0_8px_18px_rgba(103,38,20,0.11)] ring-1 ring-hpsr-wine/10" : "border-[#dfcbb9] bg-white shadow-[0_3px_10px_rgba(42,7,0,0.03)] hover:border-hpsr-wine/35 hover:bg-[#fffaf5] hover:shadow-[0_8px_18px_rgba(42,7,0,0.07)]"}`}
+                              className={`group relative w-full overflow-hidden rounded-[17px] border px-3.5 py-3 text-left transition-all duration-200 ${isSelected ? "border-hpsr-wine/70 bg-[#fff7ef] shadow-[0_7px_18px_rgba(103,38,20,0.09)] ring-1 ring-hpsr-wine/10" : "border-[#e2d8cf] bg-white shadow-[0_3px_10px_rgba(42,7,0,0.025)] hover:border-hpsr-wine/30 hover:bg-[#fdfaf7] hover:shadow-[0_7px_18px_rgba(42,7,0,0.055)]"}`}
                             >
                               <span className={`absolute inset-y-0 left-0 w-1 transition ${isSelected ? "bg-hpsr-wine" : "bg-transparent group-hover:bg-hpsr-wine/20"}`} />
                               <div className="flex items-center gap-3">
@@ -2699,7 +2597,7 @@ export default function ExamesPage() {
             </Panel>
 
             {smartConfigOpen && (
-              <Panel title="Modo guiado">
+              <Panel title="Configuração do exame" description="Revise o perfil e os parâmetros necessários antes de atualizar os achados.">
                 <div className="space-y-3">
                   <div className="rounded-[13px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold leading-relaxed text-amber-950">
                     O modo guiado sugere achados coerentes com o perfil e as referências do exame. Confirme os dados efetivamente obtidos no paciente antes de liberar o laudo.
@@ -2725,20 +2623,6 @@ export default function ExamesPage() {
                       >
                         {selectedExam.adapter.options.map((option) => (
                           <option key={option} value={option}>{option}</option>
-                        ))}
-                      </SelectInput>
-                    </div>
-                  )}
-
-                  {!!selectedExam?.clinicalContexts.length && adaptiveConfig && (
-                    <div>
-                      <FieldLabel>Contexto clínico</FieldLabel>
-                      <SelectInput
-                        value={adaptiveConfig.clinicalContext}
-                        onChange={(clinicalContext) => updateConfig({ clinicalContext })}
-                      >
-                        {selectedExam.clinicalContexts.map((context) => (
-                          <option key={context} value={context}>{context}</option>
                         ))}
                       </SelectInput>
                     </div>
@@ -2783,7 +2667,9 @@ export default function ExamesPage() {
               </Panel>
             )}
 
-            <Panel title="Anexos">
+            <SidebarStage number="3" title="Finalização" description="Revise anexos e conclua o laudo no editor ao lado." />
+
+            <Panel title="Anexos" description="Confira o anexo automático ou inclua imagens adicionais quando necessário.">
               <div className="space-y-3">
                 {effectiveAutomaticAttachment && (
                   <div className="rounded-[16px] border border-blue-200 bg-blue-50/90 p-3 text-blue-950 shadow-[0_8px_18px_rgba(59,130,246,0.08)]">
@@ -2896,8 +2782,8 @@ export default function ExamesPage() {
           </div>
         </aside>
 
-        <main className="hpsr-light-editor-shell flex min-h-0 flex-col overflow-visible rounded-[22px] 2xl:overflow-hidden border border-[#ded0c4] bg-white shadow-[0_18px_46px_rgba(42,7,0,0.08)]">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#ddc6b4] bg-white px-5 py-4">
+        <main className="hpsr-light-editor-shell flex min-h-0 flex-col overflow-visible rounded-[24px] 2xl:overflow-hidden border border-[#ddd4cc] bg-white shadow-[0_14px_38px_rgba(42,7,0,0.065)] ring-1 ring-white">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#ece5df] bg-[linear-gradient(180deg,#ffffff_0%,#fdfaf7_100%)] px-6 py-4">
             <div>
               <h2 className="text-xl font-black tracking-[-0.01em] text-hpsr-text">
                 {selectedExam?.nome || "Exame livre"}
@@ -2921,7 +2807,7 @@ export default function ExamesPage() {
             </div>
           </div>
 
-          <div className="border-b border-[#ece4dd] bg-[#faf8f6] px-5 py-2.5 text-xs font-semibold text-hpsr-muted">
+          <div className="border-b border-[#eee8e2] bg-[#fbfaf9] px-6 py-2.5 text-xs font-semibold text-hpsr-muted">
             <div className="flex items-center gap-2">
               <Info size={14} className="text-hpsr-wine" />
               <span>Revise resultados, referências, interpretação e conclusão antes de salvar ou imprimir o laudo.</span>
@@ -2944,8 +2830,8 @@ export default function ExamesPage() {
             rememberSelection={rememberSelection}
           />
 
-          <div className="min-h-0 flex-1 overflow-y-auto bg-[#f2eee9] p-4">
-            <div className="mx-auto min-h-full max-w-[1040px] rounded-[18px] border border-[#ddd3ca] bg-white p-8 shadow-[0_12px_30px_rgba(42,7,0,0.07)]">
+          <div className="min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f3f0ec_0%,#ebe7e2_100%)] p-5">
+            <div className="mx-auto min-h-full max-w-[1100px] rounded-[20px] border border-[#ded7d0] bg-white p-8 shadow-[0_14px_34px_rgba(42,7,0,0.065)] ring-1 ring-white">
               <div className="relative">
                 {editorPageGuideTops.map((top, index) => {
                     const pageNumber = index + 2;
@@ -3078,7 +2964,7 @@ export default function ExamesPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#ddc6b4] bg-[#fcfaf8] px-5 py-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e9e1da] bg-[#fcfbfa] px-6 py-3.5">
             <label className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">
               <input type="checkbox" checked={isConfidential} onChange={(event) => setIsConfidential(event.target.checked)} />
               Sigilo no Portal do Paciente
@@ -3235,23 +3121,50 @@ export default function ExamesPage() {
   );
 }
 
+function SidebarStage({
+  number,
+  title,
+  description,
+}: {
+  number: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-center gap-3 px-1 pt-2">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-hpsr-wine text-[11px] font-black text-white shadow-[0_4px_10px_rgba(103,38,20,0.15)]">
+        {number}
+      </span>
+      <div className="min-w-0">
+        <p className="text-[11px] font-black uppercase tracking-[0.1em] text-hpsr-text">{title}</p>
+        <p className="mt-0.5 text-[10px] font-semibold leading-relaxed text-hpsr-muted">{description}</p>
+      </div>
+    </div>
+  );
+}
+
 function Panel({
   title,
+  description,
   children,
 }: {
   title: string;
+  description?: string;
   children: React.ReactNode;
 }) {
   const Icon = resolvePanelIcon(title);
   return (
-    <section className="overflow-hidden rounded-[18px] border border-[#e4d8ce] bg-white shadow-[0_8px_22px_rgba(42,7,0,0.04)]">
-      <div className="flex items-center gap-2.5 border-b border-[#eee5dd] bg-[#fcfaf8] px-3.5 py-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#f7e9df] text-hpsr-wine ring-1 ring-[#ead7c8]">
-          <Icon size={15} strokeWidth={2.3} />
+    <section className="overflow-hidden rounded-[18px] border border-[#e5dcd4] bg-white shadow-[0_4px_14px_rgba(42,7,0,0.028)]">
+      <div className="flex items-start gap-3 border-b border-[#f0ebe6] bg-[#fcfbf9] px-4 py-3">
+        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#f6ece5] text-hpsr-wine ring-1 ring-[#eadfd6]">
+          <Icon size={14} strokeWidth={2.3} />
         </span>
-        <h3 className="text-[12px] font-black uppercase tracking-[0.08em] text-hpsr-text">{title}</h3>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[11px] font-black uppercase tracking-[0.08em] text-hpsr-text">{title}</h3>
+          {description && <p className="mt-1 text-[10px] font-semibold leading-relaxed text-hpsr-muted">{description}</p>}
+        </div>
       </div>
-      <div className="space-y-3 p-3.5">{children}</div>
+      <div className="space-y-3.5 p-4">{children}</div>
     </section>
   );
 }
@@ -3311,10 +3224,10 @@ function Toolbar({
 
   return (
     <div
-      className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-[#d8c1ad] bg-[linear-gradient(180deg,#fffdf9_0%,#fff7ef_100%)] px-3 py-2.5 backdrop-blur"
+      className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-[#e7dfd8] bg-white/95 px-4 py-2.5 backdrop-blur-md"
       onMouseDownCapture={() => rememberSelection()}
     >
-      <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+      <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
         <Button onClick={() => exec("undo")} title="Desfazer">
           ↶
         </Button>
@@ -3322,14 +3235,14 @@ function Toolbar({
           ↷
         </Button>
       </div>
-      <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+      <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
         <Button onClick={() => applyFormatBlock("h1")}>
           <Type size={14} /> Título
         </Button>
         <Button onClick={() => applyFormatBlock("h2")}>Seção</Button>
         <Button onClick={() => applyFormatBlock("p")}>Texto</Button>
       </div>
-      <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+      <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
         <label className="inline-flex h-9 items-center gap-2 rounded-[12px] border border-hpsr-border bg-white/85 px-2 text-xs font-black text-hpsr-text">
           <Type size={15} />
           <StyledSelect
@@ -3349,7 +3262,7 @@ function Toolbar({
           </StyledSelect>
         </label>
       </div>
-      <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+      <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
         <Button onClick={() => exec("bold")}>
           <Bold size={15} />
         </Button>
@@ -3369,12 +3282,12 @@ function Toolbar({
         </label>
         <Button onClick={() => exec("removeFormat")} title="Remover formatação"><Eraser size={15} /></Button>
       </div>
-      <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+      <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
         <Button onClick={() => void pasteWithoutFormatting()} title="Colar sem formatação"><ClipboardPaste size={15} /></Button>
         <Button onClick={() => transformSelectionCase("upper")} title="Converter seleção para maiúsculas"><CaseUpper size={16} /></Button>
         <Button onClick={() => transformSelectionCase("lower")} title="Converter seleção para minúsculas"><CaseLower size={16} /></Button>
       </div>
-      <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+      <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
         <Button onClick={() => exec("justifyLeft")}>
           <AlignLeft size={15} />
         </Button>
@@ -3439,7 +3352,7 @@ function Toolbar({
           </div>
         )}
       </div>
-      <div className="flex items-center gap-1 rounded-[14px] border border-[#dcc5b0] bg-white/85 p-1 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
+      <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
         <Button
           onClick={() =>
             insertHtml("<blockquote>Observação: </blockquote><p><br></p>")

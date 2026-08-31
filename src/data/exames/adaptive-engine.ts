@@ -46,7 +46,7 @@ export function createInitialAdaptiveConfiguration(model: IntelligentExamModel):
   return {
     examId: model.id,
     adapterValue: model.adapter.enabled ? firstOption(model.adapter.options) : "",
-    clinicalContext: firstOption(model.clinicalContexts),
+    clinicalContext: "",
     profileId: defaultProfile?.id || "",
     variables: {},
     generationSeed: 0,
@@ -70,20 +70,6 @@ function adapterField(model: IntelligentExamModel, configuration: AdaptiveExamCo
     source: "adapter",
   };
 }
-
-function contextField(model: IntelligentExamModel, configuration: AdaptiveExamConfiguration): AdaptiveDynamicField | null {
-  if (!model.clinicalContexts?.length) return null;
-  return {
-    id: "contexto_clinico",
-    label: "Contexto clínico",
-    tipo: "select",
-    required: false,
-    options: model.clinicalContexts,
-    value: configuration.clinicalContext,
-    source: "context",
-  };
-}
-
 
 function secondaryAdapterField(model: IntelligentExamModel, configuration: AdaptiveExamConfiguration): AdaptiveDynamicField | null {
   if (!model.adapter.enabled || !model.adapter.secondaryOptions?.length) return null;
@@ -115,7 +101,6 @@ function appliesToSelection(variable: IntelligentClinicalVariable, configuration
   if (!variable.appliesTo?.length) return true;
   const selected = [
     configuration.adapterValue,
-    configuration.clinicalContext,
     configuration.profileId,
   ].map((value) => value.toLowerCase());
   return variable.appliesTo.some((item) => selected.includes(item.toLowerCase()));
@@ -135,7 +120,6 @@ export function resolveAdaptiveExam(model: IntelligentExamModel, configuration: 
     || model.profiles[0];
   const dynamicFields = [
     adapterField(model, safeConfiguration),
-    contextField(model, safeConfiguration),
     profileField(model, safeConfiguration),
     secondaryAdapterField(model, safeConfiguration),
     ...clinicalVariableFields(model, safeConfiguration),
@@ -145,7 +129,7 @@ export function resolveAdaptiveExam(model: IntelligentExamModel, configuration: 
     model,
     adapterLabel: model.adapter.label,
     adapterValue: safeConfiguration.adapterValue,
-    clinicalContext: safeConfiguration.clinicalContext,
+    clinicalContext: "",
     profile,
     dynamicFields,
     parameters: model.parameters,
