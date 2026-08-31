@@ -1018,7 +1018,7 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
     const acceptedDate = item.acceptedAt || item.updatedAt || item.createdAt || "";
 
     return (
-      <div key={item.id} className="rounded-[17px] border border-hpsr-border bg-white p-4 shadow-[0_4px_14px_rgba(89,44,30,0.04)]">
+      <div key={item.id} className="rounded-[18px] border border-hpsr-border border-l-4 border-l-hpsr-wine bg-white p-4 shadow-[0_6px_18px_rgba(89,44,30,0.06)] transition hover:-translate-y-px hover:shadow-[0_9px_24px_rgba(89,44,30,0.09)]">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -1073,8 +1073,8 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
           <span className="rounded-full bg-hpsr-wine px-3 py-1.5 text-xs font-black text-white">{forContact.length}</span>
         </div>
         {forContact.length ? <div className="grid gap-4">{groupBySpecialty(forContact).map(([specialty, items]) => (
-          <div key={`contact-${specialty}`} className="overflow-hidden rounded-[18px] border border-hpsr-border bg-[#fffdfb]">
-            <div className="flex items-center justify-between gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fff8f3_0%,#f8ebe4_100%)] px-4 py-3">
+          <div key={`contact-${specialty}`} className="overflow-hidden rounded-[20px] border border-hpsr-border bg-[#fffdfb] shadow-[0_5px_18px_rgba(89,44,30,0.05)]">
+            <div className="flex items-center justify-between gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#f9ece6_0%,#fff9f4_100%)] px-5 py-4">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Especialidade</p>
                 <h4 className="mt-0.5 text-sm font-black text-hpsr-text">{specialty}</h4>
@@ -1092,8 +1092,8 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
           <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Solicitações que você aceitou e que já foram encaminhadas, agendadas ou finalizadas, mantendo a organização por especialidade.</p>
         </div>
         {forwarded.length ? <div className="grid gap-4">{groupBySpecialty(forwarded).map(([specialty, items]) => (
-          <div key={`history-${specialty}`} className="overflow-hidden rounded-[18px] border border-hpsr-border bg-[#fffdfb]">
-            <div className="flex items-center justify-between gap-3 border-b border-hpsr-border bg-[#fffaf6] px-4 py-3">
+          <div key={`history-${specialty}`} className="overflow-hidden rounded-[20px] border border-hpsr-border bg-[#fffdfb] shadow-[0_5px_18px_rgba(89,44,30,0.05)]">
+            <div className="flex items-center justify-between gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fff7f1_0%,#fffdf9_100%)] px-5 py-4">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Especialidade</p>
                 <h4 className="mt-0.5 text-sm font-black text-hpsr-text">{specialty}</h4>
@@ -1144,6 +1144,11 @@ function RequestsTab({
   const [proposedTime, setProposedTime] = useState("");
   const [rescheduleReason, setRescheduleReason] = useState("");
   const orderedRequests = [...requests].sort((a, b) => a.specialty.localeCompare(b.specialty, "pt-BR") || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  const requestsBySpecialty = Array.from(orderedRequests.reduce((groups, item) => {
+    const specialty = item.specialty || "Clínico Geral";
+    groups.set(specialty, [...(groups.get(specialty) || []), item]);
+    return groups;
+  }, new Map<string, PublicAppointmentRequest[]>()).entries());
 
   function openReschedule(request: PublicAppointmentRequest) {
     setRescheduleRequest(request);
@@ -1167,13 +1172,26 @@ function RequestsTab({
       <SectionTitle
         icon={<CalendarDays size={18} />}
         title="Solicitações de consulta"
-        description="Pedidos enviados pelo Portal do Paciente. O modal exibe até 3 solicitações por vez e libera rolagem quando houver mais."
+        description="Pedidos enviados pelo Portal do Paciente, separados visualmente por especialidade para facilitar triagem, leitura e aceite."
       />
 
       {orderedRequests.length > 0 ? (
-        <div className="max-h-[540px] overflow-y-auto pr-2">
-          <div className="grid gap-3">
-            {orderedRequests.map((item, index) => {
+        <div className="max-h-[560px] overflow-y-auto pr-2">
+          <div className="grid gap-5">
+            {requestsBySpecialty.map(([specialty, specialtyRequests]) => (
+              <section key={specialty} className="overflow-hidden rounded-[20px] border border-hpsr-border bg-[#fffdfb] shadow-[0_5px_18px_rgba(89,44,30,0.05)]">
+                <div className="flex flex-col gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#f7e8e1_0%,#fff9f4_100%)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Área clínica</p>
+                    <h3 className="mt-1 text-base font-black text-hpsr-text">{specialty}</h3>
+                    <p className="mt-1 text-xs font-semibold text-hpsr-muted">Solicitações desta especialidade, separadas das demais áreas.</p>
+                  </div>
+                  <span className="inline-flex w-fit items-center rounded-full bg-hpsr-wine px-3 py-1.5 text-xs font-black text-white">
+                    {specialtyRequests.length} {specialtyRequests.length === 1 ? "solicitação" : "solicitações"}
+                  </span>
+                </div>
+                <div className="grid gap-3 p-3.5 sm:p-4">
+            {specialtyRequests.map((item) => {
               const patientAcceptedReschedule = item.status === "Reagendamento aceito";
               const patientAnsweredReschedule = [
                 "Nova proposta do paciente",
@@ -1190,7 +1208,6 @@ function RequestsTab({
 
               return (
                 <div key={item.id ?? item.passport}>
-                  {(index === 0 || orderedRequests[index - 1].specialty !== item.specialty) && <div className="mb-2 mt-1 flex items-center gap-2"><span className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{item.specialty}</span><span className="h-px flex-1 bg-hpsr-border"/></div>}
                 <AppointmentCard
                   title={item.patient}
                   subtitle={`Passaporte ${item.passport} · ${item.specialty} · Data e horário definidos após contato médico`}
@@ -1205,6 +1222,7 @@ function RequestsTab({
                   ]}
                   alert={responseAlert}
                   alertTone={patientAcceptedReschedule ? "success" : "warning"}
+                  emphasis
                   actions={
                     patientAnsweredReschedule ? (
                       <span className={`inline-flex items-center gap-2 rounded-[14px] border px-3 py-2 text-xs font-black ${patientAcceptedReschedule ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
@@ -1227,6 +1245,9 @@ function RequestsTab({
                 </div>
               );
             })}
+                </div>
+              </section>
+            ))}
           </div>
         </div>
       ) : (
@@ -1521,6 +1542,7 @@ function AppointmentCard({
   actions,
   alert,
   alertTone = "warning",
+  emphasis = false,
 }: {
   title: string;
   subtitle: string;
@@ -1529,9 +1551,10 @@ function AppointmentCard({
   actions: ReactNode;
   alert?: string;
   alertTone?: "warning" | "success";
+  emphasis?: boolean;
 }) {
   return (
-    <article className="rounded-[16px] border border-hpsr-border bg-white p-3.5 transition hover:bg-[#fffdf9]">
+    <article className={`rounded-[18px] border bg-white transition ${emphasis ? "border-hpsr-border border-l-4 border-l-hpsr-wine p-4 shadow-[0_6px_18px_rgba(89,44,30,0.06)] hover:-translate-y-px hover:shadow-[0_9px_24px_rgba(89,44,30,0.09)]" : "border-hpsr-border p-3.5 hover:bg-[#fffdf9]"}`}>
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">

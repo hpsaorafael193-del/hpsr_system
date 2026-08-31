@@ -37,19 +37,19 @@ export const lab_teste_dnaModel: IntelligentExamModel = {
       "label": "Tipo de Amostra",
       "opcoes": [
         {
-          "valor": "swab_bucal",
-          "label": "Swab bucal"
-        },
-        {
           "valor": "sangue",
           "label": "Sangue periférico"
+        },
+        {
+          "valor": "swab_bucal",
+          "label": "Swab bucal"
         },
         {
           "valor": "outro",
           "label": "Outro"
         }
       ],
-      "referencia": "Swab bucal"
+      "referencia": "Sangue periférico"
     },
     {
       "id": "perfil_genetico",
@@ -177,7 +177,7 @@ export const lab_teste_dnaModel: IntelligentExamModel = {
       "conclusion": "Resultado compatível com o vínculo biológico investigado.",
       "results": {
         "finalidade": "Investigação de paternidade",
-        "tipo_amostra": "Swab bucal",
+        "tipo_amostra": "Sangue periférico",
         "perfil_genetico": "Compatível",
         "indice_probabilidade": "99,99",
         "conclusao_tecnica": "Vínculo biológico compatível",
@@ -195,7 +195,7 @@ export const lab_teste_dnaModel: IntelligentExamModel = {
       "conclusion": "Resultado não compatível com o vínculo biológico investigado.",
       "results": {
         "finalidade": "Investigação de paternidade",
-        "tipo_amostra": "Swab bucal",
+        "tipo_amostra": "Sangue periférico",
         "perfil_genetico": "Incompatível em múltiplos loci independentes",
         "indice_probabilidade": "0",
         "conclusao_tecnica": "Vínculo biológico excluído",
@@ -213,7 +213,7 @@ export const lab_teste_dnaModel: IntelligentExamModel = {
       "conclusion": "Resultado inconclusivo, recomendando nova coleta ou complementação conforme indicação.",
       "results": {
         "finalidade": "Investigação de parentesco",
-        "tipo_amostra": "Swab bucal",
+        "tipo_amostra": "Sangue periférico",
         "perfil_genetico": "Informação genética insuficiente para conclusão",
         "indice_probabilidade": "Inconclusivo",
         "conclusao_tecnica": "Não conclusivo",
@@ -231,7 +231,7 @@ export const lab_teste_dnaModel: IntelligentExamModel = {
       "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
       "results": {
         "finalidade": "Investigação de paternidade",
-        "tipo_amostra": "Swab bucal",
+        "tipo_amostra": "Sangue periférico",
         "perfil_genetico": "Compatível",
         "indice_probabilidade": "99,99",
         "conclusao_tecnica": "Vínculo biológico compatível",
@@ -403,7 +403,7 @@ export const lab_teste_dnaModel: IntelligentExamModel = {
       "id": "tipo_amostra",
       "label": "Tipo de Amostra",
       "unidade": null,
-      "referencia": "Swab bucal",
+      "referencia": "Sangue periférico",
       "resultPlaceholder": "A preencher",
       "interpretationHint": "Interpretar Tipo de Amostra conforme referência, contexto clínico e método utilizado."
     },
