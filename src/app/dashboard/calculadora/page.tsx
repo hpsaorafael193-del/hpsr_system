@@ -38,7 +38,7 @@ type Product = {
   descricao: string;
   categoria?: string;
   preco: number;
-  precoPm?: number;
+  descontoPmValor?: number;
   imagem: string;
 };
 
@@ -48,7 +48,7 @@ const medicamentos: Product[] = [
     nome: "KIT MÉDICO",
     descricao: "Kit completo para primeiros socorros.",
     preco: 200000,
-    precoPm: 100000,
+    descontoPmValor: 50000,
     imagem: "Icones/produtos/Kit medico.webp",
   },
   {
@@ -63,7 +63,7 @@ const medicamentos: Product[] = [
     nome: "ATADURA",
     descricao: "Faixa de suporte e imobilização.",
     preco: 30000,
-    precoPm: 10000,
+    descontoPmValor: 10000,
     imagem: "Icones/produtos/Atadura.png",
   },
   {
@@ -71,7 +71,7 @@ const medicamentos: Product[] = [
     nome: "ADRENALINA",
     descricao: "Medicamento para emergências graves.",
     preco: 800000,
-    precoPm: 700000,
+    descontoPmValor: 100000,
     imagem: "Icones/produtos/Adrenalina.png",
   },
   {
@@ -107,9 +107,9 @@ const medicamentos: Product[] = [
 const procedimentos: Product[] = [
   {
     id: "p0",
-    nome: "TRATAMENTO NORTE",
-    descricao: "Tratamento realizado na região Norte.",
-    preco: 150000,
+    nome: "TRATAMENTO",
+    descricao: "Tratamento médico.",
+    preco: 200000,
     imagem: "Icones/procedimentos/Tratamento.webp",
   },
   {
@@ -227,11 +227,14 @@ export default function CalculatorPage() {
   const selectedConvenio = convenioOptions.find((option) => option.id === convenio) ?? convenioOptions[0];
   const usesPmPricing = isPmSale && convenio === "sem";
 
-  const getEffectivePrice = (product: Product) => usesPmPricing && product.precoPm ? product.precoPm : product.preco;
+  const getPmPrice = (product: Product) =>
+    product.descontoPmValor ? Math.max(0, product.preco - product.descontoPmValor) : product.preco;
+
+  const getEffectivePrice = (product: Product) => usesPmPricing ? getPmPrice(product) : product.preco;
 
   const selectedItems = useMemo(() =>
     allProducts
-      .map((product) => ({ product, quantity: cart[product.id] || 0, unitPrice: usesPmPricing && product.precoPm ? product.precoPm : product.preco }))
+      .map((product) => ({ product, quantity: cart[product.id] || 0, unitPrice: usesPmPricing ? getPmPrice(product) : product.preco }))
       .filter((item) => item.quantity > 0),
     [cart, usesPmPricing]
   );
@@ -774,7 +777,7 @@ function ProductList({
           const quantity = cart[product.id] || 0;
           const active = quantity > 0;
           const effectivePrice = getPrice(product);
-          const hasPmPrice = isPmSale && Boolean(product.precoPm);
+          const hasPmPrice = isPmSale && Boolean(product.descontoPmValor);
           return (
             <article
               key={product.id}
@@ -914,7 +917,7 @@ function ProductCard({
   isPmSale: boolean;
 }) {
   const active = quantity > 0;
-  const hasPmPrice = isPmSale && Boolean(product.precoPm);
+  const hasPmPrice = isPmSale && Boolean(product.descontoPmValor);
 
   return (
     <article className={`relative overflow-hidden rounded-[18px] border bg-[linear-gradient(180deg,#fffefb_0%,#fff8f1_100%)] p-3.5 text-center shadow-[0_10px_24px_rgba(82,48,27,0.05)] transition duration-200 ${
