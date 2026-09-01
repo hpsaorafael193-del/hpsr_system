@@ -84,6 +84,7 @@ import {
 import {
   getIntelligentExamModel,
   intelligentExamModels,
+  resolveIntelligentExamModel,
   type IntelligentExamModel,
 } from "@/data/exames";
 
@@ -781,13 +782,18 @@ export default function ExamesPage() {
     [selectedExamId, examsByCategory],
   );
 
+  const activeExamModel = useMemo(
+    () => selectedExam ? resolveIntelligentExamModel(selectedExam, adaptiveConfig?.adapterValue) : null,
+    [selectedExam, adaptiveConfig?.adapterValue],
+  );
+
   const resolvedExam = useMemo<AdaptiveResolvedExam | null>(() => {
-    if (!selectedExam) return null;
+    if (!selectedExam || !activeExamModel) return null;
     return resolveAdaptiveExam(
-      selectedExam,
+      activeExamModel,
       adaptiveConfig || createInitialAdaptiveConfiguration(selectedExam),
     );
-  }, [selectedExam, adaptiveConfig]);
+  }, [selectedExam, activeExamModel, adaptiveConfig]);
 
   const categoryCounts = useMemo(() => {
     return intelligentExamModels.reduce<Record<string, number>>((acc, exam) => {
@@ -823,7 +829,7 @@ export default function ExamesPage() {
 
   const metadata = useMemo<RenderMetadata>(
     () => ({
-      examName: selectedExam?.nome || "Exame",
+      examName: resolvedExam?.model.nome || selectedExam?.nome || "Exame",
       protocol,
       date: examDate,
       time: examTime,
@@ -831,7 +837,7 @@ export default function ExamesPage() {
       doctor,
       signatureImage,
     }),
-    [selectedExam?.nome, protocol, patient, doctor, signatureImage, examDate, examTime],
+    [resolvedExam?.model.nome, selectedExam?.nome, protocol, patient, doctor, signatureImage, examDate, examTime],
   );
 
   const automaticRxAttachment = useMemo<AutomaticAttachment | null>(() => {
@@ -945,7 +951,7 @@ export default function ExamesPage() {
     setAttachmentEditorOpen(Boolean(draft.ui?.attachmentEditorOpen));
     setAutomaticAttachmentNotes(draft.ui?.automaticAttachmentNotes || "");
     setShowCatalog(draft.ui?.showCatalog ?? true);
-    setSmartConfigOpen(Boolean(draft.ui?.smartConfigOpen));
+
     setCatalogCategory(draft.ui?.catalogCategory || "all");
     setExamSearch(draft.ui?.examSearch || "");
     setSelectedDoctorId(draft.selectedDoctorId === "current-user" ? (currentUserProfile.id || "current-user") : (draft.selectedDoctorId || currentUserProfile.id || "current-user"));
@@ -957,7 +963,8 @@ export default function ExamesPage() {
       setSelectedCategory(model.categoria);
       setExamNameInput(model.nome);
     }
-    setAdaptiveConfig(draft.adaptiveConfig);
+    setSmartConfigOpen(Boolean(model && (draft.ui?.smartConfigOpen || draft.ui?.showCatalog === false)));
+    setAdaptiveConfig(draft.adaptiveConfig || (model ? createInitialAdaptiveConfiguration(model) : null));
     editorHtmlRef.current = draft.html || "";
     if (editorRef.current) editorRef.current.innerHTML = draft.html || "";
     window.requestAnimationFrame(updateEditorPageGuides);
@@ -1412,6 +1419,8 @@ export default function ExamesPage() {
     setSelectedExamId(match.id);
     setSelectedCategory(match.categoria);
     setAdaptiveConfig(createInitialAdaptiveConfiguration(match));
+    setSmartConfigOpen(true);
+    setShowCatalog(false);
   }
 
   function changeCategory(category: string) {
@@ -1434,11 +1443,14 @@ export default function ExamesPage() {
     setSelectedCategory(model.categoria);
     setExamNameInput(model.nome);
     setAdaptiveConfig(createInitialAdaptiveConfiguration(model));
+    setSmartConfigOpen(true);
+    setShowCatalog(false);
   }
 
   function applyModelFor(model: IntelligentExamModel) {
     const nextConfig = createInitialAdaptiveConfiguration(model);
-    const resolved = resolveAdaptiveExam(model, nextConfig);
+    const modelForSelection = resolveIntelligentExamModel(model, nextConfig.adapterValue);
+    const resolved = resolveAdaptiveExam(modelForSelection, nextConfig);
     const generated = renderAdaptiveExamReport(resolved);
 
     setSelectedExamId(model.id);
@@ -1472,10 +1484,20 @@ export default function ExamesPage() {
 
   function updateConfig(partial: Partial<AdaptiveExamConfiguration>) {
     if (!selectedExam) return;
-    setAdaptiveConfig((current) => ({
-      ...(current || createInitialAdaptiveConfiguration(selectedExam)),
-      ...partial,
-    }));
+    setAdaptiveConfig((current) => {
+      const base = current || createInitialAdaptiveConfiguration(selectedExam);
+      const next = { ...base, ...partial };
+      const modelForSelection = resolveIntelligentExamModel(selectedExam, next.adapterValue);
+      if (!modelForSelection.profiles.some((profile) => profile.id === next.profileId)) {
+        const fallback = modelForSelection.profiles.find((profile) => profile.id === modelForSelection.editorModel.defaultProfileId)
+          || modelForSelection.profiles.find((profile) => profile.id === "normal")
+          || modelForSelection.profiles[0];
+        next.profileId = fallback?.id || "";
+      }
+      return next;
+    });
+    setSmartConfigOpen(true);
+    setShowCatalog(false);
   }
 
   function updateVariable(key: string, value: string | boolean) {
@@ -1502,7 +1524,8 @@ export default function ExamesPage() {
       ...adaptiveConfig,
       generationSeed: Number(adaptiveConfig.generationSeed || 0) + 1,
     };
-    const refreshedExam = resolveAdaptiveExam(selectedExam, nextConfig);
+    const refreshedModel = resolveIntelligentExamModel(selectedExam, nextConfig.adapterValue);
+    const refreshedExam = resolveAdaptiveExam(refreshedModel, nextConfig);
     const generated = renderAdaptiveExamReport(refreshedExam);
     const current = editorRef.current?.innerHTML || editorHtmlRef.current;
     const merged = mergeAutomaticBlocks(current, generated);
@@ -2453,7 +2476,7 @@ export default function ExamesPage() {
             <SidebarStage number="2" title="Exame" description="Escolha o exame e ajuste apenas os parâmetros necessários para o caso." />
 
             <Panel title="Escolha do exame" description="Busque pelo nome ou filtre por categoria para carregar o modelo correto.">
-              {smartConfigOpen && !showCatalog ? (
+              {!showCatalog && selectedExam ? (
                 <div className="rounded-[18px] border border-[#d7b796] bg-white px-4 py-3 shadow-[0_10px_22px_rgba(42,7,0,0.05)]">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
@@ -2596,8 +2619,8 @@ export default function ExamesPage() {
               )}
             </Panel>
 
-            {smartConfigOpen && (
-              <Panel title="Configuração do exame" description="Revise o perfil e os parâmetros necessários antes de atualizar os achados.">
+            {!showCatalog && selectedExam && adaptiveConfig && (
+              <Panel title="Motor inteligente" description="O modelo do exame selecionado já está pronto. Ajuste somente o que realmente interfere nos achados.">
                 <div className="space-y-3">
                   <div className="rounded-[13px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold leading-relaxed text-amber-950">
                     O modo guiado sugere achados coerentes com o perfil e as referências do exame. Confirme os dados efetivamente obtidos no paciente antes de liberar o laudo.
@@ -2606,7 +2629,7 @@ export default function ExamesPage() {
                   <div className="grid grid-cols-2 gap-2 rounded-[15px] border border-[#e0c7b0] bg-white/70 p-2.5">
                     <div>
                       <FieldLabel>Exame</FieldLabel>
-                      <p className="text-sm font-black text-hpsr-text">{selectedExam?.nome || "-"}</p>
+                      <p className="text-sm font-black text-hpsr-text">{activeExamModel?.nome || selectedExam?.nome || "-"}</p>
                     </div>
                     <div>
                       <FieldLabel>Especialidade</FieldLabel>
@@ -2614,7 +2637,13 @@ export default function ExamesPage() {
                     </div>
                   </div>
 
-                  {selectedExam?.adapter.enabled && adaptiveConfig && (
+                  {activeExamModel && selectedExam && activeExamModel.nome !== selectedExam.nome && (
+                    <div className="rounded-[13px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold leading-relaxed text-emerald-950">
+                      Modelo detalhado carregado automaticamente: <strong>{activeExamModel.nome}</strong>.
+                    </div>
+                  )}
+
+                  {selectedExam?.adapter.enabled && selectedExam.adapter.kind !== "clinical-context" && adaptiveConfig && (
                     <div>
                       <FieldLabel>{selectedExam.adapter.label}</FieldLabel>
                       <SelectInput
@@ -2642,19 +2671,50 @@ export default function ExamesPage() {
                     </div>
                   )}
 
-                  {!!selectedExam?.profiles.length && adaptiveConfig && (
+                  {!!activeExamModel?.profiles.length && adaptiveConfig && (
                     <div>
                       <FieldLabel>Perfil de resultado</FieldLabel>
                       <SelectInput
-                        value={adaptiveConfig.profileId}
+                        value={resolvedExam?.profile.id || adaptiveConfig.profileId}
                         onChange={(profileId) => updateConfig({ profileId })}
                       >
-                        {selectedExam.profiles.map((profile) => (
+                        {activeExamModel.profiles.map((profile) => (
                           <option key={profile.id} value={profile.id}>{profile.name}</option>
                         ))}
                       </SelectInput>
                     </div>
                   )}
+
+                  {resolvedExam?.dynamicFields.filter((field) => field.source === "variable").map((field) => (
+                    <div key={field.id}>
+                      <FieldLabel>{field.label}</FieldLabel>
+                      {field.tipo === "select" ? (
+                        <SelectInput
+                          value={String(field.value ?? "")}
+                          onChange={(value) => updateVariable(field.id, value)}
+                        >
+                          {(field.options || []).map((option) => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </SelectInput>
+                      ) : field.tipo === "boolean" ? (
+                        <SelectInput
+                          value={String(Boolean(field.value))}
+                          onChange={(value) => updateVariable(field.id, value === "true")}
+                        >
+                          <option value="false">Não</option>
+                          <option value="true">Sim</option>
+                        </SelectInput>
+                      ) : (
+                        <input
+                          type={field.tipo === "number" ? "number" : field.tipo === "date" ? "date" : "text"}
+                          value={String(field.value ?? "")}
+                          onChange={(event) => updateVariable(field.id, event.target.value)}
+                          className="h-10 w-full rounded-[12px] border border-[#d8bfa9] bg-white px-3 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wine/55 focus:ring-2 focus:ring-hpsr-wine/10"
+                        />
+                      )}
+                    </div>
+                  ))}
 
                   <button
                     type="button"

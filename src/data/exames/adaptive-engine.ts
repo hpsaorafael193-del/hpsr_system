@@ -26,6 +26,7 @@ export type AdaptiveResolvedExam = {
   clinicalContext: string;
   profile: IntelligentExamProfile;
   dynamicFields: AdaptiveDynamicField[];
+  variables: Record<string, string | boolean>;
   parameters: IntelligentExamParameter[];
   automaticBlocks: string[];
   supportsFutureAttachments: boolean;
@@ -45,7 +46,7 @@ export function createInitialAdaptiveConfiguration(model: IntelligentExamModel):
 
   return {
     examId: model.id,
-    adapterValue: model.adapter.enabled ? firstOption(model.adapter.options) : "",
+    adapterValue: model.adapter.enabled && model.adapter.kind !== "clinical-context" ? firstOption(model.adapter.options) : "",
     clinicalContext: "",
     profileId: defaultProfile?.id || "",
     variables: {},
@@ -59,7 +60,7 @@ function adapterVariableType(model: IntelligentExamModel): IntelligentClinicalVa
 }
 
 function adapterField(model: IntelligentExamModel, configuration: AdaptiveExamConfiguration): AdaptiveDynamicField | null {
-  if (!model.adapter.enabled) return null;
+  if (!model.adapter.enabled || model.adapter.kind === "clinical-context") return null;
   return {
     id: model.adapter.id || "adaptador_principal",
     label: model.adapter.label,
@@ -106,11 +107,60 @@ function appliesToSelection(variable: IntelligentClinicalVariable, configuration
   return variable.appliesTo.some((item) => selected.includes(item.toLowerCase()));
 }
 
-function clinicalVariableFields(_model: IntelligentExamModel, _configuration: AdaptiveExamConfiguration): AdaptiveDynamicField[] {
-  // Nesta etapa, as variáveis clínicas não são exibidas no painel.
-  // Dados como idade/sexo vêm dos Dados do Paciente, e campos técnicos extras
-  // serão reativados somente quando impactarem diretamente o modelo.
-  return [];
+function normalizedFieldKey(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function usefulTechnicalVariable(model: IntelligentExamModel, variable: IntelligentClinicalVariable) {
+  const key = normalizedFieldKey(`${variable.id} ${variable.label}`);
+  const adapterKey = normalizedFieldKey(`${model.adapter.id} ${model.adapter.label}`);
+
+  // A nova interface não volta a exibir contexto clínico genérico nem dados
+  // já disponíveis no cadastro do paciente.
+  if (/contexto|indicacao|correlacao|acompanhamento|rotina/.test(key)) return false;
+  if (/^(idade|sexo|genero|patient_age|patient_sex)/.test(normalizedFieldKey(variable.id))) return false;
+  if (normalizedFieldKey(variable.id) === normalizedFieldKey(model.adapter.id)) return false;
+  if (normalizedFieldKey(variable.id) === "contraste") return false;
+  if (adapterKey && normalizedFieldKey(variable.label) === normalizedFieldKey(model.adapter.label)) return false;
+
+  const parameterIds = new Set(model.parameters.map((parameter) => normalizedFieldKey(parameter.id)));
+  const supportOnly = new Set([
+    "participantes",
+    "mae_presente",
+    "dia_estimulacao",
+    "incidencias",
+    "finalidade_avaliacao",
+    "segmento",
+    "articulacao",
+  ]);
+  return parameterIds.has(normalizedFieldKey(variable.id)) || supportOnly.has(normalizedFieldKey(variable.id));
+}
+
+function defaultVariableValue(variable: IntelligentClinicalVariable, configuration: AdaptiveExamConfiguration) {
+  const current = configuration.variables[variable.id];
+  if (current !== undefined && current !== null && String(current).trim() !== "") return current;
+  if (variable.tipo === "boolean") return false;
+  if (variable.tipo === "select") {
+    const adapterMatch = variable.options?.find((option) => normalizedFieldKey(option) === normalizedFieldKey(configuration.adapterValue));
+    return adapterMatch || firstOption(variable.options);
+  }
+  return "";
+}
+
+function clinicalVariableFields(model: IntelligentExamModel, configuration: AdaptiveExamConfiguration): AdaptiveDynamicField[] {
+  return model.variables
+    .filter((variable) => appliesToSelection(variable, configuration))
+    .filter((variable) => usefulTechnicalVariable(model, variable))
+    .map((variable) => ({
+      ...variable,
+      source: "variable" as const,
+      value: defaultVariableValue(variable, configuration),
+    }));
 }
 
 export function resolveAdaptiveExam(model: IntelligentExamModel, configuration: AdaptiveExamConfiguration): AdaptiveResolvedExam {
@@ -118,11 +168,18 @@ export function resolveAdaptiveExam(model: IntelligentExamModel, configuration: 
   const profile = model.profiles.find((item) => item.id === safeConfiguration.profileId)
     || model.profiles.find((item) => item.id === model.editorModel.defaultProfileId)
     || model.profiles[0];
+  const technicalVariables = clinicalVariableFields(model, safeConfiguration);
+  const resolvedVariables: Record<string, string | boolean> = { ...safeConfiguration.variables };
+  technicalVariables.forEach((field) => {
+    if (resolvedVariables[field.id] === undefined || String(resolvedVariables[field.id]).trim() === "") {
+      resolvedVariables[field.id] = field.value;
+    }
+  });
   const dynamicFields = [
     adapterField(model, safeConfiguration),
     profileField(model, safeConfiguration),
     secondaryAdapterField(model, safeConfiguration),
-    ...clinicalVariableFields(model, safeConfiguration),
+    ...technicalVariables,
   ].filter(Boolean) as AdaptiveDynamicField[];
 
   return {
@@ -132,6 +189,7 @@ export function resolveAdaptiveExam(model: IntelligentExamModel, configuration: 
     clinicalContext: "",
     profile,
     dynamicFields,
+    variables: resolvedVariables,
     parameters: model.parameters,
     automaticBlocks: model.editorModel.sections.filter((section) => section.visibleByDefault).map((section) => section.id),
     supportsFutureAttachments: model.attachments.mode === "future",
@@ -610,6 +668,7 @@ function laboratoryPatternResult(model: IntelligentExamModel, parameter: Intelli
 type GuidedRuntimeContext = {
   adapterValue?: string;
   clinicalContext?: string;
+  variables?: Record<string, string | boolean>;
   generationSeed?: number;
 };
 
@@ -624,6 +683,14 @@ function guidedRuntimeOverride(
   const adapterValue = runtime?.adapterValue?.trim() || "";
   const clinicalContext = runtime?.clinicalContext?.trim() || "";
   const generationSeed = Number(runtime?.generationSeed || 0);
+  const runtimeVariables = runtime?.variables || {};
+  const directVariable = runtimeVariables[parameter.id];
+
+  if (directVariable !== undefined && directVariable !== null && String(directVariable).trim() !== "") {
+    return String(directVariable);
+  }
+  if (parameter.id === "incidencia" && runtimeVariables.incidencias) return String(runtimeVariables.incidencias);
+  if (parameter.id === "uso_contraste" && runtimeVariables.contraste) return String(runtimeVariables.contraste);
 
   if (clinicalContext && hasAny(parameterText, ["contexto clínico", "contexto clinico", "indicação clínica", "indicacao clinica", "correlação clínica", "correlacao clinica"])) {
     return clinicalContext;
@@ -641,10 +708,26 @@ function guidedRuntimeOverride(
 
   // O adaptador é uma informação clínica selecionada pelo profissional e deve
   // prevalecer sobre qualquer texto genérico sugerido pelo motor.
-  if (adapterValue && model.adapter.enabled) {
-    if (parameter.id === model.adapter.id || hasAny(parameterText, ["local examinado", "região examinada", "regiao examinada"])) {
+  if (adapterValue && model.adapter.enabled && model.adapter.kind !== "clinical-context") {
+    if (
+      parameter.id === model.adapter.id
+      || hasAny(parameterText, [
+        "local examinado",
+        "região examinada",
+        "regiao examinada",
+        "região / tipo",
+        "regiao / tipo",
+        "tipo de ultrassonografia",
+        "articulação avaliada",
+        "articulacao avaliada",
+      ])
+    ) {
       return adapterValue;
     }
+  }
+
+  if (model.id === "lab_teste_dna" && parameter.id === "finalidade" && adapterValue) {
+    return adapterValue;
   }
 
   if (model.id === "lab_beta_hcg_completo") {
@@ -759,7 +842,7 @@ function guidedRuntimeOverride(
 }
 
 function psychotechnicalContextNarrative(resolved: AdaptiveResolvedExam, kind: "interpretation" | "conclusion") {
-  const context = resolved.clinicalContext.toLowerCase();
+  const context = String(resolved.variables.finalidade_avaliacao || "Rotina").toLowerCase();
   const profile = resolved.profile;
   const aptitude = profile.id === "apto_com_ressalvas" ? "apto com ressalvas" : profile.id === "nao_apto" ? "não apto" : profile.id === "inconclusivo" ? "inconclusivo" : "apto";
   const positive = profile.id === "apto" || profile.id === "apto_com_ressalvas";
@@ -979,6 +1062,23 @@ function reportEvidenceRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
   return (changed.length ? changed : withoutImpression).slice(0, 4);
 }
 
+function narrativeForSelection(resolved: AdaptiveResolvedExam, value?: string | null) {
+  let text = String(value || "").trim();
+  if (!text) return text;
+
+  if (resolved.model.id === "lab_teste_coombs") {
+    const selected = resolved.adapterValue.trim().toLowerCase() === "direto" ? "Coombs direto" : "Coombs indireto";
+    text = text.replace(/Coombs\s+(?:direto|indireto)/gi, selected);
+  }
+
+  if (resolved.model.id === "lab_teste_dna" && resolved.adapterValue) {
+    const relationship = resolved.adapterValue.replace(/^Investigação\s+de\s+/i, "").trim();
+    if (relationship) text = text.replace(/paternidade/gi, relationship.toLowerCase());
+  }
+
+  return text;
+}
+
 function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][]) {
   // Exceção expressa do projeto: não alterar o comportamento do Raio-X.
   if (resolved.model.id === "img_raio_x_unico") return legacyTechnicalInterpretation(resolved, rows);
@@ -986,7 +1086,7 @@ function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][
   const evidence = reportEvidenceRows(resolved, rows)
     .map((row) => `${row[0]}: ${row[1]}`)
     .join("; ");
-  const narrative = resolved.profile.interpretation?.trim();
+  const narrative = narrativeForSelection(resolved, resolved.profile.interpretation);
   if (!evidence) return narrative || resolved.profile.resultSummary;
 
   const noun = isImagingReportModel(resolved.model) ? "Achados objetivos" : "Resultados objetivos";
@@ -1001,7 +1101,7 @@ function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
     .slice(0, 2)
     .map((row) => `${row[0]}: ${row[1]}`)
     .join("; ");
-  const conclusion = resolved.profile.conclusion?.trim() || resolved.profile.resultSummary;
+  const conclusion = narrativeForSelection(resolved, resolved.profile.conclusion) || narrativeForSelection(resolved, resolved.profile.resultSummary);
   if (!evidence || /personalizado/i.test(resolved.profile.id)) return conclusion;
   return `${conclusion}\nSíntese objetiva: ${evidence}.`;
 }
@@ -1115,6 +1215,10 @@ export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
   const contextText = resolved.clinicalContext ? `<p><strong>Contexto clínico:</strong> ${htmlEscape(resolved.clinicalContext)}</p>` : "";
   const contrastField = resolved.dynamicFields.find((field) => field.id === "contraste");
   const contrastText = contrastField?.value ? `<p><strong>Contraste:</strong> ${htmlEscape(String(contrastField.value))}</p>` : "";
+  const technicalVariableText = resolved.dynamicFields
+    .filter((field) => field.source === "variable" && String(field.value ?? "").trim() !== "")
+    .map((field) => `<p><strong>${htmlEscape(field.label)}:</strong> ${htmlEscape(String(field.value))}</p>`)
+    .join("");
   const technique = paragraphs(technicalMethodNarrative(resolved));
   const table = isLaboratory && rows.length ? tableHtml(["Parâmetro", "Resultado", "Valores de referência"], rows) : "";
   if (model.id === "psiquiatria_psicotecnico") {
@@ -1133,7 +1237,7 @@ export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
     const integratedRows = [...psychologicalRows, ...physicalRows, ...cardiacRows, ...respiratoryRows];
     const aptitude = aptitudeRow?.[1] || profile.name;
     return [
-      section("tecnica", "1. Técnica / Método", technique + contextText),
+      section("tecnica", "1. Técnica / Método", technique + technicalVariableText + contextText),
       section("resultados", "2. Resultados", tableHtml(["Domínio avaliado", "Resultado", "Referência técnica"], psychologicalRows)),
       section("impressao_psicologica", "3. Impressão psicológica", paragraphs(impressionText)),
       section("avaliacao_fisica", "4. Avaliação física", tableHtml(["Parâmetro", "Resultado", "Referência"], physicalRows)),
@@ -1160,7 +1264,7 @@ ${profile.conclusion}`)),
     const material = resolved.adapterValue || "A informar";
     const purpose = paragraphs(model.technique);
     const biologicalMaterial = `<p><strong>Amostra analisada:</strong> ${htmlEscape(material)}</p><p><strong>Data da coleta:</strong> DD/MM/AAAA</p><p><strong>Hora da coleta:</strong> HH:MM</p><p><strong>Condições da amostra:</strong> A informar</p><p><strong>Número de identificação da amostra:</strong> A informar</p>`;
-    const method = paragraphs(model.method) + contextText;
+    const method = paragraphs(model.method) + technicalVariableText + contextText;
     return [
       section("finalidade", "1. Finalidade do Exame", purpose),
       section("material_biologico", "2. Material Biológico", biologicalMaterial),
@@ -1175,7 +1279,7 @@ ${profile.conclusion}`)),
 
   if (isImage) {
     return [
-      section("tecnica", "1. Técnica / Método", technique + adapterText + contrastText + contextText),
+      section("tecnica", "1. Técnica / Método", technique + adapterText + contrastText + technicalVariableText + contextText),
       section("achados", "2. Achados", paragraphs(findingsFromRows(resolved, rows))),
       section("interpretacao", "3. Interpretação", paragraphs(technicalInterpretation(resolved, rows))),
       section("conclusao", "4. Conclusão", paragraphs(technicalConclusion(resolved, rows))),
@@ -1183,7 +1287,7 @@ ${profile.conclusion}`)),
   }
 
   return [
-    section("tecnica", "1. Técnica / Método", technique + adapterText + contrastText + contextText),
+    section("tecnica", "1. Técnica / Método", technique + adapterText + contrastText + technicalVariableText + contextText),
     section(isLaboratory ? "resultados" : "achados", "2. Resultados", isLaboratory ? (table || paragraphs(resultSummaryFromRows(resolved, rows))) : paragraphs(findingsFromRows(resolved, rows))),
     section("interpretacao", "3. Interpretação", paragraphs(technicalInterpretation(resolved, rows))),
     section("conclusao", "4. Conclusão", paragraphs(technicalConclusion(resolved, rows))),

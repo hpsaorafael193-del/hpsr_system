@@ -581,7 +581,7 @@ export default function AppointmentsPage() {
         <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
           <ScheduleCard
             icon={Stethoscope}
-            title="Agenda Clínica"
+            title="Agenda do Médico"
             description="Calendário, consultas e gestão médica."
             href="/dashboard/agendamento/clinica"
             count={visibleAppointments.length}
@@ -732,7 +732,7 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Visão geral</p>
             <h2 className="mt-0.5 text-lg font-black text-hpsr-text">Agendamento geral</h2>
-            <p className="mt-0.5 text-xs leading-relaxed text-hpsr-muted">Solicitações aceitas ficam aguardando o agendamento manual. Quando a consulta for marcada na Agenda Clínica, esta visão é sincronizada com a data e o horário reais.</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-hpsr-muted">Solicitações aceitas ficam aguardando o agendamento manual. Quando a consulta for marcada na Agenda do Médico, esta visão é sincronizada com a data e o horário reais.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => setRecentOnly(false)} className={`rounded-[12px] border px-3 py-2 text-xs font-black transition ${!recentOnly ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-wine"}`}>Todos</button>

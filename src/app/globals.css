@@ -631,7 +631,7 @@ button:active {
   }
 }
 
-/* Agenda Clínica: painel de próximas consultas com rolagem própria. */
+/* Agenda do Médico: painel de próximas consultas com rolagem própria. */
 .hpsr-appointments-scroll {
   overflow-y: scroll !important;
   overscroll-behavior-y: contain;

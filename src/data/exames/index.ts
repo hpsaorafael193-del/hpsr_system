@@ -228,6 +228,58 @@ export const intelligentExamModels: IntelligentExamModel[] = [
 
 export const hiddenUniqueImageVariantModels: IntelligentExamModel[] = baseExamModels.filter((model) => UNIQUE_IMAGE_VARIANT_IDS.has(model.id));
 
+const ADAPTIVE_VARIANT_BY_SELECTION: Record<string, Record<string, string>> = {
+  img_ultrassonografia_unica: {
+    "Abdome Total": "img_us_abdome_total",
+    "Pélvica": "img_us_pelvica",
+    "Obstétrica": "obst_us_rotina_completo",
+    "Obstétrica inicial": "obst_us_abdominal_gestacao_inicial",
+    "Obstétrica 3D": "obst_us_3d",
+    "Obstétrica 4D": "obst_us_4d",
+    "Transvaginal": "gineco_us_transvaginal_completo",
+    "Doppler": "img_us_doppler_vascular",
+  },
+  img_tomografia_unica: {
+    "Crânio": "img_tc_cranio",
+    "Tórax": "img_tc_torax",
+    "Abdome e Pelve": "img_tc_abdome_pelve",
+    "Coluna": "img_tc_coluna",
+  },
+  img_ressonancia_unica: {
+    "Crânio": "img_rm_cranio",
+    "Coluna": "img_rm_coluna",
+    "Articulação": "img_rm_articulacao",
+    "Joelho": "img_rm_articulacao",
+    "Ombro": "img_rm_articulacao",
+    "Cardíaca": "img_rm_cardiaca",
+  },
+};
+
+/**
+ * Mantém um único item no catálogo para US/TC/RM, mas usa por trás o modelo
+ * detalhado correspondente à região/tipo selecionado. O id público permanece
+ * o do modelo consolidado para que rascunhos e configurações antigas continuem
+ * compatíveis.
+ */
+export function resolveIntelligentExamModel(model: IntelligentExamModel, adapterValue?: string | null): IntelligentExamModel {
+  const selectedVariantId = ADAPTIVE_VARIANT_BY_SELECTION[model.id]?.[String(adapterValue || "").trim()];
+  if (!selectedVariantId) return model;
+
+  const variant = hiddenUniqueImageVariantModels.find((item) => item.id === selectedVariantId);
+  if (!variant) return model;
+
+  return {
+    ...variant,
+    id: model.id,
+    categoria: model.categoria,
+    icone: model.icone || variant.icone,
+    adapter: model.adapter,
+    // Contextos genéricos foram removidos da nova interface. Mantemos apenas
+    // variáveis técnicas específicas do modelo detalhado.
+    clinicalContexts: [],
+  };
+}
+
 export const examCatalogV244 = intelligentExamModels.map((model) => ({
   id: model.id,
   nome: model.nome,

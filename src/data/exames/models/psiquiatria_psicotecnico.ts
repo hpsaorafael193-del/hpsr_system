@@ -355,7 +355,18 @@ export const psiquiatria_psicotecnicoModel: IntelligentExamModel = {
       "conclusion": "Resultado psicotécnico: Inconclusivo."
     }
   ],
-  "variables": [],
+  "variables": [
+    {
+      "id": "finalidade_avaliacao",
+      "label": "Finalidade da avaliação",
+      "tipo": "select",
+      "options": [
+        "Rotina",
+        "Porte de arma",
+        "Pilotagem aérea"
+      ]
+    }
+  ],
   "editorModel": {
     "title": "Avaliação Psicotécnica",
     "sections": [

@@ -376,7 +376,7 @@ export default function ClinicalSchedulePage() {
     const now = brazilIso();
     const payload = {
       ...((currentRow?.payload || {}) as Record<string, unknown>),
-      cancellationReason: "Consulta excluída da Agenda Clínica",
+      cancellationReason: "Consulta excluída da Agenda do Médico",
       deletedAt: now,
       deletedBy: currentUserProfile.systemName,
       previousStatus: appointment.status,
@@ -419,7 +419,7 @@ export default function ClinicalSchedulePage() {
     <div className="hpsr-page gap-3">
       <PageHeader
         eyebrow="Agendamentos"
-        title="Minha Agenda Clínica"
+        title="Agenda do Médico"
         description="Organize sua disponibilidade, consultas, acompanhamentos e atendimentos em um único lugar."
       />
 
@@ -849,7 +849,7 @@ function AgendaModal({
   };
 
   const descriptionMap: Record<ModalMode, string> = {
-    new: "Cadastre uma consulta manualmente na agenda clínica.",
+    new: "Cadastre uma consulta manualmente na Agenda do Médico.",
     export: "Defina o período e o formato do relatório da agenda.",
     open: "Inicie o atendimento e prepare o registro clínico do paciente.",
     patient: "Visualize os dados principais vinculados à consulta selecionada.",

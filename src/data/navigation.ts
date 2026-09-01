@@ -27,7 +27,7 @@ export const mainNavigation = [
     href: "/dashboard/agendamento",
     icon: CalendarDays,
     children: [
-      { label: "Agenda Clínica", href: "/dashboard/agendamento/clinica" },
+      { label: "Agenda do Médico", href: "/dashboard/agendamento/clinica" },
     ],
   },
   { label: "Convênios", href: "/dashboard/convenios", icon: Handshake },
