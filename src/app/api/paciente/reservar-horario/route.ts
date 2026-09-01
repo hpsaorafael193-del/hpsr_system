@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     if (error) throw error;
     const result = (data || {}) as { ok?: boolean; appointment_id?: string; doctor_name?: string; starts_at?: string; error?: string; code?: string };
     if (!result.ok) {
-      const status = ["ACTIVE_BOOKING", "SLOT_UNAVAILABLE", "SAME_DAY_CLOSED"].includes(String(result.code || "")) ? 409 : 400;
+      const status = ["ACTIVE_BOOKING", "SLOT_UNAVAILABLE", "BOOKING_CLOSED", "SAME_DAY_CLOSED"].includes(String(result.code || "")) ? 409 : 400;
       return NextResponse.json({ ok: false, error: result.error || "Não foi possível confirmar o horário." }, { status });
     }
 

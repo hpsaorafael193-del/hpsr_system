@@ -219,11 +219,20 @@ export default function ClinicalSchedulePage() {
     const client = createClient();
     if (!client) return;
     void loadAppointments();
+    const refreshVisibleAgenda = () => {
+      if (document.visibilityState === "visible") void loadAppointments();
+    };
     const channel = client
       .channel("agenda-clinica-sync")
       .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, () => void loadAppointments())
       .subscribe();
-    return () => { void client.removeChannel(channel); };
+    window.addEventListener("focus", refreshVisibleAgenda);
+    document.addEventListener("visibilitychange", refreshVisibleAgenda);
+    return () => {
+      window.removeEventListener("focus", refreshVisibleAgenda);
+      document.removeEventListener("visibilitychange", refreshVisibleAgenda);
+      void client.removeChannel(channel);
+    };
   }, [loadAppointments]);
 
   useEffect(() => {
@@ -332,11 +341,6 @@ export default function ClinicalSchedulePage() {
       if (updateError) throw updateError;
       if (!updatedRow || updatedRow.status !== nextStatus) throw new Error("O banco não confirmou a alteração do status.");
 
-      const slotId = String(currentPayload.slotId || "");
-      if (slotId) {
-        const slotStatus = nextStatus === "Concluída" ? "Concluído" : nextStatus === "Não compareceu" ? "Ausente" : nextStatus;
-        await client.from("clinical_appointment_slots").update({ status: slotStatus, updated_at: now }).eq("id", slotId);
-      }
       const occurrenceId = String(currentPayload.occurrenceId || "");
       if (occurrenceId) {
         const occurrenceStatus = nextStatus === "Concluída" ? "Consulta realizada" : nextStatus;
@@ -893,7 +897,7 @@ function AgendaModal({
           {modal.mode === "open" && appointment && <OpenAttendanceForm appointment={appointment} onClose={onClose} onChanged={onChanged} />}
           {modal.mode === "patient" && appointment && <PatientDetails appointment={appointment} />}
           {modal.mode === "reschedule" && appointment && (
-            <RescheduleForm appointment={appointment} onClose={onClose} appointments={appointments} />
+            <RescheduleForm appointment={appointment} onClose={onClose} appointments={appointments} onChanged={onChanged} />
           )}
         </div>
       </div>
@@ -1221,11 +1225,6 @@ function OpenAttendanceForm({ appointment, onClose, onChanged }: { appointment: 
         throw new Error("O banco não confirmou a alteração do status. Verifique as permissões e tente novamente.");
       }
 
-      const slotId = String(currentPayload.slotId || "");
-      if (slotId) {
-        const slotStatus = nextStatus === "Realizada" ? "Concluído" : nextStatus === "Não compareceu" ? "Ausente" : nextStatus;
-        await client.from("clinical_appointment_slots").update({ status: slotStatus, updated_at: now }).eq("id", slotId);
-      }
 
       const occurrenceId = String(currentPayload.occurrenceId || "");
       if (occurrenceId) {
@@ -1306,16 +1305,19 @@ function RescheduleForm({
   appointment,
   onClose,
   appointments,
+  onChanged,
 }: {
   appointment: Appointment;
   onClose: () => void;
   appointments: Appointment[];
+  onChanged: () => Promise<void>;
 }) {
   const [date, setDate] = useState(appointment.date);
   const [time, setTime] = useState(appointment.time);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
 
   async function handleSave() {
     const conflict = findSpecialtyScheduleConflict({
@@ -1335,13 +1337,36 @@ function RescheduleForm({
     }
 
     const client = createClient();
-    if (!client) return;
-    const { data: row, error: readError } = await client.from("appointments").select("payload").eq("id", appointment.id).maybeSingle();
-    if (readError) { setMessage({ type: "error", text: readError.message }); return; }
-    const payload = { ...((row?.payload || {}) as Record<string, unknown>), proposedDate: date, proposedTime: time, rescheduleReason: reason || notes || "Reagendamento solicitado pelo médico", rescheduleNotes: notes, physician: appointment.physician, doctor: appointment.physician, updatedAt: brazilIso() };
-    const { error } = await client.from("appointments").update({ status: "Reagendamento solicitado", payload, updated_at: brazilIso() }).eq("id", appointment.id);
-    if (error) { setMessage({ type: "error", text: error.message }); return; }
-    setMessage({ type: "success", text: "Proposta enviada ao Portal do Paciente para aceitar, recusar, informar disponibilidade ou desistir." });
+    if (!client) {
+      setMessage({ type: "error", text: "Não foi possível acessar o banco de dados." });
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+    try {
+      const { data, error } = await client.rpc("reschedule_clinical_appointment", {
+        p_appointment_id: appointment.id,
+        p_new_date: date,
+        p_new_time: time,
+        p_reason: reason || "Ajuste combinado com o paciente",
+        p_notes: notes || null,
+      });
+      if (error) throw error;
+      const result = (data || {}) as { ok?: boolean; error?: string; date?: string; time?: string };
+      if (!result.ok) throw new Error(result.error || "Não foi possível confirmar o novo horário.");
+
+      await onChanged();
+      setMessage({
+        type: "success",
+        text: `Novo horário confirmado para ${date.split("-").reverse().join("/")} às ${time}. O Portal do Paciente já passa a mostrar esse compromisso.`,
+      });
+      window.setTimeout(() => onClose(), 750);
+    } catch (caught) {
+      setMessage({ type: "error", text: caught instanceof Error ? caught.message : "Não foi possível reagendar a consulta." });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -1349,7 +1374,7 @@ function RescheduleForm({
       <AppointmentSummary appointment={appointment} />
 
       <div className="rounded-2xl border border-hpsr-border bg-[#fcf6ee] p-3.5 text-sm leading-relaxed text-hpsr-muted">
-        Reagendamentos também respeitam a regra de 1 hora entre consultas da mesma especialidade.
+        Combine o novo horário com o paciente pelo canal de contato habitual e confirme aqui. Depois de salvo, o novo compromisso aparece para os dois lados do sistema.
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -1359,7 +1384,7 @@ function RescheduleForm({
         <Field label="Novo horário de Brasília">
           <input className={inputClass} type="time" value={time} onChange={(event) => setTime(event.target.value)} />
         </Field>
-        <Field label="Motivo do reagendamento">
+        <Field label="Motivo do ajuste">
           <StyledSelect className={inputClass} value={reason} onChange={(event) => setReason(event.target.value)}>
             <option value="" disabled>Selecione</option>
             <option>Pedido do paciente</option>
@@ -1368,21 +1393,17 @@ function RescheduleForm({
             <option>Outro</option>
           </StyledSelect>
         </Field>
-        <Field label="Comunicação">
-          <StyledSelect className={inputClass} defaultValue="pendente">
-            <option value="pendente">Aviso pendente</option>
-            <option value="avisado">Paciente avisado</option>
-          </StyledSelect>
+        <Field label="Observação">
+          <input className={inputClass} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Opcional" />
         </Field>
       </div>
 
-      <Field label="Observações">
-        <textarea className={inputClass} rows={4} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Informe detalhes do reagendamento." />
-      </Field>
-
       {message && <ValidationMessage type={message.type} text={message.text} />}
 
-      <ModalActions onClose={onClose} actionLabel="Validar reagendamento" onConfirm={handleSave} />
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button type="button" onClick={onClose} disabled={saving} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-xs font-black text-hpsr-text disabled:opacity-50">Cancelar</button>
+        <button type="button" onClick={() => void handleSave()} disabled={saving || !date || !time} className="rounded-[14px] bg-hpsr-wine px-4 py-3 text-xs font-black text-white disabled:opacity-50">{saving ? "Confirmando..." : "Confirmar novo horário"}</button>
+      </div>
     </div>
   );
 }

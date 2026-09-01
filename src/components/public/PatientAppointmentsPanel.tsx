@@ -51,8 +51,8 @@ function DiscordSchedulingNotice({ compact = false }: { compact?: boolean }) {
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-blue-700 text-white shadow-sm"><MessageCircleWarning size={21} /></span>
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[.16em] text-blue-700">Antes de continuar</p>
-          <h3 className="mt-1 text-base font-black text-blue-950 sm:text-lg">O horário não é escolhido aqui</h3>
-          <p className="mt-1.5 text-xs font-semibold leading-relaxed text-blue-900 sm:text-sm">Você envia o pedido de consulta. Depois, o médico combina o dia e o horário com você pelo Discord ou dentro do RP, conforme a preferência dele.</p>
+          <h3 className="mt-1 text-base font-black text-blue-950 sm:text-lg">Pedidos e horários têm etapas diferentes</h3>
+          <p className="mt-1.5 text-xs font-semibold leading-relaxed text-blue-900 sm:text-sm">Aqui você acompanha seus compromissos. Novos pedidos não escolhem horário na hora; quando um médico vinculado publicar vagas, a escolha aparece em <strong>Horários do médico</strong>.</p>
           {!compact && <div className="mt-3 rounded-[14px] border border-blue-200 bg-white/80 px-3.5 py-3 text-xs leading-relaxed text-blue-800">
             <p className="font-black">Se o Portal pedir seu ID do Discord</p>
             <p className="mt-1"><strong>PC:</strong> abra seu perfil e clique em <strong>“Copiar ID do usuário”</strong>.</p>
@@ -81,7 +81,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
   const lastLoadedAtRef = useRef(0);
   const onSessionExpiredRef = useRef(onSessionExpired);
 
-  const pendingStatuses = ["aguard", "solicit", "pend", "reagendamento", "justific", "atras", "recus", "negad", "não aprovado", "nao aprovado"];
+  const pendingStatuses = ["aguard", "solicit", "pend", "reagendamento", "justific", "recus", "negad", "não aprovado", "nao aprovado"];
   const visibleAppointments = appointments.filter((appointment) => {
     const normalized = appointment.status.toLowerCase();
     const isPending = pendingStatuses.some((status) => normalized.includes(status));

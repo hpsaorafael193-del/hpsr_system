@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const targetPassport = await resolvePortalPatientPassport(request, valid);
     if (!targetPassport) return NextResponse.json({ ok: false, error: "Acesso não autorizado para este paciente." }, { status: 403 });
 
-    const [plansResult, occurrencesResult, accessResult] = await Promise.all([
+    const [plansResult, occurrencesResult, accessResult, appointmentsResult] = await Promise.all([
       valid.supabase
         .from("clinical_followup_plans")
         .select("id,doctor_id,doctor_name,patient_name,patient_passport,specialty,frequency,start_date,end_date,total_consultations,status,created_at,updated_at")
@@ -47,9 +47,16 @@ export async function GET(request: NextRequest) {
         .select("schedule_assignments")
         .eq("patient_passport", targetPassport)
         .maybeSingle(),
+      valid.supabase
+        .from("appointments")
+        .select("id,status,payload,updated_at")
+        .eq("passport", targetPassport)
+        .in("status", ["Agendada", "Confirmada", "Reagendamento aceito", "Reagendamento solicitado", "Em atendimento", "Adiada", "Atrasada"])
+        .order("updated_at", { ascending: false })
+        .limit(100),
     ]);
 
-    const firstError = plansResult.error || occurrencesResult.error || accessResult.error;
+    const firstError = plansResult.error || occurrencesResult.error || accessResult.error || appointmentsResult.error;
     if (firstError) throw firstError;
 
     const plans = (plansResult.data || []) as any[];
@@ -57,6 +64,7 @@ export async function GET(request: NextRequest) {
     const assignments = Array.isArray((accessResult.data as any)?.schedule_assignments)
       ? ((accessResult.data as any).schedule_assignments as any[])
       : [];
+    const activeAppointments = (appointmentsResult.data || []) as any[];
 
     type Link = {
       key: string;
@@ -120,7 +128,7 @@ export async function GET(request: NextRequest) {
     const links = [...linksByKey.values()];
     const doctorIds = [...new Set(links.map((link) => link.doctorId).filter(Boolean))];
     const linkedSlotIds = [...new Set(occurrences.map((item) => String(item.slot_id || "")).filter(Boolean))];
-    const cutoffAt = `${brazilDate()}T23:59:59.999-03:00`;
+    const cutoffAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     const slotQueries: Array<PromiseLike<any>> = [];
     if (doctorIds.length) {
@@ -166,13 +174,33 @@ export async function GET(request: NextRequest) {
     }
 
     const today = brazilDate();
+    const todayStartMs = new Date(`${today}T00:00:00-03:00`).getTime();
+    const appointmentStart = (appointment: any) => {
+      const payload = (appointment?.payload || {}) as Record<string, unknown>;
+      const date = String(payload.date || payload.preferredDate || payload.proposedDate || "");
+      const time = String(payload.time || payload.preferredTime || payload.proposedTime || payload.preferredPeriod || "");
+      if (!date || !/^\d{2}:\d{2}$/.test(time)) return null;
+      const iso = `${date}T${time}:00-03:00`;
+      const ms = new Date(iso).getTime();
+      return Number.isFinite(ms) ? { iso, ms } : null;
+    };
+
     const followups = links.map((link) => {
       const planOccurrences = link.linkType === "plan" ? (occurrencesByPlan.get(link.planId) || []) : [];
       const scheduledOccurrence = planOccurrences
         .filter((occurrence) => occurrence.slot_id)
         .map((occurrence) => ({ occurrence, slot: linkedById.get(String(occurrence.slot_id)) as any }))
-        .filter((item) => item.slot?.starts_at && new Date(String(item.slot.starts_at)).getTime() >= new Date(`${today}T00:00:00-03:00`).getTime())
+        .filter((item) => item.slot?.starts_at && new Date(String(item.slot.starts_at)).getTime() >= todayStartMs)
         .sort((left, right) => String(left.slot.starts_at).localeCompare(String(right.slot.starts_at)))[0];
+
+      const scheduledAppointment = activeAppointments
+        .map((appointment) => ({ appointment, payload: (appointment.payload || {}) as Record<string, unknown>, start: appointmentStart(appointment) }))
+        .filter(({ payload, start }) =>
+          start && start.ms >= todayStartMs
+          && String(payload.doctorId || payload.acceptedById || "") === link.doctorId
+          && normalizeClinicalSpecialty(String(payload.specialty || "")) === normalizeClinicalSpecialty(link.specialty)
+        )
+        .sort((left, right) => (left.start?.ms || 0) - (right.start?.ms || 0))[0] || null;
 
       const pendingOccurrence = link.linkType === "plan"
         ? (planOccurrences.find((occurrence) => !occurrence.slot_id && !occurrence.appointment_id && !isFinalOccurrenceStatus(occurrence.status))
@@ -187,7 +215,16 @@ export async function GET(request: NextRequest) {
       let scheduleState: "waiting" | "available" | "scheduled" = "waiting";
       let scheduledAt = "";
       let currentOccurrence = pendingOccurrence;
-      if (scheduledOccurrence?.slot?.starts_at) {
+      if (scheduledAppointment?.start?.iso) {
+        scheduleState = "scheduled";
+        scheduledAt = scheduledAppointment.start.iso;
+        currentOccurrence = {
+          id: String(scheduledAppointment.appointment.id || link.planId),
+          planned_date: scheduledAppointment.start.iso.slice(0, 10),
+          status: String(scheduledAppointment.appointment.status || "Confirmada"),
+          appointment_id: String(scheduledAppointment.appointment.id || ""),
+        };
+      } else if (scheduledOccurrence?.slot?.starts_at) {
         scheduleState = "scheduled";
         scheduledAt = String(scheduledOccurrence.slot.starts_at);
         currentOccurrence = scheduledOccurrence.occurrence;

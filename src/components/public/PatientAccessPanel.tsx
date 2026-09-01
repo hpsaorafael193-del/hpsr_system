@@ -141,6 +141,19 @@ export function PatientAccessPanel() {
   }, [loadFollowups, selectedPassport, stage]);
 
   useEffect(() => {
+    if (stage !== "portal" || !selectedPassport) return;
+    const refreshVisiblePortal = () => {
+      if (document.visibilityState === "visible") void loadFollowups(selectedPassport);
+    };
+    window.addEventListener("focus", refreshVisiblePortal);
+    document.addEventListener("visibilitychange", refreshVisiblePortal);
+    return () => {
+      window.removeEventListener("focus", refreshVisiblePortal);
+      document.removeEventListener("visibilitychange", refreshVisiblePortal);
+    };
+  }, [loadFollowups, selectedPassport, stage]);
+
+  useEffect(() => {
     try {
       const savedEmail = window.localStorage.getItem(PATIENT_EMAIL_STORAGE_KEY) || "";
       if (savedEmail) setEmail(savedEmail);

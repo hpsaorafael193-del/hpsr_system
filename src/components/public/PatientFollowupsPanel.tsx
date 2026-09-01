@@ -210,19 +210,34 @@ export function PatientFollowupsPanel({
                 <span className={`w-fit rounded-full border px-3 py-1 text-[10px] font-black ${state === "scheduled" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : state === "available" ? "border-blue-200 bg-blue-50 text-blue-700" : "border-hpsr-border bg-white text-hpsr-wine"}`}>{state === "scheduled" ? "Horário confirmado" : state === "available" ? "Horários disponíveis" : "Aguardando nova agenda"}</span>
               </div>
 
-              {state === "scheduled" && <div className="mt-3 rounded-[13px] border border-emerald-200 bg-emerald-50 p-3"><p className="text-xs font-black text-emerald-800">Horário já confirmado</p><p className="mt-1 text-[11px] font-semibold text-emerald-700">Veja este atendimento em <strong>Meus agendamentos</strong>.</p></div>}
+              {state === "scheduled" && <div className="mt-3 rounded-[14px] border border-emerald-200 bg-emerald-50 p-3.5">
+                <div className="flex items-start gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-emerald-700 text-white"><CheckCircle2 size={17}/></span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-black text-emerald-900">Seu horário está confirmado</p>
+                    <p className="mt-1 text-sm font-black text-emerald-950">{dateTimeText(next?.scheduledAt || "")}</p>
+                    <p className="mt-1 text-[11px] font-semibold leading-relaxed text-emerald-800">{item.specialty} · {item.doctorName}</p>
+                  </div>
+                </div>
+                <p className="mt-3 border-t border-emerald-200 pt-2.5 text-[11px] font-semibold leading-relaxed text-emerald-800">Se tiver atraso, imprevisto ou não puder comparecer, fale com o médico antes do atendimento para combinar o ajuste.</p>
+              </div>}
 
               {state === "available" && (
                 <div className="mt-3 rounded-[14px] border border-blue-200 bg-blue-50 p-3">
                   <p className="text-xs font-black text-blue-950">Escolha um horário</p>
-                  <p className="mt-1 text-[11px] font-semibold leading-relaxed text-blue-900">Só aparecem dias futuros. No próprio dia do atendimento, aquele horário já não pode mais ser escolhido pelo Portal.</p>
+                  <p className="mt-1 text-[11px] font-semibold leading-relaxed text-blue-900">Só aparecem horários com mais de 24 horas de antecedência. Depois desse limite, a vaga deixa de aceitar novas confirmações.</p>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {availableSlots.map((slot) => {
                       const active = selectedSlotId === slot.id;
                       return <button key={slot.id} type="button" onClick={() => setSelectedByPlan((current) => ({ ...current, [item.planId]: slot.id }))} className={`rounded-[12px] border px-3 py-2.5 text-left transition ${active ? "border-blue-700 bg-blue-700 text-white shadow-sm" : "border-blue-200 bg-white text-blue-950 hover:border-blue-400"}`}><span className="block text-[10px] font-black uppercase tracking-[.08em] opacity-75">{slotDay(slot.startsAt)}</span><span className="mt-1 flex items-center gap-1.5 text-sm font-black"><Clock3 size={14}/>{slotTime(slot.startsAt)}</span></button>;
                     })}
                   </div>
-                  <button type="button" disabled={!selectedSlot || bookingPlanId === item.planId} onClick={() => void book(item.planId, item.linkType, item.doctorId, item.specialty)} className="mt-3 inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-[12px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">{bookingPlanId === item.planId ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>}Confirmar horário</button>
+                  {selectedSlot && <div className="mt-3 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5">
+                    <p className="text-[10px] font-black uppercase tracking-[.1em] text-hpsr-wineLight">Horário selecionado</p>
+                    <p className="mt-1 text-sm font-black text-hpsr-text">{slotDay(selectedSlot.startsAt)} · {slotTime(selectedSlot.startsAt)}</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-hpsr-muted">{item.doctorName} · {item.specialty}</p>
+                  </div>}
+                  <button type="button" disabled={!selectedSlot || bookingPlanId === item.planId} onClick={() => void book(item.planId, item.linkType, item.doctorId, item.specialty)} className="mt-3 inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-[12px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">{bookingPlanId === item.planId ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>}Confirmar {selectedSlot ? `${slotDay(selectedSlot.startsAt)} às ${slotTime(selectedSlot.startsAt)}` : "horário"}</button>
                 </div>
               )}
 
