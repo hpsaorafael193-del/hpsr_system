@@ -649,87 +649,107 @@ button:active {
    geometria e comportamento visual para que edição, paginação e preview
    partam de uma única referência. */
 .hpsr-continuous-editor {
-  color: #2a0700;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 15px;
+  color: #4b2118;
+  font-family: var(--font-hpsr), Roboto, "Segoe UI", Arial, sans-serif;
+  font-size: 14.5px;
   line-height: 1.72;
-  letter-spacing: 0.002em;
+  letter-spacing: 0.001em;
 }
 .hpsr-continuous-editor:empty:before {
   content: "Digite o conteúdo livremente ou use um modelo...";
-  color: #a68d82;
+  color: #9a8178;
   font-family: var(--font-hpsr), Roboto, sans-serif;
   font-weight: 700;
 }
 .hpsr-continuous-editor h1,
 .hpsr-continuous-editor h2,
 .hpsr-continuous-editor h3 {
-  color: #672614;
+  color: #5b1809;
   font-family: var(--font-hpsr), Roboto, sans-serif;
   font-weight: 900;
   line-height: 1.25;
   margin: 1rem 0 0.45rem;
 }
-.hpsr-continuous-editor h1 { font-size: 1.25rem; text-transform: uppercase; letter-spacing: 0.04em; }
-.hpsr-continuous-editor h2 {
-  font-size: 1rem;
+.hpsr-continuous-editor h1 {
+  font-size: 1.2rem;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  border-bottom: 1px solid rgba(103, 38, 20, 0.18);
-  padding-bottom: 0.25rem;
+  letter-spacing: 0.05em;
 }
-.hpsr-continuous-editor h3 { font-size: 0.94rem; }
-.hpsr-continuous-editor p { margin: 0.65rem 0; min-height: 1.72em; }
+.hpsr-continuous-editor h2 {
+  font-size: 0.96rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(91, 24, 9, 0.12);
+  background: linear-gradient(180deg, rgba(251, 246, 242, 0.96) 0%, rgba(255, 252, 249, 0.98) 100%);
+  border-radius: 12px;
+  padding: 0.45rem 0.8rem;
+}
+.hpsr-continuous-editor h3 { font-size: 0.92rem; }
+.hpsr-continuous-editor p { margin: 0.56rem 0; min-height: 1.72em; }
 .hpsr-continuous-editor ul,
 .hpsr-continuous-editor ol { margin: 0.55rem 0 0.55rem 1.25rem; }
+.hpsr-continuous-editor strong { color: #3d1710; }
 .hpsr-continuous-editor table {
-  width: min(86%, 680px);
+  width: min(90%, 700px);
   max-width: 100%;
-  border-collapse: collapse;
-  margin: 0.85rem auto;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 0.9rem auto;
   font-size: 12.5px;
-  border-radius: 10px;
+  border: 1px solid rgba(91, 24, 9, 0.16);
+  border-radius: 14px;
   overflow: hidden;
   table-layout: auto;
+  background: #ffffff;
 }
-.hpsr-continuous-editor th {
-  background: rgba(103, 38, 20, 0.1);
-  color: #672614;
+.hpsr-continuous-editor thead th {
+  background: linear-gradient(180deg, rgba(247, 238, 232, 0.98) 0%, rgba(252, 247, 243, 0.98) 100%);
+  color: #5b1809;
   font-weight: 900;
   text-align: center;
 }
+.hpsr-continuous-editor tbody tr:nth-child(even) td {
+  background: rgba(255, 250, 247, 0.96);
+}
 .hpsr-continuous-editor td,
 .hpsr-continuous-editor th {
-  border: 1px solid rgba(103, 38, 20, 0.22);
-  padding: 0.30rem 0.40rem;
+  border-bottom: 1px solid rgba(91, 24, 9, 0.12);
+  border-right: 1px solid rgba(91, 24, 9, 0.09);
+  padding: 0.42rem 0.48rem;
   vertical-align: middle;
   text-align: center;
 }
+.hpsr-continuous-editor tr:last-child td { border-bottom: 0; }
+.hpsr-continuous-editor td:last-child,
+.hpsr-continuous-editor th:last-child { border-right: 0; }
 .hpsr-continuous-editor section[data-hpsr-auto-block="true"] {
   break-inside: avoid;
-  margin: 0 0 0.72rem;
+  margin: 0 0 0.95rem;
+  padding: 0.2rem 0;
 }
 .hpsr-continuous-editor section[data-hpsr-auto-block="true"] h2 {
-  margin-top: 0.72rem;
-  margin-bottom: 0.32rem;
-  padding-bottom: 0.18rem;
+  margin-top: 0.2rem;
+  margin-bottom: 0.45rem;
 }
-.hpsr-continuous-editor section[data-hpsr-auto-block="true"] p { margin: 0.28rem 0; line-height: 1.52; }
+.hpsr-continuous-editor section[data-hpsr-auto-block="true"] p {
+  margin: 0.32rem 0;
+  line-height: 1.58;
+}
 .hpsr-continuous-editor section[data-hpsr-auto-block="true"] table {
-  width: min(82%, 640px);
-  margin: 0.42rem auto 0.58rem;
+  width: min(88%, 660px);
+  margin: 0.5rem auto 0.65rem;
   font-size: 12px;
 }
 .hpsr-continuous-editor section[data-hpsr-auto-block="true"] td,
 .hpsr-continuous-editor section[data-hpsr-auto-block="true"] th {
-  padding: 0.24rem 0.34rem;
-  line-height: 1.28;
-  text-align: center;
+  padding: 0.34rem 0.4rem;
+  line-height: 1.34;
 }
 .hpsr-continuous-editor blockquote {
-  border-left: 4px solid rgba(103, 38, 20, 0.35);
-  background: #fff8f0;
+  border-left: 4px solid rgba(91, 24, 9, 0.28);
+  background: linear-gradient(180deg, rgba(255, 248, 244, 0.98) 0%, rgba(255, 252, 249, 0.98) 100%);
   margin: 0.8rem 0;
-  padding: 0.55rem 0.8rem;
-  color: #5d4038;
+  padding: 0.65rem 0.9rem;
+  color: #6f5148;
+  border-radius: 0 12px 12px 0;
 }

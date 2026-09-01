@@ -3,6 +3,7 @@
 import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
+import { EditorFontSizeMenu } from "@/components/ui/EditorFontSizeMenu";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   Activity,
@@ -616,7 +617,7 @@ function AppDialog({
       ? "border-red-200 bg-red-50 text-red-700"
       : dialog.tone === "warning"
         ? "border-amber-200 bg-amber-50 text-amber-700"
-        : "border-blue-200 bg-blue-50 text-blue-700";
+        : "border-[#e1cbb8] bg-[#fff8f2] text-hpsr-wine";
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#1f0805]/55 p-4">
       <div className="w-full max-w-[500px] overflow-hidden rounded-[22px] border border-[#d7bfa8] bg-[#fffaf4] shadow-[0_24px_70px_rgba(42,7,0,0.28)]">
@@ -1929,59 +1930,89 @@ export default function ExamesPage() {
     };
 
     const drawInfoCard = (label: string, value: string, x: number, y: number, width: number, height = 42) => {
-      context.fillStyle = "rgba(255,250,244,0.98)";
+      context.fillStyle = "rgba(255,255,255,0.98)";
       context.strokeStyle = "rgba(91,24,9,0.16)";
       context.lineWidth = 1;
       context.beginPath();
-      context.roundRect(x, y, width, height, 10);
+      context.roundRect(x, y, width, height, 12);
       context.fill();
       context.stroke();
-      context.fillStyle = "#8d5f54";
+      context.fillStyle = "#8d665b";
       context.font = "700 8px Arial";
       context.fillText(label.toUpperCase(), x + 10, y + 8);
-      context.fillStyle = "#421910";
-      context.font = height <= 32 ? "700 10.5px Georgia" : "700 11px Georgia";
+      context.fillStyle = "#3d1710";
+      context.font = height <= 32 ? "700 10.5px Arial" : "700 11px Arial";
       const lines = wrapCanvasText(context, value || "-", width - 20);
       const maxLines = height <= 32 ? 1 : height <= 40 ? 2 : 3;
-      lines.slice(0, maxLines).forEach((line, index) => context.fillText(line, x + 10, y + 18 + index * 11));
+      lines.slice(0, maxLines).forEach((line, index) => context.fillText(line, x + 10, y + 19 + index * 11));
     };
 
     const drawTechnicalRibbon = (label: string, x: number, y: number, width: number) => {
       context.fillStyle = "rgba(91,24,9,0.07)";
+      context.strokeStyle = "rgba(91,24,9,0.13)";
       context.beginPath();
-      context.roundRect(x, y, width, 20, 10);
+      context.roundRect(x, y, width, 22, 11);
       context.fill();
+      context.stroke();
       context.fillStyle = "#5b1809";
       context.font = "700 9px Arial";
       context.textAlign = "center";
-      context.fillText(label.toUpperCase(), x + width / 2, y + 6);
+      context.fillText(label.toUpperCase(), x + width / 2, y + 7);
       context.textAlign = "left";
     };
 
     const drawInstitutionalPageBase = async () => {
+      const headerGradient = context.createLinearGradient(0, 0, 0, 165);
+      headerGradient.addColorStop(0, "#fbf6f2");
+      headerGradient.addColorStop(1, "#fffdfb");
+      context.fillStyle = headerGradient;
+      context.fillRect(0, 0, canvas.width, 165);
       context.fillStyle = "#fffdfb";
-      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.fillRect(0, 165, canvas.width, canvas.height - 165);
 
       const watermark = await loadImage("/logo-hpsr.png");
       if (watermark) {
         context.save();
-        context.globalAlpha = 0.045;
-        drawImageContain(watermark, 247, 365, 300, 300);
+        context.globalAlpha = 0.06;
+        drawImageContain(watermark, 227, 392, 340, 340);
         context.restore();
       }
+    };
 
-      context.strokeStyle = "rgba(91,24,9,0.28)";
-      context.lineWidth = 1;
+    const drawInstitutionalHeader = () => {
+      context.fillStyle = "rgba(255,255,255,0.97)";
+      context.strokeStyle = "rgba(91,24,9,0.16)";
       context.beginPath();
-      context.moveTo(28, 100);
-      context.lineTo(766, 100);
+      context.roundRect(24, 24, 742, 66, 16);
+      context.fill();
       context.stroke();
 
-      context.strokeStyle = "rgba(91,24,9,0.12)";
+      context.fillStyle = "#3d1710";
+      context.font = "700 16.5px Arial";
+      context.fillText("HOSPITAL SÃO RAFAEL", 42, 34);
+      context.fillStyle = "#8d665b";
+      context.font = "700 8.5px Arial";
+      context.fillText("LAUDO DE EXAME · DOCUMENTO INSTITUCIONAL", 42, 58);
+
+      drawInfoCard("Data", formatDateBR(finalDocument.metadata.date), 574, 31, 84, 25);
+      drawInfoCard("Página", `${pageIndex + 1}/${finalDocument.pages.length}`, 666, 31, 86, 25);
+
+      context.fillStyle = "rgba(91,24,9,0.065)";
+      context.strokeStyle = "rgba(91,24,9,0.16)";
       context.beginPath();
-      context.moveTo(42, 984);
-      context.lineTo(752, 984);
+      context.roundRect(42, 100, 710, 30, 12);
+      context.fill();
       context.stroke();
+      context.fillStyle = "#5b1809";
+      context.font = "700 11.5px Arial";
+      context.textAlign = "center";
+      context.fillText((finalDocument.metadata.examName || "EXAME").toUpperCase(), 397, 109);
+      context.textAlign = "left";
+
+      drawInfoCard("Paciente", finalDocument.metadata.patient.name || "-", 42, 138, 318, 30);
+      drawInfoCard("Passaporte", finalDocument.metadata.patient.passport || "-", 368, 138, 132, 30);
+      drawInfoCard("Idade", finalDocument.metadata.patient.age || "-", 508, 138, 82, 30);
+      drawInfoCard("Tipo sanguíneo", finalDocument.metadata.patient.bloodType || "-", 598, 138, 154, 30);
     };
 
     const htmlText = (node: Element) =>
@@ -1996,8 +2027,8 @@ export default function ExamesPage() {
         if (y > maxY - 24) break;
         const tag = block.tagName.toLowerCase();
         if (/^h[1-3]$/.test(tag)) {
-          const headingSize = tag === "h1" ? 13 : 11.5;
-          const headingHeight = Math.max(tag === "h1" ? 24 : 21, measureRichTextElement(context, block, width - 24, {
+          const headingSize = tag === "h1" ? 12.5 : 11;
+          const headingHeight = Math.max(tag === "h1" ? 23 : 20, measureRichTextElement(context, block, width - 24, {
             baseFontSize: headingSize,
             fontFamily: "Arial, sans-serif",
             color: "#5b1809",
@@ -2009,7 +2040,7 @@ export default function ExamesPage() {
           context.beginPath();
           context.roundRect(x, y - 2, width, headingHeight, 11);
           context.fill();
-          context.strokeStyle = "rgba(91,24,9,0.18)";
+          context.strokeStyle = "rgba(91,24,9,0.16)";
           context.beginPath();
           context.moveTo(x + 12, y + headingHeight + 2);
           context.lineTo(x + width - 12, y + headingHeight + 2);
@@ -2039,8 +2070,8 @@ export default function ExamesPage() {
             const rowHeight = Math.max(20, ...cells.map((cell) =>
               measureRichTextElement(context, cell, colWidth - 12, {
                 baseFontSize: 10,
-                fontFamily: rowIndex === 0 ? "Arial, sans-serif" : "Georgia, 'Times New Roman', serif",
-                color: "#412017",
+                fontFamily: "Arial, sans-serif",
+                color: "#4b2118",
                 bold: rowIndex === 0,
                 lineHeight: 11,
                 textAlign: "center",
@@ -2049,22 +2080,22 @@ export default function ExamesPage() {
             if (y + rowHeight > maxY) return y;
             cells.forEach((cell, cellIndex) => {
               const cx = tableX + cellIndex * colWidth;
-              context.fillStyle = rowIndex === 0 ? "rgba(91,24,9,0.11)" : rowIndex % 2 === 0 ? "rgba(255,250,244,0.92)" : "rgba(255,255,255,0.98)";
+              context.fillStyle = rowIndex === 0 ? "rgba(247,238,232,0.98)" : rowIndex % 2 === 0 ? "rgba(255,250,247,0.96)" : "rgba(255,255,255,0.98)";
               context.fillRect(cx, y, colWidth, rowHeight);
-              context.strokeStyle = "rgba(91,24,9,0.22)";
+              context.strokeStyle = "rgba(91,24,9,0.18)";
               context.strokeRect(cx, y, colWidth, rowHeight);
               const contentHeight = measureRichTextElement(context, cell, colWidth - 12, {
                 baseFontSize: 10,
-                fontFamily: rowIndex === 0 ? "Arial, sans-serif" : "Georgia, 'Times New Roman', serif",
-                color: "#412017",
+                fontFamily: "Arial, sans-serif",
+                color: "#4b2118",
                 bold: rowIndex === 0,
                 lineHeight: 11,
                 textAlign: "center",
               });
               drawRichTextElement(context, cell, cx + 6, y + Math.max(4, (rowHeight - contentHeight) / 2), colWidth - 12, y + rowHeight - 3, {
                 baseFontSize: 10,
-                fontFamily: rowIndex === 0 ? "Arial, sans-serif" : "Georgia, 'Times New Roman', serif",
-                color: "#412017",
+                fontFamily: "Arial, sans-serif",
+                color: "#4b2118",
                 bold: rowIndex === 0,
                 lineHeight: 11,
                 textAlign: "center",
@@ -2081,7 +2112,7 @@ export default function ExamesPage() {
           items.forEach((item, index) => {
             if (y > maxY - 18) return;
             context.fillStyle = "#4b2118";
-            context.font = "11.2px Georgia";
+            context.font = "11.2px Arial";
             context.fillText(tag === "ol" ? `${index + 1}.` : "•", x + 2, y);
             y = drawRichTextElement(context, item, x + 18, y, width - 18, maxY, {
               baseFontSize: 11.2,
@@ -2102,21 +2133,21 @@ export default function ExamesPage() {
           continue;
         }
         y = drawRichTextElement(context, block, x, y, width, maxY, {
-          baseFontSize: 11.4,
-          color: "#3f231c",
-          lineHeight: 15.5,
+          baseFontSize: 11.2,
+          color: "#4b2118",
+          lineHeight: 15.4,
         }) + 5;
       }
       return y;
     };
 
     const drawFooter = async () => {
-      context.fillStyle = "rgba(255,250,244,0.98)";
-      context.fillRect(42, 985, 710, 126);
-      context.strokeStyle = "rgba(91,24,9,0.20)";
+      context.fillStyle = "rgba(255,250,247,0.98)";
+      context.fillRect(42, 1018, 710, 93);
+      context.strokeStyle = "rgba(91,24,9,0.16)";
       context.beginPath();
-      context.moveTo(42, 985);
-      context.lineTo(752, 985);
+      context.moveTo(42, 1018);
+      context.lineTo(752, 1018);
       context.stroke();
 
       const signature = finalDocument.metadata.signatureImage
@@ -2124,37 +2155,35 @@ export default function ExamesPage() {
         : null;
       if (signature) {
         const normalizedSignature = normalizeSignatureImage(signature);
-        if (normalizedSignature) {
-          drawImageContain(normalizedSignature, 237, 993, 320, 64);
-        }
+        if (normalizedSignature) drawImageContain(normalizedSignature, 257, 1019, 280, 48);
       }
 
       context.strokeStyle = "#5b1809";
       context.setLineDash([2, 2]);
       context.beginPath();
-      context.moveTo(245, 1060);
-      context.lineTo(549, 1060);
+      context.moveTo(272, 1069);
+      context.lineTo(522, 1069);
       context.stroke();
       context.setLineDash([]);
 
       context.fillStyle = "#5b1809";
       context.textAlign = "center";
-      context.font = "11px Georgia";
-      context.fillText(`Dr(a). ${finalDocument.metadata.doctor.name || "Nome do médico"}`, 397, 1066);
-      context.font = "9px Georgia";
-      context.fillText(`CRM: ${finalDocument.metadata.doctor.crm || "000000"}`, 397, 1082);
+      context.font = "700 10px Arial";
+      context.fillText(`Dr(a). ${finalDocument.metadata.doctor.name || "Nome do médico"}`, 397, 1073);
+      context.font = "8.5px Arial";
+      context.fillText(`CRM: ${finalDocument.metadata.doctor.crm || "000000"}`, 397, 1086);
 
-      context.strokeStyle = "rgba(91,24,9,0.20)";
+      context.strokeStyle = "rgba(91,24,9,0.14)";
       context.beginPath();
-      context.moveTo(42, 1092);
-      context.lineTo(752, 1092);
+      context.moveTo(42, 1096);
+      context.lineTo(752, 1096);
       context.stroke();
-      context.textAlign = "left";
       context.fillStyle = "#7a5148";
-      context.font = "8.5px Georgia";
+      context.font = "8px Arial";
+      context.textAlign = "left";
       context.fillText("Hospital São Rafael", 42, 1101);
       context.textAlign = "center";
-      context.fillText(`Emitido em ${formatDateBR(finalDocument.metadata.date)} · Código interno: ${finalDocument.metadata.protocol || "-"}`, 397, 1101);
+      context.fillText(`Emitido em ${formatDateBR(finalDocument.metadata.date)} · Código: ${finalDocument.metadata.protocol || "-"}`, 397, 1101);
       context.textAlign = "right";
       context.fillText(`Página ${pageIndex + 1}/${finalDocument.pages.length}`, 752, 1101);
       context.textAlign = "left";
@@ -2164,85 +2193,48 @@ export default function ExamesPage() {
       await drawInstitutionalPageBase();
 
       context.textBaseline = "top";
-      context.fillStyle = "#5b1809";
-      context.font = "12px Georgia";
+      context.fillStyle = "#4b2118";
+      context.font = "12px Arial";
 
-      if (page.type === "report" && pageIndex === 0) {
-        context.fillStyle = "#5b1809";
-        context.font = "700 19px Arial";
-        context.fillText("HOSPITAL SÃO RAFAEL", 42, 34);
-        context.fillStyle = "#8d5f54";
-        context.font = "10px Arial";
-        context.fillText("SISTEMA CLÍNICO E ADMINISTRATIVO", 42, 58);
-        drawTechnicalRibbon("Laudo técnico institucional", 42, 72, 210);
+      drawInstitutionalHeader();
 
-        drawInfoCard("Data da emissão", formatDateBR(finalDocument.metadata.date), 574, 28, 178, 30);
-        drawInfoCard("Protocolo", finalDocument.metadata.protocol || "-", 574, 64, 178, 30);
-
-        context.fillStyle = "rgba(91,24,9,0.08)";
-        context.beginPath();
-        context.roundRect(210, 112, 374, 32, 16);
-        context.fill();
-        context.strokeStyle = "rgba(91,24,9,0.22)";
-        context.stroke();
-        context.textAlign = "center";
-        context.fillStyle = "#5b1809";
-        context.font = "700 14px Arial";
-        context.fillText((finalDocument.metadata.examName || "EXAME").toUpperCase(), 397, 121);
-
-        context.fillStyle = "rgba(255,255,255,0.95)";
-        context.strokeStyle = "rgba(91,24,9,0.18)";
-        context.beginPath();
-        context.roundRect(28, 156, 738, 122, 18);
-        context.fill();
-        context.stroke();
-        context.textAlign = "left";
-        context.fillStyle = "#5b1809";
-        context.font = "700 10px Arial";
-        context.fillText("IDENTIFICAÇÃO DO PACIENTE", 44, 168);
-        drawInfoCard("Paciente", finalDocument.metadata.patient.name || "-", 42, 182, 404, 40);
-        drawInfoCard("Passaporte", finalDocument.metadata.patient.passport || "-", 458, 182, 140, 40);
-        drawInfoCard("Tipo sanguíneo", finalDocument.metadata.patient.bloodType || "-", 610, 182, 142, 40);
-        drawInfoCard("Idade", finalDocument.metadata.patient.age ? `${finalDocument.metadata.patient.age}` : "-", 42, 228, 80, 36);
-        drawInfoCard("Profissional emitente", finalDocument.metadata.doctor.name || "Não informado", 134, 228, 332, 36);
-        drawInfoCard("CRM", finalDocument.metadata.doctor.crm || "000000", 478, 228, 118, 36);
-        drawInfoCard("Hospital", "Hospital São Rafael", 608, 228, 144, 36);
-        drawReportHtml(page.reportHtml || "", 42, 300, 710, 975);
-      } else if (page.type === "report") {
-        drawReportHtml(page.reportHtml || "", 42, 107, 710, 975);
+      if (page.type === "report") {
+        drawReportHtml(page.reportHtml || "", 42, 184, 710, 1009);
       } else if (page.type === "auto-attachment" && page.automaticAttachment) {
         const attachment = page.automaticAttachment;
         const image = attachment.imageUrl ? await loadImage(attachment.imageUrl) : null;
         if (image) {
-          drawImageContain(image, 42, 107, 710, 860);
+          drawImageContain(image, 42, 184, 710, 822);
         } else {
           context.fillStyle = "rgba(255,255,255,0.76)";
           context.strokeStyle = "rgba(91,24,9,0.25)";
           context.beginPath();
-          context.roundRect(42, 107, 710, 760, 18);
+          context.roundRect(42, 184, 710, 768, 18);
           context.fill();
           context.stroke();
           context.textAlign = "center";
           context.fillStyle = "#7a5148";
-          context.font = "13px Georgia";
-          context.fillText("Imagem de anexo não definida.", 397, 470);
+          context.font = "13px Arial";
+          context.fillText("Imagem de anexo não definida.", 397, 505);
+          context.textAlign = "left";
         }
       } else if (page.type === "manual-attachments") {
         const file = page.manualAttachments?.[0];
         const image = file?.url ? await loadImage(file.url) : null;
         if (image) {
-          drawImageContain(image, 42, 107, 710, 860);
+          drawImageContain(image, 42, 184, 710, 822);
         } else {
           context.fillStyle = "rgba(255,255,255,0.76)";
           context.strokeStyle = "rgba(91,24,9,0.25)";
           context.beginPath();
-          context.roundRect(42, 107, 710, 760, 18);
+          context.roundRect(42, 184, 710, 768, 18);
           context.fill();
           context.stroke();
           context.textAlign = "center";
           context.fillStyle = "#7a5148";
-          context.font = "13px Georgia";
-          context.fillText("Este anexo não é uma imagem visualizável.", 397, 470);
+          context.font = "13px Arial";
+          context.fillText("Este anexo não é uma imagem visualizável.", 397, 505);
+          context.textAlign = "left";
         }
       }
 
@@ -2732,9 +2724,9 @@ export default function ExamesPage() {
             <Panel title="Anexos" description="Confira o anexo automático ou inclua imagens adicionais quando necessário.">
               <div className="space-y-3">
                 {effectiveAutomaticAttachment && (
-                  <div className="rounded-[16px] border border-blue-200 bg-blue-50/90 p-3 text-blue-950 shadow-[0_8px_18px_rgba(59,130,246,0.08)]">
+                  <div className="rounded-[16px] border border-[#e4d7ce] bg-[#fff9f5] p-3 text-hpsr-text shadow-[0_8px_18px_rgba(42,7,0,0.045)]">
                     <div className="flex items-start gap-3">
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-white text-blue-700 ring-1 ring-blue-200">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-white text-hpsr-wine ring-1 ring-[#e2cfc1]">
                         <Scan size={18} />
                       </span>
                       <div className="min-w-0 flex-1">
@@ -2756,7 +2748,7 @@ export default function ExamesPage() {
                           </button>
                         </div>
                         <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">{effectiveAutomaticAttachment?.subtitle}</p>
-                        <p className="mt-2 text-[11px] font-semibold leading-relaxed text-blue-800">{effectiveAutomaticAttachment?.legend}</p>
+                        <p className="mt-2 text-[11px] font-semibold leading-relaxed text-[#6f5148]">{effectiveAutomaticAttachment?.legend}</p>
                       </div>
                     </div>
                   </div>
@@ -2794,7 +2786,7 @@ export default function ExamesPage() {
                   <Upload size={16} /> Adicionar anexo
                 </button>
 
-                <div className="rounded-[16px] border border-blue-200/80 bg-blue-50/80 px-3 py-2 text-[11px] font-semibold leading-relaxed text-hpsr-muted">
+                <div className="rounded-[16px] border border-[#e5d8cf] bg-[#fffaf6] px-3 py-2 text-[11px] font-semibold leading-relaxed text-hpsr-muted">
                   A página de anexo usa uma única imagem centralizada. Ao adicionar uma nova imagem manual, ela será exibida como anexo visual do exame.
                 </div>
 
@@ -2890,8 +2882,8 @@ export default function ExamesPage() {
             rememberSelection={rememberSelection}
           />
 
-          <div className="min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f3f0ec_0%,#ebe7e2_100%)] p-5">
-            <div className="mx-auto min-h-full max-w-[1100px] rounded-[20px] border border-[#ded7d0] bg-white p-8 shadow-[0_14px_34px_rgba(42,7,0,0.065)] ring-1 ring-white">
+          <div className="min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f4f0ed_0%,#ebe5e0_100%)] p-5">
+            <div className="mx-auto min-h-full max-w-[1100px] rounded-[20px] border border-[#dfd5ce] bg-white p-8 shadow-[0_14px_34px_rgba(42,7,0,0.055)] ring-1 ring-white">
               <div className="relative">
                 {editorPageGuideTops.map((top, index) => {
                     const pageNumber = index + 2;
@@ -2912,16 +2904,16 @@ export default function ExamesPage() {
                     );
                   })}
                 {attachmentEditorOpen && (
-                  <div className="mb-6 rounded-[20px] border border-blue-200 bg-blue-50/80 p-4 shadow-[0_12px_28px_rgba(59,130,246,0.10)]">
-                    <div className="mb-3 flex items-center justify-between gap-3 border-b border-blue-200 pb-3">
+                  <div className="mb-6 rounded-[20px] border border-[#e2d3c8] bg-[#fff9f5] p-4 shadow-[0_12px_28px_rgba(42,7,0,0.06)]">
+                    <div className="mb-3 flex items-center justify-between gap-3 border-b border-[#eadbd1] pb-3">
                       <div>
-                        <p className="text-sm font-black uppercase tracking-[0.08em] text-blue-950">Editor de anexos</p>
+                        <p className="text-sm font-black uppercase tracking-[0.08em] text-hpsr-text">Editor de anexos</p>
                         <p className="mt-1 text-xs font-semibold text-hpsr-muted">Revise ou complemente a folha de anexo que será enviada junto ao laudo.</p>
                       </div>
                       <button
                         type="button"
                         onClick={() => setAttachmentEditorOpen(false)}
-                        className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-white text-hpsr-muted ring-1 ring-blue-200 hover:bg-blue-100"
+                        className="flex h-9 w-9 items-center justify-center rounded-[12px] bg-white text-hpsr-muted ring-1 ring-[#e2cfc1] hover:bg-[#fff4ec]"
                         aria-label="Fechar editor de anexos"
                       >
                         <X size={16} />
@@ -2952,7 +2944,7 @@ export default function ExamesPage() {
                             </div>
                           )}
                         </div>
-                        <p className="mt-3 rounded-[14px] border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] font-semibold leading-relaxed text-hpsr-muted">
+                        <p className="mt-3 rounded-[14px] border border-[#eadbd1] bg-[#fffaf6] px-3 py-2 text-[11px] font-semibold leading-relaxed text-hpsr-muted">
                           Anexo automático do exame. O texto técnico permanece no laudo principal.
                         </p>
                       </div>
@@ -2996,7 +2988,7 @@ export default function ExamesPage() {
                     )}
 
                     {!effectiveAutomaticAttachment && attachments.length === 0 && (
-                      <div className="rounded-[16px] border border-blue-200 bg-white/80 px-4 py-4 text-sm font-semibold text-hpsr-muted">
+                      <div className="rounded-[16px] border border-[#e5d8cf] bg-white/80 px-4 py-4 text-sm font-semibold text-hpsr-muted">
                         Nenhum anexo disponível para o exame atual. Use a área Anexos à esquerda para adicionar uma imagem manualmente.
                       </div>
                     )}
@@ -3059,7 +3051,7 @@ export default function ExamesPage() {
 
       {preview.open && preview.document && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1f0805]/60 p-4">
-          <div className="flex h-[min(94dvh,980px)] w-full max-w-[1180px] flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-[#fffaf4] shadow-[0_24px_70px_rgba(42,7,0,0.32)]">
+          <div className="flex h-[min(94dvh,980px)] w-full max-w-[1180px] flex-col overflow-hidden rounded-[22px] border border-[#dfd4cc] bg-[#faf7f4] shadow-[0_24px_70px_rgba(42,7,0,0.26)]">
             <div className="flex items-center justify-between gap-3 border-b border-hpsr-border bg-white px-4 py-3">
               <div>
                 <h3 className="text-lg font-black uppercase text-hpsr-text">
@@ -3081,7 +3073,7 @@ export default function ExamesPage() {
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-auto bg-[url('/exames-preview-bg.png')] bg-repeat p-6">
+            <div className="min-h-0 flex-1 overflow-auto bg-[linear-gradient(180deg,#f4f0ed_0%,#ebe5e0_100%)] p-6">
               <div className="mx-auto w-fit">
                 {previewImage ? (
                   <img
@@ -3302,25 +3294,8 @@ function Toolbar({
         <Button onClick={() => applyFormatBlock("h2")}>Seção</Button>
         <Button onClick={() => applyFormatBlock("p")}>Texto</Button>
       </div>
-      <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
-        <label className="inline-flex h-9 items-center gap-2 rounded-[12px] border border-hpsr-border bg-white/85 px-2 text-xs font-black text-hpsr-text">
-          <Type size={15} />
-          <StyledSelect
-            defaultValue="3"
-            onChange={(event) => exec("fontSize", event.target.value)}
-            className="h-7 min-w-[96px] bg-transparent text-xs font-black text-hpsr-text outline-none"
-            aria-label="Tamanho da fonte"
-            title="Tamanho da fonte"
-          >
-            <option value="1">10 px</option>
-            <option value="2">12 px</option>
-            <option value="3">14 px</option>
-            <option value="4">16 px</option>
-            <option value="5">18 px</option>
-            <option value="6">24 px</option>
-            <option value="7">32 px</option>
-          </StyledSelect>
-        </label>
+      <div className="flex items-center rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
+        <EditorFontSizeMenu onChange={(value) => exec("fontSize", value)} />
       </div>
       <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
         <Button onClick={() => exec("bold")}>

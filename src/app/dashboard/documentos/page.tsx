@@ -3,6 +3,7 @@
 import { brazilIso } from "@/lib/brazil-datetime";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
+import { EditorFontSizeMenu } from "@/components/ui/EditorFontSizeMenu";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlignCenter,
@@ -1414,90 +1415,63 @@ export default function DocumentsPage() {
     const logo = await loadImage("/logo-hpsr.png");
     if (logo) {
       context.save();
-      context.globalAlpha = 0.045;
-      const ratio = Math.min(300 / logo.width, 300 / logo.height);
+      context.globalAlpha = 0.06;
+      const watermarkSize = 340;
+      const ratio = Math.min(watermarkSize / logo.width, watermarkSize / logo.height);
       const drawWidth = logo.width * ratio;
       const drawHeight = logo.height * ratio;
-      context.drawImage(logo, (canvas.width - drawWidth) / 2, 365 + (300 - drawHeight) / 2, drawWidth, drawHeight);
+      context.drawImage(logo, (canvas.width - drawWidth) / 2, (canvas.height - drawHeight) / 2, drawWidth, drawHeight);
       context.restore();
     }
 
     context.textBaseline = "top";
-    if (pageIndex === 0) {
-      context.fillStyle = "rgba(255,255,255,0.96)";
-      context.strokeStyle = "rgba(91,24,9,0.18)";
-      context.beginPath();
-      context.roundRect(24, 24, 742, 74, 18);
-      context.fill();
-      context.stroke();
+    context.fillStyle = "rgba(255,255,255,0.96)";
+    context.strokeStyle = "rgba(91,24,9,0.16)";
+    context.beginPath();
+    context.roundRect(24, 24, 742, 66, 16);
+    context.fill();
+    context.stroke();
 
-      if (logo) {
-        const ratio = Math.min(48 / logo.width, 48 / logo.height);
-        context.drawImage(logo, 38, 36, logo.width * ratio, logo.height * ratio);
-      }
-      drawTechnicalRibbon(context, "Documento técnico · folha institucional", 96, 34, 250);
-      context.fillStyle = "#5b1809";
-      context.font = "700 18px Arial";
-      context.fillText("HOSPITAL SÃO RAFAEL", 96, 58);
-      context.fillStyle = "#8d5f54";
-      context.font = "11px Georgia";
-      context.fillText("Documento clínico padronizado do sistema", 96, 78);
-
-      drawInfoCard(context, "Data da emissão", today, 574, 32, 178, 26);
-      drawInfoCard(context, "Formato", "PNG", 574, 64, 178, 26);
-
-      context.fillStyle = "rgba(91,24,9,0.08)";
-      context.beginPath();
-      context.roundRect(210, 110, 374, 32, 16);
-      context.fill();
-      context.strokeStyle = "rgba(91,24,9,0.22)";
-      context.stroke();
-      context.textAlign = "center";
-      context.fillStyle = "#5b1809";
-      context.font = "700 14px Arial";
-      context.fillText((selectedModel?.title || "DOCUMENTO MÉDICO").toUpperCase(), 397, 119);
-
-      context.fillStyle = "rgba(255,255,255,0.95)";
-      context.strokeStyle = "rgba(91,24,9,0.18)";
-      context.beginPath();
-      context.roundRect(28, 156, 738, 122, 18);
-      context.fill();
-      context.stroke();
-      context.textAlign = "left";
-      context.fillStyle = "#5b1809";
-      context.font = "700 10px Arial";
-      context.fillText("IDENTIFICAÇÃO DO PACIENTE", 44, 168);
-      drawInfoCard(context, "Paciente", patient.name || "-", 42, 182, 404, 40);
-      drawInfoCard(context, "Passaporte", patient.passport || "-", 458, 182, 140, 40);
-      drawInfoCard(context, "Tipo sanguíneo", patient.bloodType || "-", 610, 182, 142, 40);
-      drawInfoCard(context, "Idade", patient.age ? `${patient.age}` : "-", 42, 228, 80, 36);
-      drawInfoCard(context, "Profissional emitente", doctor.name || "Não informado", 134, 228, 332, 36);
-      drawInfoCard(context, "CRM", doctor.crm || "000000", 478, 228, 118, 36);
-      drawInfoCard(context, "Hospital", "Hospital São Rafael", 608, 228, 144, 36);
-    } else {
-      context.strokeStyle = "rgba(91,24,9,0.16)";
-      context.beginPath();
-      context.moveTo(28, 72);
-      context.lineTo(766, 72);
-      context.stroke();
-      context.fillStyle = "#5b1809";
-      context.font = "700 12px Arial";
-      context.fillText((selectedModel?.title || "DOCUMENTO MÉDICO").toUpperCase(), 42, 42);
-      context.textAlign = "right";
-      context.font = "10px Georgia";
-      context.fillText(`Continuação · página ${pageIndex + 1}`, 752, 44);
-      context.textAlign = "left";
+    if (logo) {
+      const ratio = Math.min(40 / logo.width, 40 / logo.height);
+      context.drawImage(logo, 38, 36, logo.width * ratio, logo.height * ratio);
     }
+    context.fillStyle = "#3d1710";
+    context.font = "700 16.5px Arial";
+    context.fillText("HOSPITAL SÃO RAFAEL", 92, 34);
+    context.fillStyle = "#8d665b";
+    context.font = "700 8.5px Arial";
+    context.fillText("DOCUMENTO MÉDICO · HOSPITAL SÃO RAFAEL", 92, 58);
 
-    let y = pageIndex === 0 ? 300 : 96;
-    y = drawDocumentHtml(context, html, 42, y, 710, 960);
+    drawInfoCard(context, "Data", today, 574, 31, 84, 25);
+    drawInfoCard(context, "Página", `${pageIndex + 1}/${totalPages}`, 666, 31, 86, 25);
 
-    context.fillStyle = "rgba(255,250,244,0.98)";
-    context.fillRect(42, 985, 710, 126);
+    context.fillStyle = "rgba(91,24,9,0.065)";
+    context.strokeStyle = "rgba(91,24,9,0.16)";
+    context.beginPath();
+    context.roundRect(42, 100, 710, 30, 12);
+    context.fill();
+    context.stroke();
+    context.textAlign = "center";
+    context.fillStyle = "#5b1809";
+    context.font = "700 11.5px Arial";
+    context.fillText((selectedModel?.title || "DOCUMENTO MÉDICO").toUpperCase(), 397, 109);
+    context.textAlign = "left";
+
+    drawInfoCard(context, "Paciente", patient.name || "-", 42, 138, 318, 30);
+    drawInfoCard(context, "Passaporte", patient.passport || "-", 368, 138, 132, 30);
+    drawInfoCard(context, "Idade", patient.age || "-", 508, 138, 82, 30);
+    drawInfoCard(context, "Tipo sanguíneo", patient.bloodType || "-", 598, 138, 154, 30);
+
+    let y = 184;
+    y = drawDocumentHtml(context, html, 42, y, 710, 1009);
+
+    context.fillStyle = "rgba(255,250,247,0.98)";
+    context.fillRect(42, 1018, 710, 93);
     context.strokeStyle = "rgba(91,24,9,0.20)";
     context.beginPath();
-    context.moveTo(42, 985);
-    context.lineTo(752, 985);
+    context.moveTo(42, 1018);
+    context.lineTo(752, 1018);
     context.stroke();
 
     const signatureSource = doctor.signatureImage || null;
@@ -1506,7 +1480,7 @@ export default function DocumentsPage() {
       if (signature) {
         const normalizedSignature = normalizeSignatureImage(signature);
         if (normalizedSignature) {
-          drawSignatureContain(context, normalizedSignature, 237, 990, 320, 64);
+          drawSignatureContain(context, normalizedSignature, 257, 1019, 280, 48);
         }
       }
     }
@@ -1514,22 +1488,22 @@ export default function DocumentsPage() {
     context.strokeStyle = "#5b1809";
     context.setLineDash([2, 2]);
     context.beginPath();
-    context.moveTo(245, 1060);
-    context.lineTo(549, 1060);
+    context.moveTo(272, 1069);
+    context.lineTo(522, 1069);
     context.stroke();
     context.setLineDash([]);
     context.fillStyle = "#5b1809";
     context.textAlign = "center";
-    context.font = "11px Georgia";
-    context.fillText(`Dr(a). ${doctor.name || "Nome do médico"}`, 397, 1066);
-    context.font = "9px Georgia";
+    context.font = "700 10px Arial";
+    context.fillText(`Dr(a). ${doctor.name || "Nome do médico"}`, 397, 1073);
+    context.font = "8.5px Arial";
     context.fillText(
       `${doctor.role || "Médico"} · CRM: ${doctor.crm || "000000"}`,
       397,
-      1082,
+      1086,
     );
     context.fillStyle = "#7a5148";
-    context.font = "8.5px Georgia";
+    context.font = "8px Arial";
     context.textAlign = "left";
     context.fillText("Hospital São Rafael", 42, 1101);
     context.textAlign = "center";
@@ -1925,13 +1899,8 @@ export default function DocumentsPage() {
                 <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => applyFormatBlock("p")}>Texto</button>
               </div>
 
-              <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
-                <label className="inline-flex h-9 items-center gap-2 rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-xs font-black text-hpsr-text">
-                  <Type size={15} />
-                  <StyledSelect defaultValue="3" onChange={(event) => exec("fontSize", event.target.value)} className="h-7 min-w-[88px] bg-transparent text-xs font-black text-hpsr-text outline-none" aria-label="Tamanho da fonte" title="Tamanho da fonte">
-                    <option value="1">10 px</option><option value="2">12 px</option><option value="3">14 px</option><option value="4">16 px</option><option value="5">18 px</option><option value="6">24 px</option><option value="7">32 px</option>
-                  </StyledSelect>
-                </label>
+              <div className="flex items-center rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
+                <EditorFontSizeMenu onChange={(value) => exec("fontSize", value)} />
               </div>
 
               <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
@@ -1975,8 +1944,8 @@ export default function DocumentsPage() {
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f3f0ec_0%,#ebe7e2_100%)] p-5">
-              <div className="mx-auto min-h-full max-w-[1100px] rounded-[20px] border border-[#ded7d0] bg-white p-8 shadow-[0_14px_34px_rgba(42,7,0,0.065)] ring-1 ring-white">
+            <div className="min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f4f0ed_0%,#ebe5e0_100%)] p-5">
+              <div className="mx-auto min-h-full max-w-[1100px] rounded-[20px] border border-[#dfd5ce] bg-white p-8 shadow-[0_14px_34px_rgba(42,7,0,0.055)] ring-1 ring-white">
                 <div className="relative">
                   {editorPageGuideTops.map((top, index) => (
                     <div key={index} className="pointer-events-none absolute left-0 right-0 z-10" style={{ top }}>
@@ -2055,57 +2024,70 @@ export default function DocumentsPage() {
               <img
                 src="/logo-hpsr.png"
                 alt="Marca d’água do Hospital São Rafael"
-                className="pointer-events-none absolute left-1/2 top-[42%] h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 select-none object-contain opacity-[0.045]"
+                className="pointer-events-none absolute left-1/2 top-1/2 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 select-none object-contain opacity-[0.06]"
                 draggable={false}
               />
-              <div className="relative z-10 flex h-full flex-col px-[5.3%] pb-[3.5%] pt-[3.2%] font-serif text-[6.3px] leading-[1.45] text-[#4b2118]">
-                <div className="text-right text-[6px] text-[#7a5148]">
-                  <p>Data da Emissão: {today}</p>
-                  <p className="text-[#b1adac]">Formato principal: PNG</p>
-                </div>
-                <div className="mx-auto mt-[5.5%] rounded-full border border-hpsr-wine px-4 py-1 text-center text-[7px] font-bold uppercase text-hpsr-wine">
-                  {selectedModel?.title || "Documento médico"}
-                </div>
-                <div className="mt-[5%] rounded-[10px] border border-hpsr-wine px-3 py-2 text-[6px]">
-                  <p className="mb-2 text-center text-[7px] font-bold uppercase text-hpsr-wine">
-                    Identificação do paciente
-                  </p>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1">
-                    <p>
-                      <strong>Nome:</strong> {patient.name || "-"}
-                    </p>
-                    <p>
-                      <strong>Passaporte:</strong> {patient.passport || "-"}
-                    </p>
-                    <p>
-                      <strong>Idade:</strong> {patient.age || "-"}
-                    </p>
-                    <p>
-                      <strong>Tipo sanguíneo:</strong>{" "}
-                      {patient.bloodType || "-"}
-                    </p>
+              <div className="relative z-10 flex h-full flex-col px-[4.9%] pb-[3.3%] pt-[3%] font-sans text-[6.25px] leading-[1.48] text-[#4b2118]">
+                <div className="rounded-[16px] border border-[#e4d8d0] bg-[linear-gradient(180deg,#fbf6f2_0%,#ffffff_100%)] px-4 py-3 shadow-[0_8px_24px_rgba(42,7,0,0.045)]">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="text-[5.8px] font-black uppercase tracking-[0.22em] text-[#8d665b]">Hospital São Rafael</p>
+                      <h1 className="mt-1 text-[10.8px] font-black uppercase tracking-[0.06em] text-[#3d1710]">{selectedModel?.title || "Documento médico"}</h1>
+                      <p className="mt-1 text-[6px] font-semibold text-[#7a5148]">Documento clínico institucional</p>
+                    </div>
+                    <div className="grid w-[174px] gap-1.5 text-[5.8px]">
+                      <div className="rounded-[10px] border border-[#e5d9d1] bg-white px-2.5 py-1.5">
+                        <p className="font-black uppercase tracking-[0.12em] text-[#8d665b]">Data da emissão</p>
+                        <p className="mt-0.5 font-black text-[#3d1710]">{today}</p>
+                      </div>
+                      <div className="rounded-[10px] border border-[#e5d9d1] bg-white px-2.5 py-1.5">
+                        <p className="font-black uppercase tracking-[0.12em] text-[#8d665b]">Formato</p>
+                        <p className="mt-0.5 font-black text-[#3d1710]">PNG institucional</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
+
+                <div className="mt-[3.8%] rounded-[16px] border border-[#e6dad2] bg-white px-4 py-3 shadow-[0_8px_22px_rgba(42,7,0,0.035)]">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[6.2px] font-black uppercase tracking-[0.18em] text-[#5b1809]">Identificação do paciente</p>
+                    <span className="rounded-full border border-[#e5d9d1] bg-[#faf4f0] px-2.5 py-1 text-[5.7px] font-black uppercase tracking-[0.12em] text-[#8d665b]">Registro clínico</span>
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    {[
+                      ["Nome", patient.name || "-"],
+                      ["Passaporte", patient.passport || "-"],
+                      ["Idade", patient.age || "-"],
+                      ["Tipo sanguíneo", patient.bloodType || "-"],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-[12px] border border-[#eee3dc] bg-[#fffdfb] px-2.5 py-2">
+                        <p className="text-[5.6px] font-black uppercase tracking-[0.12em] text-[#8d665b]">{label}</p>
+                        <p className="mt-0.5 text-[6.6px] font-black text-[#3d1710]">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div
-                  className="mt-[7%] min-h-0 flex-1 overflow-hidden text-[6.4px] leading-[1.55] [&_h1]:mb-2 [&_h1]:text-[9px] [&_h1]:font-bold [&_h1]:uppercase [&_h1]:text-hpsr-wine [&_h2]:mb-1 [&_h2]:mt-2 [&_h2]:text-[7.3px] [&_h2]:font-bold [&_p]:mb-2 [&_table]:my-2 [&_table]:w-full [&_td]:border [&_td]:border-[#ead5cc] [&_td]:p-1 [&_th]:border [&_th]:border-[#ead5cc] [&_th]:bg-[#fcf6ee] [&_th]:p-1 [&_th]:text-left"
+                  className="mt-[4.2%] min-h-0 flex-1 overflow-hidden rounded-[18px] border border-[#e7ddd6] bg-white px-4 py-3 text-[6.35px] leading-[1.58] text-[#4b2118] shadow-[0_10px_26px_rgba(42,7,0,0.035)] [&_h1]:mb-2 [&_h1]:text-[9.2px] [&_h1]:font-black [&_h1]:uppercase [&_h1]:tracking-[0.05em] [&_h1]:text-[#5b1809] [&_h2]:mb-1.5 [&_h2]:mt-2.5 [&_h2]:rounded-[8px] [&_h2]:border [&_h2]:border-[#e6dad2] [&_h2]:bg-[#fbf6f2] [&_h2]:px-2.5 [&_h2]:py-1.5 [&_h2]:text-[7.1px] [&_h2]:font-black [&_h2]:uppercase [&_h2]:tracking-[0.06em] [&_h2]:text-[#5b1809] [&_p]:mb-2 [&_strong]:text-[#3d1710] [&_table]:my-2.5 [&_table]:w-full [&_table]:overflow-hidden [&_table]:rounded-[10px] [&_table]:border [&_table]:border-[#e7ddd6] [&_td]:border [&_td]:border-[#e7ddd6] [&_td]:p-1.5 [&_td]:align-middle [&_th]:border [&_th]:border-[#e7ddd6] [&_th]:bg-[#f7eee8] [&_th]:p-1.5 [&_th]:text-left [&_th]:font-black [&_th]:text-[#5b1809]"
                   dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />
-                <footer className="mt-auto border-t border-[#ead5cc] pt-2 text-center text-[5.6px] text-[#7a5148]">
+                <footer className="mt-[2%] rounded-[14px] border border-[#e6dad2] bg-[#fffdfb] px-4 py-1.5 text-center text-[5.7px] text-[#7a5148]">
                   {doctor.signatureImage && (
                     <img
                       src={doctor.signatureImage}
                       alt="Assinatura cadastrada do médico"
-                      className="mx-auto mb-1 h-[52px] w-[280px] object-contain"
+                      className="mx-auto h-[50px] w-[280px] object-contain"
                     />
                   )}
-                  <div className="mx-auto mb-1 h-5 w-[45%] border-b border-dashed border-hpsr-wine" />
-                  <p className="font-bold text-hpsr-wine">
+                  <div className="mx-auto mb-0.5 h-1.5 w-[40%] border-b border-dashed border-[#8d665b]" />
+                  <p className="font-black text-[#5b1809]">
                     Dr(a). {doctor.name || "Nome do médico"}
                   </p>
-                  <p>
+                  <p className="font-semibold">
                     {doctor.role || "Médico"} · CRM: {doctor.crm || "000000"}
                   </p>
-                  <p className="mt-1">
+                  <p className="mt-0.5 font-semibold">
                     Hospital São Rafael · Documento médico institucional
                   </p>
                 </footer>
@@ -2116,11 +2098,11 @@ export default function DocumentsPage() {
 
       {previewOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1f0805]/60 p-4 no-print">
-          <div className="flex h-[min(94dvh,980px)] w-full max-w-[1180px] flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-[#fffaf4] shadow-[0_24px_70px_rgba(42,7,0,0.32)]">
+          <div className="flex h-[min(94dvh,980px)] w-full max-w-[1180px] flex-col overflow-hidden rounded-[22px] border border-[#dfd4cc] bg-[#faf7f4] shadow-[0_24px_70px_rgba(42,7,0,0.26)]">
             <div className="flex items-center justify-between gap-3 border-b border-hpsr-border bg-white px-4 py-3">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wine/65">
-                  Documento salvo
+                  Pré-visualização
                 </p>
                 <h3 className="text-lg font-black uppercase text-hpsr-text">
                   {selectedModel?.title || "Documento médico"}
@@ -2138,7 +2120,7 @@ export default function DocumentsPage() {
               </button>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-auto bg-[url('/exames-preview-bg.png')] bg-repeat p-6">
+            <div className="min-h-0 flex-1 overflow-auto bg-[linear-gradient(180deg,#f4f0ed_0%,#ebe5e0_100%)] p-6">
               <div className="mx-auto w-fit origin-top scale-[0.72] sm:scale-[0.78] md:scale-[0.86] xl:scale-100">
                 <section className="h-[1123px] w-[794px] overflow-hidden bg-white shadow-[0_18px_52px_rgba(42,7,0,0.22)]">
                   {previewImages[previewPageIndex] ? (

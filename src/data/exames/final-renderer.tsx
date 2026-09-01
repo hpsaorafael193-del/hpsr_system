@@ -64,8 +64,8 @@ type ClinicalBlock = {
   weight: number;
 };
 
-const FIRST_PAGE_CAPACITY = 694;
-const CONTINUATION_PAGE_CAPACITY = 867;
+const FIRST_PAGE_CAPACITY = 824;
+const CONTINUATION_PAGE_CAPACITY = 824;
 
 const REPORT_MEASURE_CLASS = "hpsr-document-body [&_blockquote]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-[#5b1809]/35 [&_blockquote]:bg-[#fffaf4] [&_blockquote]:px-2 [&_blockquote]:py-1.5 [&_h1]:mb-2 [&_h1]:text-center [&_h1]:text-base [&_h1]:font-black [&_h1]:uppercase [&_h1]:tracking-[0.06em] [&_h1]:text-[#5b1809] [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:break-after-avoid [&_h2]:border-b [&_h2]:border-[#5b1809]/20 [&_h2]:pb-1 [&_h2]:text-sm [&_h2]:font-black [&_h2]:uppercase [&_h2]:tracking-[0.04em] [&_h2]:text-[#5b1809] [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:break-after-avoid [&_h3]:text-xs [&_h3]:font-black [&_h3]:text-[#5b1809] [&_li]:ml-5 [&_ol]:my-1.5 [&_p]:my-1.5 [&_table]:my-2 [&_table]:w-full [&_table]:break-inside-avoid [&_table]:border-collapse [&_td]:border [&_td]:border-[#5b1809]/20 [&_td]:px-2 [&_td]:py-1.5 [&_td]:align-top [&_th]:border [&_th]:border-[#5b1809]/25 [&_th]:bg-[#5b1809]/10 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-black [&_th]:text-[#5b1809] [&_ul]:my-1.5";
 
@@ -183,8 +183,8 @@ function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity
 function applyCanvasEquivalentMeasurementStyles(root: HTMLDivElement) {
   root.style.fontSize = "11.4px";
   root.style.lineHeight = "15.5px";
-  root.style.fontFamily = "Georgia, 'Times New Roman', serif";
-  root.style.color = "#3f231c";
+  root.style.fontFamily = "Arial, sans-serif";
+  root.style.color = "#4b2118";
 
   root.querySelectorAll<HTMLElement>("h1,h2,h3").forEach((heading) => {
     heading.style.boxSizing = "border-box";
@@ -252,12 +252,12 @@ function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[]) {
     fontSize: "12px",
     lineHeight: "1.42",
     color: "#4b2118",
-    fontFamily: "Georgia, 'Times New Roman', serif",
+    fontFamily: "Arial, sans-serif",
     display: "flow-root",
   });
   document.body.appendChild(measure);
 
-  const capacities = [694, 867];
+  const capacities = [824, 824];
   const pages: string[][] = [];
   let current: string[] = [];
   let pageIndex = 0;
@@ -646,30 +646,30 @@ function ReportHtml({ html }: { html: string }) {
 function FullHeader({ metadata }: { metadata: RenderMetadata }) {
   return (
     <>
-      <div className="pointer-events-none absolute left-[3.6%] top-[1.8%] flex items-start gap-3" style={{ zIndex: 2 }}>
-        <img src="/logo-sao-rafael-horizontal.png" alt="Hospital São Rafael" className="h-[52px] w-auto object-contain" draggable={false} />
+      <div className="pointer-events-none absolute left-[3.55%] right-[3.55%] top-[2.1%] h-[66px] rounded-[16px] border border-[#5b1809]/15 bg-white/95" style={{ zIndex: 2 }} />
+      <img src="/logo-hpsr.png" alt="Hospital São Rafael" className="pointer-events-none absolute left-[4.8%] top-[3.1%] h-[40px] w-[40px] object-contain" draggable={false} style={{ zIndex: 3 }} />
+      <div className="pointer-events-none absolute left-[11.6%] top-[3.0%] text-[16px] font-black text-[#3d1710]" style={{ fontFamily: "Arial, sans-serif", zIndex: 3 }}>HOSPITAL SÃO RAFAEL</div>
+      <div className="pointer-events-none absolute left-[11.6%] top-[5.05%] text-[8.5px] font-black uppercase tracking-[0.12em] text-[#8d665b]" style={{ fontFamily: "Arial, sans-serif", zIndex: 3 }}>Laudo médico institucional</div>
+      <div className="pointer-events-none absolute right-[5.2%] top-[3.1%] text-right text-[9px] font-bold text-[#7a5148]" style={{ fontFamily: "Arial, sans-serif", zIndex: 3 }}>Emitido em {formatDate(metadata.date)}</div>
+      <div className="pointer-events-none absolute right-[5.2%] top-[5.0%] text-right text-[8px] font-bold text-[#8d665b]" style={{ fontFamily: "Arial, sans-serif", zIndex: 3 }}>Protocolo: {metadata.protocol || "-"}</div>
+      <div className="pointer-events-none absolute left-[5.25%] top-[8.55%] flex h-[28px] w-[89.5%] items-center justify-center rounded-[12px] border border-[#5b1809]/15 bg-[#5b1809]/[0.06] text-[12px] font-black uppercase tracking-[0.05em] text-[#5b1809]" style={{ fontFamily: "Arial, sans-serif", zIndex: 3 }}>{metadata.examName || "EXAME"}</div>
+      <div className="pointer-events-none absolute left-[5.25%] top-[12.1%] grid h-[30px] w-[89.5%] grid-cols-[2.4fr_1fr_.65fr_1.15fr] gap-1.5 text-[8px]" style={{ fontFamily: "Arial, sans-serif", zIndex: 3 }}>
+        <div className="rounded-[9px] border border-[#5b1809]/10 bg-white/95 px-2 py-1"><span className="font-black uppercase text-[#8d665b]">Paciente</span><span className="ml-1 font-bold text-[#3d1710]">{metadata.patient.name || "-"}</span></div>
+        <div className="rounded-[9px] border border-[#5b1809]/10 bg-white/95 px-2 py-1"><span className="font-black uppercase text-[#8d665b]">Passaporte</span><span className="ml-1 font-bold text-[#3d1710]">{metadata.patient.passport || "-"}</span></div>
+        <div className="rounded-[9px] border border-[#5b1809]/10 bg-white/95 px-2 py-1"><span className="font-black uppercase text-[#8d665b]">Idade</span><span className="ml-1 font-bold text-[#3d1710]">{metadata.patient.age || "-"}</span></div>
+        <div className="rounded-[9px] border border-[#5b1809]/10 bg-white/95 px-2 py-1"><span className="font-black uppercase text-[#8d665b]">Tipo sanguíneo</span><span className="ml-1 font-bold text-[#3d1710]">{metadata.patient.bloodType || "-"}</span></div>
       </div>
-      <div className="pointer-events-none absolute right-[3.55%] top-[2.05%] text-right text-[11px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Data da Emissão: {formatDate(metadata.date)}</div>
-      <div className="pointer-events-none absolute right-[3.55%] top-[3.85%] text-right text-[10px] text-[#b1adac]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Protocolo: {metadata.protocol || "-"}</div>
-      <div className="pointer-events-none absolute left-[3.55%] top-[6.35%] h-px w-[92.9%] bg-[#8a4b39]/70" style={{ zIndex: 2 }} />
-      <div className="pointer-events-none absolute left-1/2 top-[9.55%] flex h-[2.05%] w-[32.9%] -translate-x-1/2 items-center justify-center rounded-full border border-[#5b1809] text-center text-[14px] font-black uppercase text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>{metadata.examName || "EXAME"}</div>
-      <div className="pointer-events-none absolute left-[3.55%] top-[13.7%] h-[8%] w-[92.9%] rounded-[16px] border border-[#5b1809]" />
-      <div className="pointer-events-none absolute left-0 top-[14.7%] w-full text-center text-[14px] font-normal uppercase tracking-wide text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Identificação do Paciente</div>
-      <div className="pointer-events-none absolute left-[5.25%] top-[17.45%] text-[12px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Nome: {metadata.patient.name || "-"}</div>
-      <div className="pointer-events-none absolute left-[45.4%] top-[17.45%] text-[12px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Passaporte: {metadata.patient.passport || "-"}</div>
-      <div className="pointer-events-none absolute left-[79.95%] top-[17.45%] text-[12px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Tipo Sanguíneo: {metadata.patient.bloodType || "-"}</div>
-      <div className="pointer-events-none absolute left-[5.25%] top-[19.75%] text-[12px] text-[#5b1809]" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>Idade: {metadata.patient.age || "-"}</div>
     </>
   );
 }
 
 function Footer({ metadata, pageIndex, totalPages }: { metadata: RenderMetadata; pageIndex: number; totalPages: number }) {
   return (
-    <div className="pointer-events-none absolute bottom-[12px] left-[42px] right-[42px] h-[126px] overflow-hidden border-t border-[#5b1809]/20 bg-[#fffaf4]/95 pt-2 text-[#7a5148]" style={{ fontFamily: "Georgia, 'Times New Roman', serif", zIndex: 4 }}>
-      <div className="flex h-[82px] items-end justify-center overflow-hidden">
+    <div className="pointer-events-none absolute bottom-[12px] left-[42px] right-[42px] h-[97px] overflow-hidden border-t border-[#5b1809]/20 bg-[#fffaf4]/95 pt-2 text-[#7a5148]" style={{ fontFamily: "Arial, sans-serif", zIndex: 4 }}>
+      <div className="flex h-[58px] items-end justify-center overflow-hidden">
         <div className="w-[52%] text-center">
-          {metadata.signatureImage && <img src={metadata.signatureImage} alt="Assinatura cadastrada" className="mx-auto block object-contain" style={{ width: 320, height: 64, maxWidth: 320, maxHeight: 64, objectFit: "contain", mixBlendMode: "multiply", background: "transparent" }} />}
-          <div className="mx-auto mt-1 h-px w-[82%] border-b border-dotted border-[#5b1809]" />
+          {metadata.signatureImage && <img src={metadata.signatureImage} alt="Assinatura cadastrada" className="mx-auto block object-contain" style={{ width: 240, height: 38, maxWidth: 240, maxHeight: 38, objectFit: "contain", mixBlendMode: "multiply", background: "transparent" }} />}
+          <div className="mx-auto mt-0.5 h-px w-[68%] border-b border-dotted border-[#5b1809]" />
           <p className="mt-1 text-[11px]"><span className="font-bold text-[#5b1809]">Dr(a).</span> {metadata.doctor.name || "Nome do médico"}</p>
           <p className="text-[9px]"><span className="font-bold text-[#5b1809]">CRM:</span> {metadata.doctor.crm || "000000"}</p>
         </div>
@@ -709,7 +709,7 @@ function AutoAttachmentContent({ attachment }: { attachment: AutomaticAttachment
           }}
         />
       ) : (
-        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", border: "1px dashed rgba(91,24,9,0.35)", borderRadius: 16, color: "#7a5148", fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 13 }}>
+        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", border: "1px dashed rgba(91,24,9,0.35)", borderRadius: 16, color: "#7a5148", fontFamily: "Arial, sans-serif", fontSize: 13 }}>
           Imagem de anexo não definida.
         </div>
       )}
@@ -747,18 +747,17 @@ export function RenderedExamPageView({
   totalPages: number;
   refNode?: RefObject<HTMLDivElement>;
 }) {
-  const isFirstPage = pageIndex === 0;
   const contentStyle: CSSProperties = {
     position: "absolute",
     left: "5.25%",
-    top: isFirstPage ? "25.2%" : "9.5%",
+    top: "16.0%",
     width: "89.5%",
-    height: isFirstPage ? "61.8%" : "77.2%",
+    height: "73.5%",
     overflow: "hidden",
     fontSize: 12,
     lineHeight: 1.42,
     color: "#4b2118",
-    fontFamily: "Georgia, 'Times New Roman', serif",
+    fontFamily: "Arial, sans-serif",
     zIndex: 2,
   };
 
@@ -766,7 +765,7 @@ export function RenderedExamPageView({
     <div ref={refNode} data-page-index={pageIndex} className="hpsr-render-page relative h-[1123px] w-[794px] overflow-hidden bg-white shadow-[0_20px_48px_rgba(42,7,0,0.18)] ring-1 ring-black/5" style={{ position: "relative", width: 794, height: 1123, overflow: "hidden", background: "#fff" }}>
       <div className="pointer-events-none absolute inset-0 bg-[#fffdfb]" style={{ zIndex: 0 }} />
       <img src="/logo-hpsr.png" alt="Marca d’água do Hospital São Rafael" className="pointer-events-none absolute left-1/2 top-[42%] h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 select-none object-contain opacity-[0.045]" draggable={false} style={{ zIndex: 0 }} />
-      {isFirstPage && <FullHeader metadata={metadata} />}
+      <FullHeader metadata={metadata} />
       <div className="absolute overflow-hidden" style={contentStyle}>
         {page.type === "report" && <ReportHtml html={page.reportHtml || ""} />}
         {page.type === "auto-attachment" && page.automaticAttachment && <AutoAttachmentContent attachment={page.automaticAttachment} />}
