@@ -195,7 +195,7 @@ export function resolveAdaptiveExam(model: IntelligentExamModel, configuration: 
     supportsFutureAttachments: model.attachments.mode === "future",
     supportsFutureSmartPagination: true,
     supportsFutureRenderEngine: true,
-    generationSeed: Number(safeConfiguration.generationSeed || 0),
+    generationSeed: mixAdaptiveGenerationSeed(Number(safeConfiguration.generationSeed || 0)),
   };
 }
 
@@ -274,6 +274,25 @@ function seedFraction(seed: string) {
 
 function deterministicBetween(seed: string, min: number, max: number) {
   return min + seedFraction(seed) * (max - min);
+}
+
+function mixAdaptiveGenerationSeed(seed: number) {
+  const normalized = Number.isFinite(seed) ? seed >>> 0 : 0;
+  if (normalized === 0) return 0;
+
+  // O contador da interface continua simples (1, 2, 3...), mas o motor usa
+  // uma versão bem misturada dele. Isso evita a forte correlação do FNV-1a
+  // quando apenas o último dígito do seed muda.
+  let mixed = (normalized + 0x9e3779b9) >>> 0;
+  mixed = Math.imul(mixed ^ (mixed >>> 16), 0x21f0aaad);
+  mixed = Math.imul(mixed ^ (mixed >>> 15), 0x735a2d97);
+  mixed ^= mixed >>> 15;
+  return mixed >>> 0;
+}
+
+export function nextAdaptiveGenerationSeed(currentSeed = 0) {
+  const normalized = Number.isFinite(Number(currentSeed)) ? Math.max(0, Math.trunc(Number(currentSeed))) : 0;
+  return normalized >= 0xffffffff ? 1 : normalized + 1;
 }
 
 function randomNormalResultFromReference(parameter: IntelligentExamParameter, seed = parameter.id) {
@@ -362,9 +381,117 @@ function formatResult(value: string, parameter: IntelligentExamParameter, _seed 
 }
 
 function adaptiveExplicitResult(value: string, parameter: IntelligentExamParameter, seed: string) {
-  // Valores definidos pelo perfil servem como base clínica curada.
-  // Cada atualização gera pequena variação coerente, mantendo o mesmo perfil.
+  // Fluxo legado mantido para os modelos que já utilizavam variação própria.
   return varyNumericText(value, parameter, 0.04, seed);
+}
+
+function constrainRefreshedNumberToReferenceSegment(
+  original: number,
+  candidate: number,
+  parameter: IntelligentExamParameter,
+  displayStep: number,
+) {
+  const reference = parameter.referencia || "";
+  const numbers = Array.from(new Set(extractReferenceNumbers(reference))).sort((a, b) => a - b);
+  if (!numbers.length) return candidate;
+
+  const safeStep = Math.max(displayStep, Number.EPSILON);
+  const simpleRange = numbers.length === 2 && /[–-]|\b(?:a|entre)\b/i.test(reference) && !/[|/]/.test(reference);
+
+  if (simpleRange) {
+    const lower = numbers[0];
+    const upper = numbers[1];
+    if (original >= lower && original <= upper) return Math.min(upper, Math.max(lower, candidate));
+    if (original < lower) return Math.min(candidate, lower - safeStep);
+    return Math.max(candidate, upper + safeStep);
+  }
+
+  if (numbers.length === 1) {
+    const limit = numbers[0];
+    if (/(?:<|≤|até|ate)/i.test(reference)) {
+      return original <= limit ? Math.min(candidate, limit - safeStep) : Math.max(candidate, limit + safeStep);
+    }
+    if (/(?:>|≥)/.test(reference)) {
+      return original >= limit ? Math.max(candidate, limit + safeStep) : Math.min(candidate, limit - safeStep);
+    }
+    return candidate;
+  }
+
+  // Referências com várias faixas (ex.: AMH) mantêm a nova amostra dentro
+  // do mesmo segmento numérico do valor-base, evitando trocar o perfil clínico.
+  const lowerThreshold = [...numbers].reverse().find((value) => value < original);
+  const upperThreshold = numbers.find((value) => value > original);
+  const lower = lowerThreshold === undefined ? Number.NEGATIVE_INFINITY : lowerThreshold + safeStep;
+  const upper = upperThreshold === undefined ? Number.POSITIVE_INFINITY : upperThreshold - safeStep;
+  return Math.min(upper, Math.max(lower, candidate));
+}
+
+function numericTokenDecimalPlaces(token: string) {
+  const unsigned = token.trim().replace(/^[+-]/, "");
+  if (unsigned.includes(",")) return unsigned.split(",")[1]?.length || 0;
+  if (unsigned.includes(".")) {
+    const parsed = parsePtNumber(unsigned);
+    const asThousands = /^\d{1,3}(?:\.\d{3})+$/.test(unsigned) && parsed >= 1000;
+    if (!asThousands) return unsigned.split(".")[1]?.length || 0;
+  }
+  return 0;
+}
+
+function formatRefreshedNumber(value: number, originalToken: string, parameter: IntelligentExamParameter) {
+  const tokenDecimals = numericTokenDecimalPlaces(originalToken);
+  const decimals = tokenDecimals > 0
+    ? tokenDecimals
+    : referenceDecimalPlaces(parameter.referencia || originalToken, parameter.unidade);
+  const rounded = Number(value.toFixed(decimals));
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(rounded);
+}
+
+function refreshExplicitNumericResult(value: string, parameter: IntelligentExamParameter, seed: string) {
+  const match = value.match(/[-+]?(?:\d{1,3}(?:\.\d{3})+|\d+(?:[,.]\d+)?)/);
+  if (!match) return value;
+
+  const originalToken = match[0];
+  const original = parsePtNumber(originalToken);
+  // Zero pode ter significado clínico próprio (ex.: probabilidade de exclusão)
+  // e não deve virar um valor artificial apenas por atualizar os achados.
+  if (!Number.isFinite(original) || original === 0) return value;
+
+  const tokenDecimals = numericTokenDecimalPlaces(originalToken);
+  const decimals = tokenDecimals > 0
+    ? tokenDecimals
+    : referenceDecimalPlaces(parameter.referencia || originalToken, parameter.unidade);
+  const displayStep = 10 ** -decimals;
+  const factor = deterministicBetween(`${seed}:refresh`, 0.94, 1.06);
+  let candidate = constrainRefreshedNumberToReferenceSegment(original, original * factor, parameter, displayStep);
+  let formatted = formatRefreshedNumber(candidate, originalToken, parameter);
+
+  // Em valores pequenos ou próximos do limite, uma variação real pode sumir no
+  // arredondamento. Se isso ocorrer, tenta um passo visível sem sair da mesma
+  // faixa de referência do valor-base.
+  if (formatted === originalToken) {
+    const preferUp = seedFraction(`${seed}:direction`) >= 0.5;
+    const directions = preferUp ? [1, -1] : [-1, 1];
+    const preferredStep = 1 + Math.floor(seedFraction(`${seed}:step`) * 3);
+    const magnitudes = [preferredStep, 1, 2, 3].filter((step, index, values) => values.indexOf(step) === index);
+
+    outer: for (const magnitude of magnitudes) {
+      for (const direction of directions) {
+        candidate = constrainRefreshedNumberToReferenceSegment(
+          original,
+          original + direction * displayStep * magnitude,
+          parameter,
+          displayStep,
+        );
+        formatted = formatRefreshedNumber(candidate, originalToken, parameter);
+        if (formatted !== originalToken) break outer;
+      }
+    }
+  }
+
+  return value.replace(originalToken, formatted);
 }
 
 function alteredNumericFromReference(parameter: IntelligentExamParameter, profile: IntelligentExamProfile, directionHint?: "low" | "high", generationSeed = 0) {
@@ -871,13 +998,24 @@ function resultForParameter(model: IntelligentExamModel, parameter: IntelligentE
   const explicitResult = profile.results?.[parameter.id];
 
   if (explicitResult) {
-    // Os perfis revisados passam a ser cenários clínicos fechados: valores
-    // relacionados (ex.: HbA1c/eAG, creatinina/TFG, AST/ALT) não podem variar
-    // independentemente a cada renderização. As duas exceções solicitadas
-    // mantêm o comportamento legado sem qualquer alteração.
-    const result = model.id === "img_raio_x_unico" || model.id === "psiquiatria_psicotecnico"
+    // Os valores curados continuam sendo a base do perfil. Ao atualizar os
+    // achados, porém, parâmetros numéricos precisam gerar uma nova amostragem
+    // coerente em vez de repetir indefinidamente o mesmo valor. O seed 0
+    // preserva exatamente o valor-base do modelo; seeds seguintes aplicam uma
+    // variação pequena e determinística somente a resultados mensuráveis.
+    const sourceField = model.campos.find((field) => normalizedFieldKey(field.id) === normalizedFieldKey(parameter.id));
+    const hasNumericReference = extractReferenceNumbers(parameter.referencia || "").length > 0;
+    const isMeasuredNumeric = /\d/.test(explicitResult)
+      && (Boolean(parameter.unidade) || (sourceField?.tipo === "number" && hasNumericReference));
+    const isLegacyVariableModel = model.id === "img_raio_x_unico" || model.id === "psiquiatria_psicotecnico";
+    const shouldRefreshMeasuredValue = generationSeed > 0
+      && profile.status !== "personalizado"
+      && isMeasuredNumeric;
+    const result = isLegacyVariableModel
       ? adaptiveExplicitResult(explicitResult, parameter, generationKey)
-      : explicitResult;
+      : shouldRefreshMeasuredValue
+        ? refreshExplicitNumericResult(explicitResult, parameter, generationKey)
+        : explicitResult;
     if (!isGenericResult(result)) return formatResult(result, parameter);
   }
 
@@ -1097,6 +1235,33 @@ function narrativeForSelection(resolved: AdaptiveResolvedExam, value?: string | 
   return text;
 }
 
+function genericNarrativeForProfile(
+  resolved: AdaptiveResolvedExam,
+  kind: "interpretation" | "conclusion",
+) {
+  const source = kind === "interpretation" ? resolved.model.interpretation : resolved.model.conclusion;
+  if (resolved.profile.status === "normal" || resolved.profile.id === "normal") return source.normal;
+  if (resolved.profile.status === "indefinido" || /lim|indef|inconclus/i.test(`${resolved.profile.id} ${resolved.profile.name}`)) {
+    return source.undefined;
+  }
+  return source.altered;
+}
+
+function refreshedNarrative(
+  resolved: AdaptiveResolvedExam,
+  value: string | null | undefined,
+  kind: "interpretation" | "conclusion",
+) {
+  const selected = narrativeForSelection(resolved, value);
+  if (!resolved.generationSeed || resolved.profile.status === "personalizado" || !/\d/.test(selected)) return selected;
+
+  // Quando os valores são reamostrados, uma narrativa curada que contém os
+  // números antigos ficaria contraditória com a tabela recém-atualizada. Nesse
+  // caso usamos a interpretação/conclusão genérica do mesmo perfil clínico e
+  // mantemos os valores novos na evidência objetiva logo abaixo.
+  return narrativeForSelection(resolved, genericNarrativeForProfile(resolved, kind));
+}
+
 function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][]) {
   // Exceção expressa do projeto: não alterar o comportamento do Raio-X.
   if (resolved.model.id === "img_raio_x_unico") return legacyTechnicalInterpretation(resolved, rows);
@@ -1104,11 +1269,12 @@ function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][
   const evidence = reportEvidenceRows(resolved, rows)
     .map((row) => `${row[0]}: ${row[1]}`)
     .join("; ");
-  const narrative = narrativeForSelection(resolved, resolved.profile.interpretation);
-  if (!evidence) return simplifyClinicalNarrative(narrative || resolved.profile.resultSummary);
+  const narrative = refreshedNarrative(resolved, resolved.profile.interpretation, "interpretation");
+  const fallback = refreshedNarrative(resolved, resolved.profile.resultSummary, "interpretation");
+  if (!evidence) return simplifyClinicalNarrative(narrative || fallback);
 
   const noun = isImagingReportModel(resolved.model) ? "Principais achados" : "Principais resultados";
-  return simplifyClinicalNarrative(`${narrative || resolved.profile.resultSummary}\n${noun}: ${evidence}.`);
+  return simplifyClinicalNarrative(`${narrative || fallback}\n${noun}: ${evidence}.`);
 }
 
 function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
@@ -1119,7 +1285,8 @@ function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
     .slice(0, 2)
     .map((row) => `${row[0]}: ${row[1]}`)
     .join("; ");
-  const conclusion = narrativeForSelection(resolved, resolved.profile.conclusion) || narrativeForSelection(resolved, resolved.profile.resultSummary);
+  const conclusion = refreshedNarrative(resolved, resolved.profile.conclusion, "conclusion")
+    || refreshedNarrative(resolved, resolved.profile.resultSummary, "conclusion");
   if (!evidence || /personalizado/i.test(resolved.profile.id)) return simplifyClinicalNarrative(conclusion);
   return simplifyClinicalNarrative(`${conclusion}\nResumo principal: ${evidence}.`);
 }

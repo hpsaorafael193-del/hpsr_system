@@ -70,6 +70,7 @@ import { handleRichEditorTableKeyDown } from "@/lib/rich-editor-behavior";
 import { registerSystemActivity } from "@/lib/administrative-storage";
 import {
   createInitialAdaptiveConfiguration,
+  nextAdaptiveGenerationSeed,
   renderAdaptiveExamReport,
   resolveAdaptiveExam,
   type AdaptiveExamConfiguration,
@@ -353,7 +354,11 @@ function mergeAutomaticBlocks(currentHtml: string, generatedHtml: string) {
 
     const wasEditedByUser = node.dataset.hpsrUserEdited === "true";
 
-    if (id === "tabelas") {
+    const containsTable = Boolean(node.querySelector("table")) && /<table[\s>]/i.test(next);
+    if (id === "tabelas" || containsTable) {
+      // Em blocos tabulares, "Atualizar achados" deve recalcular os valores
+      // mesmo quando o profissional já ajustou a estrutura/texto ao redor.
+      // A atualização é feita por rótulo para não destruir a formatação manual.
       if (updateTableValuesOnly(node, next)) changed = true;
       else if (!wasEditedByUser) {
         node.outerHTML = next;
@@ -1521,15 +1526,26 @@ export default function ExamesPage() {
 
   function refreshFindings() {
     if (!selectedExam || !adaptiveConfig) return;
-    const nextConfig: AdaptiveExamConfiguration = {
-      ...adaptiveConfig,
-      generationSeed: Number(adaptiveConfig.generationSeed || 0) + 1,
-    };
-    const refreshedModel = resolveIntelligentExamModel(selectedExam, nextConfig.adapterValue);
-    const refreshedExam = resolveAdaptiveExam(refreshedModel, nextConfig);
-    const generated = renderAdaptiveExamReport(refreshedExam);
+
     const current = editorRef.current?.innerHTML || editorHtmlRef.current;
-    const merged = mergeAutomaticBlocks(current, generated);
+    let generationSeed = nextAdaptiveGenerationSeed(adaptiveConfig.generationSeed);
+    let nextConfig: AdaptiveExamConfiguration = { ...adaptiveConfig, generationSeed };
+    let merged = current;
+
+    // Alguns resultados arredondam para o mesmo valor em uma amostragem
+    // específica. Tenta poucas sementes seguintes para que um clique em
+    // "Atualizar achados" produza uma atualização visível sempre que o
+    // modelo possuir valores geráveis, sem tocar em campos manuais.
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      nextConfig = { ...adaptiveConfig, generationSeed };
+      const refreshedModel = resolveIntelligentExamModel(selectedExam, nextConfig.adapterValue);
+      const refreshedExam = resolveAdaptiveExam(refreshedModel, nextConfig);
+      const generated = renderAdaptiveExamReport(refreshedExam);
+      merged = mergeAutomaticBlocks(current, generated);
+      if (merged !== current) break;
+      generationSeed = nextAdaptiveGenerationSeed(generationSeed);
+    }
+
     setAdaptiveConfig(nextConfig);
     setEditorContent(merged, { moveCaretToEnd: true });
   }
