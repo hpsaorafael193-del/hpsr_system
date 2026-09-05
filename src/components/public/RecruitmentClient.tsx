@@ -179,6 +179,8 @@ export function RecruitmentClient() {
                 </h2>
                 <ul className="mt-4 space-y-3 text-sm leading-relaxed text-[#7a3a28]">
                   <li>• O candidato não pode estar empregado no momento.</li>
+                  <li>• O primeiro contrato de treinamento será realizado <strong>exclusivamente no período da noite</strong>.</li>
+                  <li>• Conforme as regras da cidade, o contrato inicial possui duração de <strong>15 dias</strong>. Em caso de desistência antes do término, será aplicada multa contratual de <strong>R$ 500.000,00</strong>, conforme a regra vigente da cidade.</li>
                   <li>• É necessário estar em concordância com as diretrizes da cidade e com o Regimento Interno.</li>
                   <li>• <strong>Não tem experiência?</strong> Sem problemas. O Hospital São Rafael também atua na formação de novos profissionais.</li>
                 </ul>
@@ -212,11 +214,9 @@ export function RecruitmentClient() {
                 <div className="flex items-start gap-3">
                   <ShieldAlert size={18} className="mt-0.5 shrink-0 text-red-500" />
                   <div>
-                    <h3 className="text-sm font-black text-red-600">Atenção ao Estágio</h3>
+                    <h3 className="text-sm font-black text-red-600">Atenção ao contrato inicial</h3>
                     <p className="mt-2 text-xs leading-relaxed text-hpsr-muted">
-                      Faltas injustificadas ou má conduta durante o período de estágio poderão gerar
-                      anulação imediata e multa rescisória de <strong>R$ 500.000,00</strong> em caso de
-                      justa causa ou desistência indevida.
+                      O primeiro contrato corresponde ao período inicial de treinamento, com duração de <strong>15 dias</strong> e realização exclusivamente no turno da <strong>noite</strong>. A desistência antes do término sujeita o contratado à multa de <strong>R$ 500.000,00</strong>, conforme a regra vigente da cidade.
                     </p>
                   </div>
                 </div>
@@ -595,7 +595,7 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
             <label className="mt-6 flex items-start gap-3 rounded-[14px] border border-hpsr-border bg-white p-3.5 text-sm font-semibold leading-relaxed text-hpsr-muted">
               <input type="checkbox" name="declarationAccepted" value="accepted" required className="mt-1 accent-hpsr-wine" />
               <span>
-                Declaro que as informações preenchidas são verdadeiras dentro do contexto RP e estou ciente de que o envio não garante aprovação.
+                <strong className="text-hpsr-text">Termo de ciência e concordância:</strong> declaro que as informações preenchidas são verdadeiras dentro do contexto RP e que estou ciente de que o envio da candidatura não garante aprovação. Caso seja contratado(a), concordo que o meu primeiro contrato de treinamento será realizado exclusivamente no período da noite, terá duração inicial de 15 dias conforme as regras da cidade e que, em caso de desistência antes do término, estarei sujeito(a) à multa contratual de R$ 500.000,00, conforme a regra vigente da cidade.
               </span>
             </label>
 
