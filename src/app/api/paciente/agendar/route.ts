@@ -29,6 +29,21 @@ export async function POST(request: NextRequest) {
     const discordId = String(body.discordId || "").replace(/\D/g, "").trim();
     const cityPhone = String(patientRow.city_phone || "").trim();
     const allowedFlowTypes = ["Consulta comum", "Acompanhamento"];
+    const normalizedReason = reason
+      .toLocaleLowerCase("pt-BR")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+    const isPsychotechnicalRequest = /psico\s*tecnic/.test(normalizedReason);
+
+    if (flowType === "Consulta comum" && isPsychotechnicalRequest) {
+      return NextResponse.json({
+        ok: false,
+        code: "SEPARATE_EXAM_FLOW",
+        error: "Psicotécnico é um exame e deve ser solicitado pela área Solicitar exame. Ele não consome vaga de consulta.",
+      }, { status: 409 });
+    }
 
     if (["Acompanhamento com especialista", "Exames"].includes(flowType)) {
       return NextResponse.json({

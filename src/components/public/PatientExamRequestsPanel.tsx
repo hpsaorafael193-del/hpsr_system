@@ -27,8 +27,6 @@ export function PatientExamRequestsPanel({ passport, hasClinicalContact, onSessi
   const [error, setError] = useState("");
   const [discordId, setDiscordId] = useState("");
   const [specialty, setSpecialty] = useState("");
-  const [capacityAvailable, setCapacityAvailable] = useState<boolean | null>(null);
-  const [capacityLoading, setCapacityLoading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -48,21 +46,6 @@ export function PatientExamRequestsPanel({ passport, hasClinicalContact, onSessi
 
   useEffect(() => { void load(); }, [load]);
 
-  useEffect(() => {
-    if (!specialty) { setCapacityAvailable(null); return; }
-    let active = true;
-    setCapacityLoading(true);
-    void fetch(`/api/paciente/capacidade?specialty=${encodeURIComponent(specialty)}`, { cache: "no-store" })
-      .then(async (response) => ({ response, data: await response.json() }))
-      .then(({ response, data }) => {
-        if (!active) return;
-        if (response.status === 401) { onSessionExpired?.(); return; }
-        setCapacityAvailable(Boolean(response.ok && data.ok && data.available));
-      })
-      .catch(() => { if (active) setCapacityAvailable(null); })
-      .finally(() => { if (active) setCapacityLoading(false); });
-    return () => { active = false; };
-  }, [onSessionExpired, specialty]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -82,7 +65,6 @@ export function PatientExamRequestsPanel({ passport, hasClinicalContact, onSessi
       form.reset();
       setDiscordId("");
       setSpecialty("");
-      setCapacityAvailable(null);
       await load();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível enviar a solicitação de exame.");
@@ -108,9 +90,9 @@ export function PatientExamRequestsPanel({ passport, hasClinicalContact, onSessi
               {specialties.map((item) => <option key={item}>{item}</option>)}
             </StyledSelect>
           </label>
-          {specialty && <div className={`sm:col-span-2 rounded-[14px] border px-3.5 py-3 ${capacityAvailable === false ? "border-rose-200 bg-rose-50" : "border-emerald-200 bg-emerald-50"}`}>
-            <p className={`text-xs font-black ${capacityAvailable === false ? "text-rose-800" : "text-emerald-800"}`}>{capacityLoading ? "Consultando disponibilidade..." : capacityAvailable === false ? "Sem vagas no momento" : capacityAvailable === true ? "Há profissional disponível" : "Disponibilidade será confirmada ao enviar"}</p>
-            <p className={`mt-1 text-[11px] font-semibold ${capacityAvailable === false ? "text-rose-700" : "text-emerald-700"}`}>{capacityAvailable === false ? "Não é possível enviar uma nova solicitação para esta especialidade agora." : "O primeiro profissional elegível que aceitar ficará responsável pelo contato."}</p>
+          {specialty && <div className="sm:col-span-2 rounded-[14px] border border-emerald-200 bg-emerald-50 px-3.5 py-3">
+            <p className="text-xs font-black text-emerald-800">Solicitação de exame independente da agenda clínica</p>
+            <p className="mt-1 text-[11px] font-semibold text-emerald-700">Exames não consomem vagas de consulta. O profissional elegível que aceitar ficará responsável pelo contato.</p>
           </div>}
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Exame ou necessidade solicitada
             <textarea name="reason" required rows={4} placeholder="Diga qual exame você precisa fazer." className={`${fieldClass} mt-1.5 py-3`} />
@@ -128,7 +110,7 @@ export function PatientExamRequestsPanel({ passport, hasClinicalContact, onSessi
           </label>
           {message && <p className="sm:col-span-2 rounded-[12px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800"><CheckCircle2 className="mr-2 inline" size={16}/>{message}</p>}
           {error && <p className="sm:col-span-2 rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-800">{error}</p>}
-          <button disabled={saving || capacityLoading || capacityAvailable === false} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50 sm:col-span-2">{saving ? <Loader2 className="animate-spin" size={17}/> : <FlaskConical size={17}/>} Enviar solicitação de exame</button>
+          <button disabled={saving} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50 sm:col-span-2">{saving ? <Loader2 className="animate-spin" size={17}/> : <FlaskConical size={17}/>} Enviar solicitação de exame</button>
         </form>
       </section>
 

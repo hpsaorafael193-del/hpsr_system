@@ -168,9 +168,9 @@ export function UserMenu() {
             const declinedBy = Array.isArray(payload.declinedBy) ? payload.declinedBy.map(String) : [];
             if (declinedBy.includes(userId)) return null;
             if (!directlyRelated && !specialtyRelated) return null;
-            if (Number(capacityBySpecialty[normalizedSpecialty] || 0) <= 0) return null;
-
             const flowType = String(payload.flowType || "Consulta comum");
+            if (flowType !== "Exames" && Number(capacityBySpecialty[normalizedSpecialty] || 0) <= 0) return null;
+
             const patient = String(row.patient || payload.patient || "Paciente");
             const specialty = String(payload.specialty || "Especialidade não informada");
             let category: MedicalNotification["category"] = "Consulta";

@@ -385,8 +385,9 @@ export default function AppointmentsPage() {
       const isManager = ["Total", "Diretor Técnico / Dev"].includes(currentUserProfile.accessLevel) || ["Diretora", "Vice Diretor", "Vice-Diretor"].includes(currentUserProfile.role);
       const requestedDoctorId = String(item.requestedDoctorId || "");
       const specialtyMatch = (currentUserProfile.specialties || []).some((specialty) => normalizeSpecialty(String(specialty)) === normalizeSpecialty(item.specialty));
+      const isExam = item.flowType === "Exames";
       const hasCapacity = Number(capacityBySpecialty[normalizeSpecialty(item.specialty)] || 0) > 0;
-      const belongsToDoctor = isManager || (specialtyMatch && hasCapacity && (!requestedDoctorId || requestedDoctorId === currentUserProfile.id));
+      const belongsToDoctor = isManager || (specialtyMatch && (isExam || hasCapacity) && (!requestedDoctorId || requestedDoctorId === currentUserProfile.id));
       return belongsToDoctor && pendingMarkers.some((marker) => normalizedStatus.includes(marker));
     });
   }, [publicRequests, currentUserProfile.accessLevel, currentUserProfile.id, currentUserProfile.role, currentUserProfile.specialties, capacityBySpecialty]);
@@ -515,7 +516,7 @@ export default function AppointmentsPage() {
       const acceptedBySelf = item.acceptedById === currentUserProfile.id || (item as any).doctorId === currentUserProfile.id;
       const specialtyMatch = (currentUserProfile.specialties || []).some((specialty) => normalizeSpecialty(String(specialty)) === normalizeSpecialty(item.specialty));
       const declinedBy = Array.isArray((item as any).declinedBy) ? (item as any).declinedBy.map(String) : [];
-      const eligiblePending = pending && specialtyMatch && Number(capacityBySpecialty[normalizeSpecialty(item.specialty)] || 0) > 0 && !declinedBy.includes(String(currentUserProfile.id));
+      const eligiblePending = pending && specialtyMatch && !declinedBy.includes(String(currentUserProfile.id));
       if (!isManager && !acceptedBySelf && !eligiblePending) return false;
       if (!normalizedSearch) return true;
       return item.patient.toLowerCase().includes(normalizedSearch) || item.passport.includes(normalizedSearch) || item.specialty.toLowerCase().includes(normalizedSearch) || (item.reason || "").toLowerCase().includes(normalizedSearch);
