@@ -60,7 +60,7 @@ export function ClinicalFollowupPlanner({
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     passport: "",
-    specialty: defaultSpecialty || "Clínico Geral",
+    specialty: defaultSpecialty ?? "Clínico Geral",
     startDate: today,
     frequency: "Semanal",
     customDays: "7",

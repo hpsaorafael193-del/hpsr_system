@@ -40,6 +40,15 @@ import { mirrorRecord } from "@/lib/data-bridge";
 import { createClient } from "@/lib/supabase";
 import { registerSystemActivity } from "@/lib/administrative-storage";
 import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
+import {
+  NO_CLINICAL_SPECIALTY_ROLES,
+  UNRESTRICTED_SPECIALTY_ROLES,
+  isGeneralClinicalSpecialty,
+  normalizeStaffSpecialtyName,
+  parseStaffSpecialties,
+  specialtyForStaffRole,
+  uniqueStaffSpecialties,
+} from "@/lib/staff-specialties";
 
 type TeamCategory = "Sistema" | "Direção" | "Corpo Médico" | "Formação";
 type ServiceStatus = "Em serviço" | "Fora de serviço" | "Em atendimento" | "Em procedimento";
@@ -247,8 +256,8 @@ function getContractInfo(member: TeamMember) {
         tone: "warning" as const,
         workedDays,
         limit,
-        message: "Residente deve realizar teste. Após aprovação, escolher: iniciar especialização ou permanecer como clínico.",
-        actions: ["Aplicar teste", "Iniciar especialização", "Manter clínico"],
+        message: "Residente deve realizar o teste. Após aprovação, a próxima etapa é Médico Clínico, com Clínico Geral como especialidade base.",
+        actions: ["Aplicar teste", "Promover a Médico Clínico", "Manter Residente"],
       };
     }
 
@@ -323,7 +332,7 @@ function categoryFromRole(role: string): TeamCategory {
 function memberFromProfile(row: any, supplemental?: Partial<TeamMember>): TeamMember {
   const role = String(row.role || supplemental?.hospitalRole || "Estagiário de Enfermagem");
   const specialties = Array.isArray(row.specialties) ? row.specialties.filter(Boolean) : [];
-  const specialty = String(row.specialty || specialties.join(", ") || supplemental?.specialty || "Não informado");
+  const specialty = specialtyForStaffRole(role, String(row.specialty || specialties.join(", ") || supplemental?.specialty || ""));
   const systemRole = role.includes("Dev") ? role : supplemental?.systemRole;
   return {
     id: String(row.id),
@@ -528,6 +537,7 @@ export default function TeamPage() {
       const activeApprovedProfile = linkedProfile ? normalizeAccessStatus(linkedProfile.access_status) === "aprovado" : false;
       const status: StaffRegistrationRequest["status"] = inactiveProfile ? "Aprovado" : storedStatus;
       const historical = Boolean(payload.hiddenAt) || status === "Recusado" || inactiveProfile || (status === "Aprovado" && !activeApprovedProfile);
+      const requestedRole = String(payload.requestedRole || row.requested_role || linkedProfile?.role || "Estagiário de Enfermagem");
       return {
         id: String(row.id),
         authUserId,
@@ -537,8 +547,8 @@ export default function TeamPage() {
         cityPhone: formatPhoneDisplay(String(payload.cityPhone || payload.city_phone || linkedProfile?.city_phone || ""), ""),
         discord: String(payload.discord || linkedProfile?.discord || ""),
         crm: String(payload.crm || linkedProfile?.crm || ""),
-        specialty: String(payload.specialty || linkedProfile?.specialty || "Clínico Geral"),
-        requestedRole: String(payload.requestedRole || row.requested_role || linkedProfile?.role || "Estagiário de Enfermagem"),
+        specialty: specialtyForStaffRole(requestedRole, String(payload.specialty || linkedProfile?.specialty || "")),
+        requestedRole,
         createdAt: String(payload.createdAt || row.created_at || brazilIso()),
         status,
         hiddenAt: payload.hiddenAt ? String(payload.hiddenAt) : undefined,
@@ -567,8 +577,8 @@ export default function TeamPage() {
               cityPhone: formatPhoneDisplay(String(profile.city_phone || ""), ""),
               discord: String(profile.discord || ""),
               crm: String(profile.crm || ""),
-              specialty: String(profile.specialty || "Clínico Geral"),
-              requestedRole: String(profile.role || "Médico Clínico"),
+              specialty: specialtyForStaffRole(String(profile.role || "Estagiário de Enfermagem"), String(profile.specialty || "")),
+              requestedRole: String(profile.role || "Estagiário de Enfermagem"),
               createdAt: String(profile.created_at || brazilIso()),
               status: rejected ? "Recusado" as const : (approved || inactive) ? "Aprovado" as const : "Pendente" as const,
               historical: inactive || rejected,
@@ -683,7 +693,7 @@ export default function TeamPage() {
     }
 
     let hospitalRole = member.hospitalRole;
-    if (action.includes("Especialização")) hospitalRole = "Médico Especialista";
+    if (action.includes("Especialização")) hospitalRole = member.hospitalRole === "Médico Clínico" ? "Médico Especialista" : member.hospitalRole;
     else if (action.includes("Promover") || action.toLowerCase().includes("clínico")) {
       if (member.hospitalRole === "Estagiário de Enfermagem") hospitalRole = "Residente";
       else if (member.hospitalRole === "Residente") hospitalRole = "Médico Clínico";
@@ -696,6 +706,7 @@ export default function TeamPage() {
     const updatedMember: TeamMember = {
       ...member,
       hospitalRole,
+      specialty: specialtyForStaffRole(hospitalRole, member.specialty),
       accessLevel: getAccessLevel(hospitalRole, member.systemRole),
       category: getCategory(hospitalRole, member.systemRole),
       permissions: getDefaultPermissions(hospitalRole, member.systemRole),
@@ -773,6 +784,7 @@ export default function TeamPage() {
       const updatedMember: TeamMember = {
         ...member,
         hospitalRole: trimmedValue,
+        specialty: specialtyForStaffRole(trimmedValue, member.specialty),
         accessLevel: getAccessLevel(trimmedValue, member.systemRole),
         category: getCategory(trimmedValue, member.systemRole),
         permissions: getDefaultPermissions(trimmedValue, member.systemRole),
@@ -844,7 +856,7 @@ export default function TeamPage() {
             .update({
               access_status: decision,
               role: request.requestedRole,
-              specialty: request.specialty || "Clínico Geral",
+              specialty: specialtyForStaffRole(request.requestedRole, request.specialty),
               passport: request.passport || null,
               crm: request.crm || null,
               updated_at: brazilIso(),
@@ -890,7 +902,7 @@ export default function TeamPage() {
         accessLevel: getAccessLevel(role, ""),
         category: getCategory(role, ""),
         department: "Hospital São Rafael",
-        specialty: request.specialty || "Clínico Geral",
+        specialty: specialtyForStaffRole(role, request.specialty),
         cityPhone: request.cityPhone,
         email: request.email,
         radio: "193",
@@ -929,8 +941,9 @@ export default function TeamPage() {
     }
 
     const timestamp = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+    const normalizedSpecialty = specialtyForStaffRole(updatedMember.hospitalRole, updatedMember.specialty);
     const history = [...existing.history];
-    if (existing.specialty !== updatedMember.specialty) history.unshift(`Especialidades alteradas em ${timestamp}: ${updatedMember.specialty}`);
+    if (existing.specialty !== normalizedSpecialty) history.unshift(`Especialidades alteradas em ${timestamp}: ${normalizedSpecialty || "Sem especialidade"}`);
     if (existing.joinedAt !== updatedMember.joinedAt || existing.contractDurationDays !== updatedMember.contractDurationDays || existing.contractStatus !== updatedMember.contractStatus) {
       history.unshift(`Contrato atualizado em ${timestamp}: ${updatedMember.contractStatus || "Ativo"}, ${updatedMember.contractDurationDays || 15} dias.`);
     }
@@ -938,6 +951,7 @@ export default function TeamPage() {
 
     const normalized: TeamMember = {
       ...updatedMember,
+      specialty: normalizedSpecialty,
       accessLevel: getAccessLevel(updatedMember.hospitalRole, updatedMember.systemRole),
       category: getCategory(updatedMember.hospitalRole, updatedMember.systemRole),
       permissions: getDefaultPermissions(updatedMember.hospitalRole, updatedMember.systemRole),
@@ -2312,49 +2326,35 @@ function ManageMemberModal({
         : "Ciclo padrão de 15 dias com revisão de função e desempenho.";
 
   function updateField(field: keyof TeamMember, value: string | number) {
-    setForm((currentForm) => ({ ...currentForm, [field]: value }));
+    setForm((currentForm) => {
+      if (field === "hospitalRole") {
+        const role = String(value);
+        return { ...currentForm, hospitalRole: role, specialty: specialtyForStaffRole(role, currentForm.specialty) };
+      }
+      return { ...currentForm, [field]: value };
+    });
   }
 
-  const normalizeSpecialtyName = (value: string) => value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-  const isGeneralClinician = (value: string) => {
-    const normalized = normalizeSpecialtyName(value);
-    return normalized === "clinico geral" || normalized === "clinica geral";
-  };
-  const parseSpecialties = (value: string) => value
-    .split(/[,;|\n]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-  const uniqueSpecialties = (items: string[]) => items.filter((item, index, list) => {
-    const normalized = normalizeSpecialtyName(item);
-    return list.findIndex((candidate) => normalizeSpecialtyName(candidate) === normalized) === index;
-  });
-  const selectedSpecialties = uniqueSpecialties(parseSpecialties(form.specialty));
-  const selectedAdditionalSpecialties = selectedSpecialties.filter((item) => !isGeneralClinician(item));
-  const baseAndLowerRoles = ["Médico Clínico", "Residente", "Estagiário de Enfermagem", "Enfermeiro", "Técnico de Enfermagem"];
-  const canHaveAdditionalSpecialties = !baseAndLowerRoles.includes(form.hospitalRole);
+  const selectedSpecialties = uniqueStaffSpecialties(parseStaffSpecialties(specialtyForStaffRole(form.hospitalRole, form.specialty)));
+  const selectedAdditionalSpecialties = selectedSpecialties.filter((item) => !isGeneralClinicalSpecialty(item));
+  const hasNoClinicalSpecialty = NO_CLINICAL_SPECIALTY_ROLES.has(form.hospitalRole);
+  const clinicalGeneralOnly = form.hospitalRole === "Médico Clínico";
+  const canHaveAdditionalSpecialties = !hasNoClinicalSpecialty && !clinicalGeneralOnly;
+  const specialtyLimit = UNRESTRICTED_SPECIALTY_ROLES.has(form.hospitalRole) ? Number.POSITIVE_INFINITY : 3;
 
   function toggleSpecialty(specialty: string) {
-    if (isGeneralClinician(specialty)) return;
-    if (!canHaveAdditionalSpecialties) {
-      void hpsrAlert("Médico Clínico e cargos inferiores podem manter apenas Clínico Geral.", "Especialidades indisponíveis");
-      return;
-    }
-    const current = uniqueSpecialties(selectedAdditionalSpecialties);
-    const normalizedSpecialty = normalizeSpecialtyName(specialty);
-    const exists = current.some((item) => normalizeSpecialtyName(item) === normalizedSpecialty);
-    if (!exists && current.length >= 3) {
+    if (isGeneralClinicalSpecialty(specialty) || !canHaveAdditionalSpecialties) return;
+    const current = uniqueStaffSpecialties(selectedAdditionalSpecialties);
+    const normalizedSpecialty = normalizeStaffSpecialtyName(specialty);
+    const exists = current.some((item) => normalizeStaffSpecialtyName(item) === normalizedSpecialty);
+    if (!exists && current.length >= specialtyLimit) {
       void hpsrAlert("É permitido selecionar até 3 especialidades adicionais além de Clínico Geral.", "Limite de especialidades");
       return;
     }
     const next = exists
-      ? current.filter((item) => normalizeSpecialtyName(item) !== normalizedSpecialty)
+      ? current.filter((item) => normalizeStaffSpecialtyName(item) !== normalizedSpecialty)
       : [...current, specialty];
-    updateField("specialty", ["Clínico Geral", ...uniqueSpecialties(next)].join(", "));
+    updateField("specialty", specialtyForStaffRole(form.hospitalRole, ["Clínico Geral", ...uniqueStaffSpecialties(next)].join(", ")));
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -2365,20 +2365,13 @@ function ManageMemberModal({
       return;
     }
 
-    const submittedSpecialties = uniqueSpecialties(parseSpecialties(form.specialty));
-    const additionalSpecialties = submittedSpecialties.filter((item) => !isGeneralClinician(item));
-    const baseAndLowerRoles = ["Médico Clínico", "Residente", "Estagiário de Enfermagem", "Enfermeiro", "Técnico de Enfermagem"];
-    if (baseAndLowerRoles.includes(form.hospitalRole) && additionalSpecialties.length > 0) {
-      void hpsrAlert("Médico Clínico e cargos inferiores podem manter apenas Clínico Geral.", "Especialidades inválidas");
-      return;
-    }
-    const additional = additionalSpecialties;
-    if (additional.length > 3) {
+    const normalizedSpecialty = specialtyForStaffRole(form.hospitalRole, form.specialty);
+    const additional = uniqueStaffSpecialties(parseStaffSpecialties(normalizedSpecialty)).filter((item) => !isGeneralClinicalSpecialty(item));
+    if (!UNRESTRICTED_SPECIALTY_ROLES.has(form.hospitalRole) && additional.length > 3) {
       void hpsrAlert("É permitido manter Clínico Geral e até 3 especialidades adicionais.", "Limite de especialidades");
       return;
     }
-    const normalizedSpecialties = ["Clínico Geral", ...uniqueSpecialties(additional)];
-    void onSave({ ...form, specialty: normalizedSpecialties.join(", ") });
+    void onSave({ ...form, specialty: normalizedSpecialty });
   }
 
   return (
@@ -2487,27 +2480,41 @@ function ManageMemberModal({
                     <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Cargo exclusivo protegido por identidade no banco de dados.</p>
                   </ModalField>
                   <ModalField label="Especialidades">
-                    <div className="rounded-[12px] border border-hpsr-border bg-[#fffaf4] p-3">
-                      <label className="flex items-center gap-2 rounded-[10px] border border-hpsr-border bg-white px-3 py-2 text-sm font-black text-hpsr-text">
-                        <input type="checkbox" checked readOnly className="accent-hpsr-wine" />
-                        Clínico Geral
-                      </label>
-                      <div className="mt-2 flex max-h-52 flex-col gap-2 overflow-y-auto overflow-x-hidden pr-1">
-                        {systemSpecialties.filter((item) => !isGeneralClinician(item)).map((item) => {
-                          const checked = selectedAdditionalSpecialties.some((selected) => normalizeSpecialtyName(selected) === normalizeSpecialtyName(item));
-                          return (
-                            <label key={item} className={`flex items-center gap-2 rounded-[10px] border px-3 py-2 text-sm font-bold ${checked ? "border-hpsr-wine bg-[#fff1e8] text-hpsr-wine" : "border-hpsr-border bg-white text-hpsr-text"} ${!canHaveAdditionalSpecialties ? "cursor-not-allowed opacity-55" : "cursor-pointer"}`}>
-                              <input type="checkbox" checked={checked} disabled={!canHaveAdditionalSpecialties} onChange={() => toggleSpecialty(item)} className="accent-hpsr-wine" />
-                              {item}
-                            </label>
-                          );
-                        })}
+                    {hasNoClinicalSpecialty ? (
+                      <div className="rounded-[12px] border border-hpsr-border bg-[#fffaf4] p-3 text-sm font-semibold leading-relaxed text-hpsr-muted">
+                        Este cargo ainda está em formação e não possui especialidade clínica própria. A primeira especialidade será <strong className="text-hpsr-text">Clínico Geral</strong> ao alcançar o cargo de Médico Clínico.
                       </div>
-                    </div>
-                    <div className="mt-1 flex items-center justify-between gap-3 text-[11px] font-semibold text-hpsr-muted">
-                      <p>Clínico Geral é a especialidade base e não entra no limite.</p>
-                      <span className="shrink-0 rounded-full border border-hpsr-border bg-white px-2.5 py-1 font-black text-hpsr-wine">{selectedAdditionalSpecialties.length}/3 adicionais</span>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="rounded-[12px] border border-hpsr-border bg-[#fffaf4] p-3">
+                          <label className="flex items-center gap-2 rounded-[10px] border border-hpsr-border bg-white px-3 py-2 text-sm font-black text-hpsr-text">
+                            <input type="checkbox" checked readOnly className="accent-hpsr-wine" />
+                            Clínico Geral
+                          </label>
+                          {canHaveAdditionalSpecialties && (
+                            <div className="mt-2 flex max-h-52 flex-col gap-2 overflow-y-auto overflow-x-hidden pr-1">
+                              {systemSpecialties.filter((item) => !isGeneralClinicalSpecialty(item)).map((item) => {
+                                const checked = selectedAdditionalSpecialties.some((selected) => normalizeStaffSpecialtyName(selected) === normalizeStaffSpecialtyName(item));
+                                return (
+                                  <label key={item} className={`flex items-center gap-2 rounded-[10px] border px-3 py-2 text-sm font-bold ${checked ? "border-hpsr-wine bg-[#fff1e8] text-hpsr-wine" : "border-hpsr-border bg-white text-hpsr-text"} cursor-pointer`}>
+                                    <input type="checkbox" checked={checked} onChange={() => toggleSpecialty(item)} className="accent-hpsr-wine" />
+                                    {item}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-1 flex items-center justify-between gap-3 text-[11px] font-semibold text-hpsr-muted">
+                          <p>{clinicalGeneralOnly ? "Médico Clínico recebe Clínico Geral automaticamente." : "Clínico Geral permanece como especialidade base."}</p>
+                          {canHaveAdditionalSpecialties && (
+                            <span className="shrink-0 rounded-full border border-hpsr-border bg-white px-2.5 py-1 font-black text-hpsr-wine">
+                              {UNRESTRICTED_SPECIALTY_ROLES.has(form.hospitalRole) ? `${selectedAdditionalSpecialties.length} adicionais · sem limite` : `${selectedAdditionalSpecialties.length}/3 adicionais`}
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </ModalField>
                 </div>
               </section>

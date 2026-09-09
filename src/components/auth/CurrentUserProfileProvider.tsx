@@ -6,6 +6,7 @@ import { formatPhoneDisplay } from "@/lib/phone";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { currentUserProfile as localDevProfile } from "@/data/current-user-profile";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase";
+import { specialtyForStaffRole, specialtiesForStaffRole } from "@/lib/staff-specialties";
 
 export type CurrentUserProfile = typeof localDevProfile;
 
@@ -26,8 +27,8 @@ function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage
   const name = String(row.name || "Médico");
   const role = String(row.role || "Médico Clínico");
   const systemRole = resolvedSystemRole || (role === "Diretor Técnico / Dev" ? role : "");
-  const specialty = String(row.specialty || "Clínico Geral");
-  const specialties = [...new Set(specialty.split(/[,;/|]+/).map((item) => item.trim()).filter(Boolean))];
+  const specialty = specialtyForStaffRole(role, String(row.specialty || ""));
+  const specialties = specialtiesForStaffRole(role, specialty);
   const passport = String(row.passport || "—");
   const crm = String(row.crm || "—");
   const cityPhone = formatPhoneDisplay(String(row.city_phone || ""));
@@ -45,7 +46,7 @@ function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage
     accessLevel: systemRole === "Diretor Técnico / Dev" || role === "Diretor Técnico / Dev" ? "Total" : "Padrão",
     department: "Hospital São Rafael",
     specialty,
-    specialties: specialties.length ? specialties : [specialty],
+    specialties,
     specialtyCapacity: (row.specialty_capacity && typeof row.specialty_capacity === "object" ? row.specialty_capacity : {}) as Record<string, number>,
     crm,
     cityPhone,

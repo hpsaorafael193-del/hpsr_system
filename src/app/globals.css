@@ -631,17 +631,61 @@ button:active {
   }
 }
 
-/* Agenda do Médico: painel de próximas consultas com rolagem própria. */
+/* Agenda do Médico: rolagem nativa. Não captura a roda do mouse quando o painel
+   chega ao início/fim, permitindo continuidade natural da página. */
 .hpsr-appointments-scroll {
-  overflow-y: scroll !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: auto;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+/* Meus Pacientes ocupa somente a altura útil da viewport. O documento não
+   cresce com a carteira: cabeçalho/controles permanecem visíveis e apenas a
+   listagem interna recebe rolagem, inclusive em telas menores. */
+.hpsr-patients-page {
+  height: calc(100dvh - 2.4rem) !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.hpsr-patients-page > .hpsr-page-header {
+  flex: 0 0 auto;
+}
+
+.hpsr-patients-page > section:last-of-type:not(.fixed) {
+  display: flex;
+  min-height: 0 !important;
+  flex: 1 1 0%;
+  flex-direction: column;
+  overflow: hidden !important;
+}
+
+.hpsr-patients-page > section:last-of-type:not(.fixed) > div:last-child {
+  display: flex;
+  min-height: 0 !important;
+  flex: 1 1 0%;
+  flex-direction: column;
+  overflow: hidden !important;
+}
+
+.hpsr-patients-scroll {
+  min-height: 0 !important;
+  max-height: none !important;
+  flex: 1 1 0%;
+  overflow-y: auto !important;
+  overflow-x: hidden;
   overscroll-behavior-y: contain;
   scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
-  pointer-events: auto;
 }
-.hpsr-appointments-scroll > * { pointer-events: auto; }
-@media (min-width: 1280px) {
-  .hpsr-appointments-scroll { min-height: 0 !important; max-height: none !important; }
+
+@media (max-width: 1023px) {
+  .hpsr-patients-page {
+    height: calc(100dvh - 1.9rem) !important;
+  }
 }
 
 

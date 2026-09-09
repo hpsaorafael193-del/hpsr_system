@@ -177,7 +177,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       cityPhone: form.cityPhone.trim(),
       discord: "",
       crm: form.crm.trim(),
-      specialty: "Clínico Geral",
+      specialty: "",
       requestedRole: "Estagiário de Enfermagem",
       createdAt: brazilIso(),
       status: "Pendente",

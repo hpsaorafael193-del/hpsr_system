@@ -40,7 +40,6 @@ import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 import { hpsrSuccess } from "@/components/ui/HpsrToastProvider";
 import { createClient } from "@/lib/supabase";
 import { ClinicalRecordsPortalPanel } from "@/components/dashboard/ClinicalRecordsPortalPanel";
-import { PatientDoctorLinksManager } from "@/components/dashboard/PatientDoctorLinksManager";
 import { specialties } from "@/data/mock";
 
 const PatientAccessRecoveryModal = dynamic(
@@ -1268,7 +1267,6 @@ export default function RecordsPage() {
         <PendingPatientsModal
           patients={pendingPatients}
           doctorName={currentUserProfile.systemName}
-          canManageLinks={isInternalLinkManager}
           onClose={() => setIsPendingPatientsOpen(false)}
           onClassified={() => {
             setIsPendingPatientsOpen(false);
@@ -1299,13 +1297,11 @@ export default function RecordsPage() {
 function PendingPatientsModal({
   patients,
   doctorName,
-  canManageLinks,
   onClose,
   onClassified,
 }: {
   patients: PatientRecord[];
   doctorName: string;
-  canManageLinks: boolean;
   onClose: () => void;
   onClassified: () => void;
 }) {
@@ -1313,7 +1309,6 @@ function PendingPatientsModal({
   const [classification, setClassification] = useState<"rotineiro" | "acompanhamento">("rotineiro");
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
-  const [view, setView] = useState<"classification" | "links">("classification");
   const selectedPatient = patients.find((patient) => patient.passport === selectedPassport) || null;
 
   function toggleSpecialty(specialty: string) {
@@ -1349,23 +1344,11 @@ function PendingPatientsModal({
           <div>
             <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[.14em]"><FileClock size={14} />Pacientes pendentes</span>
             <h2 className="mt-2 text-xl font-black">Pendências do prontuário</h2>
-            <p className="mt-1 text-sm text-white/75">Classifique o contexto clínico sem criar vínculos de agenda automaticamente.</p>
+            <p className="mt-1 text-sm text-white/75">Classifique o contexto clínico sem criar vínculos médico-paciente automaticamente.</p>
           </div>
           <button onClick={onClose} className="rounded-[12px] border border-white/25 bg-white/10 p-2"><X size={18} /></button>
         </div>
 
-        {canManageLinks && (
-          <div className="flex shrink-0 gap-2 border-b border-hpsr-border bg-white px-4 py-3 sm:px-5">
-            <button type="button" onClick={() => setView("classification")} className={`rounded-[12px] px-4 py-2 text-xs font-black transition ${view === "classification" ? "bg-hpsr-wine text-white" : "border border-hpsr-border bg-white text-hpsr-wine"}`}>Classificação clínica</button>
-            <button type="button" onClick={() => setView("links")} className={`rounded-[12px] px-4 py-2 text-xs font-black transition ${view === "links" ? "bg-hpsr-wine text-white" : "border border-hpsr-border bg-white text-hpsr-wine"}`}>Vínculos médico-paciente</button>
-          </div>
-        )}
-
-        {view === "links" && canManageLinks ? (
-          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-5">
-            <PatientDoctorLinksManager />
-          </div>
-        ) : (
         <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[300px_minmax(0,1fr)]">
           <div className="min-h-0 overflow-y-auto border-b border-hpsr-border bg-white p-3 lg:border-b-0 lg:border-r">
             {patients.length === 0 ? (
@@ -1387,12 +1370,12 @@ function PendingPatientsModal({
                   <p className="mt-1 text-sm font-semibold text-hpsr-muted">{selectedPatient.age} anos · {selectedPatient.bloodType} · {selectedPatient.passport}</p>
                 </div>
 
-                <div className="mt-4 rounded-[14px] border border-blue-200 bg-blue-50 p-3 text-xs font-semibold leading-relaxed text-blue-900">Esta classificação serve apenas para organizar o prontuário. Vínculos de agenda são administrados separadamente pelo setor interno.</div>
+                <div className="mt-4 rounded-[14px] border border-blue-200 bg-blue-50 p-3 text-xs font-semibold leading-relaxed text-blue-900">Esta classificação serve apenas para organizar o prontuário. Vínculos médico-paciente são administrados separadamente em Agendamentos → Meus Pacientes.</div>
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <button type="button" onClick={() => { setClassification("rotineiro"); setSelectedSpecialties([]); }} className={`rounded-[16px] border p-4 text-left ${classification === "rotineiro" ? "border-hpsr-wine bg-[#fff3e9] ring-2 ring-hpsr-wine/10" : "border-hpsr-border bg-white"}`}>
                     <p className="font-black text-hpsr-text">Paciente rotineiro</p>
-                    <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Mantém o cadastro como contexto clínico rotineiro. Nenhum vínculo de agenda é criado ou removido.</p>
+                    <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Mantém o cadastro como contexto clínico rotineiro. Nenhum vínculo médico-paciente é criado ou removido.</p>
                   </button>
                   <button type="button" onClick={() => setClassification("acompanhamento")} className={`rounded-[16px] border p-4 text-left ${classification === "acompanhamento" ? "border-blue-400 bg-blue-50 ring-2 ring-blue-100" : "border-hpsr-border bg-white"}`}>
                     <p className="font-black text-hpsr-text">Em acompanhamento</p>
@@ -1417,11 +1400,10 @@ function PendingPatientsModal({
             )}
           </div>
         </div>
-        )}
 
         <div className="flex justify-end gap-3 border-t border-hpsr-border bg-white/95 px-5 py-3.5">
           <button type="button" onClick={onClose} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-text">Fechar</button>
-          {view === "classification" && <button type="button" disabled={saving || !selectedPatient} onClick={() => void classify()} className="inline-flex min-w-[170px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-50">{saving ? <LoaderCircle size={16} className="animate-spin" /> : <ShieldCheck size={16} />}Salvar classificação</button>}
+          <button type="button" disabled={saving || !selectedPatient} onClick={() => void classify()} className="inline-flex min-w-[170px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-50">{saving ? <LoaderCircle size={16} className="animate-spin" /> : <ShieldCheck size={16} />}Salvar classificação</button>
         </div>
       </div>
     </div>

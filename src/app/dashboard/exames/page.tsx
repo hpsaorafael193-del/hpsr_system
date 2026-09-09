@@ -682,7 +682,7 @@ export default function ExamesPage() {
     name: initialDoctor.name,
     crm: initialDoctor.crm,
     role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico",
-    specialty: currentUserProfile.specialty || "Clínico Geral",
+    specialty: currentUserProfile.specialty || "",
     signatureImage: currentUserProfile.signatureImage || null,
   }]);
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -711,7 +711,7 @@ export default function ExamesPage() {
 
   useEffect(() => {
     setDoctor(initialDoctor);
-    const currentOption: DoctorOption = { id: currentUserProfile.id || "current-user", name: initialDoctor.name, crm: initialDoctor.crm, role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico", specialty: currentUserProfile.specialty || "Clínico Geral", signatureImage: currentUserProfile.signatureImage || null };
+    const currentOption: DoctorOption = { id: currentUserProfile.id || "current-user", name: initialDoctor.name, crm: initialDoctor.crm, role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico", specialty: currentUserProfile.specialty || "", signatureImage: currentUserProfile.signatureImage || null };
     const client = createClient();
     if (!client) { setAvailableDoctors([currentOption]); return; }
     void client.from("profiles").select("id,name,crm,role,specialty,signature_path").eq("access_status", "Aprovado").order("name").then(({ data }) => {

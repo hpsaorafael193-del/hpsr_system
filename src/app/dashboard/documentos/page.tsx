@@ -544,7 +544,7 @@ export default function DocumentsPage() {
     name: currentUserProfile.signatureName || currentUserProfile.characterName || currentUserProfile.systemName || "",
     crm: currentUserProfile.crm || "",
     role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico",
-    specialty: currentUserProfile.specialty || "Clínico Geral",
+    specialty: currentUserProfile.specialty || "",
   };
   const [availableDoctors, setAvailableDoctors] = useState<DoctorOption[]>([{
     id: currentUserProfile.id || "current-user",

@@ -1,20 +1,18 @@
 "use client";
 
-import { brazilDate, brazilIso, brazilMonth } from "@/lib/brazil-datetime";
+import { brazilIso } from "@/lib/brazil-datetime";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   BadgeDollarSign,
-  CalendarCheck2,
   CalendarClock,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
   Clock3,
   Copy,
-  FileClock,
   FlaskConical,
   Hash,
   HeartPulse,
@@ -523,52 +521,15 @@ export default function AppointmentsPage() {
     });
   }, [publicRequests, searchTerm, currentUserProfile.accessLevel, currentUserProfile.id, currentUserProfile.role, currentUserProfile.specialties, capacityBySpecialty]);
 
-  const loggedDoctorConsultationsToday = visibleAppointments.filter(
-    (item) => item.date === brazilDate() && item.doctor === currentUserProfile.systemName
-  );
-  const pendingScheduleChanges = reschedules.filter((item) => item.next === "A definir" || item.feeAlert);
-  const monthlyDoctorConsultations = visibleAppointments.filter(
-    (item) => item.date.startsWith(brazilMonth()) && item.doctor === currentUserProfile.systemName
-  );
-
   return (
-    <div className="hpsr-page gap-2 xl:h-[calc(100dvh-2.4rem)] xl:min-h-0 xl:overflow-hidden">
+    <div className="hpsr-page gap-3">
       <PageHeader
         eyebrow="Agendamentos"
         title="Central de agendamentos"
         description="Painel geral para solicitações, consultas, acompanhamentos, reagendamentos e pendências de cobrança."
       />
 
-      <section className="shrink-0 overflow-hidden rounded-[20px] border border-[#e6d2cd] bg-[linear-gradient(135deg,#fffaf7_0%,#fff4ee_100%)] shadow-sm">
-        <div className="grid gap-px bg-[#eadbd6] md:grid-cols-2 xl:grid-cols-4">
-          <IndicatorCard
-            icon={<CalendarCheck2 size={17} />}
-            label="Consultas de hoje"
-            value={String(loggedDoctorConsultationsToday.length)}
-            description="Do médico logado"
-          />
-          <IndicatorCard
-            icon={<CalendarDays size={17} />}
-            label="Solicitações"
-            value={String(pendingRequests.length)}
-            description="Aguardando análise"
-          />
-          <IndicatorCard
-            icon={<RotateCcw size={17} />}
-            label="Reagendamentos/cancelamentos"
-            value={String(pendingScheduleChanges.length)}
-            description="Pedidos pendentes"
-          />
-          <IndicatorCard
-            icon={<FileClock size={17} />}
-            label="Consultas no mês"
-            value={String(monthlyDoctorConsultations.length)}
-            description="Total do médico logado"
-          />
-        </div>
-      </section>
-
-      <section className="shrink-0 rounded-[20px] border border-hpsr-border bg-white p-3 shadow-sm">
+      <section className="shrink-0 rounded-[18px] border border-hpsr-border bg-white p-3 shadow-sm sm:p-4">
         <div className="mb-3 flex items-center justify-between gap-3 px-1">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Acessos rápidos</p>
@@ -579,13 +540,12 @@ export default function AppointmentsPage() {
           </div>
         </div>
 
-        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
           <ScheduleCard
             icon={Stethoscope}
             title="Agenda do Médico"
             description="Calendário, consultas e gestão médica."
             href="/dashboard/agendamento/clinica"
-            count={visibleAppointments.length}
           />
 
 
@@ -728,27 +688,26 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
 
   return (
     <>
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-hpsr-border bg-white shadow-sm">
+      <section className="flex min-h-0 flex-col overflow-hidden rounded-[20px] border border-hpsr-border bg-white shadow-sm xl:max-h-[calc(100dvh-250px)]">
         <div className="flex shrink-0 flex-col gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf7_0%,#f7e9e2_100%)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Visão geral</p>
             <h2 className="mt-0.5 text-lg font-black text-hpsr-text">Agendamento geral</h2>
-            <p className="mt-0.5 text-xs leading-relaxed text-hpsr-muted">Solicitações aceitas ficam aguardando o agendamento manual. Quando a consulta for marcada na Agenda do Médico, esta visão é sincronizada com a data e o horário reais.</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-hpsr-muted">Visão consolidada dos atendimentos já assumidos ou agendados.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => setRecentOnly(false)} className={`rounded-[12px] border px-3 py-2 text-xs font-black transition ${!recentOnly ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-wine"}`}>Todos</button>
             <button type="button" onClick={() => setRecentOnly(true)} className={`rounded-[12px] border px-3 py-2 text-xs font-black transition ${recentOnly ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-wine"}`}>Aceitos recentemente · {recentlyAcceptedCount}</button>
-            <span className="rounded-[13px] border border-[#dcc1ba] bg-white px-3 py-2 text-xs font-black text-hpsr-wine shadow-sm">{sortedAppointments.length} pacientes</span>
           </div>
         </div>
 
-        <div className="grid min-h-0 flex-1 content-start gap-3.5 overflow-y-auto overscroll-contain p-4 pr-3 [scrollbar-gutter:stable]">
+        <div className="grid min-h-0 content-start gap-3 overflow-visible p-3 sm:p-4 xl:flex-1 xl:overflow-y-auto xl:overscroll-y-auto xl:pr-3 [scrollbar-gutter:stable]">
           {sortedAppointments.length ? sortedAppointments.map((item) => (
             <button
               type="button"
               key={item.id}
               onClick={() => setSelectedAppointment(item)}
-              className={`group relative grid min-h-[118px] w-full gap-5 overflow-hidden rounded-[20px] border bg-white p-5 text-left shadow-[0_6px_22px_rgba(89,44,30,0.05)] transition duration-200 hover:border-hpsr-wineLight/60 hover:bg-[#fffdfb] hover:shadow-[0_12px_32px_rgba(89,44,30,0.09)] lg:grid-cols-[minmax(0,1.35fr)_minmax(210px,0.8fr)_minmax(180px,0.6fr)_180px] lg:items-center ${item.status === "Aceita" ? "border-amber-200/90" : "border-hpsr-border"}`}
+              className={`group relative grid min-h-[118px] w-full gap-5 overflow-hidden rounded-[20px] border bg-white p-5 text-left shadow-[0_6px_22px_rgba(89,44,30,0.05)] transition duration-200 hover:border-hpsr-wineLight/60 hover:bg-[#fffdfb] hover:shadow-[0_12px_32px_rgba(89,44,30,0.09)] 2xl:grid-cols-[minmax(0,1.35fr)_minmax(210px,0.8fr)_minmax(180px,0.6fr)_180px] 2xl:items-center ${item.status === "Aceita" ? "border-amber-200/90" : "border-hpsr-border"}`}
             >
               <span className={`absolute inset-y-0 left-0 w-1.5 ${item.status === "Aceita" ? "bg-amber-400" : item.status === "Agendada" || item.status === "Confirmada" ? "bg-emerald-500" : "bg-hpsr-wine/60"}`} />
 
@@ -761,19 +720,19 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
                 </div>
               </div>
 
-              <div className="lg:border-l lg:border-hpsr-border/70 lg:pl-5">
+              <div className="2xl:border-l 2xl:border-hpsr-border/70 2xl:pl-5">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Médico responsável</p>
                 <p className="mt-1.5 text-[15px] font-black text-hpsr-text">{item.doctor}</p>
                 <p className="mt-1 text-xs font-semibold text-hpsr-muted">{item.type}</p>
               </div>
 
-              <div className="lg:border-l lg:border-hpsr-border/70 lg:pl-5">
+              <div className="2xl:border-l 2xl:border-hpsr-border/70 2xl:pl-5">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Data e hora</p>
                 <p className="mt-1.5 text-[15px] font-black text-hpsr-text">{item.status === "Aceita" ? "Aguardando agendamento" : (item.date && item.date !== "A definir" ? formatDate(item.date) : "A definir")}</p>
                 <p className="mt-1 text-xs font-semibold text-hpsr-muted">{item.status === "Aceita" ? "Definição manual" : (item.time && item.time !== "A definir" ? item.time : "Horário a definir")}</p>
               </div>
 
-              <div className="flex items-center justify-between gap-3 border-t border-hpsr-border/70 pt-4 lg:grid lg:justify-items-end lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+              <div className="flex items-center justify-between gap-3 border-t border-hpsr-border/70 pt-4 2xl:grid 2xl:justify-items-end 2xl:border-l 2xl:border-t-0 2xl:pl-5 2xl:pt-0">
                 <span className={`rounded-full border px-3.5 py-1.5 text-xs font-black ${consultationStatusClass(item.status)}`}>{item.status}</span>
                 <span className="inline-flex items-center gap-1.5 rounded-[11px] border border-hpsr-wine/15 bg-[#fff8f4] px-3 py-2 text-[11px] font-black text-hpsr-wine transition group-hover:border-hpsr-wine/30 group-hover:bg-hpsr-wine group-hover:text-white">Ver detalhes <ChevronRight size={14}/></span>
               </div>
@@ -895,12 +854,6 @@ function RequestsCenterModal({
     };
   }, []);
 
-  const modalSummary = [
-    { label: "Novas solicitações", value: filteredRequests.length, icon: <CalendarDays size={16} /> },
-    { label: "Meus aceites", value: myAcceptedRequests.length, icon: <UserCheck size={16} /> },
-    { label: "Exames pendentes", value: filteredExamRequests.length, icon: <FlaskConical size={16} /> },
-  ];
-
   return (
     <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-3 py-3 sm:px-5 sm:py-5">
       <button
@@ -910,7 +863,7 @@ function RequestsCenterModal({
         className="fixed inset-0 bg-[#1f0805]/70 backdrop-blur-[2px]"
       />
 
-      <section className="hpsr-modal-motion relative z-10 flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[22px] border border-[#eadfd8] bg-white shadow-[0_22px_60px_rgba(42,14,7,0.22)]">
+      <section className="hpsr-modal-motion relative z-10 flex max-h-[calc(100dvh-1rem)] w-full max-w-6xl flex-col overflow-hidden rounded-[22px] border border-[#eadfd8] bg-white shadow-[0_22px_60px_rgba(42,14,7,0.22)]">
         <header className="shrink-0 border-b border-hpsr-border bg-[#fffaf7] px-4 py-4 sm:px-6">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
@@ -934,15 +887,6 @@ function RequestsCenterModal({
             </button>
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2">
-            {modalSummary.map((item) => (
-              <div key={item.label} className="inline-flex items-center gap-2 text-xs font-bold text-hpsr-muted">
-                <span className="text-hpsr-wine">{item.icon}</span>
-                <span className="font-black text-hpsr-text">{item.value}</span>
-                <span>{item.label}</span>
-              </div>
-            ))}
-          </div>
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -983,7 +927,7 @@ function RequestsCenterModal({
             {activeTab === "aceitas" && <MyAcceptedRequestsTab requests={myAcceptedRequests} />}
             {activeTab === "exames" && <ExamRequestsTab requests={filteredExamRequests} onUpdateStatus={onUpdateStatus} />}
             {activeTab === "consultas" && <ConsultationsTab appointments={visibleAppointments} />}
-            {activeTab === "acompanhamentos" && <FollowUpsTab doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} defaultSpecialty={currentUserProfile.specialty || "Clínico Geral"} />}
+            {activeTab === "acompanhamentos" && <FollowUpsTab doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} defaultSpecialty={currentUserProfile.specialty || ""} />}
             {activeTab === "reagendamentos" && <ReschedulesTab />}
             {activeTab === "cobrancas" && <BillingTab />}
           </div>
@@ -1472,53 +1416,24 @@ function BillingTab() {
   );
 }
 
-function IndicatorCard({
-  icon,
-  label,
-  value,
-  description,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  description: string;
-}) {
-  return (
-    <article className="bg-white px-3.5 py-3">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-[#f6e7e1] text-hpsr-wine">{icon}</div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[9px] font-black uppercase tracking-[0.13em] text-hpsr-wineLight">{label}</p>
-          <div className="mt-0.5 flex items-baseline gap-2">
-            <p className="text-xl font-black leading-none text-hpsr-text">{value}</p>
-            <p className="truncate text-[10px] font-semibold text-hpsr-muted">{description}</p>
-          </div>
-        </div>
-      </div>
-    </article>
-  );
-}
-
 function ScheduleCard({
   icon: Icon,
   title,
   description,
   href,
-  count,
 }: {
   icon: React.ElementType;
   title: string;
   description: string;
   href: string;
-  count: number;
 }) {
   return (
     <Link
       href={href}
       className="group rounded-[17px] border border-hpsr-border bg-[#fffdfb] p-3.5 transition hover:border-hpsr-wineLight/50 hover:bg-[#fff8f3]"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex gap-3">
+      <div className="flex items-start gap-3">
+        <div className="flex min-w-0 gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white shadow-sm">
             <Icon size={19} />
           </div>
@@ -1527,7 +1442,6 @@ function ScheduleCard({
             <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">{description}</p>
           </div>
         </div>
-        <span className="rounded-full bg-[#f6e7e1] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{count}</span>
       </div>
     </Link>
   );

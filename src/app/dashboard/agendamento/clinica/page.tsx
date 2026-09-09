@@ -16,7 +16,6 @@ import {
   ClipboardPlus,
   Download,
   FileClock,
-  HeartPulse,
   Plus,
   Search,
   ListFilter,
@@ -30,7 +29,6 @@ import {
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { DoctorAvailabilityManager } from "@/components/dashboard/DoctorAvailabilityManager";
 import { DeveloperAppointmentManager } from "@/components/dashboard/DeveloperAppointmentManager";
-import { ClinicalFollowupPlanner } from "@/components/dashboard/ClinicalFollowupPlanner";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
@@ -60,7 +58,7 @@ type ModalState = {
   appointment?: Appointment;
 } | null;
 
-type ScheduleToolModal = "followup" | "availability" | null;
+type ScheduleToolModal = "availability" | null;
 
 function getBrasiliaToday() {
   const formatter = new Intl.DateTimeFormat("en-CA", {
@@ -286,10 +284,6 @@ export default function ClinicalSchedulePage() {
     return specialtyDifference || sectionDifference || left.time.localeCompare(right.time);
   });
 
-  const todayKey = toDateKey(brasiliaToday);
-  const todayAppointments = activeDoctorAppointments.filter((appointment) => appointment.date === todayKey);
-  const confirmedAppointments = doctorAppointments.filter((appointment) => appointment.status === "Confirmada").length;
-  const inServiceAppointments = doctorAppointments.filter((appointment) => appointment.status === "Em atendimento").length;
 
 
   function canManageAppointment(appointment: Appointment) {
@@ -424,98 +418,43 @@ export default function ClinicalSchedulePage() {
       <PageHeader
         eyebrow="Agendamentos"
         title="Agenda do Médico"
-        description="Organize sua disponibilidade, consultas, acompanhamentos e atendimentos em um único lugar."
+        description="Organize consultas, disponibilidade e vínculos em uma agenda objetiva e fácil de operar."
       />
 
-      <section className="overflow-hidden rounded-[20px] border border-hpsr-border bg-[linear-gradient(135deg,#fffaf7_0%,#f7e8e1_100%)] shadow-sm">
-        <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1.25fr)_auto] lg:items-center lg:p-5">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Central de trabalho médico</p>
-            <h1 className="mt-1.5 text-2xl font-black tracking-tight text-hpsr-text sm:text-3xl">Cuide de toda a sua agenda</h1>
-            <p className="mt-2 max-w-3xl text-sm font-medium leading-relaxed text-hpsr-muted">
-              Publique quando pode atender, acompanhe as consultas do dia, responda às solicitações e organize retornos sem sair desta área.
-            </p>
-            {canViewAllMedicalSchedules && (
-              <div className="mt-4 inline-flex rounded-[13px] border border-hpsr-border bg-white p-1 shadow-sm">
-                <button type="button" onClick={() => setScheduleScope("mine")} className={cn("rounded-[10px] px-3 py-2 text-xs font-black transition", scheduleScope === "mine" ? "bg-hpsr-wine text-white" : "text-hpsr-wine hover:bg-[#fff7f2]")}>Minha agenda</button>
-                <button type="button" onClick={() => setScheduleScope("all")} className={cn("rounded-[10px] px-3 py-2 text-xs font-black transition", scheduleScope === "all" ? "bg-hpsr-wine text-white" : "text-hpsr-wine hover:bg-[#fff7f2]")}>Todos os profissionais</button>
-              </div>
-            )}
-          </div>
+      <section className="rounded-[20px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfb_0%,#fff9f5_100%)] p-3 shadow-[0_10px_30px_rgba(72,34,19,0.05)] sm:p-4">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          {canViewAllMedicalSchedules ? (
+            <div className="inline-flex w-full rounded-[13px] border border-[#eadbd5] bg-white p-1 sm:w-auto">
+              <button type="button" onClick={() => setScheduleScope("mine")} className={cn("flex-1 rounded-[10px] px-3.5 py-2.5 text-xs font-black transition sm:flex-none", scheduleScope === "mine" ? "bg-hpsr-wine text-white shadow-sm" : "text-hpsr-muted hover:bg-[#fff8f4] hover:text-hpsr-text")}>Minha agenda</button>
+              <button type="button" onClick={() => setScheduleScope("all")} className={cn("flex-1 rounded-[10px] px-3.5 py-2.5 text-xs font-black transition sm:flex-none", scheduleScope === "all" ? "bg-hpsr-wine text-white shadow-sm" : "text-hpsr-muted hover:bg-[#fff8f4] hover:text-hpsr-text")}>Todos os profissionais</button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-xs font-semibold text-hpsr-muted"><CalendarDays size={15} className="text-hpsr-wine" /> Ações rápidas da sua agenda</div>
+          )}
 
-          <div className="flex flex-wrap gap-2 lg:justify-end">
-            <button onClick={() => setModal({ mode: "new" })} className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 py-3 text-sm font-black text-white shadow-sm transition hover:opacity-95">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:flex xl:flex-wrap xl:justify-end">
+            <button onClick={() => setModal({ mode: "new" })} className="group inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[13px] bg-[linear-gradient(135deg,#742b18_0%,#45150b_100%)] px-4 text-xs font-black text-white shadow-[0_8px_18px_rgba(83,31,16,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(83,31,16,0.24)] sm:text-sm">
               <Plus size={16} /> Nova consulta
             </button>
-            <button onClick={() => setShowCompletedAppointments((current) => !current)} className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-wine transition hover:bg-[#fffaf4]">
-              <CalendarCheck2 size={16} /> Finalizadas ({completedDoctorAppointments.length})
+            <button type="button" onClick={() => setScheduleToolModal("availability")} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-4 text-xs font-black text-hpsr-wine shadow-sm transition hover:-translate-y-0.5 hover:border-hpsr-wineLight hover:bg-[#fff9f5] sm:text-sm">
+              <CalendarClock size={16} /> Publicar horários
             </button>
-            <button onClick={() => setModal({ mode: "export" })} className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-wine transition hover:bg-[#fffaf4]">
+            <button onClick={() => setShowCompletedAppointments((current) => !current)} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-4 text-xs font-black text-hpsr-wine shadow-sm transition hover:-translate-y-0.5 hover:border-hpsr-wineLight hover:bg-[#fff9f5] sm:text-sm">
+              <CalendarCheck2 size={16} /> Finalizadas
+            </button>
+            <button onClick={() => setModal({ mode: "export" })} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-4 text-xs font-black text-hpsr-wine shadow-sm transition hover:-translate-y-0.5 hover:border-hpsr-wineLight hover:bg-[#fff9f5] sm:text-sm">
               <Download size={16} /> Exportar
             </button>
+            <Link href="/dashboard/agendamento/pacientes" className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-4 text-xs font-black text-hpsr-wine shadow-sm transition hover:-translate-y-0.5 hover:border-hpsr-wineLight hover:bg-[#fff9f5] sm:text-sm">
+              <UsersRound size={16} /> Meus vínculos
+            </Link>
           </div>
         </div>
-
-        <div className="grid gap-px border-t border-hpsr-border bg-[#eadbd6] sm:grid-cols-2 xl:grid-cols-4">
-          <button type="button" onClick={() => setScheduleToolModal("availability")} className="group bg-white p-4 text-left transition hover:bg-[#fff8f3]">
-            <div className="flex items-start gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-hpsr-wine text-white"><CalendarClock size={19} /></div>
-              <div className="min-w-0">
-                <p className="text-sm font-black text-hpsr-text">Publicar horários</p>
-                <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">Publique os dias e horários em que poderá atender.</p>
-              </div>
-            </div>
-          </button>
-
-          <button type="button" onClick={() => { setSelectedDate(brasiliaToday); setCurrentMonth(new Date(brasiliaToday.getFullYear(), brasiliaToday.getMonth(), 1)); }} className="group bg-white p-4 text-left transition hover:bg-[#fff8f3]">
-            <div className="flex items-start gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-[#f3e1da] text-hpsr-wine"><CalendarDays size={19} /></div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2"><p className="text-sm font-black text-hpsr-text">Agenda do dia</p><span className="rounded-full bg-[#f6e7e1] px-2 py-0.5 text-[10px] font-black text-hpsr-wine">{todayAppointments.length}</span></div>
-                <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">Veja os pacientes de hoje e inicie os atendimentos.</p>
-              </div>
-            </div>
-          </button>
-
-          <Link href="/dashboard/agendamento" className="group bg-white p-4 text-left transition hover:bg-[#fff8f3]">
-            <div className="flex items-start gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-[#f3e1da] text-hpsr-wine"><UsersRound size={19} /></div>
-              <div className="min-w-0">
-                <p className="text-sm font-black text-hpsr-text">Consultas e solicitações</p>
-                <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">Analise pedidos, confirmações e reagendamentos.</p>
-              </div>
-            </div>
-          </Link>
-
-          <button type="button" onClick={() => setScheduleToolModal("followup")} className="group bg-white p-4 text-left transition hover:bg-[#fff8f3]">
-            <div className="flex items-start gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-[#f3e1da] text-hpsr-wine"><HeartPulse size={19} /></div>
-              <div className="min-w-0">
-                <p className="text-sm font-black text-hpsr-text">Planejamentos e retornos</p>
-                <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">Organize acompanhamentos e próximas consultas.</p>
-              </div>
-            </div>
-          </button>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {[
-          ["Consultas hoje", String(todayAppointments.length)],
-          ["Consultas no mês", String(monthlyAppointments.length)],
-          ["Confirmadas", String(confirmedAppointments)],
-          ["Em atendimento", String(inServiceAppointments)],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-[14px] border border-hpsr-border bg-white px-3.5 py-3 shadow-sm">
-            <p className="text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">{label}</p>
-            <p className="mt-1 text-xl font-black text-hpsr-text">{value}</p>
-          </div>
-        ))}
       </section>
 
       <section className="grid items-start gap-3 xl:grid-cols-[minmax(320px,410px)_minmax(0,1fr)]">
-        <article className="flex h-auto flex-col overflow-hidden rounded-[18px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfb_0%,#fff8f4_100%)] shadow-sm xl:h-[560px]">
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-hpsr-border/80 bg-white/85 px-4 py-3">
+        <article className="flex h-auto flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-[0_12px_34px_rgba(74,38,24,0.06)] xl:h-[560px]">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-hpsr-border bg-[linear-gradient(180deg,#fffdfb_0%,#fff9f5_100%)] px-4 py-3.5">
             <div>
               <h2 className="text-base font-black text-hpsr-text">Calendário</h2>
               <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Escolha um dia para ver os atendimentos.</p>
@@ -525,28 +464,33 @@ export default function ClinicalSchedulePage() {
           <div className="min-h-0 flex-1 p-4">
           <div className="rounded-[18px] border border-hpsr-border bg-white p-3.5 shadow-sm">
             <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  aria-label="Mês anterior"
+                  onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+                  className="grid h-9 w-9 place-items-center rounded-[11px] border border-hpsr-border bg-white text-hpsr-text shadow-sm transition hover:border-hpsr-wineLight hover:bg-[#fff9f5]"
+                >
+                  <ChevronLeft size={17} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Próximo mês"
+                  onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+                  className="grid h-9 w-9 place-items-center rounded-[11px] border border-hpsr-border bg-white text-hpsr-text shadow-sm transition hover:border-hpsr-wineLight hover:bg-[#fff9f5]"
+                >
+                  <ChevronRight size={17} />
+                </button>
+              </div>
+
+              <p className="text-sm font-black capitalize text-hpsr-text sm:text-base">{monthLabel(currentMonth)}</p>
+
               <button
                 type="button"
-                onClick={() =>
-                  setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))
-                }
-                className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-text transition hover:bg-[#fffdf9]"
+                onClick={() => { const today = getBrasiliaToday(); setSelectedDate(today); setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1)); }}
+                className="rounded-[10px] border border-hpsr-border bg-[#fff8f4] px-3 py-2 text-[11px] font-black text-hpsr-wine transition hover:border-hpsr-wineLight hover:bg-white"
               >
-                <ChevronLeft size={18} />
-              </button>
-
-              <p className="text-base font-semibold capitalize text-hpsr-text">
-                {monthLabel(currentMonth)}
-              </p>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))
-                }
-                className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-text transition hover:bg-[#fffdf9]"
-              >
-                <ChevronRight size={18} />
+                Hoje
               </button>
             </div>
 
@@ -572,11 +516,11 @@ export default function ClinicalSchedulePage() {
                     type="button"
                     onClick={() => setSelectedDate(date)}
                     className={cn(
-                      "relative flex aspect-square items-center justify-center rounded-[14px] text-sm font-semibold transition",
+                      "relative flex aspect-square items-center justify-center rounded-[12px] text-sm font-bold transition",
                       isCurrentMonth ? "text-hpsr-text" : "text-hpsr-muted/45",
                       isSelected
-                        ? "bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"
-                        : "bg-white hover:bg-[#fffdf9]",
+                        ? "bg-[linear-gradient(135deg,#742b18,#45150b)] text-white shadow-[0_5px_12px_rgba(83,31,16,0.22)]"
+                        : "bg-transparent hover:bg-[#fff4ee]",
                       isToday && !isSelected && "border-2 border-hpsr-wineLight"
                     )}
                   >
@@ -595,13 +539,10 @@ export default function ClinicalSchedulePage() {
             </div>
           </div>
           </div>
-          <div className="border-t border-hpsr-border bg-[#fffaf6] px-4 py-3 text-xs font-semibold leading-relaxed text-hpsr-muted">
-            Os dias com consultas possuem um marcador. Selecione uma data para atualizar o painel de atendimentos.
-          </div>
         </article>
 
-        <article className="flex h-auto min-h-0 flex-col overflow-hidden rounded-[18px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfb_0%,#fff8f4_100%)] shadow-sm xl:h-[560px]">
-          <div className="shrink-0 border-b border-hpsr-border/80 bg-white/85 p-3.5">
+        <article className="flex h-auto min-h-0 flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-[0_12px_34px_rgba(74,38,24,0.06)] xl:h-[560px]">
+          <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(180deg,#fffdfb_0%,#fff9f5_100%)] p-3.5">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-base font-black capitalize text-hpsr-text">{selectedDateLabel}</h2>
@@ -621,16 +562,7 @@ export default function ClinicalSchedulePage() {
             </div>
           </div>
 
-          <div
-            className="hpsr-appointments-scroll min-h-0 max-h-[510px] flex-1 overflow-y-auto p-4 [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]"
-            onWheel={(event) => {
-              const panel = event.currentTarget;
-              if (panel.scrollHeight > panel.clientHeight) {
-                panel.scrollTop += event.deltaY;
-                event.stopPropagation();
-              }
-            }}
-          >
+          <div className="hpsr-appointments-scroll min-h-0 max-h-[510px] flex-1 overflow-y-auto p-4 [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]">
           {appointmentsOnSelectedDay.length === 0 ? (
             <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-[18px] border border-dashed border-[#dfc6bb] bg-white px-5 text-center shadow-sm">
               <div className="flex h-12 w-12 items-center justify-center rounded-[18px] bg-[#f7e8e4] text-hpsr-wine">
@@ -690,20 +622,10 @@ export default function ClinicalSchedulePage() {
 
                       <h3 className="mt-3 text-lg font-semibold text-hpsr-text">{appointment.patient}</h3>
                       <p className="mt-1 text-sm text-hpsr-muted">
-                        Passaporte {appointment.passport} · {appointment.specialty}
+                        Passaporte {appointment.passport} · {appointment.specialty}{scheduleScope === "all" ? ` · ${appointment.physician}` : ""}
                       </p>
                     </div>
 
-                    <div className="grid gap-2 text-sm text-hpsr-muted sm:grid-cols-2 lg:min-w-[250px]">
-                      <div className="rounded-[16px] border border-hpsr-border bg-white px-3 py-2">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em]">Médico</p>
-                        <p className="mt-1 font-semibold text-hpsr-text">{appointment.physician}</p>
-                      </div>
-                      <div className="rounded-[16px] border border-hpsr-border bg-white px-3 py-2">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em]">Consulta</p>
-                        <p className="mt-1 font-semibold text-hpsr-text">{appointment.id}</p>
-                      </div>
-                    </div>
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-2">
@@ -764,7 +686,7 @@ export default function ClinicalSchedulePage() {
         onClose={() => setScheduleToolModal(null)}
         doctorId={currentUserProfile.id}
         doctorName={currentUserProfile.systemName}
-        defaultSpecialty={currentUserProfile.specialty || "Clínico Geral"}
+        defaultSpecialty={currentUserProfile.specialty || ""}
       />
 
       <AgendaModal modal={modal} onClose={() => setModal(null)} onChanged={loadAppointments} selectedDate={dateKey} appointments={doctorAppointments} />
@@ -787,8 +709,6 @@ function ScheduleToolDialog({
 }) {
   if (!mode) return null;
 
-  const isFollowup = mode === "followup";
-
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center px-3 py-3 sm:px-5">
       <button type="button" onClick={onClose} aria-label="Fechar modal" className="hpsr-modal-backdrop" />
@@ -797,16 +717,12 @@ function ScheduleToolDialog({
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-hpsr-border bg-white px-5 py-4 sm:px-6">
           <div className="flex min-w-0 items-start gap-3">
             <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-hpsr-wine text-white shadow-sm">
-              {isFollowup ? <CalendarCheck2 size={20} /> : <CalendarClock size={20} />}
+              <CalendarClock size={20} />
             </div>
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[.18em] text-hpsr-wineLight">Agenda clínica</p>
-              <h2 className="mt-0.5 text-xl font-black text-hpsr-text">{isFollowup ? "Planejar acompanhamento" : "Publicar horários"}</h2>
-              <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">
-                {isFollowup
-                  ? "Monte uma sequência de acompanhamento para o paciente sem sair da visão principal da agenda."
-                  : "Defina e publique os horários disponíveis para atendimento médico."}
-              </p>
+              <h2 className="mt-0.5 text-xl font-black text-hpsr-text">Publicar horários</h2>
+              <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">Defina e publique os horários disponíveis para atendimento médico.</p>
             </div>
           </div>
 
@@ -815,12 +731,8 @@ function ScheduleToolDialog({
           </button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5" style={{ scrollbarGutter: "stable" }}>
-          {isFollowup ? (
-            <ClinicalFollowupPlanner doctorId={doctorId} doctorName={doctorName} defaultSpecialty={defaultSpecialty} embedded />
-          ) : (
-            <DoctorAvailabilityManager doctorId={doctorId} doctorName={doctorName} defaultSpecialty={defaultSpecialty} embedded />
-          )}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto p-4 sm:p-5" style={{ scrollbarGutter: "stable" }}>
+          <DoctorAvailabilityManager doctorId={doctorId} doctorName={doctorName} defaultSpecialty={defaultSpecialty} embedded />
         </div>
       </section>
     </div>
@@ -861,7 +773,7 @@ function AgendaModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3">
+    <div className="fixed inset-0 z-[999] flex items-center justify-center px-3 py-3 sm:px-4">
       <button
         type="button"
         onClick={onClose}
@@ -869,7 +781,7 @@ function AgendaModal({
         className="hpsr-modal-backdrop"
       />
 
-      <div className="hpsr-modal-shell max-w-3xl overflow-visible">
+      <div className="hpsr-modal-shell flex max-h-[calc(100dvh-1.5rem)] max-w-3xl flex-col overflow-hidden">
         <div className="hpsr-modal-header flex items-start justify-between gap-4 px-5 py-4 sm:px-6">
           <div className="flex min-w-0 items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-hpsr-wine text-white shadow-[0_8px_20px_rgba(92,31,15,.18)]">
@@ -891,7 +803,7 @@ function AgendaModal({
           </button>
         </div>
 
-        <div className="overflow-visible bg-[#fffaf5] p-4 sm:p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto bg-[#fffaf5] p-4 sm:p-5 [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]">
           {modal.mode === "new" && <NewAppointmentForm selectedDate={selectedDate} onClose={onClose} appointments={appointments} />}
           {modal.mode === "export" && <ExportReportForm onClose={onClose} />}
           {modal.mode === "open" && appointment && <OpenAttendanceForm appointment={appointment} onClose={onClose} onChanged={onChanged} />}
@@ -1112,11 +1024,11 @@ function NewAppointmentForm({
       {message && <ValidationMessage type={message.type} text={message.text} />}
       <ModalActions onClose={onClose} actionLabel="Validar e salvar" onConfirm={handleSave} />
 
-      {quickOpen && <div className="fixed inset-0 z-[1000] grid place-items-center bg-[#1f0805]/60 p-4">
-        <div className="w-full max-w-[520px] overflow-hidden rounded-[22px] border border-hpsr-border bg-[#fffaf4] shadow-2xl">
+      {quickOpen && <div className="fixed inset-0 z-[1000] grid place-items-center overflow-hidden bg-[#1f0805]/60 p-2 sm:p-4">
+        <div className="flex max-h-[calc(100dvh-1rem)] w-full max-w-[520px] flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-[#fffaf4] shadow-2xl">
           <div className="flex items-start justify-between border-b border-hpsr-border bg-white px-5 py-4"><div className="flex gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-hpsr-border text-hpsr-wine"><UserPlus size={19}/></div><div><h3 className="font-black text-hpsr-text">Registro rápido de paciente</h3><p className="text-xs font-semibold text-hpsr-muted">Preencha apenas os dados necessários para esta consulta.</p></div></div><button type="button" onClick={() => setQuickOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><X size={18}/></button></div>
-          <div className="grid gap-3 p-5 sm:grid-cols-2"><label className="sm:col-span-2 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Nome completo<input className={`${inputClass} mt-1.5`} value={quickPatient.name} onChange={(e)=>setQuickPatient((c)=>({...c,name:e.target.value}))}/></label><label className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Documento / Passaporte<input className={`${inputClass} mt-1.5`} value={quickPatient.passport} onChange={(e)=>setQuickPatient((c)=>({...c,passport:e.target.value}))}/></label><label className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Idade<input className={`${inputClass} mt-1.5`} value={quickPatient.age} onChange={(e)=>setQuickPatient((c)=>({...c,age:e.target.value}))}/></label><label className="sm:col-span-2 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Tipo sanguíneo<StyledSelect className={`${inputClass} mt-1.5`} value={quickPatient.bloodType} onChange={(e)=>setQuickPatient((c)=>({...c,bloodType:e.target.value}))}><option value="">Selecione</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></StyledSelect></label></div>
-          <div className="flex justify-end gap-2 border-t border-hpsr-border bg-white px-5 py-4"><button type="button" onClick={() => setQuickOpen(false)} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-xs font-black text-hpsr-text">Cancelar</button><button type="button" onClick={() => void saveQuickPatient()} className="rounded-[14px] bg-hpsr-wine px-4 py-3 text-xs font-black text-white">Salvar paciente</button></div>
+          <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto overscroll-y-auto p-4 sm:grid-cols-2 sm:p-5 [scrollbar-gutter:stable]"><label className="sm:col-span-2 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Nome completo<input className={`${inputClass} mt-1.5`} value={quickPatient.name} onChange={(e)=>setQuickPatient((c)=>({...c,name:e.target.value}))}/></label><label className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Documento / Passaporte<input className={`${inputClass} mt-1.5`} value={quickPatient.passport} onChange={(e)=>setQuickPatient((c)=>({...c,passport:e.target.value}))}/></label><label className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Idade<input className={`${inputClass} mt-1.5`} value={quickPatient.age} onChange={(e)=>setQuickPatient((c)=>({...c,age:e.target.value}))}/></label><label className="sm:col-span-2 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Tipo sanguíneo<StyledSelect className={`${inputClass} mt-1.5`} value={quickPatient.bloodType} onChange={(e)=>setQuickPatient((c)=>({...c,bloodType:e.target.value}))}><option value="">Selecione</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></StyledSelect></label></div>
+          <div className="flex shrink-0 justify-end gap-2 border-t border-hpsr-border bg-white px-4 py-3 sm:px-5 sm:py-4"><button type="button" onClick={() => setQuickOpen(false)} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-xs font-black text-hpsr-text">Cancelar</button><button type="button" onClick={() => void saveQuickPatient()} className="rounded-[14px] bg-hpsr-wine px-4 py-3 text-xs font-black text-white">Salvar paciente</button></div>
         </div>
       </div>}
     </div>

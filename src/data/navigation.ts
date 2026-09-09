@@ -28,6 +28,7 @@ export const mainNavigation = [
     icon: CalendarDays,
     children: [
       { label: "Agenda do Médico", href: "/dashboard/agendamento/clinica" },
+      { label: "Meus Pacientes", href: "/dashboard/agendamento/pacientes" },
     ],
   },
   { label: "Convênios", href: "/dashboard/convenios", icon: Handshake },
