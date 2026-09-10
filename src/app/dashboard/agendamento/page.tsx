@@ -205,7 +205,7 @@ function mapAppointmentRow(row: any): PublicAppointmentRequest {
     status: String(row?.status || payload.status || "Solicitação enviada"),
     createdAt: String(payload.createdAt || row?.created_at || ""),
     updatedAt: String(payload.updatedAt || row?.updated_at || ""),
-    specialty: String(payload.specialty || "Clínico Geral"),
+    specialty: String(payload.specialty || "Sem especialidade"),
   };
 }
 
@@ -927,7 +927,7 @@ function RequestsCenterModal({
             {activeTab === "aceitas" && <MyAcceptedRequestsTab requests={myAcceptedRequests} />}
             {activeTab === "exames" && <ExamRequestsTab requests={filteredExamRequests} onUpdateStatus={onUpdateStatus} />}
             {activeTab === "consultas" && <ConsultationsTab appointments={visibleAppointments} />}
-            {activeTab === "acompanhamentos" && <FollowUpsTab doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} defaultSpecialty={currentUserProfile.specialty || ""} />}
+            {activeTab === "acompanhamentos" && <FollowUpsTab doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} doctorRole={currentUserProfile.role} defaultSpecialty={currentUserProfile.specialty || ""} />}
             {activeTab === "reagendamentos" && <ReschedulesTab />}
             {activeTab === "cobrancas" && <BillingTab />}
           </div>
@@ -961,7 +961,7 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
     [...items]
       .sort((a, b) => a.specialty.localeCompare(b.specialty, "pt-BR") || String(b.acceptedAt || b.updatedAt || b.createdAt || "").localeCompare(String(a.acceptedAt || a.updatedAt || a.createdAt || "")))
       .forEach((item) => {
-        const specialty = item.specialty || "Clínico Geral";
+        const specialty = item.specialty || "Sem especialidade";
         groups.set(specialty, [...(groups.get(specialty) || []), item]);
       });
     return Array.from(groups.entries());
@@ -1102,7 +1102,7 @@ function RequestsTab({
   const [rescheduleReason, setRescheduleReason] = useState("");
   const orderedRequests = [...requests].sort((a, b) => a.specialty.localeCompare(b.specialty, "pt-BR") || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
   const requestsBySpecialty = Array.from(orderedRequests.reduce((groups, item) => {
-    const specialty = item.specialty || "Clínico Geral";
+    const specialty = item.specialty || "Sem especialidade";
     groups.set(specialty, [...(groups.get(specialty) || []), item]);
     return groups;
   }, new Map<string, PublicAppointmentRequest[]>()).entries());
@@ -1324,10 +1324,12 @@ function ConsultationsTab({ appointments }: { appointments: typeof scheduledAppo
 function FollowUpsTab({
   doctorId,
   doctorName,
+  doctorRole,
   defaultSpecialty,
 }: {
   doctorId?: string;
   doctorName: string;
+  doctorRole: string;
   defaultSpecialty: string;
 }) {
   return (
@@ -1337,7 +1339,7 @@ function FollowUpsTab({
         title="Acompanhamentos e planejamentos"
         description="Solicitações de acompanhamento aceitas entram aqui automaticamente. Organize os pacientes por especialidade e configure frequência e referências somente quando fizer sentido clínico."
       />
-      <ClinicalFollowupPlanner doctorId={doctorId} doctorName={doctorName} defaultSpecialty={defaultSpecialty} embedded />
+      <ClinicalFollowupPlanner doctorId={doctorId} doctorName={doctorName} doctorRole={doctorRole} defaultSpecialty={defaultSpecialty} embedded />
     </div>
   );
 }

@@ -8,36 +8,41 @@ import { CalendarDays, CalendarPlus2, CheckCircle2, Clock3, Gauge, Loader2, Stet
 import { createClient } from "@/lib/supabase";
 import { specialties } from "@/data/mock";
 import { hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
+import { clinicalSpecialtyOptionsForStaffRole } from "@/lib/staff-specialties";
 
 const field = "mt-1.5 min-h-[46px] w-full rounded-[14px] border border-hpsr-border bg-white px-3.5 text-sm font-bold text-hpsr-text outline-none transition focus:border-hpsr-wine focus:ring-2 focus:ring-hpsr-wineLight/20";
 const label = "text-[11px] font-black uppercase tracking-[0.11em] text-hpsr-muted";
 const MAX_DAILY_SLOTS = 5;
 
-type Props = { doctorId?: string; doctorName: string; defaultSpecialty?: string; embedded?: boolean };
+type Props = { doctorId?: string; doctorName: string; doctorRole?: string; defaultSpecialty?: string; embedded?: boolean };
 type Series = { id: string; specialty: string; start_date: string; end_date: string; start_time: string; end_time: string; slot_duration_minutes: number; status: string };
 
-function resolvePublicationSpecialty(value?: string) {
+function resolvePublicationSpecialty(value: string | undefined, options: string[]) {
   const tokens = String(value || "")
     .split(/[,;/|]+/)
     .map((item) => item.trim())
     .filter(Boolean);
-  return tokens.find((token) => specialties.includes(token)) || "Clínico Geral";
+  return tokens.find((token) => options.includes(token)) || options[0] || "";
 }
 
 function displayDate(value: string) { return value.split("-").reverse().join("/"); }
 
-export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecialty, embedded = false }: Props) {
+export function DoctorAvailabilityManager({ doctorId, doctorName, doctorRole = "", defaultSpecialty, embedded = false }: Props) {
   const today = useMemo(() => brazilDate(), []);
   const [series, setSeries] = useState<Series[]>([]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const publicationSpecialties = useMemo(
+    () => clinicalSpecialtyOptionsForStaffRole(doctorRole, defaultSpecialty, specialties),
+    [doctorRole, defaultSpecialty]
+  );
   const [form, setForm] = useState({
     date: today,
     startTime: "09:00",
     endTime: "12:00",
     duration: "60",
-    specialty: resolvePublicationSpecialty(defaultSpecialty),
+    specialty: resolvePublicationSpecialty(defaultSpecialty, publicationSpecialties),
     dailyLimit: "5",
   });
 
@@ -56,6 +61,15 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
 
   useEffect(() => { void load(); }, [doctorId]);
 
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      specialty: publicationSpecialties.includes(current.specialty)
+        ? current.specialty
+        : resolvePublicationSpecialty(defaultSpecialty, publicationSpecialties),
+    }));
+  }, [defaultSpecialty, publicationSpecialties]);
+
   async function createAvailability() {
     setBusy(true);
     setError("");
@@ -63,6 +77,9 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
     try {
       if (!doctorId) throw new Error("Não foi possível identificar o médico logado.");
       if (!form.date) throw new Error("Informe a data da publicação.");
+      if (!form.specialty || !publicationSpecialties.includes(form.specialty)) {
+        throw new Error("Seu cargo/perfil não possui uma especialidade clínica disponível para publicação.");
+      }
 
       const duration = Number(form.duration);
       const requestedDailyLimit = form.dailyLimit.trim() ? Number(form.dailyLimit) : MAX_DAILY_SLOTS;
@@ -162,7 +179,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
       <div className={embedded ? "grid gap-4 rounded-[20px] border border-hpsr-border bg-white p-4 shadow-[0_10px_28px_rgba(93,45,24,0.05)] lg:grid-cols-[minmax(0,1fr)_280px] lg:p-5" : "grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_280px] lg:p-5"}>
         <div className="grid gap-4">
           <div className="grid gap-3 md:grid-cols-2">
-            <label className={`${label} md:col-span-2`}>Especialidade<StyledSelect value={form.specialty} onChange={(event) => setForm({ ...form, specialty: event.target.value })} className={field}>{specialties.map((specialty) => <option key={specialty}>{specialty}</option>)}</StyledSelect></label>
+            <label className={`${label} md:col-span-2`}>Especialidade<StyledSelect value={form.specialty} disabled={!publicationSpecialties.length} onChange={(event) => setForm({ ...form, specialty: event.target.value })} className={field}>{publicationSpecialties.length ? publicationSpecialties.map((specialty) => <option key={specialty}>{specialty}</option>) : <option value="">Sem especialidade clínica disponível</option>}</StyledSelect></label>
             <label className={label}>Data<input type="date" min={today} value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} className={field} /></label>
             <div className="rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3"><p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Acesso dos pacientes</p><p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Pacientes em acompanhamento com você veem somente horários futuros dessa especialidade e podem confirmar uma vaga até o dia anterior.</p></div>
           </div>
@@ -184,7 +201,7 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-h-[42px]">{message && <p className="rounded-[12px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800"><CheckCircle2 className="mr-2 inline" size={16} />{message}</p>}{error && <p className="rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-800">{error}</p>}</div>
-            <button disabled={busy || !doctorId} onClick={() => void createAvailability()} className="inline-flex min-h-[46px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 text-sm font-black text-white shadow-sm transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={17} /> : <CalendarPlus2 size={17} />}Publicar horários</button>
+            <button disabled={busy || !doctorId || !publicationSpecialties.length || !form.specialty} onClick={() => void createAvailability()} className="inline-flex min-h-[46px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 text-sm font-black text-white shadow-sm transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={17} /> : <CalendarPlus2 size={17} />}Publicar horários</button>
           </div>
         </div>
 
@@ -196,7 +213,11 @@ export function DoctorAvailabilityManager({ doctorId, doctorName, defaultSpecial
             <div className="flex items-center gap-3 rounded-[13px] border border-hpsr-border bg-white p-3"><Clock3 size={18} className="text-hpsr-wine" /><div><p className="text-[10px] uppercase tracking-wider text-hpsr-muted">Faixa diária</p><p className="text-sm font-black text-hpsr-text">{form.startTime} — {form.endTime}</p></div></div><div className="flex items-center gap-3 rounded-[13px] border border-hpsr-border bg-white p-3"><CalendarDays size={18} className="text-hpsr-wine" /><div><p className="text-[10px] uppercase tracking-wider text-hpsr-muted">Data</p><p className="text-sm font-black text-hpsr-text">{displayDate(form.date)}</p></div></div>
             <div className="grid grid-cols-2 gap-2"><div className="rounded-[13px] border border-hpsr-border bg-white p-3"><Gauge size={16} className="text-hpsr-wine" /><p className="mt-2 text-[10px] uppercase tracking-wider text-hpsr-muted">Vagas/dia</p><p className="mt-0.5 text-xl font-black text-hpsr-text">{Math.min(MAX_DAILY_SLOTS, Math.max(1, Number(form.dailyLimit) || MAX_DAILY_SLOTS))}</p></div><div className="rounded-[13px] border border-hpsr-border bg-white p-3"><Clock3 size={16} className="text-hpsr-wine" /><p className="mt-2 text-[10px] uppercase tracking-wider text-hpsr-muted">Duração</p><p className="mt-0.5 text-xl font-black text-hpsr-text">{form.duration}<span className="ml-1 text-xs">min</span></p></div></div>
           </div>
-          <p className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-900">A publicação não cria acompanhamento novo. Ela abre vagas para pacientes que já estão vinculados a você. No próprio dia, vagas que ainda estiverem livres deixam de aceitar novas confirmações pelo Portal.</p>
+          {publicationSpecialties.length ? (
+            <p className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-900">A publicação não cria acompanhamento novo. Ela abre vagas para pacientes que já estão vinculados a você. No próprio dia, vagas que ainda estiverem livres deixam de aceitar novas confirmações pelo Portal.</p>
+          ) : (
+            <p className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-900">Seu cargo atual ainda não possui especialidade clínica própria. A publicação de horários fica disponível a partir de Médico Clínico.</p>
+          )}
         </aside>
       </div>
 

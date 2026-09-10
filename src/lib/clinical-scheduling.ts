@@ -60,7 +60,10 @@ export function profileMatchesClinicalSpecialty(profile: { specialty?: unknown; 
 }
 
 export function isClinicalProfessional(profile: { role?: unknown; specialty?: unknown; crm?: unknown }) {
-  const role = String(profile.role ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  const role = String(profile.role ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").trim();
+  const nonClinicalTrainingRoles = ["residente", "estagiario de enfermagem", "enfermeiro", "tecnico de enfermagem"];
+  if (nonClinicalTrainingRoles.includes(role)) return false;
+
   const crm = String(profile.crm ?? "").trim();
   const specialtyCandidates = clinicalSpecialtyCandidates(profile);
   const clinicalRoles = ["medico", "diretor clinico", "diretora", "vice diretor", "obstetra", "pediatra", "psicolog", "psiquiatra", "nutricionista", "cirurgiao", "ginecolog"];

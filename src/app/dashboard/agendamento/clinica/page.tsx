@@ -37,6 +37,7 @@ import { usePatientSelection } from "@/components/patients/PatientSelectionProvi
 import { specialties } from "@/data/mock";
 import { findSpecialtyScheduleConflict, normalizeSpecialty } from "@/data/appointment-rules";
 import { isClinicalProfessional, normalizeClinicalPassport } from "@/lib/clinical-scheduling";
+import { clinicalSpecialtyOptionsForStaffRole } from "@/lib/staff-specialties";
 
 const BRAZIL_TIMEZONE = "America/Sao_Paulo";
 
@@ -203,7 +204,7 @@ export default function ClinicalSchedulePage() {
           id: String(row.id),
           patient: String(row.patient || payload.patient || "Paciente"),
           passport: String(row.passport || payload.passport || ""),
-          specialty: String(payload.specialty || "Clínico Geral"),
+          specialty: String(payload.specialty || "Sem especialidade"),
           physician: String(payload.physician || payload.doctor || "A definir"),
           doctorId: String(payload.doctorId || payload.doctor_id || ""),
           date: String(row.status === "Reagendamento aceito" ? payload.proposedDate || payload.preferredDate || payload.date || "" : payload.preferredDate || payload.date || ""),
@@ -686,6 +687,7 @@ export default function ClinicalSchedulePage() {
         onClose={() => setScheduleToolModal(null)}
         doctorId={currentUserProfile.id}
         doctorName={currentUserProfile.systemName}
+        doctorRole={currentUserProfile.role}
         defaultSpecialty={currentUserProfile.specialty || ""}
       />
 
@@ -699,12 +701,14 @@ function ScheduleToolDialog({
   onClose,
   doctorId,
   doctorName,
+  doctorRole,
   defaultSpecialty,
 }: {
   mode: ScheduleToolModal;
   onClose: () => void;
   doctorId?: string;
   doctorName: string;
+  doctorRole: string;
   defaultSpecialty: string;
 }) {
   if (!mode) return null;
@@ -732,7 +736,7 @@ function ScheduleToolDialog({
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto p-4 sm:p-5" style={{ scrollbarGutter: "stable" }}>
-          <DoctorAvailabilityManager doctorId={doctorId} doctorName={doctorName} defaultSpecialty={defaultSpecialty} embedded />
+          <DoctorAvailabilityManager doctorId={doctorId} doctorName={doctorName} doctorRole={doctorRole} defaultSpecialty={defaultSpecialty} embedded />
         </div>
       </section>
     </div>
@@ -833,11 +837,16 @@ function NewAppointmentForm({
   const [patientPassport, setPatientPassport] = useState("");
   const [patientName, setPatientName] = useState("");
   const [physician, setPhysician] = useState("");
-  const [doctors, setDoctors] = useState<Array<{ id: string; name: string; specialty: string }>>([]);
-  const [specialty, setSpecialty] = useState("Clínico Geral");
+  const [doctors, setDoctors] = useState<Array<{ id: string; name: string; role: string; specialty: string }>>([]);
+  const [specialty, setSpecialty] = useState("");
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickPatient, setQuickPatient] = useState({ name: "", passport: "", age: "", bloodType: "" });
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const selectedDoctor = useMemo(() => doctors.find((doctor) => doctor.name === physician), [doctors, physician]);
+  const selectedDoctorSpecialties = useMemo(
+    () => selectedDoctor ? clinicalSpecialtyOptionsForStaffRole(selectedDoctor.role, selectedDoctor.specialty, specialties) : [],
+    [selectedDoctor]
+  );
 
   useEffect(() => {
     const client = createClient();
@@ -850,13 +859,24 @@ function NewAppointmentForm({
       const canManageAllDoctors = currentUserProfile.systemRole === "Diretor Técnico / Dev" || currentUserProfile.accessLevel === "Total" || ["Diretora", "Vice Diretor", "Vice-Diretor"].some((role) => role === currentUserProfile.role || role === currentUserProfile.systemRole);
       const available = (data || [])
         .filter((row) => isClinicalProfessional(row))
-        .map((row) => ({ id: String(row.id), name: String(row.name || "Médico"), specialty: String(row.specialty || "Clínico Geral") }))
+        .map((row) => ({ id: String(row.id), name: String(row.name || "Médico"), role: String(row.role || ""), specialty: String(row.specialty || "") }))
         .filter((doctor) => canManageAllDoctors || doctor.id === currentUserProfile.id || doctor.name === currentUserProfile.systemName);
       setDoctors(available);
-      const current = available.find((item) => item.name === currentUserProfile.systemName);
-      setPhysician(current?.name || available[0]?.name || currentUserProfile.systemName);
+      const current = available.find((item) => item.name === currentUserProfile.systemName) || available[0];
+      const nextPhysician = current?.name || "";
+      setPhysician(nextPhysician);
+      const nextSpecialties = current ? clinicalSpecialtyOptionsForStaffRole(current.role, current.specialty, specialties) : [];
+      setSpecialty(nextSpecialties[0] || "");
     });
-  }, [currentUserProfile.systemName]);
+  }, [currentUserProfile.id, currentUserProfile.role, currentUserProfile.systemName, currentUserProfile.systemRole, currentUserProfile.accessLevel]);
+
+  useEffect(() => {
+    if (!selectedDoctor) {
+      setSpecialty("");
+      return;
+    }
+    setSpecialty((current) => selectedDoctorSpecialties.includes(current) ? current : selectedDoctorSpecialties[0] || "");
+  }, [selectedDoctor, selectedDoctorSpecialties]);
 
   async function saveQuickPatient() {
     const name = quickPatient.name.trim();
@@ -909,6 +929,10 @@ function NewAppointmentForm({
   }
 
   async function handleSave() {
+    if (!selectedDoctor || !specialty || !selectedDoctorSpecialties.includes(specialty)) {
+      setMessage({ type: "error", text: "Selecione um médico com especialidade clínica válida antes de salvar." });
+      return;
+    }
     const conflict = findSpecialtyScheduleConflict({ appointments, date, time, specialty });
     if (conflict) {
       setMessage({ type: "error", text: `Conflito: já existe ${conflict.specialty} às ${conflict.time} nesta data. Mantenha pelo menos 1 hora de intervalo para a mesma especialidade.` });
@@ -935,8 +959,7 @@ function NewAppointmentForm({
     if (!client) return;
     const now = brazilIso();
     const id = `appointment-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const selectedDoctor = doctors.find((doctor) => doctor.name === physician);
-    const doctorId = selectedDoctor?.id || currentUserProfile.id;
+    const doctorId = selectedDoctor.id;
 
     const { data: acceptedRows, error: acceptedLookupError } = await client
       .from("appointments")
@@ -1010,8 +1033,8 @@ function NewAppointmentForm({
           </StyledSelect>
         </Field>
         <Field label="Especialidade">
-          <StyledSelect className={inputClass} value={specialty} onChange={(event) => setSpecialty(event.target.value)}>
-            {specialties.map((item) => <option key={item}>{item}</option>)}
+          <StyledSelect className={inputClass} value={specialty} disabled={!selectedDoctorSpecialties.length} onChange={(event) => setSpecialty(event.target.value)}>
+            {selectedDoctorSpecialties.length ? selectedDoctorSpecialties.map((item) => <option key={item}>{item}</option>) : <option value="">Sem especialidade clínica disponível</option>}
           </StyledSelect>
         </Field>
         <Field label="Data"><input className={inputClass} type="date" value={date} onChange={(event) => setDate(event.target.value)} /></Field>

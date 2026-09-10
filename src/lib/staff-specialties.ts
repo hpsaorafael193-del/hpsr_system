@@ -65,3 +65,24 @@ export function specialtiesForStaffRole(role: string, specialty: string | null |
   const normalized = specialtyForStaffRole(role, specialty);
   return normalized ? parseStaffSpecialties(normalized) : [];
 }
+
+export function clinicalSpecialtyOptionsForStaffRole(
+  role: string,
+  specialty: string | null | undefined,
+  catalog: string[]
+) {
+  const normalizedRole = role.trim();
+  if (NO_CLINICAL_SPECIALTY_ROLES.has(normalizedRole)) return [];
+
+  const canonicalByNormalized = new Map(
+    catalog.map((item) => [normalizeStaffSpecialtyName(item), item] as const)
+  );
+
+  if (UNRESTRICTED_SPECIALTY_ROLES.has(normalizedRole)) {
+    return uniqueStaffSpecialties(catalog);
+  }
+
+  return uniqueStaffSpecialties(specialtiesForStaffRole(normalizedRole, specialty))
+    .map((item) => canonicalByNormalized.get(normalizeStaffSpecialtyName(item)) || item)
+    .filter((item) => canonicalByNormalized.has(normalizeStaffSpecialtyName(item)));
+}

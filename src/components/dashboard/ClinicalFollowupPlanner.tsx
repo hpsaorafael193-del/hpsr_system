@@ -16,6 +16,7 @@ import { specialties } from "@/data/mock";
 import { normalizeClinicalPassport } from "@/lib/clinical-scheduling";
 import { hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
+import { clinicalSpecialtyOptionsForStaffRole } from "@/lib/staff-specialties";
 
 type Patient = { passport: string; name: string };
 type Plan = {
@@ -40,11 +41,13 @@ const displayDate = (value: string) => value.split("-").reverse().join("/");
 export function ClinicalFollowupPlanner({
   doctorId,
   doctorName,
+  doctorRole,
   defaultSpecialty,
   embedded = false,
 }: {
   doctorId?: string;
   doctorName: string;
+  doctorRole?: string;
   defaultSpecialty?: string;
   embedded?: boolean;
 }) {
@@ -58,9 +61,13 @@ export function ClinicalFollowupPlanner({
   const [manualPatientData, setManualPatientData] = useState({ name: "", passport: "" });
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const availableSpecialties = useMemo(
+    () => clinicalSpecialtyOptionsForStaffRole(doctorRole || "", defaultSpecialty, specialties),
+    [doctorRole, defaultSpecialty]
+  );
   const [form, setForm] = useState({
     passport: "",
-    specialty: defaultSpecialty ?? "Clínico Geral",
+    specialty: availableSpecialties[0] || "",
     startDate: today,
     frequency: "Semanal",
     customDays: "7",
@@ -85,6 +92,13 @@ export function ClinicalFollowupPlanner({
   useEffect(() => {
     void load();
   }, [doctorId]);
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      specialty: availableSpecialties.includes(current.specialty) ? current.specialty : availableSpecialties[0] || "",
+    }));
+  }, [availableSpecialties]);
 
   function interval() {
     return form.frequency === "Semanal"
@@ -120,6 +134,9 @@ export function ClinicalFollowupPlanner({
     setMessage("");
     try {
       if (!doctorId) throw new Error("Médico não identificado.");
+      if (!form.specialty || !availableSpecialties.includes(form.specialty)) {
+        throw new Error("Seu cargo/perfil não possui especialidade clínica disponível para acompanhamento.");
+      }
       const patient = manualPatient
         ? { name: manualPatientData.name.trim(), passport: normalizeClinicalPassport(manualPatientData.passport) }
         : patients.find((item) => normalizeClinicalPassport(item.passport) === normalizeClinicalPassport(form.passport));
@@ -161,7 +178,7 @@ export function ClinicalFollowupPlanner({
     setForm((current) => ({
       ...current,
       passport: plan.patient_passport,
-      specialty: plan.specialty,
+      specialty: availableSpecialties.includes(plan.specialty) ? plan.specialty : availableSpecialties[0] || "",
       startDate: plan.start_date,
       frequency: plan.frequency,
       customDays: plan.frequency === "Personalizada" ? current.customDays : current.customDays,
@@ -278,8 +295,8 @@ export function ClinicalFollowupPlanner({
           </div>
           <label className={`${label} lg:col-span-4`}>
             Especialidade
-            <StyledSelect value={form.specialty} onChange={(event) => setForm({ ...form, specialty: event.target.value })} className={field}>
-              {specialties.map((specialty) => <option key={specialty}>{specialty}</option>)}
+            <StyledSelect value={form.specialty} disabled={!availableSpecialties.length} onChange={(event) => setForm({ ...form, specialty: event.target.value })} className={field}>
+              {availableSpecialties.length ? availableSpecialties.map((specialty) => <option key={specialty}>{specialty}</option>) : <option value="">Sem especialidade clínica disponível</option>}
             </StyledSelect>
           </label>
           <label className={`${label} lg:col-span-3`}>
@@ -311,6 +328,10 @@ export function ClinicalFollowupPlanner({
           {form.endMode === "date" && <label className={label}>Data final<input type="date" min={form.startDate} value={form.endDate} onChange={(event) => setForm({ ...form, endDate: event.target.value })} className={field} /></label>}
         </div>
 
+        {!availableSpecialties.length && (
+          <p className="mt-4 rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold leading-relaxed text-amber-900">Seu cargo atual ainda não possui especialidade clínica própria. Planejamentos clínicos ficam disponíveis a partir de Médico Clínico.</p>
+        )}
+
         <div className="mt-4 rounded-[16px] border border-hpsr-border bg-white p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
@@ -336,7 +357,7 @@ export function ClinicalFollowupPlanner({
           </div>
           <div className="flex flex-wrap gap-2">
             {editingPlanId && <button type="button" disabled={busy} onClick={cancelEditing} className="inline-flex min-h-[46px] items-center gap-2 rounded-[14px] border border-hpsr-border bg-white px-4 text-sm font-black text-hpsr-wine"><X size={16}/>Cancelar edição</button>}
-            <button disabled={busy || !doctorId} onClick={() => void save()} className="inline-flex min-h-[46px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 text-sm font-black text-white transition hover:brightness-105 disabled:opacity-50">
+            <button disabled={busy || !doctorId || !availableSpecialties.length || !form.specialty} onClick={() => void save()} className="inline-flex min-h-[46px] shrink-0 items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 text-sm font-black text-white transition hover:brightness-105 disabled:opacity-50">
               {busy ? <Loader2 className="animate-spin" size={17} /> : editingPlanId ? <Pencil size={17}/> : <CheckCircle2 size={17} />}
               {editingPlanId ? "Salvar alterações" : "Salvar planejamento"}
             </button>
