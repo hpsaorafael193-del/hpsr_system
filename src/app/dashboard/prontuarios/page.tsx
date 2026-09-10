@@ -49,7 +49,7 @@ const PatientAccessRecoveryModal = dynamic(
 
 type RecordTab = "geral" | "timeline" | "consultas" | "exames" | "vacinas" | "documentos" | "prescricoes" | "procedimentos" | "observacoes";
 type PatientFilter = "all" | "mine" | "routine";
-type ScheduleAssignment = { doctor_id: string; doctor_name: string; specialty: string };
+type DoctorLink = { doctor_id: string; doctor_name: string; specialty: string };
 
 type PatientRecord = {
   id: string;
@@ -65,7 +65,7 @@ type PatientRecord = {
   followUp: string;
   portalSpecialties: string[];
   triageStatus: "Pendente" | "Classificado";
-  scheduleAssignments: ScheduleAssignment[];
+  doctorLinks: DoctorLink[];
   lastVisit: string;
   alerts: string[];
 };
@@ -219,7 +219,7 @@ export default function RecordsPage() {
           followUp: normalizePatientFollowUp(existing?.followUp),
           portalSpecialties: existing?.portalSpecialties || [],
           triageStatus: existing?.triageStatus || "Classificado",
-          scheduleAssignments: existing?.scheduleAssignments || [],
+          doctorLinks: existing?.doctorLinks || [],
           lastVisit: existing?.lastVisit || "—",
           alerts: existing?.alerts || [],
         });
@@ -296,7 +296,7 @@ export default function RecordsPage() {
           followUp: normalizePatientFollowUp(source.followUp || current?.followUp),
           portalSpecialties: source.portalSpecialties || current?.portalSpecialties || [],
           triageStatus: source.triageStatus || current?.triageStatus || "Classificado",
-          scheduleAssignments: source.scheduleAssignments || current?.scheduleAssignments || [],
+          doctorLinks: source.doctorLinks || current?.doctorLinks || [],
           lastVisit: [current?.lastVisit, source.lastVisit].filter(Boolean).sort().at(-1) || "",
           alerts: Array.from(new Set([...(current?.alerts || []), ...(source.alerts || [])])),
         });
@@ -344,7 +344,7 @@ export default function RecordsPage() {
         }
       }
 
-      const linksByPassport = new Map<string, ScheduleAssignment[]>();
+      const linksByPassport = new Map<string, DoctorLink[]>();
       for (const row of linkRows) {
         const passport = String(row.patient_passport || "").trim();
         const doctorId = String(row.doctor_id || "").trim();
@@ -361,7 +361,7 @@ export default function RecordsPage() {
 
       for (const [passport, assignments] of linksByPassport) {
         if (!patientMap.has(passport)) continue;
-        upsertPatient(passport, { scheduleAssignments: assignments });
+        upsertPatient(passport, { doctorLinks: assignments });
       }
 
       for (const row of (appointmentsResult.error ? [] : (appointmentsResult.data || [])) as any[]) {
@@ -528,7 +528,7 @@ export default function RecordsPage() {
           followUp: normalizePatientFollowUp(row.follow_up || existing?.followUp),
           portalSpecialties: Array.isArray(row.portal_specialties) ? row.portal_specialties.map(String) : existing?.portalSpecialties || [],
           triageStatus: existing?.triageStatus || "Classificado",
-          scheduleAssignments: existing?.scheduleAssignments || [],
+          doctorLinks: existing?.doctorLinks || [],
           lastVisit: String(row.updated_at || row.created_at || existing?.lastVisit || "").slice(0, 10),
           alerts: existing?.alerts || [],
         };
@@ -614,7 +614,7 @@ export default function RecordsPage() {
     return patients.filter((patient) => {
       const matchesSearch = !normalized || patient.passport.toLowerCase().includes(normalized) || patient.name.toLowerCase().includes(normalized);
       if (!matchesSearch) return false;
-      if (patientFilter === "mine") return patient.scheduleAssignments.some((assignment) => assignment.doctor_id === currentUserProfile.id);
+      if (patientFilter === "mine") return patient.doctorLinks.some((assignment) => assignment.doctor_id === currentUserProfile.id);
       if (patientFilter === "routine") return patient.followUp === "Rotina";
       return true;
     });
@@ -644,7 +644,7 @@ export default function RecordsPage() {
 
   async function deletePatient(patient: PatientRecord) {
     const firstConfirmation = await hpsrConfirm(
-      `Deseja excluir permanentemente ${patient.name} do Prontuário?\n\nEssa ação removerá o cadastro institucional, registros clínicos, consultas e o acesso ao Portal do Paciente vinculados ao passaporte ${patient.passport}.`,
+      `Deseja excluir permanentemente ${patient.name} do Prontuário?\n\nEssa ação removerá o cadastro institucional, registros clínicos, consultas, vínculos médico-paciente, relações de responsável, conta e acesso ao Portal vinculados ao passaporte ${patient.passport}.`,
       "Excluir paciente"
     );
     if (!firstConfirmation) return;
@@ -790,7 +790,7 @@ export default function RecordsPage() {
       followUp: normalizePatientFollowUp(data.followUp),
       portalSpecialties: existingPatient?.portalSpecialties || [],
       triageStatus: existingPatient?.triageStatus || "Classificado",
-      scheduleAssignments: existingPatient?.scheduleAssignments || [],
+      doctorLinks: existingPatient?.doctorLinks || [],
       lastVisit: existingPatient?.lastVisit || "—",
       alerts: existingPatient?.alerts || [],
     };

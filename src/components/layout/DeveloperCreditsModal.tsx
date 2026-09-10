@@ -166,7 +166,7 @@ export function DeveloperCreditsModal({ open, onClose }: DeveloperCreditsModalPr
           <div className="rounded-[16px] border border-[#ead6c4] bg-[#f5e8dc] px-4 py-4 text-center">
             <p className="text-sm font-black text-hpsr-wine">Desenvolvido para o Hospital São Rafael - Eldorado</p>
             <p className="mt-2 text-xs font-semibold text-hpsr-muted">© 2026 Luidhy Conceição dos Santos. Todos os direitos reservados.</p>
-            <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Versão do sistema: 1.0.350</p>
+            <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Versão do sistema: 1.0.351</p>
           </div>
 
           <button
