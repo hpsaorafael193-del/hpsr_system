@@ -251,21 +251,23 @@ export default function RecordsPage() {
       if (typeof document !== "undefined" && document.hidden) return;
       const requestId = ++loadRequestRef.current;
       setIsLoadingPatients(true);
-      const [registryResult, recordsResult, appointmentsResult, portalResult] = await Promise.all([
+      const [registryResult, recordsResult, appointmentsResult, portalResult, linksResult] = await Promise.all([
         supabase.from("patient_registry").select("passport,name,age,birth_date,sex,blood_type,city_phone,email,follow_up,portal_specialties,created_at,updated_at").order("created_at", { ascending: false }),
         supabase.from("clinical_records").select("id,patient_passport,record_type,created_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,summary:payload->>summary,exam_date:payload->>examDate").order("created_at", { ascending: false }),
         supabase.from("appointments").select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,doctor_name:payload->>doctor,reason:payload->>reason,notes:payload->>notes").order("created_at", { ascending: false }),
-        supabase.from("patient_portal_access").select("id,patient_passport,email,access_enabled,triage_status,schedule_assignments,created_at").order("created_at", { ascending: false }),
+        supabase.from("patient_portal_access").select("id,patient_passport,email,access_enabled,triage_status,created_at").order("created_at", { ascending: false }),
+        supabase.from("patient_doctor_links").select("id,patient_passport,doctor_id,specialty,started_at").order("started_at", { ascending: false }),
       ]);
 
       if (!active || requestId !== loadRequestRef.current) return;
 
-      const criticalError = registryResult.error || recordsResult.error || portalResult.error;
+      const criticalError = registryResult.error || recordsResult.error || portalResult.error || linksResult.error;
       if (criticalError) {
         console.warn("[HPSR][Prontuários] Sincronização incompleta; mantendo o último estado válido.", {
           registry: registryResult.error?.message,
           records: recordsResult.error?.message,
           portalAccess: portalResult.error?.message,
+          patientLinks: linksResult.error?.message,
         });
         setIsLoadingPatients(false);
         return;
@@ -321,10 +323,41 @@ export default function RecordsPage() {
           followUp: normalizePatientFollowUp(current.followUp),
           portalSpecialties: current.portalSpecialties || [],
           triageStatus: row.triage_status === "Pendente" ? "Pendente" : "Classificado",
-          scheduleAssignments: normalizeScheduleAssignments(row.schedule_assignments),
           lastVisit: String(row.created_at || current.lastVisit || "").slice(0, 10),
           alerts: row.access_enabled ? current.alerts : [...current.alerts, "Acesso ao portal desativado"],
         });
+      }
+
+      const linkRows = (linksResult.data || []) as any[];
+      const linkDoctorIds = [...new Set(linkRows.map((row) => String(row.doctor_id || "")).filter(Boolean))];
+      let linkDoctorNames = new Map<string, string>();
+      if (linkDoctorIds.length) {
+        const { data: doctorRows, error: doctorError } = await supabase.from("profiles").select("id,name").in("id", linkDoctorIds);
+        if (doctorError) {
+          console.warn("[HPSR][Prontuários] Não foi possível carregar os nomes dos médicos vinculados.", doctorError.message);
+        } else {
+          linkDoctorNames = new Map((doctorRows || []).map((row: any) => [String(row.id), String(row.name || "Médico responsável")]));
+        }
+      }
+
+      const linksByPassport = new Map<string, ScheduleAssignment[]>();
+      for (const row of linkRows) {
+        const passport = String(row.patient_passport || "").trim();
+        const doctorId = String(row.doctor_id || "").trim();
+        const specialty = String(row.specialty || "").trim();
+        if (!passport || !doctorId || !specialty) continue;
+        const current = linksByPassport.get(passport) || [];
+        current.push({
+          doctor_id: doctorId,
+          doctor_name: linkDoctorNames.get(doctorId) || "Médico responsável",
+          specialty,
+        });
+        linksByPassport.set(passport, current);
+      }
+
+      for (const [passport, assignments] of linksByPassport) {
+        if (!patientMap.has(passport)) continue;
+        upsertPatient(passport, { scheduleAssignments: assignments });
       }
 
       for (const row of (appointmentsResult.error ? [] : (appointmentsResult.data || [])) as any[]) {
@@ -534,14 +567,13 @@ export default function RecordsPage() {
       setPatients((current) => current.map((patient) => {
         if (patient.passport !== passport) return patient;
         if (payload.eventType === "DELETE") {
-          return { ...patient, status: patient.followUp === "Rotina" ? "Ativo" : "Em acompanhamento", triageStatus: "Classificado", scheduleAssignments: [], alerts: patient.alerts.filter((alert) => alert !== "Acesso ao portal desativado") };
+          return { ...patient, status: patient.followUp === "Rotina" ? "Ativo" : "Em acompanhamento", triageStatus: "Classificado", alerts: patient.alerts.filter((alert) => alert !== "Acesso ao portal desativado") };
         }
         const enabled = Boolean(row.access_enabled);
         return {
           ...patient,
           status: enabled ? (patient.followUp === "Rotina" ? "Ativo" : "Em acompanhamento") : "Arquivado",
           triageStatus: row.triage_status === "Pendente" ? "Pendente" : "Classificado",
-          scheduleAssignments: normalizeScheduleAssignments(row.schedule_assignments),
           alerts: enabled ? patient.alerts.filter((alert) => alert !== "Acesso ao portal desativado") : Array.from(new Set([...patient.alerts, "Acesso ao portal desativado"])),
         };
       }));
@@ -553,6 +585,9 @@ export default function RecordsPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "clinical_records" }, applyClinicalRecordChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, applyAppointmentChange)
       .on("postgres_changes", { event: "*", schema: "public", table: "patient_portal_access" }, applyPortalChange)
+      .on("postgres_changes", { event: "*", schema: "public", table: "patient_doctor_links" }, () => {
+        if (active) setRefreshKey((current) => current + 1);
+      })
       .subscribe();
 
     return () => {
@@ -1561,20 +1596,6 @@ function AddClinicalRecordModal({
   );
 }
 
-
-function normalizeScheduleAssignments(value: unknown): ScheduleAssignment[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => {
-    if (!item || typeof item !== "object") return [];
-    const row = item as Record<string, unknown>;
-    const doctorId = String(row.doctor_id || "").trim();
-    const doctorName = String(row.doctor_name || "").trim();
-    const specialty = String(row.specialty || "").trim();
-    return doctorId && specialty ? [{ doctor_id: doctorId, doctor_name: doctorName || "Médico", specialty }] : [];
-  });
-}
-
-const VALID_PATIENT_FOLLOW_UP = ["Rotina", "Clínico", "Especializado"] as const;
 
 function normalizePatientFollowUp(value: unknown): (typeof VALID_PATIENT_FOLLOW_UP)[number] {
   const normalized = String(value ?? "").trim();

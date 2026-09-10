@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const targetPassport = await resolvePortalPatientPassport(request, valid);
     if (!targetPassport) return NextResponse.json({ ok: false, error: "Acesso não autorizado para este paciente." }, { status: 403 });
 
-    const [plansResult, occurrencesResult, accessResult, appointmentsResult] = await Promise.all([
+    const [plansResult, occurrencesResult, linksResult, appointmentsResult] = await Promise.all([
       valid.supabase
         .from("clinical_followup_plans")
         .select("id,doctor_id,doctor_name,patient_name,patient_passport,specialty,frequency,start_date,end_date,total_consultations,status,created_at,updated_at")
@@ -43,10 +43,10 @@ export async function GET(request: NextRequest) {
         .order("planned_date", { ascending: true })
         .limit(240),
       valid.supabase
-        .from("patient_portal_access")
-        .select("schedule_assignments")
+        .from("patient_doctor_links")
+        .select("id,doctor_id,specialty,started_at")
         .eq("patient_passport", targetPassport)
-        .maybeSingle(),
+        .order("started_at", { ascending: false }),
       valid.supabase
         .from("appointments")
         .select("id,status,payload,updated_at")
@@ -56,20 +56,29 @@ export async function GET(request: NextRequest) {
         .limit(100),
     ]);
 
-    const firstError = plansResult.error || occurrencesResult.error || accessResult.error || appointmentsResult.error;
+    const firstError = plansResult.error || occurrencesResult.error || linksResult.error || appointmentsResult.error;
     if (firstError) throw firstError;
 
     const plans = (plansResult.data || []) as any[];
     const occurrences = (occurrencesResult.data || []) as any[];
-    const assignments = Array.isArray((accessResult.data as any)?.schedule_assignments)
-      ? ((accessResult.data as any).schedule_assignments as any[])
-      : [];
+    const linkRows = (linksResult.data || []) as any[];
     const activeAppointments = (appointmentsResult.data || []) as any[];
+
+    const linkDoctorIds = [...new Set(linkRows.map((row) => String(row.doctor_id || "")).filter(Boolean))];
+    let doctorNameById = new Map<string, string>();
+    if (linkDoctorIds.length) {
+      const { data: doctorRows, error: doctorError } = await valid.supabase
+        .from("profiles")
+        .select("id,name")
+        .in("id", linkDoctorIds);
+      if (doctorError) throw doctorError;
+      doctorNameById = new Map((doctorRows || []).map((row: any) => [String(row.id), String(row.name || "Médico responsável")]));
+    }
 
     type Link = {
       key: string;
       planId: string;
-      linkType: "plan" | "assignment";
+      linkType: "plan" | "link";
       doctorId: string;
       doctorName: string;
       specialty: string;
@@ -81,17 +90,17 @@ export async function GET(request: NextRequest) {
     };
 
     const linksByKey = new Map<string, Link>();
-    for (const assignment of assignments) {
-      const doctorId = String(assignment?.doctor_id || "").trim();
-      const specialty = String(assignment?.specialty || "").trim();
+    for (const row of linkRows) {
+      const doctorId = String(row?.doctor_id || "").trim();
+      const specialty = String(row?.specialty || "").trim();
       if (!doctorId || !specialty) continue;
       const key = `${doctorId}|${normalizeClinicalSpecialty(specialty)}`;
       linksByKey.set(key, {
         key,
-        planId: `link:${doctorId}:${normalizeClinicalSpecialty(specialty)}`,
-        linkType: "assignment",
+        planId: `link:${String(row?.id || doctorId)}`,
+        linkType: "link",
         doctorId,
-        doctorName: String(assignment?.doctor_name || "Médico responsável"),
+        doctorName: doctorNameById.get(doctorId) || "Médico responsável",
         specialty,
         frequency: "Vínculo de atendimento",
         status: "Vinculado",
@@ -101,9 +110,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Somente vínculos administrativos explícitos roteiam horários no Portal.
+    // patient_doctor_links é a única fonte de vínculo.
     // Planos de acompanhamento são contexto clínico e apenas enriquecem uma combinação
-    // que já foi vinculada pelo setor interno; nunca criam vínculo implicitamente.
+    // que já possui vínculo ativo; nunca criam vínculo implicitamente.
     for (const plan of plans) {
       const doctorId = String(plan.doctor_id || "");
       const specialty = String(plan.specialty || "");

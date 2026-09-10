@@ -1045,7 +1045,7 @@ function LinkModal({
           )}
 
           <div className="rounded-[13px] border border-hpsr-border bg-white px-3.5 py-3 text-xs font-semibold leading-relaxed text-hpsr-muted">
-            Este vínculo alimenta a carteira de pacientes. A agenda do paciente não é criada nem alterada automaticamente por esta ação.
+            Este vínculo é a fonte oficial da relação médico-paciente. O Portal passa a exibir novos horários deste médico e especialidade enquanto o vínculo estiver ativo; consultas já marcadas continuam preservadas mesmo após o encerramento.
           </div>
         </div>
 
