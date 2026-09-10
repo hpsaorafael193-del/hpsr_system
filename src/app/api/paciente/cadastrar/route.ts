@@ -1,4 +1,4 @@
-import { formatPhoneNumber } from "@/lib/phone";
+import { formatCityPhoneNumber, isValidCityPhone, isValidDiscordId, normalizeDiscordId } from "@/lib/phone";
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient, normalizePassport } from "@/lib/patient-portal/server";
 
@@ -20,7 +20,9 @@ export async function POST(request: NextRequest) {
     const age = clean(body.age, 30);
     const requestedBloodType = clean(body.bloodType, 12);
     const bloodType = ["A+", "A-", "B+", "B-"].includes(requestedBloodType) ? requestedBloodType : "";
-    const phone = formatPhoneNumber(clean(body.phone, 60));
+    const rawPhone = clean(body.phone, 60);
+    const phone = formatCityPhoneNumber(rawPhone);
+    const discord = normalizeDiscordId(body.discord);
     const requestedEmail = clean(body.email, 254).toLowerCase();
     const password = String(body.password ?? "");
     const numericAge = Number.parseInt(age.replace(/\D/g, ""), 10);
@@ -40,6 +42,12 @@ export async function POST(request: NextRequest) {
     if (password.length < 6) {
       return NextResponse.json({ error: "A senha deve ter pelo menos 6 caracteres." }, { status: 400 });
     }
+    if (rawPhone && !isValidCityPhone(rawPhone)) {
+      return NextResponse.json({ error: "Use o telefone da cidade no formato (055) 000-000." }, { status: 400 });
+    }
+    if (discord && !isValidDiscordId(discord)) {
+      return NextResponse.json({ error: "Informe somente o ID numérico do Discord com 17 a 20 dígitos." }, { status: 400 });
+    }
     if (guardianPassports.includes(passport)) {
       return NextResponse.json({ error: "O paciente menor de idade não pode ser o próprio responsável." }, { status: 400 });
     }
@@ -52,7 +60,7 @@ export async function POST(request: NextRequest) {
         .in("passport", guardianPassports);
       if (guardianLookupError) throw guardianLookupError;
       const foundGuardians = new Set<string>(
-        (guardianRows || []).map((row) => normalizePassport(row.passport))
+        (guardianRows || []).map((row: { passport?: string | null }) => normalizePassport(row.passport))
       );
       const missingGuardians = guardianPassports.filter((guardianPassport) => !foundGuardians.has(guardianPassport));
       if (missingGuardians.length > 0) {
@@ -110,7 +118,7 @@ export async function POST(request: NextRequest) {
 
     const { data: existingPatient, error: patientLookupError } = await supabase
       .from("patient_registry")
-      .select("passport,name,age,blood_type,city_phone,email")
+      .select("passport,name,age,blood_type,city_phone,discord,email")
       .eq("passport", passport)
       .maybeSingle();
     if (patientLookupError) throw patientLookupError;
@@ -142,6 +150,7 @@ export async function POST(request: NextRequest) {
         age: age || null,
         blood_type: bloodType || null,
         city_phone: phone || null,
+        discord: discord || null,
         email: null,
         follow_up: "Rotina",
       });
@@ -185,6 +194,7 @@ export async function POST(request: NextRequest) {
       if (!clean(existingPatient.age) && age) registryUpdates.age = age;
       if (!clean(existingPatient.blood_type) && bloodType) registryUpdates.blood_type = bloodType;
       if (!clean(existingPatient.city_phone) && phone) registryUpdates.city_phone = phone;
+      if (!clean(existingPatient.discord) && discord) registryUpdates.discord = discord;
       if (!clean(existingPatient.email)) registryUpdates.email = email;
     } else {
       registryUpdates.email = email;

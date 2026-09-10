@@ -14,11 +14,11 @@ import { PatientFollowupSummaryPanel, PatientFollowupsPanel, type PatientFollowu
 import { PatientProfilePanel } from "@/components/public/PatientProfilePanel";
 import { createClient, createPasswordRecoveryClient } from "@/lib/supabase";
 import { clearAuthContext, clearLoginPersistence, setAuthContext } from "@/lib/auth-persistence";
-import { formatPhoneNumber } from "@/lib/phone";
+import { formatCityPhoneNumber, normalizeDiscordId } from "@/lib/phone";
 
 type Stage = "checking" | "login" | "register" | "portal";
 type PortalSection = "home" | "appointments" | "request" | "followups" | "exam-request" | "records" | "pending" | "profile";
-type PortalPatient = { passport: string; name: string; relationship: string; access_type: string; hasClinicalContact?: boolean };
+type PortalPatient = { passport: string; name: string; relationship: string; access_type: string; hasClinicalContact?: boolean; discord?: string; cityPhone?: string; preferredContact?: "discord" | "city_phone" | null };
 type PendingChildLink = { passport: string; name: string; relationship: string; status: string };
 type SessionResponse = { authenticated?: boolean; patientName?: string; accessiblePatients?: PortalPatient[]; pendingChildLinks?: PendingChildLink[] };
 
@@ -28,6 +28,7 @@ type RegisterForm = {
   age: string;
   bloodType: string;
   phone: string;
+  discord: string;
   email: string;
   password: string;
   confirmation: string;
@@ -42,7 +43,7 @@ const PatientEmailRecoveryModal = dynamic(
 const PATIENT_EMAIL_STORAGE_KEY = "hpsr_patient_login_email";
 
 const EMPTY_REGISTER: RegisterForm = {
-  name: "", passport: "", age: "", bloodType: "", phone: "", email: "", password: "", confirmation: "", guardianPassports: [""],
+  name: "", passport: "", age: "", bloodType: "", phone: "", discord: "", email: "", password: "", confirmation: "", guardianPassports: [""],
 };
 
 export function PatientAccessPanel() {
@@ -606,7 +607,8 @@ export function PatientAccessPanel() {
                   </div>
                 </div>
               )}
-              <Field label="Telefone"><input inputMode="numeric" maxLength={13} placeholder="(055) 626-323" value={register.phone} onChange={(e) => setRegister(v => ({...v, phone:formatPhoneNumber(e.target.value)}))} className="portal-input" /></Field>
+              <Field label="Telefone"><input inputMode="numeric" maxLength={13} placeholder="(055) 626-323" value={register.phone} onChange={(e) => setRegister(v => ({...v, phone:formatCityPhoneNumber(e.target.value)}))} className="portal-input" /></Field>
+              <Field label="ID do Discord"><input inputMode="numeric" maxLength={20} placeholder="17 a 20 dígitos" value={register.discord} onChange={(e) => setRegister(v => ({...v, discord:normalizeDiscordId(e.target.value)}))} className="portal-input" /><span className="mt-1.5 block text-[11px] font-semibold text-hpsr-muted">Preferencial para contato da equipe. O telefone da cidade continua disponível.</span></Field>
               <Field label="E-mail da conta" wide><input type="email" autoComplete="email" value={register.email} onChange={(e) => setRegister(v => ({...v, email:e.target.value}))} className="portal-input" /><span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Este e-mail é usado somente para acesso, recuperação de senha e funções do sistema. Para atendimento, a equipe usa o telefone da cidade ou o ID do Discord.</span></Field>
               <Field label="Senha"><input type="password" autoComplete="new-password" value={register.password} onChange={(e) => setRegister(v => ({...v, password:e.target.value}))} className="portal-input" minLength={6} placeholder="Mínimo de 6 caracteres" /></Field>
               <Field label="Confirmar senha"><input type="password" autoComplete="new-password" value={register.confirmation} minLength={6} onChange={(e) => setRegister(v => ({...v, confirmation:e.target.value}))} className="portal-input" /></Field>

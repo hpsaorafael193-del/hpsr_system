@@ -54,12 +54,13 @@ export async function GET(request: NextRequest) {
     const accessibleList = (accessiblePatients || []) as any[];
     const accessiblePassports = accessibleList.map((item) => String(item.passport || "")).filter(Boolean);
     const { data: patientContacts } = accessiblePassports.length
-      ? await supabase.from("patient_registry").select("passport,city_phone").in("passport", accessiblePassports)
+      ? await supabase.from("patient_registry").select("passport,city_phone,discord").in("passport", accessiblePassports)
       : { data: [] as any[] };
-    const cityPhoneByPassport = new Map((patientContacts || []).map((item: any) => [String(item.passport || ""), String(item.city_phone || "").trim()]));
+    const contactByPassport = new Map<string, { cityPhone: string; discord: string }>((patientContacts || []).map((item: any) => [String(item.passport || ""), { cityPhone: String(item.city_phone || "").trim(), discord: String(item.discord || "").trim() }]));
     const accessibleWithContact = accessibleList.map((item) => {
       const itemPassport = String(item.passport || "");
-      return { ...item, hasClinicalContact: Boolean(cityPhoneByPassport.get(itemPassport)) };
+      const contact = contactByPassport.get(itemPassport) || { cityPhone: "", discord: "" };
+      return { ...item, hasClinicalContact: Boolean(contact.discord || contact.cityPhone), discord: contact.discord, cityPhone: contact.cityPhone, preferredContact: contact.discord ? "discord" : contact.cityPhone ? "city_phone" : null };
     });
     const passportHint = passport.length > 4 ? `${passport.slice(0, 2)}•••${passport.slice(-2)}` : "••••";
     return NextResponse.json({ authenticated: true, expiresAt: session.expires_at, passportHint, patientName: patient?.name || "Paciente", accessiblePatients: accessibleWithContact, pendingChildLinks });

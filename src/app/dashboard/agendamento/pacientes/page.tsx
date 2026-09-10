@@ -820,8 +820,8 @@ function PatientLinkCard({
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <Detail icon={<Stethoscope size={13} />} label="Especialidade" value={row.specialty} />
             <Detail icon={<CalendarClock size={13} />} label="Início do vínculo" value={formatStartedAt(row.started_at)} />
-            <Detail icon={<Phone size={13} />} label="Telefone" value={patient?.cityPhone || "Não informado"} />
-            <Detail icon={<MessageCircle size={13} />} label="Discord" value="Não disponível" />
+            <Detail icon={<MessageCircle size={13} />} label="Discord · preferencial" value={patient?.discord || "Não informado"} />
+            <Detail icon={<Phone size={13} />} label="Telefone da cidade" value={patient?.cityPhone || "Não informado"} />
           </div>
           <div className="mt-3 flex flex-wrap justify-end gap-2">
             <button

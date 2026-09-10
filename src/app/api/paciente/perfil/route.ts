@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { brazilDate } from "@/lib/brazil-datetime";
-import { formatPhoneNumber, phoneDigits } from "@/lib/phone";
+import { formatCityPhoneNumber, isValidCityPhone, isValidDiscordId, normalizeDiscordId } from "@/lib/phone";
 import { getValidPatientSession, normalizePassport } from "@/lib/patient-portal/server";
 
 export const runtime = "nodejs";
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     if (!valid) return NextResponse.json({ error: "Sua sessão expirou." }, { status: 401 });
     const passport = normalizePassport(valid.access.patient_passport);
     const [{ data: patient, error: patientError }, { data: account, error: accountError }] = await Promise.all([
-      valid.supabase.from("patient_registry").select("passport,name,birth_date,sex,city_phone,email").eq("passport", passport).maybeSingle(),
+      valid.supabase.from("patient_registry").select("passport,name,birth_date,sex,city_phone,discord,email").eq("passport", passport).maybeSingle(),
       valid.supabase.from("patient_accounts").select("user_id,email").eq("patient_passport", passport).maybeSingle(),
     ]);
     if (patientError) throw patientError;
@@ -41,7 +41,8 @@ export async function GET(request: NextRequest) {
         name: clean(patient.name),
         birthDate: clean(patient.birth_date),
         sex: clean(patient.sex),
-        phone: formatPhoneNumber(patient.city_phone),
+        phone: formatCityPhoneNumber(patient.city_phone),
+        discord: clean(patient.discord),
         email: clean(account.email || valid.access.email || patient.email).toLowerCase(),
       },
     });
@@ -58,12 +59,15 @@ export async function PATCH(request: NextRequest) {
     const passport = normalizePassport(valid.access.patient_passport);
     const body = await request.json();
     const name = clean(body.name);
-    const phone = formatPhoneNumber(body.phone);
+    const rawPhone = clean(body.phone);
+    const phone = formatCityPhoneNumber(rawPhone);
+    const discord = normalizeDiscordId(body.discord);
     const birthDate = clean(body.birthDate);
     const sex = clean(body.sex);
 
     if (name.length < 2) return NextResponse.json({ error: "Informe seu nome." }, { status: 400 });
-    if (phone && phoneDigits(phone).length < 6) return NextResponse.json({ error: "Confira o telefone informado." }, { status: 400 });
+    if (rawPhone && !isValidCityPhone(rawPhone)) return NextResponse.json({ error: "Confira o telefone da cidade. Use (055) 000-000." }, { status: 400 });
+    if (discord && !isValidDiscordId(discord)) return NextResponse.json({ error: "Confira o ID do Discord. Use somente 17 a 20 dígitos." }, { status: 400 });
     if (birthDate && !/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return NextResponse.json({ error: "Confira a data de nascimento." }, { status: 400 });
     if (sex && !["Masculino", "Feminino"].includes(sex)) return NextResponse.json({ error: "Confira o sexo cadastrado." }, { status: 400 });
 
@@ -80,6 +84,7 @@ export async function PATCH(request: NextRequest) {
     const registryUpdate: Record<string, string | null> = {
       name,
       city_phone: phone || null,
+      discord: discord || null,
       email,
       birth_date: birthDate || null,
       sex: sex || null,

@@ -1,7 +1,7 @@
 "use client";
 
 import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
-import { formatPhoneNumber, formatPhoneDisplay } from "@/lib/phone";
+import { formatCityPhoneNumber, formatPhoneDisplay, normalizeDiscordId, isValidCityPhone, isValidDiscordId } from "@/lib/phone";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import dynamic from "next/dynamic";
@@ -59,6 +59,7 @@ type PatientRecord = {
   bloodType: string;
   sex?: "Masculino" | "Feminino" | "";
   cityPhone: string;
+  discord: string;
   birthDate?: string;
   status: "Ativo" | "Em acompanhamento" | "Arquivado";
   followUp: string;
@@ -212,6 +213,7 @@ export default function RecordsPage() {
           bloodType: patient.bloodType || existing?.bloodType || "—",
           sex: patient.sex || existing?.sex || "",
           cityPhone: patient.cityPhone || existing?.cityPhone || "Não informado",
+          discord: patient.discord || existing?.discord || "",
           birthDate: patient.birthDate || existing?.birthDate,
           status: existing?.status || "Ativo",
           followUp: normalizePatientFollowUp(existing?.followUp),
@@ -252,7 +254,7 @@ export default function RecordsPage() {
       const requestId = ++loadRequestRef.current;
       setIsLoadingPatients(true);
       const [registryResult, recordsResult, appointmentsResult, portalResult, linksResult] = await Promise.all([
-        supabase.from("patient_registry").select("passport,name,age,birth_date,sex,blood_type,city_phone,email,follow_up,portal_specialties,created_at,updated_at").order("created_at", { ascending: false }),
+        supabase.from("patient_registry").select("passport,name,age,birth_date,sex,blood_type,city_phone,discord,email,follow_up,portal_specialties,created_at,updated_at").order("created_at", { ascending: false }),
         supabase.from("clinical_records").select("id,patient_passport,record_type,created_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,summary:payload->>summary,exam_date:payload->>examDate").order("created_at", { ascending: false }),
         supabase.from("appointments").select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,doctor_name:payload->>doctor,reason:payload->>reason,notes:payload->>notes").order("created_at", { ascending: false }),
         supabase.from("patient_portal_access").select("id,patient_passport,email,access_enabled,triage_status,created_at").order("created_at", { ascending: false }),
@@ -288,6 +290,7 @@ export default function RecordsPage() {
           bloodType: source.bloodType && source.bloodType !== "—" ? source.bloodType : current?.bloodType || "—",
           sex: source.sex || current?.sex || "",
           cityPhone: source.cityPhone && source.cityPhone !== "Não informado" ? source.cityPhone : current?.cityPhone || "Não informado",
+          discord: source.discord || current?.discord || "",
           birthDate: source.birthDate || current?.birthDate || "",
           status: source.status || current?.status || "Ativo",
           followUp: normalizePatientFollowUp(source.followUp || current?.followUp),
@@ -306,6 +309,7 @@ export default function RecordsPage() {
           bloodType: row.blood_type || "—",
           sex: row.sex === "Masculino" || row.sex === "Feminino" ? row.sex : "",
           cityPhone: formatPhoneDisplay(row.city_phone, "Não informado"),
+          discord: String(row.discord || ""),
           birthDate: row.birth_date || "",
           status: normalizePatientFollowUp(row.follow_up) === "Rotina" ? "Ativo" : "Em acompanhamento",
           followUp: normalizePatientFollowUp(row.follow_up),
@@ -518,6 +522,7 @@ export default function RecordsPage() {
           bloodType: String(row.blood_type || existing?.bloodType || "—"),
           sex: row.sex === "Masculino" || row.sex === "Feminino" ? row.sex : existing?.sex || "",
           cityPhone: formatPhoneDisplay(row.city_phone, existing?.cityPhone || "Não informado"),
+          discord: String(row.discord || existing?.discord || ""),
           birthDate: String(row.birth_date || existing?.birthDate || ""),
           status: existing?.status === "Arquivado" ? "Arquivado" : normalizePatientFollowUp(row.follow_up) === "Rotina" ? "Ativo" : "Em acompanhamento",
           followUp: normalizePatientFollowUp(row.follow_up || existing?.followUp),
@@ -762,9 +767,12 @@ export default function RecordsPage() {
     sex: string;
     bloodType: string;
     cityPhone: string;
+    discord: string;
     followUp: string;
   }) {
     const normalizedPassport = data.passport.trim().toUpperCase();
+    if (data.cityPhone.trim() && !isValidCityPhone(data.cityPhone)) return void hpsrAlert("Use o telefone da cidade no formato (055) 000-000.", "Telefone inválido");
+    if (data.discord.trim() && !isValidDiscordId(data.discord)) return void hpsrAlert("Informe somente o ID numérico do Discord com 17 a 20 dígitos.", "Discord inválido");
     const existingPatient = patients.find((patient) => patient.passport.trim().toUpperCase() === normalizedPassport);
     const createdAt = brazilIso();
 
@@ -776,6 +784,7 @@ export default function RecordsPage() {
       bloodType: data.bloodType || "—",
       sex: data.sex === "Masculino" || data.sex === "Feminino" ? data.sex : "",
       cityPhone: data.cityPhone.trim() || "Não informado",
+      discord: data.discord.trim(),
       birthDate: data.birthDate || "",
       status: normalizePatientFollowUp(data.followUp) === "Rotina" ? "Ativo" : "Em acompanhamento",
       followUp: normalizePatientFollowUp(data.followUp),
@@ -821,6 +830,7 @@ export default function RecordsPage() {
         sex: nextPatient.sex || null,
         blood_type: nextPatient.bloodType === "—" ? null : nextPatient.bloodType,
         city_phone: nextPatient.cityPhone === "Não informado" ? null : nextPatient.cityPhone,
+        discord: nextPatient.discord || null,
         follow_up: normalizePatientFollowUp(nextPatient.followUp),
         updated_at: createdAt,
       }).eq("passport", normalizedPassport);
@@ -837,6 +847,7 @@ export default function RecordsPage() {
         sex: nextPatient.sex || null,
         blood_type: nextPatient.bloodType === "—" ? null : nextPatient.bloodType,
         city_phone: nextPatient.cityPhone === "Não informado" ? null : nextPatient.cityPhone,
+        discord: nextPatient.discord || null,
         email: null,
         follow_up: normalizePatientFollowUp(nextPatient.followUp),
         updated_at: createdAt,
@@ -863,18 +874,21 @@ export default function RecordsPage() {
       sex: nextPatient.sex,
       birthDate: nextPatient.birthDate,
       cityPhone: nextPatient.cityPhone,
+      discord: nextPatient.discord,
     });
     setSearchTerm("");
     setActiveTab("geral");
     setIsRegisterOpen(false);
   }
 
-  async function handleEditPatient(data: { name: string; passport: string; age: string; birthDate: string; sex: string; bloodType: string; cityPhone: string; followUp: string }) {
+  async function handleEditPatient(data: { name: string; passport: string; age: string; birthDate: string; sex: string; bloodType: string; cityPhone: string; discord: string; followUp: string }) {
     if (!selectedPatient) return;
     const client = createClient();
     if (!client) return void hpsrAlert("Não foi possível conectar ao Supabase.", "Edição não salva");
     const nextPassport = data.passport.trim().toUpperCase();
     if (!nextPassport || !data.name.trim()) return void hpsrAlert("Informe nome e passaporte.", "Campos obrigatórios");
+    if (data.cityPhone.trim() && !isValidCityPhone(data.cityPhone)) return void hpsrAlert("Use o telefone da cidade no formato (055) 000-000.", "Telefone inválido");
+    if (data.discord.trim() && !isValidDiscordId(data.discord)) return void hpsrAlert("Informe somente o ID numérico do Discord com 17 a 20 dígitos.", "Discord inválido");
     if (nextPassport !== selectedPatient.passport) {
       const { data: duplicate, error: duplicateError } = await client.from("patient_registry").select("name").eq("passport", nextPassport).maybeSingle();
       if (duplicateError) return void hpsrAlert(duplicateError.message, "Não foi possível verificar o passaporte");
@@ -890,6 +904,7 @@ export default function RecordsPage() {
       sex: data.sex === "Masculino" || data.sex === "Feminino" ? data.sex : null,
       blood_type: data.bloodType || null,
       city_phone: data.cityPhone.trim() || null,
+      discord: data.discord.trim() || null,
       follow_up: normalizePatientFollowUp(data.followUp),
       updated_at: brazilIso(),
     }).eq("passport", selectedPatient.passport);
@@ -903,6 +918,7 @@ export default function RecordsPage() {
       sex: data.sex === "Masculino" || data.sex === "Feminino" ? data.sex : "",
       bloodType: data.bloodType || "—",
       cityPhone: formatPhoneDisplay(data.cityPhone, "Não informado"),
+      discord: data.discord.trim(),
       followUp: normalizePatientFollowUp(data.followUp),
     } : patient));
     setIsEditPatientOpen(false);
@@ -1179,7 +1195,7 @@ export default function RecordsPage() {
                         </span>
                       </div>
 
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
                         <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
                           <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Passaporte</p>
                           <p className="mt-0.5 break-words [overflow-wrap:anywhere] text-xs font-black leading-snug text-hpsr-text">{selectedPatient.passport}</p>
@@ -1197,7 +1213,11 @@ export default function RecordsPage() {
                           <p className="mt-0.5 text-xs font-black text-hpsr-text">{selectedPatient.bloodType}</p>
                         </div>
                         <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
-                          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Telefone</p>
+                          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Discord · preferencial</p>
+                          <p className="mt-0.5 break-words [overflow-wrap:anywhere] text-xs font-black leading-snug text-hpsr-text">{selectedPatient.discord || "Não informado"}</p>
+                        </div>
+                        <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
+                          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Telefone da cidade</p>
                           <p className="mt-0.5 break-words [overflow-wrap:anywhere] text-xs font-black leading-snug text-hpsr-text">{formatPhoneDisplay(selectedPatient.cityPhone, "Não informado")}</p>
                         </div>
                       </div>
@@ -1457,6 +1477,7 @@ function CreatePatientModal({
     sex: string;
     bloodType: string;
     cityPhone: string;
+    discord: string;
     followUp: string;
   }) => void | Promise<void>;
 }) {
@@ -1468,6 +1489,7 @@ function CreatePatientModal({
     sex: "",
     bloodType: "A+",
     cityPhone: "",
+    discord: "",
     followUp: "Rotina",
   });
 
@@ -1515,7 +1537,8 @@ function CreatePatientModal({
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <ModalField label="Tipo sanguíneo"><StyledSelect className={modalInputClass} value={form.bloodType} onChange={(event) => updateField("bloodType", event.target.value)}><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></StyledSelect></ModalField>
-                <ModalField label="Telefone na cidade"><input className={modalInputClass} value={form.cityPhone} onChange={(event) => updateField("cityPhone", formatPhoneNumber(event.target.value))} inputMode="numeric" maxLength={13} placeholder="(055) 626-323" /></ModalField>
+                <ModalField label="Telefone na cidade"><input className={modalInputClass} value={form.cityPhone} onChange={(event) => updateField("cityPhone", formatCityPhoneNumber(event.target.value))} inputMode="numeric" maxLength={13} placeholder="(055) 626-323" /></ModalField>
+                <ModalField label="ID do Discord"><input className={modalInputClass} value={form.discord} onChange={(event) => updateField("discord", normalizeDiscordId(event.target.value))} inputMode="numeric" maxLength={20} placeholder="17 a 20 dígitos" /></ModalField>
               </div>
               <ModalField label="Acompanhamento">
                 <div className="grid gap-2">
@@ -1544,11 +1567,11 @@ function CreatePatientModal({
 
 
 
-function EditPatientModal({ patient, onClose, onSave }: { patient: PatientRecord; onClose: () => void; onSave: (data: { name: string; passport: string; age: string; birthDate: string; sex: string; bloodType: string; cityPhone: string; followUp: string }) => void | Promise<void> }) {
-  const [form, setForm] = useState({ name: patient.name, passport: patient.passport, age: patient.age === "—" ? "" : patient.age, birthDate: patient.birthDate || "", sex: patient.sex || "", bloodType: patient.bloodType === "—" ? "" : patient.bloodType, cityPhone: patient.cityPhone === "Não informado" ? "" : patient.cityPhone, followUp: normalizePatientFollowUp(patient.followUp) });
+function EditPatientModal({ patient, onClose, onSave }: { patient: PatientRecord; onClose: () => void; onSave: (data: { name: string; passport: string; age: string; birthDate: string; sex: string; bloodType: string; cityPhone: string; discord: string; followUp: string }) => void | Promise<void> }) {
+  const [form, setForm] = useState({ name: patient.name, passport: patient.passport, age: patient.age === "—" ? "" : patient.age, birthDate: patient.birthDate || "", sex: patient.sex || "", bloodType: patient.bloodType === "—" ? "" : patient.bloodType, cityPhone: patient.cityPhone === "Não informado" ? "" : patient.cityPhone, discord: patient.discord || "", followUp: normalizePatientFollowUp(patient.followUp) });
   const [saving, setSaving] = useState(false);
   async function submit(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); setSaving(true); try { await onSave(form); } finally { setSaving(false); } }
-  return <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3"><button type="button" aria-label="Fechar edição" onClick={onClose} className="absolute inset-0 bg-[#2a0700]/45" /><form onSubmit={submit} className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[720px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf4] shadow-[0_28px_90px_rgba(42,7,0,0.28)]"><div className="bg-[linear-gradient(135deg,#2a0700_0%,#672614_52%,#9d6b4f_100%)] px-5 py-4 text-white"><div className="flex items-start justify-between gap-3"><div><span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]"><Pencil size={14}/>Dados cadastrais</span><h2 className="mt-3 text-xl font-black">Editar paciente</h2><p className="mt-1 text-sm text-white/80">O histórico clínico será preservado.</p></div><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-white/25 bg-white/10"><X size={18}/></button></div></div><div className="min-h-0 overflow-y-auto p-4 sm:p-5"><section className="grid gap-3 rounded-[18px] border border-hpsr-border bg-white p-4"><ModalField label="Nome" required><input className={modalInputClass} value={form.name} onChange={e=>setForm(c=>({...c,name:e.target.value}))}/></ModalField><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Passaporte" required><input className={modalInputClass} value={form.passport} onChange={e=>setForm(c=>({...c,passport:e.target.value.toUpperCase()}))}/></ModalField><ModalField label="Idade"><input className={modalInputClass} value={form.age} onChange={e=>setForm(c=>({...c,age:e.target.value}))}/></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Data de nascimento"><input type="date" className={modalInputClass} value={form.birthDate} onChange={e=>setForm(c=>({...c,birthDate:e.target.value}))}/></ModalField><ModalField label="Sexo"><StyledSelect className={modalInputClass} value={form.sex} onChange={e=>setForm(c=>({...c,sex:e.target.value}))}><option value="">Não informado</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option></StyledSelect></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Tipo sanguíneo"><input className={modalInputClass} value={form.bloodType} onChange={e=>setForm(c=>({...c,bloodType:e.target.value.toUpperCase()}))}/></ModalField><ModalField label="Telefone"><input className={modalInputClass} value={form.cityPhone} onChange={e=>setForm(c=>({...c,cityPhone:formatPhoneNumber(e.target.value)}))}/></ModalField></div><ModalField label="Acompanhamento"><StyledSelect className={modalInputClass} value={form.followUp} onChange={e=>setForm(c=>({...c,followUp:e.target.value as "Rotina" | "Clínico" | "Especializado"}))}><option>Rotina</option><option>Clínico</option><option>Especializado</option></StyledSelect></ModalField></section></div><div className="flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white px-5 py-3.5 sm:flex-row sm:justify-end"><button type="button" onClick={onClose} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black">Cancelar</button><button disabled={saving} type="submit" className="rounded-[16px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-60">{saving?"Salvando...":"Salvar alterações"}</button></div></form></div>;
+  return <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3"><button type="button" aria-label="Fechar edição" onClick={onClose} className="absolute inset-0 bg-[#2a0700]/45" /><form onSubmit={submit} className="relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-[720px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf4] shadow-[0_28px_90px_rgba(42,7,0,0.28)]"><div className="bg-[linear-gradient(135deg,#2a0700_0%,#672614_52%,#9d6b4f_100%)] px-5 py-4 text-white"><div className="flex items-start justify-between gap-3"><div><span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]"><Pencil size={14}/>Dados cadastrais</span><h2 className="mt-3 text-xl font-black">Editar paciente</h2><p className="mt-1 text-sm text-white/80">O histórico clínico será preservado.</p></div><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-white/25 bg-white/10"><X size={18}/></button></div></div><div className="min-h-0 overflow-y-auto p-4 sm:p-5"><section className="grid gap-3 rounded-[18px] border border-hpsr-border bg-white p-4"><ModalField label="Nome" required><input className={modalInputClass} value={form.name} onChange={e=>setForm(c=>({...c,name:e.target.value}))}/></ModalField><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Passaporte" required><input className={modalInputClass} value={form.passport} onChange={e=>setForm(c=>({...c,passport:e.target.value.toUpperCase()}))}/></ModalField><ModalField label="Idade"><input className={modalInputClass} value={form.age} onChange={e=>setForm(c=>({...c,age:e.target.value}))}/></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Data de nascimento"><input type="date" className={modalInputClass} value={form.birthDate} onChange={e=>setForm(c=>({...c,birthDate:e.target.value}))}/></ModalField><ModalField label="Sexo"><StyledSelect className={modalInputClass} value={form.sex} onChange={e=>setForm(c=>({...c,sex:e.target.value}))}><option value="">Não informado</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option></StyledSelect></ModalField></div><div className="grid gap-3 sm:grid-cols-2"><ModalField label="Tipo sanguíneo"><input className={modalInputClass} value={form.bloodType} onChange={e=>setForm(c=>({...c,bloodType:e.target.value.toUpperCase()}))}/></ModalField><ModalField label="Telefone"><input className={modalInputClass} value={form.cityPhone} onChange={e=>setForm(c=>({...c,cityPhone:formatCityPhoneNumber(e.target.value)}))}/></ModalField><ModalField label="ID do Discord"><input className={modalInputClass} inputMode="numeric" maxLength={20} value={form.discord} onChange={e=>setForm(c=>({...c,discord:normalizeDiscordId(e.target.value)}))}/></ModalField></div><ModalField label="Acompanhamento"><StyledSelect className={modalInputClass} value={form.followUp} onChange={e=>setForm(c=>({...c,followUp:e.target.value as "Rotina" | "Clínico" | "Especializado"}))}><option>Rotina</option><option>Clínico</option><option>Especializado</option></StyledSelect></ModalField></section></div><div className="flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white px-5 py-3.5 sm:flex-row sm:justify-end"><button type="button" onClick={onClose} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black">Cancelar</button><button disabled={saving} type="submit" className="rounded-[16px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-60">{saving?"Salvando...":"Salvar alterações"}</button></div></form></div>;
 }
 
 function GuardianManagerModal({ patient, patients, onClose }: { patient: PatientRecord; patients: PatientRecord[]; onClose: () => void }) {
@@ -1596,6 +1619,8 @@ function AddClinicalRecordModal({
   );
 }
 
+
+const VALID_PATIENT_FOLLOW_UP = ["Rotina", "Clínico", "Especializado"] as const;
 
 function normalizePatientFollowUp(value: unknown): (typeof VALID_PATIENT_FOLLOW_UP)[number] {
   const normalized = String(value ?? "").trim();

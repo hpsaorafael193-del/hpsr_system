@@ -1,4 +1,5 @@
 import { brazilIso } from "@/lib/brazil-datetime";
+import { isValidDiscordId, normalizeDiscordId } from "@/lib/phone";
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession, normalizePassport, resolvePortalPatientPassport } from "@/lib/patient-portal/server";
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
     const resolvedPassport = await resolvePortalPatientPassport(request, valid);
     if (!resolvedPassport) return NextResponse.json({ ok: false, error: "Paciente não autorizado para esta sessão." }, { status: 403 });
     const patientPassport = normalizePassport(resolvedPassport);
-    const { data: patientRow, error: patientError } = await valid.supabase.from("patient_registry").select("name,city_phone").eq("passport", patientPassport).maybeSingle();
+    const { data: patientRow, error: patientError } = await valid.supabase.from("patient_registry").select("name,city_phone,discord").eq("passport", patientPassport).maybeSingle();
     if (patientError) throw patientError;
     if (!patientRow) return NextResponse.json({ ok: false, error: "Paciente não encontrado no prontuário." }, { status: 404 });
     const patient = String(patientRow.name || body.patient || "").trim();
@@ -26,8 +27,11 @@ export async function POST(request: NextRequest) {
     const notes = String(body.notes || "").trim();
     const flowType = String(body.flowType || "Consulta comum").trim();
     const flowDetails = String(body.flowDetails || "").trim();
-    const discordId = String(body.discordId || "").replace(/\D/g, "").trim();
+    const submittedDiscordId = normalizeDiscordId(body.discordId);
     const cityPhone = String(patientRow.city_phone || "").trim();
+    const storedDiscordId = String(patientRow.discord || "").trim();
+    if (submittedDiscordId && !isValidDiscordId(submittedDiscordId)) return NextResponse.json({ ok: false, error: "Informe um ID do Discord válido com 17 a 20 dígitos." }, { status: 400 });
+    const discordId = submittedDiscordId || storedDiscordId;
     const allowedFlowTypes = ["Consulta comum", "Acompanhamento"];
     const normalizedReason = reason
       .toLocaleLowerCase("pt-BR")
@@ -81,6 +85,11 @@ export async function POST(request: NextRequest) {
     if (capacityError) throw capacityError;
     if (!Array.isArray(capacityCandidates) || capacityCandidates.length === 0) {
       return NextResponse.json({ ok: false, code: "NO_CAPACITY", error: "Sem vagas no momento para esta especialidade." }, { status: 409 });
+    }
+
+    if (submittedDiscordId && submittedDiscordId !== storedDiscordId) {
+      const { error: contactUpdateError } = await valid.supabase.from("patient_registry").update({ discord: submittedDiscordId, updated_at: brazilIso() }).eq("passport", patientPassport);
+      if (contactUpdateError) throw contactUpdateError;
     }
 
     const now = brazilIso();

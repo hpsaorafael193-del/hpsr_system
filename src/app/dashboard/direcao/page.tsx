@@ -171,7 +171,7 @@ export default function DirectionPage() {
         team_members: "id,name,passport,hospital_role,status,payload,created_at,updated_at",
         staff_applications: "id,name,passport,desired_role,status,payload,created_at,updated_at",
         staff_registration_requests: "id,name,passport,requested_role,status,payload,created_at,updated_at",
-        patient_registry: "name,passport,birth_date,age,blood_type,city_phone,created_at,updated_at,created_by",
+        patient_registry: "name,passport,birth_date,age,blood_type,city_phone,discord,created_at,updated_at,created_by",
         patient_accounts: "patient_passport,email",
         patient_portal_access: "patient_passport,email",
         appointments: "id,patient,passport,status,payload,created_at,updated_at",

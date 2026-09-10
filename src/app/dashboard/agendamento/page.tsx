@@ -121,7 +121,7 @@ function buildPublicAnswer(
 const inputClass =
   "min-w-0 w-full rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-medium text-hpsr-text outline-none transition placeholder:text-zinc-400 focus:border-hpsr-wineLight focus:bg-white focus:ring-2 focus:ring-hpsr-wineLight/20";
 
-type ScheduledAppointment = { id: string; time: string; date: string; passport: string; patient: string; specialty: string; doctor: string; type: string; status: string; acceptedAt?: string; acceptedById?: string; acceptedByName?: string; acceptedBySelf?: boolean; contactEmail?: string; discordId?: string; cityPhone?: string; reason?: string; notes?: string; createdAt?: string };
+type ScheduledAppointment = { id: string; time: string; date: string; passport: string; patient: string; specialty: string; doctor: string; type: string; status: string; acceptedAt?: string; acceptedById?: string; acceptedByName?: string; acceptedBySelf?: boolean; contactEmail?: string; discordId?: string; discord?: string; cityPhone?: string; reason?: string; notes?: string; createdAt?: string };
 const scheduledAppointments: ScheduledAppointment[] = [];
 
 const followUps: Array<{ passport: string; patient: string; program: string; specialty: string; doctor: string; availability: string[]; nextSlot: string }> = [];
@@ -238,10 +238,13 @@ export default function AppointmentsPage() {
     const mapped = (data || []).map(mapAppointmentRow);
     const passports = Array.from(new Set(mapped.map((item) => item.passport).filter(Boolean)));
     const { data: patientContacts } = passports.length
-      ? await client.from("patient_registry").select("passport,city_phone").in("passport", passports)
+      ? await client.from("patient_registry").select("passport,city_phone,discord").in("passport", passports)
       : { data: [] as any[] };
-    const cityPhoneByPassport = new Map((patientContacts || []).map((item: any) => [String(item.passport || ""), String(item.city_phone || "").trim()]));
-    setPublicRequests(mapped.map((item) => ({ ...item, cityPhone: item.cityPhone || cityPhoneByPassport.get(item.passport) || "" })));
+    const contactByPassport = new Map<string, { cityPhone: string; discord: string }>((patientContacts || []).map((item: any) => [String(item.passport || ""), { cityPhone: String(item.city_phone || "").trim(), discord: String(item.discord || "").trim() }]));
+    setPublicRequests(mapped.map((item) => {
+      const central = contactByPassport.get(item.passport) || { cityPhone: "", discord: "" };
+      return { ...item, cityPhone: central.cityPhone || item.cityPhone || "", discordId: central.discord || item.discordId || item.discord || "", contactChannel: central.discord || item.discordId || item.discord ? "discord" : "city_phone" };
+    }));
   }, []);
 
   useEffect(() => {
@@ -613,12 +616,12 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
   const [recentOnly, setRecentOnly] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<ScheduledAppointment | null>(null);
   const [relatedRecords, setRelatedRecords] = useState<Array<{ id: string; type: string; title: string; released: boolean }>>([]);
-  const [selectedPatientContact, setSelectedPatientContact] = useState<{ cityPhone: string }>({ cityPhone: "" });
+  const [selectedPatientContact, setSelectedPatientContact] = useState<{ cityPhone: string; discord: string }>({ cityPhone: "", discord: "" });
   const [copiedDetail, setCopiedDetail] = useState("");
 
   const loadAppointmentDetails = useCallback(async (appointment: ScheduledAppointment | null) => {
     setRelatedRecords([]);
-    setSelectedPatientContact({ cityPhone: "" });
+    setSelectedPatientContact({ cityPhone: "", discord: "" });
     if (!appointment) return;
     const client = createClient();
     if (!client) return;
@@ -631,7 +634,7 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
         .order("created_at", { ascending: true })
         .limit(50),
       client.from("patient_registry")
-        .select("city_phone")
+        .select("city_phone,discord")
         .eq("passport", appointment.passport)
         .maybeSingle(),
     ]);
@@ -648,6 +651,7 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
 
     setSelectedPatientContact({
       cityPhone: String(patientResult.data?.city_phone || appointment.cityPhone || ""),
+      discord: String(patientResult.data?.discord || appointment.discordId || appointment.discord || ""),
     });
   }, []);
 
@@ -787,8 +791,8 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
               <div className="sm:col-span-2 rounded-[15px] border border-hpsr-border bg-[#fffaf5] p-3">
                 <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Outros contatos</p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {selectedAppointment.discordId && <button type="button" onClick={() => void copyDetail(selectedAppointment.discordId || "", "discord")} className="inline-flex items-center gap-2 rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-text transition hover:border-hpsr-wineLight/50"><Hash size={14} className="text-hpsr-wine"/>Discord ID {selectedAppointment.discordId}<Copy size={12} className="text-hpsr-muted"/></button>}
-                  {!selectedAppointment.discordId && !selectedPhone && <p className="text-sm font-bold text-amber-800">Nenhum telefone da cidade ou ID do Discord registrado para este paciente.</p>}
+                  {selectedPatientContact.discord && <button type="button" onClick={() => void copyDetail(selectedPatientContact.discord, "discord")} className="inline-flex items-center gap-2 rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-text transition hover:border-hpsr-wineLight/50"><Hash size={14} className="text-hpsr-wine"/>Discord ID {selectedPatientContact.discord}<Copy size={12} className="text-hpsr-muted"/></button>}
+                  {!selectedPatientContact.discord && !selectedPhone && <p className="text-sm font-bold text-amber-800">Nenhum telefone da cidade ou ID do Discord registrado para este paciente.</p>}
                 </div>
               </div>
               {selectedAppointment.reason && <DetailCard wide label="Motivo da solicitação" value={selectedAppointment.reason} />}
@@ -968,8 +972,9 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
   };
 
   const renderRequest = (item: PublicAppointmentRequest) => {
-    const contact = item.discordId || item.discord || item.cityPhone || "";
-    const contactLabel = (item.discordId || item.discord) ? `Discord ID ${item.discordId || item.discord}` : item.cityPhone ? `Telefone ${item.cityPhone}` : "Não informado";
+    const discord = item.discordId || item.discord || "";
+    const phone = item.cityPhone || "";
+    const contact = discord || phone;
     const isExam = item.flowType === "Exames";
     const alreadyScheduled = Boolean(item.syncedScheduleId) || scheduledStatuses.has(item.status);
     const acceptedDate = item.acceptedAt || item.updatedAt || item.createdAt || "";
@@ -997,8 +1002,11 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
             <p className="mt-1 text-sm font-black text-hpsr-text">{item.passport}</p>
           </div>
           <div className="rounded-[13px] border border-hpsr-border bg-[#fffaf5] p-3 sm:col-span-1 lg:col-span-2">
-            <p className="text-[9px] font-black uppercase tracking-[.13em] text-hpsr-wineLight">Contato</p>
-            <p className="mt-1 break-all text-sm font-black text-hpsr-text">{contactLabel}</p>
+            <p className="text-[9px] font-black uppercase tracking-[.13em] text-hpsr-wineLight">Contatos</p>
+            <div className="mt-1 space-y-1 break-all text-sm font-black text-hpsr-text">
+              <p>Discord: {discord || "Não informado"}</p>
+              <p>Telefone: {phone || "Não informado"}</p>
+            </div>
           </div>
           <div className="rounded-[13px] border border-hpsr-border bg-[#fffaf5] p-3">
             <p className="text-[9px] font-black uppercase tracking-[.13em] text-hpsr-wineLight">Situação</p>
@@ -1010,7 +1018,8 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
 
         <div className="mt-3 flex flex-wrap gap-2">
           <ActionButton variant="primary" onClick={() => void copyValue(item.passport, `passport-${item.id}`)}>{copied === `passport-${item.id}` ? "Passaporte copiado" : "Copiar passaporte"}</ActionButton>
-          {contact && <ActionButton onClick={() => void copyValue(contact, `contact-${item.id}`)}>{copied === `contact-${item.id}` ? "Contato copiado" : "Copiar contato"}</ActionButton>}
+          {discord && <ActionButton onClick={() => void copyValue(discord, `discord-${item.id}`)}>{copied === `discord-${item.id}` ? "Discord copiado" : "Copiar Discord"}</ActionButton>}
+          {phone && <ActionButton onClick={() => void copyValue(phone, `phone-${item.id}`)}>{copied === `phone-${item.id}` ? "Telefone copiado" : "Copiar telefone"}</ActionButton>}
           {!contact && <span className="rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-800">Contato não informado</span>}
         </div>
       </div>
@@ -1076,7 +1085,7 @@ function ExamRequestsTab({ requests, onUpdateStatus }: { requests: PublicAppoint
         title={item.patient}
         subtitle={`Passaporte ${item.passport} · ${item.specialty}`}
         status={<StatusBadge status={item.status} />}
-        meta={[["Fluxo", "Exame"], ["Necessidade", item.reason || "Não informada"], ["Contato", item.discordId ? `Discord ID ${item.discordId}` : item.cityPhone ? `Telefone ${item.cityPhone}` : "Não informado"]]}
+        meta={[["Fluxo", "Exame"], ["Necessidade", item.reason || "Não informada"], ["Discord", item.discordId || "Não informado"], ["Telefone", item.cityPhone || "Não informado"]]}
         alert={item.answer || undefined}
         alertTone={item.status === "Recusada" ? "warning" : "success"}
         actions={actionable.has(item.status) ? <><ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Aceita")}>Receber solicitação</ActionButton><ActionButton variant="danger" onClick={() => onUpdateStatus(item, "Recusada")}>Recusar</ActionButton></> : <span className="rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-muted">Fluxo de exame · {item.status}</span>}
@@ -1171,7 +1180,8 @@ function RequestsTab({
                   status={<StatusBadge status={item.status} />}
                   meta={[
                     ["Fluxo", item.flowType || "Consulta comum"],
-                    ["Contato", (item.discordId || item.discord) ? `Discord ID ${item.discordId || item.discord}` : item.cityPhone ? `Telefone ${item.cityPhone}` : "Não informado"],
+                    ["Discord", item.discordId || item.discord || "Não informado"],
+                    ["Telefone", item.cityPhone || "Não informado"],
                     ...(item.flowType === "Acompanhamento com especialista" ? [["Médico solicitado", item.requestedDoctorName || "Não informado"] as [string, string]] : []),
                     ["Objetivo", ["Acompanhamento", "Outros"].includes(item.flowType || "") ? (item.flowDetails || item.reason || "Não informado") : (item.reason || "Aguardando análise médica")],
                     ...(patientAnsweredReschedule ? [["Resposta do paciente", item.patientResponse || item.status] as [string, string]] : []),

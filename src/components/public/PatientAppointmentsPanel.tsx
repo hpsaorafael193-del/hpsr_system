@@ -362,11 +362,11 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
             <p className="mt-1 text-[11px] font-semibold leading-relaxed text-amber-900">Você ainda não está marcando um horário. Depois do aceite, o médico combina o atendimento com você.</p>
           </div>
           <div className={`sm:col-span-2 rounded-[16px] border px-3.5 py-3 ${hasClinicalContact ? "border-emerald-200 bg-emerald-50" : "border-blue-200 bg-blue-50"}`}>
-            <p className={`text-xs font-black ${hasClinicalContact ? "text-emerald-800" : "text-blue-900"}`}>{hasClinicalContact ? "Telefone da cidade cadastrado" : "ID do Discord necessário"}</p>
-            <p className={`mt-1 text-[11px] font-semibold leading-relaxed ${hasClinicalContact ? "text-emerald-700" : "text-blue-800"}`}>{hasClinicalContact ? "O médico poderá usar o telefone da cidade cadastrado. Se preferir, você também pode informar seu ID do Discord." : "Não encontramos telefone da cidade para este paciente. Informe o ID numérico do Discord para contato."}</p>
+            <p className={`text-xs font-black ${hasClinicalContact ? "text-emerald-800" : "text-blue-900"}`}>{hasClinicalContact ? "Contato cadastrado" : "ID do Discord necessário"}</p>
+            <p className={`mt-1 text-[11px] font-semibold leading-relaxed ${hasClinicalContact ? "text-emerald-700" : "text-blue-800"}`}>{hasClinicalContact ? "A equipe usará preferencialmente o Discord cadastrado e manterá o telefone da cidade como alternativa. Você só precisa informar outro ID se quiser atualizá-lo." : "Não encontramos telefone da cidade para este paciente. Informe o ID numérico do Discord para contato."}</p>
           </div>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">ID do Discord {hasClinicalContact ? "(opcional)" : "para contato"}
-            <input name="discordId" inputMode="numeric" pattern="[0-9]+" required={!hasClinicalContact} value={discordId} onChange={(event) => setDiscordId(event.target.value.replace(/\D/g, ""))} placeholder="Somente números" className={`${fieldClass} mt-1.5`} />
+            <input name="discordId" inputMode="numeric" pattern="[0-9]{17,20}" required={!hasClinicalContact} value={discordId} maxLength={20} onChange={(event) => setDiscordId(event.target.value.replace(/\D/g, "").slice(0, 20))} placeholder="Somente números" className={`${fieldClass} mt-1.5`} />
             <span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Use somente o ID numérico da sua conta do Discord. O e-mail da conta não é usado para contato clínico.</span>
           </label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Por que você precisa da consulta?<textarea name="reason" required rows={4} placeholder="Conte em poucas palavras por que você precisa da consulta." className={`${fieldClass} mt-1.5 py-3`} /></label>

@@ -163,7 +163,7 @@ export async function exportAdministrativeReport(data: AdministrativeReportData)
     const verifiedEmail = verifiedPatientEmails.get(passport) || "";
     return {
       Nome: row.name, Passaporte: row.passport, "Data de nascimento": dateText(row.birth_date), Idade: row.age, "Tipo sanguíneo": row.blood_type,
-      Telefone: row.city_phone, Email: verifiedEmail, "Cadastrado em": dateText(row.created_at), "Última atualização": dateText(row.updated_at), "Cadastrado por": row.created_by,
+      Discord: row.discord, Telefone: row.city_phone, Email: verifiedEmail, "Cadastrado em": dateText(row.created_at), "Última atualização": dateText(row.updated_at), "Cadastrado por": row.created_by,
     };
   });
 

@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Copy, KeyRound, Loader2, Save, ShieldCheck, UserRound } from "lucide-react";
 import { StyledSelect } from "@/components/ui/StyledSelect";
-import { formatPhoneNumber } from "@/lib/phone";
+import { formatCityPhoneNumber, normalizeDiscordId } from "@/lib/phone";
 
 type Profile = {
   passport: string;
@@ -11,10 +11,11 @@ type Profile = {
   birthDate: string;
   sex: string;
   phone: string;
+  discord: string;
   email: string;
 };
 
-const EMPTY: Profile = { passport: "", name: "", birthDate: "", sex: "", phone: "", email: "" };
+const EMPTY: Profile = { passport: "", name: "", birthDate: "", sex: "", phone: "", discord: "", email: "" };
 
 export function PatientProfilePanel({ onSessionExpired, onSaved }: { onSessionExpired: () => void; onSaved: () => void | Promise<void> }) {
   const [profile, setProfile] = useState<Profile>(EMPTY);
@@ -144,7 +145,8 @@ export function PatientProfilePanel({ onSessionExpired, onSaved }: { onSessionEx
         <div className="grid gap-4 sm:grid-cols-2">
           <ProfileField label="Nome" wide><input className="portal-input" value={profile.name} onChange={(e)=>setProfile(v=>({...v,name:e.target.value}))} required /></ProfileField>
           <ProfileField label="Passaporte"><input className="portal-input bg-[#f4ede7] text-hpsr-muted" value={profile.passport} disabled /></ProfileField>
-          <ProfileField label="Telefone"><input className="portal-input" inputMode="numeric" maxLength={13} value={profile.phone} onChange={(e)=>setProfile(v=>({...v,phone:formatPhoneNumber(e.target.value)}))} /></ProfileField>
+          <ProfileField label="Telefone"><input className="portal-input" inputMode="numeric" maxLength={13} value={profile.phone} onChange={(e)=>setProfile(v=>({...v,phone:formatCityPhoneNumber(e.target.value)}))} /></ProfileField>
+          <ProfileField label="ID do Discord"><input className="portal-input" inputMode="numeric" maxLength={20} value={profile.discord} onChange={(e)=>setProfile(v=>({...v,discord:normalizeDiscordId(e.target.value)}))} placeholder="17 a 20 dígitos" /><span className="mt-1.5 block text-[11px] font-semibold text-hpsr-muted">Contato preferencial da equipe. O telefone da cidade permanece disponível.</span></ProfileField>
           <ProfileField label="E-mail de acesso" wide><input className="portal-input bg-[#f4ede7] text-hpsr-muted" type="email" autoComplete="email" value={profile.email} readOnly aria-readonly="true" /><span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted"><strong className="text-hpsr-text">E-mail protegido.</strong> Ele identifica sua conta e não pode ser trocado por aqui. Se perder o acesso a essa caixa de e-mail, use o código de recuperação abaixo ou procure a equipe do HPSR.</span></ProfileField>
           <ProfileField label="Data de nascimento"><input className="portal-input" type="date" value={profile.birthDate} onChange={(e)=>setProfile(v=>({...v,birthDate:e.target.value}))} /></ProfileField>
           <ProfileField label="Sexo"><StyledSelect className="portal-input" value={profile.sex} onChange={(e)=>setProfile(v=>({...v,sex:e.target.value}))}><option value="">Não informado</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option></StyledSelect></ProfileField>

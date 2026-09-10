@@ -1,5 +1,5 @@
 "use client";
-import { formatPhoneDisplay } from "@/lib/phone";
+import { formatCityPhoneNumber } from "@/lib/phone";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase";
@@ -12,6 +12,7 @@ export type SharedPatient = {
   birthDate?: string;
   sex?: "Masculino" | "Feminino" | "";
   cityPhone?: string;
+  discord?: string;
   email?: string;
 };
 
@@ -23,6 +24,7 @@ type PatientRegistryRow = {
   birth_date: string | null;
   sex: string | null;
   city_phone: string | null;
+  discord: string | null;
   email: string | null;
   created_at: string | null;
 };
@@ -62,7 +64,8 @@ function normalizePatient(input: Partial<SharedPatient>): SharedPatient | null {
     bloodType: text(input.bloodType),
     birthDate: text(input.birthDate),
     sex: text(input.sex) === "Feminino" ? "Feminino" : text(input.sex) === "Masculino" ? "Masculino" : "",
-    cityPhone: text(input.cityPhone),
+    cityPhone: formatCityPhoneNumber(input.cityPhone),
+    discord: text(input.discord),
     email: text(input.email),
   };
 }
@@ -159,7 +162,8 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
           bloodType: row.blood_type ?? undefined,
           birthDate: row.birth_date ?? undefined,
           sex: row.sex === "Feminino" || row.sex === "Masculino" ? row.sex : undefined,
-          cityPhone: formatPhoneDisplay(row.city_phone ?? undefined, ""),
+          cityPhone: formatCityPhoneNumber(row.city_phone ?? undefined),
+          discord: row.discord ?? undefined,
           email: row.email ?? undefined,
         }))
         .filter(Boolean) as SharedPatient[];
@@ -216,7 +220,8 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
           bloodType: row.blood_type ?? undefined,
           birthDate: row.birth_date ?? undefined,
           sex: row.sex === "Feminino" || row.sex === "Masculino" ? row.sex : undefined,
-          cityPhone: formatPhoneDisplay(row.city_phone ?? undefined, ""),
+          cityPhone: formatCityPhoneNumber(row.city_phone ?? undefined),
+          discord: row.discord ?? undefined,
           email: row.email ?? undefined,
         });
         if (!normalized) return;
@@ -252,6 +257,7 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
       p_blood_type: normalized.bloodType || null,
       p_city_phone: normalized.cityPhone || null,
       p_email: normalized.email || null,
+      p_discord: normalized.discord || null,
     });
 
     if (error) {

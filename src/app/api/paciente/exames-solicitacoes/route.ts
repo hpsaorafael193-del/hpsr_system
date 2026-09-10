@@ -1,4 +1,5 @@
 import { brazilIso } from "@/lib/brazil-datetime";
+import { isValidDiscordId, normalizeDiscordId } from "@/lib/phone";
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession, normalizePassport, resolvePortalPatientPassport } from "@/lib/patient-portal/server";
@@ -55,20 +56,28 @@ export async function POST(request: NextRequest) {
     const specialty = String(body.specialty || "").trim();
     const reason = String(body.reason || "").trim();
     const notes = String(body.notes || "").trim();
-    const discordId = String(body.discordId || "").replace(/\D/g, "").trim();
+    const submittedDiscordId = normalizeDiscordId(body.discordId);
     if (!specialty || !reason) return NextResponse.json({ ok: false, error: "Informe a especialidade e o exame ou necessidade solicitada." }, { status: 400 });
 
     const { data: patientRow, error: patientError } = await valid.supabase
       .from("patient_registry")
-      .select("name,city_phone")
+      .select("name,city_phone,discord")
       .eq("passport", patientPassport)
       .maybeSingle();
     if (patientError) throw patientError;
     if (!patientRow) return NextResponse.json({ ok: false, error: "Paciente não encontrado no prontuário." }, { status: 404 });
 
     const cityPhone = String(patientRow.city_phone || "").trim();
+    const storedDiscordId = String(patientRow.discord || "").trim();
+    if (submittedDiscordId && !isValidDiscordId(submittedDiscordId)) return NextResponse.json({ ok: false, error: "Informe um ID do Discord válido com 17 a 20 dígitos." }, { status: 400 });
+    const discordId = submittedDiscordId || storedDiscordId;
     if (!cityPhone && !discordId) {
       return NextResponse.json({ ok: false, code: "CONTACT_REQUIRED", error: "Este paciente não possui telefone da cidade cadastrado. Informe o ID do Discord para permitir o contato da equipe." }, { status: 400 });
+    }
+
+    if (submittedDiscordId && submittedDiscordId !== storedDiscordId) {
+      const { error: contactUpdateError } = await valid.supabase.from("patient_registry").update({ discord: submittedDiscordId, updated_at: brazilIso() }).eq("passport", patientPassport);
+      if (contactUpdateError) throw contactUpdateError;
     }
 
     const now = brazilIso();

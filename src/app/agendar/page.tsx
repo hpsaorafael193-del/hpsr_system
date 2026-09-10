@@ -1,7 +1,7 @@
 "use client";
 
 import { brazilIso } from "@/lib/brazil-datetime";
-import { formatPhoneNumber } from "@/lib/phone";
+import { formatCityPhoneNumber, normalizeDiscordId } from "@/lib/phone";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import Link from "next/link";
@@ -135,7 +135,7 @@ export default function SchedulePage() {
                 </FormField>
 
                 <FormField label="Telefone na cidade">
-                  <input name="cityPhone" inputMode="numeric" maxLength={13} className={inputClass} placeholder="(055) 626-323" onChange={(event) => { event.currentTarget.value = formatPhoneNumber(event.currentTarget.value); }} required />
+                  <input name="cityPhone" inputMode="numeric" maxLength={13} className={inputClass} placeholder="(055) 626-323" onChange={(event) => { event.currentTarget.value = formatCityPhoneNumber(event.currentTarget.value); }} required />
                 </FormField>
 
                 <FormField label="Tipo sanguíneo">
@@ -149,7 +149,7 @@ export default function SchedulePage() {
 
                 <div className="md:col-span-2">
                   <FormField label="Discord">
-                    <input name="discord" className={inputClass} placeholder="Ex: 1717123456789" required />
+                    <input name="discord" inputMode="numeric" pattern="[0-9]{17,20}" maxLength={20} className={inputClass} placeholder="17 a 20 dígitos" onChange={(event) => { event.currentTarget.value = normalizeDiscordId(event.currentTarget.value); }} required />
                   </FormField>
 
                   <div className="mt-3 rounded-[14px] border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs leading-relaxed text-blue-700">
