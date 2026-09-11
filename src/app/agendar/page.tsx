@@ -1,7 +1,7 @@
 "use client";
 
 import { brazilIso } from "@/lib/brazil-datetime";
-import { formatCityPhoneNumber, normalizeDiscordId } from "@/lib/phone";
+import { classifyPatientContact, formatCityPhoneNumber } from "@/lib/phone";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import Link from "next/link";
@@ -34,6 +34,9 @@ export default function SchedulePage() {
   const [submitted, setSubmitted] = useState<PublicAppointment | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [contactValue, setContactValue] = useState("");
+  const [passportValue, setPassportValue] = useState("");
+  const contactClassification = classifyPatientContact(contactValue, passportValue);
 
   const protocolHint = useMemo(() => {
     const now = new Date();
@@ -46,14 +49,20 @@ export default function SchedulePage() {
     const form = new FormData(event.currentTarget);
     const now = brazilIso();
     const passport = String(form.get("passport") ?? "").trim();
+    const submittedContact = classifyPatientContact(String(form.get("discord") ?? ""), passport);
+    if (submittedContact.kind === "passport") { setSubmitError("Esse número é o seu passaporte/ID da cidade. Informe o ID do seu perfil do Discord ou o telefone da cidade."); return; }
+    if (submittedContact.kind === "empty") { setSubmitError("Informe o ID do seu perfil do Discord ou o telefone da cidade."); return; }
+    const typedCityPhone = String(form.get("cityPhone") ?? "").trim();
+    const resolvedCityPhone = submittedContact.kind === "city_phone" ? submittedContact.value : formatCityPhoneNumber(typedCityPhone);
+    const resolvedDiscord = submittedContact.kind === "discord" ? submittedContact.value : "";
 
     const newAppointment: PublicAppointment = {
       id: `${protocolHint}-${Date.now()}-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
       passport,
       patient: String(form.get("patient") ?? "").trim(),
-      cityPhone: String(form.get("cityPhone") ?? "").trim(),
+      cityPhone: resolvedCityPhone,
       bloodType: String(form.get("bloodType") ?? "").trim(),
-      discord: String(form.get("discord") ?? "").trim(),
+      discord: resolvedDiscord,
       specialty: String(form.get("specialty") ?? "").trim(),
       preferredDate: "",
       preferredPeriod: "",
@@ -72,6 +81,8 @@ export default function SchedulePage() {
     setSubmitting(false);
     if (error) { setSubmitError(`Não foi possível registrar a solicitação: ${error.message}`); return; }
     setSubmitted(newAppointment);
+    setContactValue("");
+    setPassportValue("");
     event.currentTarget.reset();
   }
 
@@ -127,7 +138,7 @@ export default function SchedulePage() {
             <form className="mt-8" onSubmit={handleSubmit}>
               <div className="grid gap-3 md:grid-cols-2">
                 <FormField label="Passaporte">
-                  <input name="passport" className={inputClass} placeholder="Ex: 12345" required />
+                  <input name="passport" className={inputClass} placeholder="Ex: 12345" value={passportValue} onChange={(event)=>setPassportValue(event.target.value)} required />
                 </FormField>
 
                 <FormField label="Nome do paciente">
@@ -135,7 +146,7 @@ export default function SchedulePage() {
                 </FormField>
 
                 <FormField label="Telefone na cidade">
-                  <input name="cityPhone" inputMode="numeric" maxLength={13} className={inputClass} placeholder="(055) 626-323" onChange={(event) => { event.currentTarget.value = formatCityPhoneNumber(event.currentTarget.value); }} required />
+                  <input name="cityPhone" inputMode="numeric" maxLength={13} className={inputClass} placeholder="(055) 626-323" onChange={(event) => { event.currentTarget.value = formatCityPhoneNumber(event.currentTarget.value); }} />
                 </FormField>
 
                 <FormField label="Tipo sanguíneo">
@@ -148,9 +159,11 @@ export default function SchedulePage() {
                 </FormField>
 
                 <div className="md:col-span-2">
-                  <FormField label="Discord">
-                    <input name="discord" inputMode="numeric" pattern="[0-9]{17,20}" maxLength={20} className={inputClass} placeholder="17 a 20 dígitos" onChange={(event) => { event.currentTarget.value = normalizeDiscordId(event.currentTarget.value); }} required />
+                  <FormField label="Discord ou telefone da cidade">
+                    <input name="discord" inputMode="numeric" className={inputClass} value={contactValue} placeholder="ID do Discord ou (055) 000-000" onChange={(event) => setContactValue(event.target.value)} required />
                   </FormField>
+                  {contactClassification.kind === "passport" && <p className="mt-2 rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">Esse número é o seu passaporte/ID da cidade. Informe o ID do seu perfil do Discord ou o telefone da cidade.</p>}
+                  {contactClassification.kind === "city_phone" && <p className="mt-2 text-xs font-semibold text-emerald-700">Telefone reconhecido: {contactClassification.value}</p>}
 
                   <div className="mt-3 rounded-[14px] border border-blue-100 bg-blue-50/70 px-4 py-3 text-xs leading-relaxed text-blue-700">
                     <p className="font-semibold">Como pegar o ID correto:</p>
@@ -161,7 +174,7 @@ export default function SchedulePage() {
                       <strong className="font-semibold">Celular:</strong> Vá no seu Perfil &gt; Role até o fim &gt; Toque em <strong className="font-semibold">“Copiar ID”.</strong>
                     </p>
                     <p className="mt-2 font-semibold text-red-500">
-                      ⚠ NÃO COLOQUE SEU APELIDO DO SERVIDOR! O ID É APENAS NÚMEROS.
+                      ⚠ NO DISCORD, USE O ID DO PERFIL/USUÁRIO. NÃO USE O PASSAPORTE/ID DA CIDADE.
                     </p>
                   </div>
                 </div>
@@ -195,7 +208,7 @@ export default function SchedulePage() {
                 </div>
               </div>
 
-              <button type="submit" className="mt-6 rounded-[14px] hpsr-button-primary">
+              <button type="submit" disabled={submitting || contactClassification.kind === "passport"} className="mt-6 rounded-[14px] hpsr-button-primary disabled:cursor-not-allowed disabled:opacity-50">
                 {submitting ? "Enviando..." : "Enviar solicitação"}
               </button>
 

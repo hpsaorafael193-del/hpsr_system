@@ -46,7 +46,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Use o telefone da cidade no formato (055) 000-000." }, { status: 400 });
     }
     if (discord && !isValidDiscordId(discord)) {
-      return NextResponse.json({ error: "Informe somente o ID numérico do Discord com 17 a 20 dígitos." }, { status: 400 });
+      return NextResponse.json({ error: "Informe somente o ID numérico do seu perfil do Discord." }, { status: 400 });
+    }
+    if (discord && discord === passport.replace(/\D/g, "")) {
+      return NextResponse.json({ error: "Esse número é o seu passaporte/ID da cidade. No campo Discord, informe o ID do seu perfil do Discord." }, { status: 400 });
     }
     if (guardianPassports.includes(passport)) {
       return NextResponse.json({ error: "O paciente menor de idade não pode ser o próprio responsável." }, { status: 400 });

@@ -2,7 +2,7 @@
 
 import { brazilIso } from "@/lib/brazil-datetime";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   BadgePercent,
   RotateCcw,
@@ -212,6 +212,7 @@ function normalizeQuantity(value: string | number) {
 
 const allProducts = [...medicamentos, ...procedimentos];
 const tabletHpProductIds = new Set(["p2", "p3", "p4", "p8"]);
+const CALCULATOR_DRAFT_KEY = "hpsr-calculator-draft-v1";
 
 export default function CalculatorPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
@@ -223,6 +224,30 @@ export default function CalculatorPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isPmSale, setIsPmSale] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
+  const [draftHydrated, setDraftHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem(CALCULATOR_DRAFT_KEY);
+      if (raw) {
+        const draft = JSON.parse(raw) as { cart?: Record<string, number>; convenio?: ConvenioId; isPmSale?: boolean; activeTab?: CategoryId; viewMode?: "cards" | "list" };
+        if (draft.cart) setCart(Object.fromEntries(allProducts.map((product) => [product.id, normalizeQuantity(draft.cart?.[product.id] ?? 0)])));
+        if (draft.convenio && ["sem", "plano", "parceria"].includes(draft.convenio)) setConvenio(draft.convenio);
+        if (typeof draft.isPmSale === "boolean") setIsPmSale(draft.isPmSale);
+        if (draft.activeTab && ["medicamentos", "procedimentos"].includes(draft.activeTab)) setActiveTab(draft.activeTab);
+        if (draft.viewMode && ["cards", "list"].includes(draft.viewMode)) setViewMode(draft.viewMode);
+      }
+    } catch {
+      window.sessionStorage.removeItem(CALCULATOR_DRAFT_KEY);
+    } finally {
+      setDraftHydrated(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!draftHydrated) return;
+    window.sessionStorage.setItem(CALCULATOR_DRAFT_KEY, JSON.stringify({ cart, convenio, isPmSale, activeTab, viewMode }));
+  }, [activeTab, cart, convenio, draftHydrated, isPmSale, viewMode]);
 
   const selectedConvenio = convenioOptions.find((option) => option.id === convenio) ?? convenioOptions[0];
   const usesPmPricing = isPmSale && convenio === "sem";
@@ -269,7 +294,6 @@ export default function CalculatorPage() {
     setCart(Object.fromEntries(allProducts.map((product) => [product.id, 0])));
     setConvenio("sem");
     setSearchTerm("");
-    setActiveTab("medicamentos");
     setIsPmSale(false);
   }
 

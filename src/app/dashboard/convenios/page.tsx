@@ -641,7 +641,7 @@ export default function InsurancePage() {
       </section>
 
       {searchedPassport && (
-        <section className="mt-4 overflow-hidden rounded-[18px] border border-emerald-200 bg-white shadow-[0_12px_30px_rgba(22,101,52,0.08)]">
+        <section className={`mt-4 overflow-hidden rounded-[20px] border bg-white ${foundPatient ? "border-emerald-200 shadow-[0_12px_30px_rgba(22,101,52,0.08)]" : "border-hpsr-border shadow-[0_12px_30px_rgba(79,42,21,0.06)]"}`}>
           {foundPatient && searchedMatch ? (
             <div>
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 bg-[linear-gradient(135deg,#ecfdf5_0%,#f0fdf4_55%,#ffffff_100%)] px-4 py-3.5 sm:px-5">
@@ -694,24 +694,22 @@ export default function InsurancePage() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-hpsr-wineLight">Resultado da busca</p>
-                <h2 className="mt-1 text-lg font-bold text-hpsr-text">Nenhum plano ativo encontrado</h2>
-                <p className="mt-0.5 text-sm text-hpsr-muted">
-                  O passaporte {searchedPassport} não possui convênio ativo. Planos encerrados não aparecem nesta busca.
-                </p>
+            <div className="relative overflow-hidden bg-[linear-gradient(135deg,#fffaf4_0%,#ffffff_62%,#f7eee4_100%)] px-5 py-6 sm:px-6 sm:py-7">
+              <div className="pointer-events-none absolute -right-14 -top-16 h-44 w-44 rounded-full bg-hpsr-wine/5" />
+              <div className="relative flex min-h-[150px] flex-col justify-center gap-5 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex max-w-3xl items-start gap-4">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] border border-hpsr-border bg-white text-hpsr-wine shadow-sm"><Search size={21}/></span>
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Resultado da busca</p>
+                    <h2 className="mt-1.5 text-xl font-black text-hpsr-text">Nenhum plano ativo encontrado</h2>
+                    <p className="mt-2 max-w-2xl text-sm font-semibold leading-relaxed text-hpsr-muted">O passaporte <strong className="text-hpsr-text">{searchedPassport}</strong> não possui convênio ativo no momento. Planos encerrados não aparecem nesta consulta.</p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 flex-col items-stretch gap-2 sm:flex-row lg:flex-col lg:items-end">
+                  <button type="button" onClick={() => canRegisterPlan && setModal({ mode: "register" })} disabled={!canRegisterPlan} className={`inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] px-4 text-sm font-black transition ${canRegisterPlan ? "bg-hpsr-wine text-white hover:bg-[#7b2f1a]" : "cursor-not-allowed bg-zinc-200 text-zinc-500"}`}><Plus size={15}/>Cadastrar plano</button>
+                  <p className="text-center text-[10px] font-semibold text-hpsr-muted lg:text-right">A busca considera somente vínculos ativos.</p>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => canRegisterPlan && setModal({ mode: "register" })}
-                disabled={!canRegisterPlan}
-                className={`rounded-2xl px-4 py-2.5 text-sm font-semibold ${
-                  canRegisterPlan ? "bg-hpsr-wine text-white" : "cursor-not-allowed bg-zinc-200 text-zinc-500"
-                }`}
-              >
-                Cadastrar plano
-              </button>
             </div>
           )}
         </section>

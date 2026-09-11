@@ -28,6 +28,7 @@ export default function DirectionPage() {
   const [activityChartFilter, setActivityChartFilter] = useState<"modules" | "plans" | "exams" | "services">("modules");
   const [exportingReport, setExportingReport] = useState(false);
   const [applicationHistoryOpen, setApplicationHistoryOpen] = useState(false);
+  const [reportSection, setReportSection] = useState<"overview" | "activities" | "time">("overview");
 
   useEffect(() => {
     async function loadDirectionData() {
@@ -90,19 +91,22 @@ export default function DirectionPage() {
     void loadDirectionData();
   }, []);
 
-  const unified = useMemo(() => {
+  const periodActivities = useMemo(() => {
     const derived: SystemActivity[] = [
       ...staffRequests.map((item) => ({ id: `staff-${item.id}`, createdAt: item.createdAt || "1970-01-01T00:00:00-03:00", module: "Cadastros médicos", action: `Solicitação ${item.status || "Pendente"}`, description: `${item.name || "Profissional"} solicitou acesso como ${item.requestedRole || "cargo não informado"}.`, reference: item.passport })),
       ...applications.map((item) => ({ id: `application-${item.protocol}`, createdAt: item.createdAt || "1970-01-01T00:00:00-03:00", module: "Candidaturas", action: item.status || "Em análise", description: `${item.name || "Candidato"} · ${item.desiredRole || "cargo não informado"}.`, reference: item.protocol })),
       ...appointments.map((item, index) => ({ id: `appointment-${item.id || index}`, createdAt: item.createdAt || item.requestedAt || "1970-01-01T00:00:00-03:00", module: "Agendamentos", action: item.status || "Solicitação recebida", description: `${item.patientName || item.name || "Paciente"} · ${item.specialty || item.type || "Atendimento"}.`, reference: item.passport })),
     ];
-    const q = search.trim().toLowerCase();
-    const periodStart = getPeriodStart(reportPeriod);
+    const start = getPeriodStart(reportPeriod);
     return [...activities, ...derived]
       .sort((a,b)=>new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime())
-      .filter((item) => !periodStart || new Date(item.createdAt).getTime() >= periodStart)
-      .filter((item)=>!q || [item.module,item.action,item.description,item.actor,item.reference].join(" ").toLowerCase().includes(q));
-  }, [activities, staffRequests, applications, appointments, search, reportPeriod]);
+      .filter((item) => !start || new Date(item.createdAt).getTime() >= start);
+  }, [activities, staffRequests, applications, appointments, reportPeriod]);
+
+  const unified = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return periodActivities.filter((item)=>!q || [item.module,item.action,item.description,item.actor,item.reference].join(" ").toLowerCase().includes(q));
+  }, [periodActivities, search]);
 
   const periodStart = useMemo(() => getPeriodStart(reportPeriod), [reportPeriod]);
   const periodReceipts = useMemo(
@@ -126,7 +130,7 @@ export default function DirectionPage() {
     );
 
     const examRanking = countMap(
-      unified
+      periodActivities
         .filter((item) => item.module?.toLowerCase() === "exames")
         .map((item) => {
           const full = `${item.action || ""} ${item.description || ""}`;
@@ -135,7 +139,7 @@ export default function DirectionPage() {
         })
     );
 
-    const moduleRanking = countMap(unified.map((item) => item.module || "Sistema"));
+    const moduleRanking = countMap(periodActivities.map((item) => item.module || "Sistema"));
 
     return {
       planRanking,
@@ -146,7 +150,7 @@ export default function DirectionPage() {
       topService: serviceRanking[0],
       topExam: examRanking[0],
     };
-  }, [periodReceipts, unified]);
+  }, [periodActivities, periodReceipts]);
 
   const pendingRegistrations = staffRequests.filter((item)=>item.status === "Pendente").length;
   const pendingApplications = applications.filter(isStaffApplicationPending).length;
@@ -277,76 +281,65 @@ export default function DirectionPage() {
   }
 
   return <div className="hpsr-page gap-3 lg:h-[calc(100dvh-2.4rem)] lg:min-h-0 lg:overflow-hidden">
-    <PageHeader eyebrow="Administração" title="Relatório" description="Indicadores operacionais, produção hospitalar e gestão administrativa em uma visão consolidada." />
+    <PageHeader eyebrow="Administração" title="Relatórios" description="Acompanhe os principais indicadores por área, sem misturar todas as informações na mesma visão." />
 
-    <section className="fixed relative inset-auto z-auto block h-auto w-auto shrink-0 overflow-hidden rounded-[20px] border border-white/80 bg-[linear-gradient(135deg,#ffffff_0%,#fff8f1_100%)] p-3.5 shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+    <section className="shrink-0 overflow-hidden rounded-[20px] border border-white/80 bg-[linear-gradient(135deg,#ffffff_0%,#fff8f1_100%)] shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
+      <div className="flex flex-col gap-3 border-b border-hpsr-border/70 px-4 py-3.5 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Database size={18}/></span>
-          <div className="min-w-0">
-            <h2 className="text-sm font-black text-hpsr-text">Gestão de dados e relatórios</h2>
-            <p className="truncate text-xs text-hpsr-muted">{periodLabel} · {unified.length} atividades analisadas</p>
-          </div>
+          <div className="min-w-0"><h2 className="text-sm font-black text-hpsr-text">Central de relatórios</h2><p className="text-xs text-hpsr-muted">{periodLabel} · {periodActivities.length} atividades analisadas</p></div>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <label className="flex min-h-[40px] min-w-[165px] items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine">
-            <CalendarDays size={15}/>
-            <StyledSelect value={reportPeriod} onChange={(event)=>setReportPeriod(event.target.value)} className="min-w-0 flex-1 bg-transparent text-xs font-bold text-hpsr-text outline-none">
-              <option value="all">Todo o histórico</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option>
-            </StyledSelect>
-          </label>
-          <button type="button" onClick={handleExportReport} disabled={exportingReport} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 text-xs font-black text-white transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60"><Download size={15}/> {exportingReport ? "Gerando relatório..." : "Exportar relatório"}</button>
+          <label className="flex min-h-[40px] min-w-[165px] items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine"><CalendarDays size={15}/><StyledSelect value={reportPeriod} onChange={(event)=>setReportPeriod(event.target.value)} className="min-w-0 flex-1 bg-transparent text-xs font-bold text-hpsr-text outline-none"><option value="all">Todo o histórico</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option></StyledSelect></label>
+          <button type="button" onClick={handleExportReport} disabled={exportingReport} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 text-xs font-black text-white transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60"><Download size={15}/> {exportingReport ? "Gerando..." : "Exportar relatório"}</button>
         </div>
+      </div>
+      <div className="grid gap-2 bg-[#fbf5ee] p-2 sm:grid-cols-3">
+        <ReportNavButton active={reportSection === "overview"} onClick={()=>setReportSection("overview")} icon={<PieChart size={16}/>} title="Visão geral" description="Indicadores e distribuição" />
+        <ReportNavButton active={reportSection === "activities"} onClick={()=>setReportSection("activities")} icon={<Activity size={16}/>} title="Atividades" description="Linha do tempo e solicitações" />
+        <ReportNavButton active={reportSection === "time"} onClick={()=>setReportSection("time")} icon={<CalendarDays size={16}/>} title="Ponto" description="Jornada e fechamentos" />
       </div>
     </section>
 
+    <section className="grid shrink-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <Stat icon={<Activity size={18}/>} label="Atividades no período" value={String(periodActivities.length)}/>
+      <Stat icon={<UserPlus size={18}/>} label="Cadastros pendentes" value={String(pendingRegistrations)}/>
+      <Stat icon={<CalendarDays size={18}/>} label="Agendas pendentes" value={String(pendingAppointments)}/>
+      <Stat icon={<WalletCards size={18}/>} label="Receita registrada" value={formatMoney(periodRevenue)}/>
+    </section>
+
     <div className="hpsr-page-scroll min-h-0 flex-1 overscroll-contain pr-1" style={{ overflowY: "auto", overflowX: "hidden" }}>
-      <div className="flex min-h-full flex-col gap-3 pb-3">
-        <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-          <Stat icon={<Activity size={18}/>} label="Atividades no período" value={String(unified.length)}/>
-          <Stat icon={<Users size={18}/>} label="Equipe cadastrada" value={String(teamMembers.length)}/>
-          <Stat icon={<UserPlus size={18}/>} label="Cadastros pendentes" value={String(pendingRegistrations)}/>
-          <Stat icon={<ClipboardCheck size={18}/>} label="Candidaturas em fluxo" value={String(pendingApplications)}/>
-          <Stat icon={<CalendarDays size={18}/>} label="Agendas pendentes" value={String(pendingAppointments)}/>
-          <Stat icon={<WalletCards size={18}/>} label="Receita registrada" value={formatMoney(periodRevenue)}/>
-        </section>
-
-        <ActivityPiePanel
-          filter={activityChartFilter}
-          onFilterChange={setActivityChartFilter}
-          datasets={{
-            modules: analytics.moduleRanking,
-            plans: analytics.planRanking,
-            exams: analytics.examRanking,
-            services: analytics.serviceRanking,
-          }}
-        />
-
-        <TimeClockAdministrativeReport />
-
-        <section className="grid min-h-[560px] shrink-0 gap-3 xl:h-[560px] xl:grid-cols-[minmax(0,1fr)_350px]">
-          <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] border border-white/80 bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hpsr-border pb-3">
-              <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Activity size={19}/></span><div><h2 className="font-black text-hpsr-text">Atividades do sistema</h2><p className="text-xs text-hpsr-muted">Linha do tempo consolidada · até 150 registros</p></div></div>
-              <label className="flex min-h-[40px] w-full min-w-0 items-center gap-2 rounded-[13px] border border-hpsr-border bg-[#fffaf4] px-3 sm:w-auto sm:min-w-[270px]"><Search size={16} className="text-hpsr-muted"/><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar atividade" className="w-full bg-transparent text-xs font-semibold outline-none"/></label>
-            </div>
-            <div className="mt-3 grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-contain pr-2">
-              {unified.slice(0,150).map((item)=><ActivityRow key={item.id} item={item}/>) }
-              {!unified.length&&<div className="rounded-[15px] border border-dashed border-hpsr-border p-8 text-center text-sm text-hpsr-muted">Nenhuma atividade registrada.</div>}
-            </div>
-          </div>
-          <aside className="grid h-full min-h-0 content-start gap-3 overflow-y-auto overscroll-contain pr-1">
-            <Summary title="Solicitações de cadastro" icon={<UserPlus size={17}/>} items={staffRequests.map((item)=>`${item.name || "Profissional"} — ${item.status || "Pendente"}`)}/>
-            <Summary title="Candidaturas" icon={<ClipboardCheck size={17}/>} items={applications.slice(0, 5).map((item)=>`${item.name || "Candidato"} · Passaporte: ${item.passport || "Não informado"} — ${item.status || "Em análise"}`)} actionLabel="Ver histórico" onAction={() => setApplicationHistoryOpen(true)} totalCount={applications.length}/>
+      <div className="min-h-full pb-3">
+        {reportSection === "overview" && <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
+          <ActivityPiePanel filter={activityChartFilter} onFilterChange={setActivityChartFilter} datasets={{ modules: analytics.moduleRanking, plans: analytics.planRanking, exams: analytics.examRanking, services: analytics.serviceRanking }} />
+          <aside className="grid content-start gap-3">
+            <div className="rounded-[18px] border border-white/80 bg-white p-4 shadow-[0_10px_26px_rgba(79,42,21,0.05)]"><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Estrutura</p><div className="mt-3 grid gap-2"><MiniMetric label="Equipe cadastrada" value={String(teamMembers.length)} icon={<Users size={15}/>} /><MiniMetric label="Candidaturas em fluxo" value={String(pendingApplications)} icon={<ClipboardCheck size={15}/>} /><MiniMetric label="Recibos registrados" value={String(receiptCount)} icon={<WalletCards size={15}/>} /></div></div>
             <Summary title="Governança" icon={<ShieldCheck size={17}/>} items={["Histórico centralizado no Supabase", "Solicitações públicas consolidadas", "Recibos vinculados ao Financeiro", "Registros compartilhados entre usuários autorizados"]}/>
           </aside>
-        </section>
+        </div>}
+
+        {reportSection === "activities" && <section className="grid min-h-[560px] gap-3 xl:grid-cols-[minmax(0,1fr)_350px]">
+          <div className="flex min-h-[560px] flex-col overflow-hidden rounded-[20px] border border-white/80 bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hpsr-border pb-3"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Activity size={19}/></span><div><h2 className="font-black text-hpsr-text">Atividades do sistema</h2><p className="text-xs text-hpsr-muted">Linha do tempo consolidada · até 150 registros</p></div></div><label className="flex min-h-[40px] w-full min-w-0 items-center gap-2 rounded-[13px] border border-hpsr-border bg-[#fffaf4] px-3 sm:w-auto sm:min-w-[270px]"><Search size={16} className="text-hpsr-muted"/><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar atividade" className="w-full bg-transparent text-xs font-semibold outline-none"/></label></div>
+            <div className="mt-3 grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-contain pr-2">{unified.slice(0,150).map((item)=><ActivityRow key={item.id} item={item}/>)}{!unified.length&&<div className="rounded-[15px] border border-dashed border-hpsr-border p-8 text-center text-sm text-hpsr-muted">Nenhuma atividade registrada.</div>}</div>
+          </div>
+          <aside className="grid content-start gap-3"><Summary title="Solicitações de cadastro" icon={<UserPlus size={17}/>} items={staffRequests.map((item)=>`${item.name || "Profissional"} — ${item.status || "Pendente"}`)}/><Summary title="Candidaturas" icon={<ClipboardCheck size={17}/>} items={applications.slice(0, 5).map((item)=>`${item.name || "Candidato"} · Passaporte: ${item.passport || "Não informado"} — ${item.status || "Em análise"}`)} actionLabel="Ver histórico" onAction={() => setApplicationHistoryOpen(true)} totalCount={applications.length}/></aside>
+        </section>}
+
+        {reportSection === "time" && <TimeClockAdministrativeReport />}
       </div>
     </div>
     {applicationHistoryOpen && <ApplicationHistoryModal items={applications} onClose={() => setApplicationHistoryOpen(false)} />}
   </div>;
 }
 
+function ReportNavButton({ active, onClick, icon, title, description }: { active: boolean; onClick: () => void; icon: React.ReactNode; title: string; description: string }) {
+  return <button type="button" onClick={onClick} className={`flex items-center gap-3 rounded-[14px] px-3.5 py-3 text-left transition ${active ? "bg-white text-hpsr-wine shadow-sm ring-1 ring-hpsr-border" : "text-hpsr-muted hover:bg-white/60"}`}><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] ${active ? "bg-hpsr-wine text-white" : "bg-white text-hpsr-wine"}`}>{icon}</span><span className="min-w-0"><span className="block text-xs font-black">{title}</span><span className="mt-0.5 block truncate text-[10px] font-semibold opacity-75">{description}</span></span></button>;
+}
+
+function MiniMetric({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+  return <div className="flex items-center justify-between gap-3 rounded-[13px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5"><span className="flex min-w-0 items-center gap-2 text-xs font-bold text-hpsr-muted"><span className="text-hpsr-wine">{icon}</span><span className="truncate">{label}</span></span><strong className="text-sm font-black text-hpsr-text">{value}</strong></div>;
+}
 
 function getPeriodStart(period: string) {
   if (period === "all") return 0;

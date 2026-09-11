@@ -49,9 +49,33 @@ export function isValidCityPhone(value: string | null | undefined): boolean {
 }
 
 export function normalizeDiscordId(value: string | null | undefined): string {
-  return String(value ?? "").replace(/\D/g, "").slice(0, 20);
+  return String(value ?? "").replace(/\D/g, "");
 }
 
 export function isValidDiscordId(value: string | null | undefined): boolean {
-  return /^[0-9]{17,20}$/.test(String(value ?? "").trim());
+  return /^[0-9]+$/.test(String(value ?? "").trim());
+}
+
+export type PatientContactClassification =
+  | { kind: "empty"; value: "" }
+  | { kind: "passport"; value: string }
+  | { kind: "city_phone"; value: string }
+  | { kind: "discord"; value: string };
+
+export function classifyPatientContact(value: string | null | undefined, passport: string | null | undefined): PatientContactClassification {
+  const raw = String(value ?? "").trim();
+  if (!raw) return { kind: "empty", value: "" };
+
+  const digits = raw.replace(/\D/g, "");
+  const passportDigits = String(passport ?? "").replace(/\D/g, "");
+  if (digits && passportDigits && digits === passportDigits) {
+    return { kind: "passport", value: digits };
+  }
+
+  if (isValidCityPhone(raw)) {
+    return { kind: "city_phone", value: formatCityPhoneNumber(raw) };
+  }
+
+  if (digits) return { kind: "discord", value: digits };
+  return { kind: "empty", value: "" };
 }

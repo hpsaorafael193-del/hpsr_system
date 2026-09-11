@@ -1,5 +1,5 @@
 import { brazilIso } from "@/lib/brazil-datetime";
-import { isValidDiscordId, normalizeDiscordId } from "@/lib/phone";
+import { classifyPatientContact } from "@/lib/phone";
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession, normalizePassport, resolvePortalPatientPassport } from "@/lib/patient-portal/server";
@@ -27,11 +27,12 @@ export async function POST(request: NextRequest) {
     const notes = String(body.notes || "").trim();
     const flowType = String(body.flowType || "Consulta comum").trim();
     const flowDetails = String(body.flowDetails || "").trim();
-    const submittedDiscordId = normalizeDiscordId(body.discordId);
-    const cityPhone = String(patientRow.city_phone || "").trim();
+    const submittedContact = classifyPatientContact(body.contact ?? body.discordId, patientPassport);
+    const storedCityPhone = String(patientRow.city_phone || "").trim();
     const storedDiscordId = String(patientRow.discord || "").trim();
-    if (submittedDiscordId && !isValidDiscordId(submittedDiscordId)) return NextResponse.json({ ok: false, error: "Informe um ID do Discord válido com 17 a 20 dígitos." }, { status: 400 });
-    const discordId = submittedDiscordId || storedDiscordId;
+    if (submittedContact.kind === "passport") return NextResponse.json({ ok: false, code: "PASSPORT_AS_CONTACT", error: "Esse número é o seu passaporte/ID da cidade. Informe o ID do seu perfil do Discord ou o telefone da cidade." }, { status: 400 });
+    const cityPhone = submittedContact.kind === "city_phone" ? submittedContact.value : storedCityPhone;
+    const discordId = submittedContact.kind === "discord" ? submittedContact.value : storedDiscordId;
     const allowedFlowTypes = ["Consulta comum", "Acompanhamento"];
     const normalizedReason = reason
       .toLocaleLowerCase("pt-BR")
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: "Preencha os campos obrigatórios." }, { status: 400 });
     }
     if (!cityPhone && !discordId) {
-      return NextResponse.json({ ok: false, code: "CONTACT_REQUIRED", error: "Este paciente não possui telefone da cidade cadastrado. Informe o ID do Discord para que o médico consiga entrar em contato." }, { status: 400 });
+      return NextResponse.json({ ok: false, code: "CONTACT_REQUIRED", error: "Este paciente não possui contato cadastrado. Informe o ID do perfil do Discord ou o telefone da cidade." }, { status: 400 });
     }
     if (flowType === "Acompanhamento" && !flowDetails) {
       return NextResponse.json({ ok: false, error: "Informe qual acompanhamento você precisa iniciar." }, { status: 400 });
@@ -87,8 +88,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, code: "NO_CAPACITY", error: "Sem vagas no momento para esta especialidade." }, { status: 409 });
     }
 
-    if (submittedDiscordId && submittedDiscordId !== storedDiscordId) {
-      const { error: contactUpdateError } = await valid.supabase.from("patient_registry").update({ discord: submittedDiscordId, updated_at: brazilIso() }).eq("passport", patientPassport);
+    if (submittedContact.kind === "discord" && submittedContact.value !== storedDiscordId) {
+      const { error: contactUpdateError } = await valid.supabase.from("patient_registry").update({ discord: submittedContact.value, updated_at: brazilIso() }).eq("passport", patientPassport);
+      if (contactUpdateError) throw contactUpdateError;
+    } else if (submittedContact.kind === "city_phone" && submittedContact.value !== storedCityPhone) {
+      const { error: contactUpdateError } = await valid.supabase.from("patient_registry").update({ city_phone: submittedContact.value, updated_at: brazilIso() }).eq("passport", patientPassport);
       if (contactUpdateError) throw contactUpdateError;
     }
 

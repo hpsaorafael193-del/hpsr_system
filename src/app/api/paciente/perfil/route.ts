@@ -67,7 +67,8 @@ export async function PATCH(request: NextRequest) {
 
     if (name.length < 2) return NextResponse.json({ error: "Informe seu nome." }, { status: 400 });
     if (rawPhone && !isValidCityPhone(rawPhone)) return NextResponse.json({ error: "Confira o telefone da cidade. Use (055) 000-000." }, { status: 400 });
-    if (discord && !isValidDiscordId(discord)) return NextResponse.json({ error: "Confira o ID do Discord. Use somente 17 a 20 dígitos." }, { status: 400 });
+    if (discord && !isValidDiscordId(discord)) return NextResponse.json({ error: "Confira o ID do Discord. Informe somente o ID numérico do seu perfil." }, { status: 400 });
+    if (discord && discord === passport.replace(/\D/g, "")) return NextResponse.json({ error: "Esse número é o seu passaporte/ID da cidade. Informe o ID do seu perfil do Discord." }, { status: 400 });
     if (birthDate && !/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return NextResponse.json({ error: "Confira a data de nascimento." }, { status: 400 });
     if (sex && !["Masculino", "Feminino"].includes(sex)) return NextResponse.json({ error: "Confira o sexo cadastrado." }, { status: 400 });
 

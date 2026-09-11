@@ -4,6 +4,7 @@ import { StyledSelect } from "@/components/ui/StyledSelect";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, ChevronDown, ChevronUp, Clock3, Loader2, RefreshCcw, CalendarClock, MessageCircleWarning, FileText, FlaskConical, Stethoscope } from "lucide-react";
 import { specialties } from "@/data/mock";
+import { classifyPatientContact } from "@/lib/phone";
 import { formatServicePrice, servicePricing } from "@/data/service-pricing";
 
 type Appointment = {
@@ -75,6 +76,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
   const [requestFlowType, setRequestFlowType] = useState("Consulta comum");
   const [requestSpecialty, setRequestSpecialty] = useState("");
   const [discordId, setDiscordId] = useState("");
+  const contactClassification = classifyPatientContact(discordId, passport);
   const [capacityAvailable, setCapacityAvailable] = useState<boolean | null>(null);
   const [capacityLoading, setCapacityLoading] = useState(false);
   const requestInFlightRef = useRef<Promise<void> | null>(null);
@@ -362,18 +364,18 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
             <p className="mt-1 text-[11px] font-semibold leading-relaxed text-amber-900">Você ainda não está marcando um horário. Depois do aceite, o médico combina o atendimento com você.</p>
           </div>
           <div className={`sm:col-span-2 rounded-[16px] border px-3.5 py-3 ${hasClinicalContact ? "border-emerald-200 bg-emerald-50" : "border-blue-200 bg-blue-50"}`}>
-            <p className={`text-xs font-black ${hasClinicalContact ? "text-emerald-800" : "text-blue-900"}`}>{hasClinicalContact ? "Contato cadastrado" : "ID do Discord necessário"}</p>
-            <p className={`mt-1 text-[11px] font-semibold leading-relaxed ${hasClinicalContact ? "text-emerald-700" : "text-blue-800"}`}>{hasClinicalContact ? "A equipe usará preferencialmente o Discord cadastrado e manterá o telefone da cidade como alternativa. Você só precisa informar outro ID se quiser atualizá-lo." : "Não encontramos telefone da cidade para este paciente. Informe o ID numérico do Discord para contato."}</p>
+            <p className={`text-xs font-black ${hasClinicalContact ? "text-emerald-800" : "text-blue-900"}`}>{hasClinicalContact ? "Contato cadastrado" : "Informe um contato"}</p>
+            <p className={`mt-1 text-[11px] font-semibold leading-relaxed ${hasClinicalContact ? "text-emerald-700" : "text-blue-800"}`}>{hasClinicalContact ? "A equipe já possui um contato. Se quiser atualizar, informe abaixo o ID do seu perfil do Discord ou o telefone da cidade." : "Informe o ID numérico do seu perfil do Discord ou o telefone da cidade. O sistema identifica automaticamente onde salvar."}</p>
           </div>
-          <label className="text-xs font-black text-hpsr-muted sm:col-span-2">ID do Discord {hasClinicalContact ? "(opcional)" : "para contato"}
-            <input name="discordId" inputMode="numeric" pattern="[0-9]{17,20}" required={!hasClinicalContact} value={discordId} maxLength={20} onChange={(event) => setDiscordId(event.target.value.replace(/\D/g, "").slice(0, 20))} placeholder="Somente números" className={`${fieldClass} mt-1.5`} />
-            <span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Use somente o ID numérico da sua conta do Discord. O e-mail da conta não é usado para contato clínico.</span>
+          <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Discord ou telefone da cidade {hasClinicalContact ? "(opcional)" : "para contato"}
+            <input name="discordId" inputMode="numeric" required={!hasClinicalContact} value={discordId} onChange={(event) => setDiscordId(event.target.value)} placeholder="ID do Discord ou (055) 000-000" className={`${fieldClass} mt-1.5`} />
+            {contactClassification.kind === "passport" ? <span className="mt-1.5 block rounded-[10px] border border-rose-200 bg-rose-50 px-2.5 py-2 text-[11px] font-black text-rose-700">Esse número é o seu passaporte/ID da cidade. Informe o ID do seu perfil do Discord ou o telefone da cidade.</span> : contactClassification.kind === "city_phone" ? <span className="mt-1.5 block text-[11px] font-semibold text-emerald-700">Telefone reconhecido: {contactClassification.value}</span> : <span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">No Discord, use o ID numérico do seu perfil/usuário. Não use o passaporte da cidade.</span>}
           </label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Por que você precisa da consulta?<textarea name="reason" required rows={4} placeholder="Conte em poucas palavras por que você precisa da consulta." className={`${fieldClass} mt-1.5 py-3`} /></label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Observações<textarea name="notes" rows={3} className={`${fieldClass} mt-1.5 py-3`} /></label>
           {message && <p className="sm:col-span-2 rounded-[12px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800"><CheckCircle2 className="mr-2 inline" size={16} />{message}</p>}
           {error && <p className="sm:col-span-2 rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-800">{error}</p>}
-          <button disabled={saving || capacityLoading || capacityAvailable === false} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50 sm:col-span-2">{saving ? <Loader2 className="animate-spin" size={17} /> : <Clock3 size={17} />} Enviar pedido</button>
+          <button disabled={saving || capacityLoading || capacityAvailable === false || contactClassification.kind === "passport"} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50 sm:col-span-2">{saving ? <Loader2 className="animate-spin" size={17} /> : <Clock3 size={17} />} Enviar pedido</button>
         </form>
       </section>}
     </div>
