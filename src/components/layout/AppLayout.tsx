@@ -108,8 +108,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         const specialtyKey = normalize(payload.specialty);
         const specialtyMatch = (currentUserProfile.specialties || []).some((specialty) => normalize(specialty) === specialtyKey);
         const isExam = String(payload.flowType || "Consulta comum") === "Exames";
+        const isGeneralClinician = currentUserProfile.role === "Médico Clínico";
         const hasCapacity = Number(capacityBySpecialty[specialtyKey] || 0) > 0;
-        return specialtyMatch && (isExam || hasCapacity) && (!requestedDoctorId || requestedDoctorId === currentUserProfile.id);
+        const examEligible = isExam && (isGeneralClinician || specialtyMatch);
+        const consultationEligible = !isExam && specialtyMatch && hasCapacity;
+        return (examEligible || consultationEligible) && (!requestedDoctorId || requestedDoctorId === currentUserProfile.id);
       });
       setHasPendingAppointmentRequest(pending);
     };

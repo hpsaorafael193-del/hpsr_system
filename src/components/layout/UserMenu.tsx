@@ -91,6 +91,8 @@ export function UserMenu() {
     [medicalSpecialties]
   );
 
+  const canReceiveAllExamRequests = currentUserProfile.role === "Médico Clínico";
+
   const canUseMedicalNotifications = useMemo(() => {
     const role = `${currentUserProfile.role || ""} ${currentUserProfile.systemRole || ""}`.toLocaleLowerCase("pt-BR");
     return Boolean(currentUserProfile.id && (medicalSpecialties.length || role.includes("médic") || role.includes("diretor clínico")));
@@ -153,7 +155,20 @@ export function UserMenu() {
           specialtyRows = data || [];
         }
 
-        const rows = [...(directRows || []), ...specialtyRows];
+        let generalClinicianExamRows: any[] = [];
+        if (canReceiveAllExamRequests) {
+          const { data, error: examError } = await client
+            .from("appointments")
+            .select(columns)
+            .eq("payload->>flowType", "Exames")
+            .in("status", ["Solicitação enviada", "Aguardando análise"])
+            .order("created_at", { ascending: false })
+            .limit(50);
+          if (examError) throw examError;
+          generalClinicianExamRows = data || [];
+        }
+
+        const rows = [...(directRows || []), ...specialtyRows, ...generalClinicianExamRows];
         const unique = new Map<string, any>();
         rows.forEach((row: any) => unique.set(String(row.id), row));
         const mapped = [...unique.values()]
@@ -165,10 +180,11 @@ export function UserMenu() {
             const normalizedSpecialty = normalizeClinicalSpecialty(payload.specialty);
             const directlyRelated = requestedDoctorId === userId || doctorId === userId;
             const specialtyRelated = !requestedDoctorId && normalizedMedicalSpecialties.includes(normalizedSpecialty);
+            const flowType = String(payload.flowType || "Consulta comum");
+            const generalClinicianExamRelated = flowType === "Exames" && canReceiveAllExamRequests && !requestedDoctorId;
             const declinedBy = Array.isArray(payload.declinedBy) ? payload.declinedBy.map(String) : [];
             if (declinedBy.includes(userId)) return null;
-            if (!directlyRelated && !specialtyRelated) return null;
-            const flowType = String(payload.flowType || "Consulta comum");
+            if (!directlyRelated && !specialtyRelated && !generalClinicianExamRelated) return null;
             if (flowType !== "Exames" && Number(capacityBySpecialty[normalizedSpecialty] || 0) <= 0) return null;
 
             const patient = String(row.patient || payload.patient || "Paciente");
@@ -241,7 +257,7 @@ export function UserMenu() {
     } finally {
       setNotificationsLoading(false);
     }
-  }, [canUseNotifications, canUseMedicalNotifications, canUseDirectorNotifications, currentUserProfile.id, medicalSpecialties, normalizedMedicalSpecialties]);
+  }, [canUseNotifications, canUseMedicalNotifications, canUseDirectorNotifications, canReceiveAllExamRequests, currentUserProfile.id, medicalSpecialties, normalizedMedicalSpecialties]);
 
   useEffect(() => {
     void loadNotifications();

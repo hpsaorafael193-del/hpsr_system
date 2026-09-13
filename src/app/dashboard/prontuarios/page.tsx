@@ -13,12 +13,15 @@ import {
   FileClock,
   FileText,
   Eye,
+  EyeOff,
+  Lock,
+  Unlock,
   Download,
   LoaderCircle,
   HeartPulse,
   KeyRound,
-  IdCard,
   NotebookPen,
+  IdCard,
   Pill,
   Plus,
   Search,
@@ -39,7 +42,6 @@ import { notifyPatientRegistryUpdated } from "@/lib/patient-sync";
 import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 import { hpsrSuccess } from "@/components/ui/HpsrToastProvider";
 import { createClient } from "@/lib/supabase";
-import { ClinicalRecordsPortalPanel } from "@/components/dashboard/ClinicalRecordsPortalPanel";
 import { specialties } from "@/data/mock";
 
 const PatientAccessRecoveryModal = dynamic(
@@ -47,7 +49,7 @@ const PatientAccessRecoveryModal = dynamic(
   { ssr: false },
 );
 
-type RecordTab = "geral" | "timeline" | "consultas" | "exames" | "vacinas" | "documentos" | "prescricoes" | "procedimentos" | "observacoes";
+type RecordTab = "geral" | "timeline" | "consultas" | "exames" | "vacinas" | "documentos" | "prescricoes" | "procedimentos";
 type PatientFilter = "all" | "mine" | "routine";
 type DoctorLink = { doctor_id: string; doctor_name: string; specialty: string };
 
@@ -79,6 +81,7 @@ type TimelineEvent = {
   doctor: string;
   status: string;
   summary: string;
+  isConfidential?: boolean;
 };
 
 const tabs: Array<{ id: RecordTab; label: string; icon: ReactNode }> = [
@@ -90,14 +93,13 @@ const tabs: Array<{ id: RecordTab; label: string; icon: ReactNode }> = [
   { id: "documentos", label: "Documentos", icon: <Archive size={15} /> },
   { id: "prescricoes", label: "Prescrições", icon: <Pill size={15} /> },
   { id: "procedimentos", label: "Procedimentos", icon: <Syringe size={15} /> },
-  { id: "observacoes", label: "Observações", icon: <NotebookPen size={15} /> },
 ];
 
 const initialPatients: PatientRecord[] = [];
 
 const initialTimelineEvents: TimelineEvent[] = [];
 
-const PRONTUARIO_CACHE_KEY = "hpsr-prontuario-session-cache-v1";
+const PRONTUARIO_CACHE_KEY = "hpsr-prontuario-session-cache-v2";
 const PRONTUARIO_CACHE_TTL_MS = 5 * 60 * 1000;
 
 function readProntuarioCache(): { savedAt: number; patients: PatientRecord[]; timelineEvents: TimelineEvent[] } | null {
@@ -180,6 +182,7 @@ export default function RecordsPage() {
   const [patientFilter, setPatientFilter] = useState<PatientFilter>("all");
   const [isLoadingPatients, setIsLoadingPatients] = useState(true);
   const [isDeletingPatient, setIsDeletingPatient] = useState(false);
+  const [portalVisibilityBusyId, setPortalVisibilityBusyId] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const patientsSnapshotRef = useRef<PatientRecord[]>([]);
   const timelineSnapshotRef = useRef<TimelineEvent[]>([]);
@@ -188,12 +191,13 @@ export default function RecordsPage() {
     open: boolean;
     loading: boolean;
     title: string;
+    recordType: "Exame" | "Documento";
     reportHtml: string;
     previewImages: string[];
     patientName: string;
     doctorName: string;
     savedAt: string;
-  }>({ open: false, loading: false, title: "", reportHtml: "", previewImages: [], patientName: "", doctorName: "", savedAt: "" });
+  }>({ open: false, loading: false, title: "", recordType: "Exame", reportHtml: "", previewImages: [], patientName: "", doctorName: "", savedAt: "" });
 
   useEffect(() => {
     if (sharedSelectedPassport) setSelectedPassport(sharedSelectedPassport);
@@ -255,7 +259,7 @@ export default function RecordsPage() {
       setIsLoadingPatients(true);
       const [registryResult, recordsResult, appointmentsResult, portalResult, linksResult] = await Promise.all([
         supabase.from("patient_registry").select("passport,name,age,birth_date,sex,blood_type,city_phone,discord,email,follow_up,portal_specialties,created_at,updated_at").order("created_at", { ascending: false }),
-        supabase.from("clinical_records").select("id,patient_passport,record_type,created_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,summary:payload->>summary,exam_date:payload->>examDate").order("created_at", { ascending: false }),
+        supabase.from("clinical_records").select("id,patient_passport,record_type,created_at,is_confidential,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,summary:payload->>summary,exam_date:payload->>examDate").order("created_at", { ascending: false }),
         supabase.from("appointments").select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,doctor_name:payload->>doctor,reason:payload->>reason,notes:payload->>notes").order("created_at", { ascending: false }),
         supabase.from("patient_portal_access").select("id,patient_passport,email,access_enabled,triage_status,created_at").order("created_at", { ascending: false }),
         supabase.from("patient_doctor_links").select("id,patient_passport,doctor_id,specialty,started_at").order("started_at", { ascending: false }),
@@ -419,6 +423,7 @@ export default function RecordsPage() {
           doctor: row.doctor_name || row.doctor_name_flat || "Equipe médica",
           status: "Concluído",
           summary: row.summary || "Registro armazenado no prontuário.",
+          isConfidential: typeof row.is_confidential === "boolean" ? row.is_confidential : undefined,
         });
       }
 
@@ -482,6 +487,7 @@ export default function RecordsPage() {
         doctor: String(payload?.doctor?.name || payload.doctorName || "Equipe médica"),
         status: "Concluído",
         summary: String(payload.summary || "Registro armazenado no prontuário."),
+        isConfidential: typeof row.is_confidential === "boolean" ? row.is_confidential : undefined,
       };
     };
 
@@ -641,6 +647,45 @@ export default function RecordsPage() {
   const examCount = patientEvents.filter((event) => event.type === "Exame").length;
   const prescriptionCount = patientEvents.filter((event) => event.type === "Prescrição").length;
   const procedureCount = patientEvents.filter((event) => event.type === "Procedimento").length;
+  const tabCounts: Partial<Record<RecordTab, number>> = {
+    timeline: patientEvents.length,
+    consultas: consultationCount,
+    exames: examCount,
+    vacinas: patientEvents.filter((event) => event.type === "Vacina").length,
+    documentos: patientEvents.filter((event) => event.type === "Documento").length,
+    prescricoes: prescriptionCount,
+    procedimentos: procedureCount,
+  };
+
+  async function toggleRecordPortalVisibility(event: TimelineEvent) {
+    if (!(["Exame", "Documento", "Vacina"] as TimelineEvent["type"][]).includes(event.type) || typeof event.isConfidential !== "boolean") return;
+    const client = createClient();
+    if (!client) {
+      await hpsrAlert("Não foi possível conectar ao Supabase.", "Acesso ao Portal não alterado");
+      return;
+    }
+
+    const nextConfidentiality = !event.isConfidential;
+    setPortalVisibilityBusyId(event.id);
+    const { error } = await client.rpc("set_clinical_record_confidentiality", {
+      target_record_id: event.id,
+      confidential: nextConfidentiality,
+    });
+    setPortalVisibilityBusyId("");
+
+    if (error) {
+      await hpsrAlert(error.message, "Não foi possível alterar o acesso no Portal");
+      return;
+    }
+
+    setTimelineEvents((current) => current.map((item) =>
+      item.id === event.id ? { ...item, isConfidential: nextConfidentiality } : item
+    ));
+    hpsrSuccess(
+      nextConfidentiality ? "Registro colocado em sigilo no Portal do Paciente." : "Registro liberado no Portal do Paciente.",
+      nextConfidentiality ? "Registro em sigilo" : "Registro liberado"
+    );
+  }
 
   async function deletePatient(patient: PatientRecord) {
     const firstConfirmation = await hpsrConfirm(
@@ -696,7 +741,7 @@ export default function RecordsPage() {
       return;
     }
 
-    setExamViewer({ open: true, loading: true, title: event.title, reportHtml: "", previewImages: [], patientName: selectedPatient?.name || "", doctorName: event.doctor, savedAt: event.date });
+    setExamViewer({ open: true, loading: true, title: event.title, recordType: event.type, reportHtml: "", previewImages: [], patientName: selectedPatient?.name || "", doctorName: event.doctor, savedAt: event.date });
     const { data, error } = await client
       .from("clinical_records")
       .select("payload,created_at")
@@ -722,6 +767,7 @@ export default function RecordsPage() {
       open: true,
       loading: false,
       title: String(payload.examName || payload.documentTitle || payload.title || event.title || event.type),
+      recordType: event.type,
       reportHtml: String(payload.reportHtml || payload.documentHtml || payload.finalHtml || payload.html || payload.editorHtml || ""),
       previewImages,
       patientName: String(payload.patient?.name || selectedPatient?.name || "Paciente"),
@@ -732,11 +778,34 @@ export default function RecordsPage() {
 
   function downloadSavedExam() {
     if (!examViewer.open || examViewer.loading) return;
-    const safeTitle = examViewer.title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || "exame";
-    const pages = examViewer.previewImages.length
-      ? examViewer.previewImages.map((src, index) => `<section class="page"><img src="${src}" alt="Página ${index + 1}" /></section>`).join("")
-      : `<section class="page report">${examViewer.reportHtml || "<p>Conteúdo do exame indisponível.</p>"}</section>`;
-    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${examViewer.title}</title><style>body{margin:0;background:#eee;font-family:Arial,sans-serif}.page{width:210mm;min-height:297mm;margin:12px auto;background:#fff;box-sizing:border-box;page-break-after:always}.page img{display:block;width:100%;height:auto}.report{padding:18mm}@media print{body{background:#fff}.page{margin:0;box-shadow:none}}</style></head><body>${pages}</body></html>`;
+    const safeTitle = examViewer.title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "") || (examViewer.recordType === "Documento" ? "documento" : "exame");
+
+    if (examViewer.previewImages.length > 0) {
+      examViewer.previewImages.forEach((src, index) => {
+        window.setTimeout(() => {
+          const link = document.createElement("a");
+          link.href = src;
+          link.download = examViewer.previewImages.length === 1
+            ? `${safeTitle}.png`
+            : `${safeTitle}_pagina_${index + 1}.png`;
+          link.rel = "noopener";
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        }, index * 250);
+      });
+      return;
+    }
+
+    if (examViewer.recordType === "Exame") {
+      void hpsrAlert(
+        "Este exame foi salvo sem uma prévia PNG. Registros novos são salvos com a imagem e podem ser baixados normalmente em PNG.",
+        "PNG indisponível neste registro"
+      );
+      return;
+    }
+
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${examViewer.title}</title><style>body{font-family:Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 24px;color:#32150f}</style></head><body>${examViewer.reportHtml || "<p>Conteúdo do documento indisponível.</p>"}</body></html>`;
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -745,7 +814,7 @@ export default function RecordsPage() {
     document.body.appendChild(link);
     link.click();
     link.remove();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 500);
   }
 
   async function deleteClinicalRecord(event: TimelineEvent) {
@@ -947,6 +1016,7 @@ export default function RecordsPage() {
       doctor: currentUserProfile.systemName,
       status: "Concluído",
       summary: data.recordSummary.trim(),
+      isConfidential: ["Exame", "Documento", "Vacina"].includes(data.recordType) ? true : undefined,
     };
 
     const client = createClient();
@@ -1197,31 +1267,12 @@ export default function RecordsPage() {
                         </span>
                       </div>
 
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-6">
-                        <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
-                          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Passaporte</p>
-                          <p className="mt-0.5 break-words [overflow-wrap:anywhere] text-xs font-black leading-snug text-hpsr-text">{selectedPatient.passport}</p>
-                        </div>
-                        <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
-                          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Idade</p>
-                          <p className="mt-0.5 text-xs font-black text-hpsr-text">{selectedPatient.age} anos</p>
-                        </div>
-                        <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
-                          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Sexo</p>
-                          <p className="mt-0.5 text-xs font-black text-hpsr-text">{selectedPatient.sex || "Não informado"}</p>
-                        </div>
-                        <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
-                          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Tipo sanguíneo</p>
-                          <p className="mt-0.5 text-xs font-black text-hpsr-text">{selectedPatient.bloodType}</p>
-                        </div>
-                        <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
-                          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Discord · preferencial</p>
-                          <p className="mt-0.5 break-words [overflow-wrap:anywhere] text-xs font-black leading-snug text-hpsr-text">{selectedPatient.discord || "Não informado"}</p>
-                        </div>
-                        <div className="rounded-[12px] border border-hpsr-border bg-white/90 px-3 py-2">
-                          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Telefone da cidade</p>
-                          <p className="mt-0.5 break-words [overflow-wrap:anywhere] text-xs font-black leading-snug text-hpsr-text">{formatPhoneDisplay(selectedPatient.cityPhone, "Não informado")}</p>
-                        </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[12px] border border-hpsr-border bg-white/80 px-3 py-2">
+                        <PatientMetaItem label="Passaporte" value={selectedPatient.passport} />
+                        <PatientMetaItem label="Paciente" value={`${selectedPatient.age && selectedPatient.age !== "—" ? `${selectedPatient.age} anos` : "Idade não informada"} · ${selectedPatient.sex || "Sexo não informado"}`} />
+                        <PatientMetaItem label="Sangue" value={selectedPatient.bloodType} />
+                        <PatientMetaItem label="Discord" value={selectedPatient.discord || "Não informado"} preferred />
+                        <PatientMetaItem label="Cidade" value={formatPhoneDisplay(selectedPatient.cityPhone, "Não informado")} />
                       </div>
                     </div>
 
@@ -1241,34 +1292,41 @@ export default function RecordsPage() {
                       </button>
                       <button
                         type="button"
+                        aria-label="Excluir paciente"
+                        title={isDeletingPatient ? "Excluindo paciente..." : "Excluir paciente"}
                         disabled={isDeletingPatient}
                         onClick={() => void deletePatient(selectedPatient)}
-                        className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] border border-red-200 bg-red-50 px-3 text-xs font-black text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <Trash2 size={16} />
-                        {isDeletingPatient ? "Excluindo..." : "Excluir paciente"}
                       </button>
                     </div>
                   </div>
 
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {tabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`inline-flex items-center gap-2 rounded-[13px] border px-3 py-2 text-[11px] font-black transition ${
-                        activeTab === tab.id
-                          ? "border-hpsr-wine bg-[linear-gradient(135deg,#672614,#74321e)] text-white"
-                          : "border-hpsr-border bg-white text-hpsr-wine hover:bg-[#fffdf9]"
-                      }`}
-                    >
-                      {tab.icon}
-                      {tab.label}
-                    </button>
-                  ))}
+                <div className="mt-3 flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]">
+                  {tabs.map((tab) => {
+                    const count = tabCounts[tab.id];
+                    return (
+                      <button
+                        key={tab.id}
+                        type="button"
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`inline-flex min-h-[36px] shrink-0 items-center gap-1.5 rounded-[11px] border px-2.5 py-1.5 text-[10px] font-black transition ${
+                          activeTab === tab.id
+                            ? "border-hpsr-wine bg-[linear-gradient(135deg,#672614,#74321e)] text-white"
+                            : "border-hpsr-border bg-white text-hpsr-wine hover:bg-[#fffdf9]"
+                        }`}
+                      >
+                        {tab.icon}
+                        {tab.label}
+                        {typeof count === "number" && (
+                          <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${activeTab === tab.id ? "bg-white/15 text-white" : "bg-[#f5e8dc] text-hpsr-wine"}`}>{count}</span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -1276,7 +1334,6 @@ export default function RecordsPage() {
                 {activeTab === "geral" && (
                   <OverviewTab
                     patient={selectedPatient}
-                    events={patientEvents}
                     consultationCount={consultationCount}
                     examCount={examCount}
                     prescriptionCount={prescriptionCount}
@@ -1285,13 +1342,11 @@ export default function RecordsPage() {
                 )}
                 {activeTab === "timeline" && <TimelineTab events={patientEvents} />}
                 {activeTab === "consultas" && <FilteredEventsTab events={patientEvents} type="Consulta" empty="Nenhuma consulta registrada." />}
-                {activeTab === "exames" && <ExamsTab events={patientEvents} onDelete={deleteClinicalRecord} onOpen={openSavedExam} />}
-                {activeTab === "vacinas" && <FilteredEventsTab events={patientEvents} type="Vacina" empty="Nenhuma vacina registrada." />}
-                {activeTab === "documentos" && <FilteredEventsTab events={patientEvents} type="Documento" empty="Nenhum documento vinculado." onDelete={deleteClinicalRecord} onOpen={openSavedExam} />}
+                {activeTab === "exames" && <ExamsTab events={patientEvents} onDelete={deleteClinicalRecord} onOpen={openSavedExam} onTogglePortalVisibility={toggleRecordPortalVisibility} portalBusyId={portalVisibilityBusyId} />}
+                {activeTab === "vacinas" && <FilteredEventsTab events={patientEvents} type="Vacina" empty="Nenhuma vacina registrada." onTogglePortalVisibility={toggleRecordPortalVisibility} portalBusyId={portalVisibilityBusyId} />}
+                {activeTab === "documentos" && <FilteredEventsTab events={patientEvents} type="Documento" empty="Nenhum documento vinculado." onDelete={deleteClinicalRecord} onOpen={openSavedExam} onTogglePortalVisibility={toggleRecordPortalVisibility} portalBusyId={portalVisibilityBusyId} />}
                 {activeTab === "prescricoes" && <FilteredEventsTab events={patientEvents} type="Prescrição" empty="Nenhuma prescrição registrada." />}
                 {activeTab === "procedimentos" && <FilteredEventsTab events={patientEvents} type="Procedimento" empty="Nenhum procedimento registrado." />}
-                {activeTab === "observacoes" && <FilteredEventsTab events={patientEvents} type="Observação" empty="Nenhuma observação interna." />}
-                <ClinicalRecordsPortalPanel passport={selectedPatient.passport} />
               </div>
             </div>
           ) : (
@@ -1614,7 +1669,7 @@ function AddClinicalRecordModal({
         <div className="bg-[linear-gradient(135deg,#2a0700_0%,#672614_52%,#9d6b4f_100%)] px-5 py-4 text-white">
           <div className="flex items-start justify-between gap-3"><div><span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]"><ClipboardPlus size={14} />Novo registro clínico</span><h2 className="mt-3 text-xl font-black">{patient.name}</h2><p className="mt-1 text-sm text-white/80">Passaporte {patient.passport}</p></div><button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-white/25 bg-white/10"><X size={18} /></button></div>
         </div>
-        <div className="min-h-0 overflow-y-auto p-4 sm:p-5"><section className="rounded-[18px] border border-hpsr-border bg-white p-4"><div className="grid gap-3"><ModalField label="Tipo de registro"><StyledSelect className={modalInputClass} value={form.recordType} onChange={(event) => setForm((current) => ({ ...current, recordType: event.target.value as TimelineEvent["type"] }))}><option value="Consulta">Consulta</option><option value="Exame">Exame</option><option value="Prescrição">Prescrição</option><option value="Procedimento">Procedimento</option><option value="Observação">Observação</option></StyledSelect></ModalField><ModalField label="Título do registro" required><input required className={modalInputClass} value={form.recordTitle} onChange={(event) => setForm((current) => ({ ...current, recordTitle: event.target.value }))} placeholder="Ex.: Consulta obstétrica" /></ModalField><ModalField label="Registro / evolução médica" required><textarea required className={`${modalInputClass} min-h-[190px] resize-y leading-relaxed`} value={form.recordSummary} onChange={(event) => setForm((current) => ({ ...current, recordSummary: event.target.value }))} placeholder="Descreva queixa, achados relevantes, conduta, orientação ou retorno." /></ModalField><div className="rounded-[16px] border border-amber-200 bg-amber-50 p-3.5 text-sm leading-relaxed text-amber-800">O registro será assinado como <strong>{currentUserProfile.systemName}</strong> e entrará na linha do tempo do paciente.</div></div></section></div>
+        <div className="min-h-0 overflow-y-auto p-4 sm:p-5"><section className="rounded-[18px] border border-hpsr-border bg-white p-4"><div className="grid gap-3"><ModalField label="Tipo de registro"><StyledSelect className={modalInputClass} value={form.recordType} onChange={(event) => setForm((current) => ({ ...current, recordType: event.target.value as TimelineEvent["type"] }))}><option value="Consulta">Consulta</option><option value="Exame">Exame</option><option value="Prescrição">Prescrição</option><option value="Procedimento">Procedimento</option></StyledSelect></ModalField><ModalField label="Título do registro" required><input required className={modalInputClass} value={form.recordTitle} onChange={(event) => setForm((current) => ({ ...current, recordTitle: event.target.value }))} placeholder="Ex.: Consulta obstétrica" /></ModalField><ModalField label="Registro / evolução médica" required><textarea required className={`${modalInputClass} min-h-[190px] resize-y leading-relaxed`} value={form.recordSummary} onChange={(event) => setForm((current) => ({ ...current, recordSummary: event.target.value }))} placeholder="Descreva queixa, achados relevantes, conduta, orientação ou retorno." /></ModalField><div className="rounded-[16px] border border-amber-200 bg-amber-50 p-3.5 text-sm leading-relaxed text-amber-800">O registro será assinado como <strong>{currentUserProfile.systemName}</strong> e entrará na linha do tempo do paciente.</div></div></section></div>
         <div className="flex justify-end gap-3 border-t border-hpsr-border bg-white/95 px-5 py-3.5"><button type="button" onClick={onClose} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-text">Cancelar</button><button type="submit" className="rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-5 py-3 text-sm font-black text-white">Salvar registro</button></div>
       </form>
     </div>
@@ -1646,14 +1701,12 @@ function ModalField({ label, required = false, children }: { label: string; requ
 
 function OverviewTab({
   patient,
-  events,
   consultationCount,
   examCount,
   prescriptionCount,
   procedureCount,
 }: {
   patient: PatientRecord;
-  events: TimelineEvent[];
   consultationCount: number;
   examCount: number;
   prescriptionCount: number;
@@ -1661,41 +1714,60 @@ function OverviewTab({
 }) {
   return (
     <div className="grid gap-3">
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard label="Consultas" value={String(consultationCount)} icon={<Stethoscope size={18} />} />
-        <SummaryCard label="Exames" value={String(examCount)} icon={<FileText size={18} />} />
-        <SummaryCard label="Prescrições" value={String(prescriptionCount)} icon={<Pill size={18} />} />
-        <SummaryCard label="Procedimentos" value={String(procedureCount)} icon={<Syringe size={18} />} />
+      <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <SummaryCard label="Consultas" value={String(consultationCount)} icon={<Stethoscope size={17} />} />
+        <SummaryCard label="Exames" value={String(examCount)} icon={<FileText size={17} />} />
+        <SummaryCard label="Prescrições" value={String(prescriptionCount)} icon={<Pill size={17} />} />
+        <SummaryCard label="Procedimentos" value={String(procedureCount)} icon={<Syringe size={17} />} />
       </section>
 
-      <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_330px]">
+      <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3.5">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">
-            Resumo do paciente
-          </p>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <InfoPill label="Acompanhamento" value={patient.followUp} />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Acompanhamento</p>
+              <p className="mt-1 text-sm font-semibold text-hpsr-muted">Contexto atual do paciente, sem repetir os dados de identificação acima.</p>
+            </div>
+            <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{patient.followUp}</span>
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <InfoPill label="Último atendimento" value={formatDate(patient.lastVisit)} />
-            <InfoPill label="Tipo sanguíneo" value={patient.bloodType} />
-            <InfoPill label="Contato na cidade" value={patient.cityPhone} />
+            <InfoPill label="Vínculos ativos" value={String(patient.doctorLinks.length)} />
+          </div>
+
+          <div className="mt-3 rounded-[14px] border border-hpsr-border bg-white p-3">
+            <p className="text-[9px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Equipe de acompanhamento</p>
+            {patient.doctorLinks.length ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {patient.doctorLinks.map((link) => (
+                  <span key={`${link.doctor_id}-${link.specialty}`} className="rounded-full border border-hpsr-border bg-[#fffaf5] px-2.5 py-1 text-[10px] font-black text-hpsr-text">
+                    {link.doctor_name} · {link.specialty}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-xs font-semibold text-hpsr-muted">Nenhum vínculo médico ativo.</p>
+            )}
           </div>
         </div>
 
         <div className="rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3.5">
-          <p className="text-[11px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">
-            Alertas importantes
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {patient.alerts.map((alert) => (
-              <span key={alert} className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-800">
-                <AlertTriangle size={13} />
-                {alert}
-              </span>
-            ))}
-          </div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Alertas importantes</p>
+          {patient.alerts.length ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {patient.alerts.map((alert) => (
+                <span key={alert} className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[10px] font-black text-amber-800">
+                  <AlertTriangle size={12} />
+                  {alert}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-3 rounded-[14px] border border-dashed border-hpsr-border bg-white px-3 py-4 text-center text-xs font-semibold text-hpsr-muted">Nenhum alerta ativo.</div>
+          )}
         </div>
       </section>
-
     </div>
   );
 }
@@ -1706,14 +1778,14 @@ function TimelineTab({ events }: { events: TimelineEvent[] }) {
   }
 
   return (
-    <div className="relative grid gap-3">
+    <div className="relative grid gap-2.5">
       {events.map((event, index) => (
-        <div key={event.id} className="grid gap-3 md:grid-cols-[44px_minmax(0,1fr)]">
+        <div key={event.id} className="grid gap-2.5 md:grid-cols-[36px_minmax(0,1fr)]">
           <div className="hidden md:flex flex-col items-center">
             <div className="flex h-8 w-8 items-center justify-center rounded-full border border-hpsr-border bg-[#fff8f0]">
               {eventIcon(event.type)}
             </div>
-            {index < events.length - 1 && <div className="mt-2 h-full min-h-[36px] w-px bg-hpsr-border" />}
+            {index < events.length - 1 && <div className="mt-2 h-full min-h-[28px] w-px bg-hpsr-border" />}
           </div>
           <EventCard event={event} />
         </div>
@@ -1722,31 +1794,41 @@ function TimelineTab({ events }: { events: TimelineEvent[] }) {
   );
 }
 
-
 function ExamsTab({
   events,
   onDelete,
   onOpen,
+  onTogglePortalVisibility,
+  portalBusyId,
 }: {
   events: TimelineEvent[];
   onDelete: (event: TimelineEvent) => void;
   onOpen: (event: TimelineEvent) => void;
+  onTogglePortalVisibility: (event: TimelineEvent) => void | Promise<void>;
+  portalBusyId: string;
 }) {
   const exams = events.filter((event) => event.type === "Exame");
 
   if (exams.length === 0) return <EmptyState text="Nenhum exame vinculado." />;
 
   return (
-    <section className="grid gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-hpsr-border bg-[#fff8f0] px-4 py-3">
+    <section className="grid gap-2.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-[14px] border border-hpsr-border bg-[#fff8f0] px-3.5 py-2.5">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Exames salvos</p>
-          <p className="mt-1 text-sm font-semibold text-hpsr-muted">Abra o exame completo sem sair do prontuário. O conteúdo é carregado somente ao abrir.</p>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Exames</p>
+          <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Visualize, baixe e controle o acesso do paciente no mesmo lugar.</p>
         </div>
-        <span className="rounded-full border border-hpsr-border bg-white px-3 py-1.5 text-xs font-black text-hpsr-wine">{exams.length} {exams.length === 1 ? "exame" : "exames"}</span>
+        <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{exams.length} {exams.length === 1 ? "exame" : "exames"}</span>
       </div>
       {exams.map((event) => (
-        <EventCard key={event.id} event={event} onDelete={onDelete} onOpen={onOpen} />
+        <EventCard
+          key={event.id}
+          event={event}
+          onDelete={onDelete}
+          onOpen={onOpen}
+          onTogglePortalVisibility={onTogglePortalVisibility}
+          portalBusy={portalBusyId === event.id}
+        />
       ))}
     </section>
   );
@@ -1758,53 +1840,107 @@ function FilteredEventsTab({
   empty,
   onDelete,
   onOpen,
+  onTogglePortalVisibility,
+  portalBusyId,
 }: {
   events: TimelineEvent[];
   type: TimelineEvent["type"];
   empty: string;
   onDelete?: (event: TimelineEvent) => void;
   onOpen?: (event: TimelineEvent) => void;
+  onTogglePortalVisibility?: (event: TimelineEvent) => void | Promise<void>;
+  portalBusyId?: string;
 }) {
   const filtered = events.filter((event) => event.type === type);
 
   if (filtered.length === 0) return <EmptyState text={empty} />;
 
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-2.5">
       {filtered.map((event) => (
-        <EventCard key={event.id} event={event} onDelete={onDelete} onOpen={onOpen} />
+        <EventCard
+          key={event.id}
+          event={event}
+          onDelete={onDelete}
+          onOpen={onOpen}
+          onTogglePortalVisibility={onTogglePortalVisibility}
+          portalBusy={portalBusyId === event.id}
+        />
       ))}
     </div>
   );
 }
 
-function EventCard({ event, onDelete, onOpen }: { event: TimelineEvent; onDelete?: (event: TimelineEvent) => void; onOpen?: (event: TimelineEvent) => void }) {
+function EventCard({
+  event,
+  onDelete,
+  onOpen,
+  onTogglePortalVisibility,
+  portalBusy = false,
+}: {
+  event: TimelineEvent;
+  onDelete?: (event: TimelineEvent) => void;
+  onOpen?: (event: TimelineEvent) => void;
+  onTogglePortalVisibility?: (event: TimelineEvent) => void | Promise<void>;
+  portalBusy?: boolean;
+}) {
+  const hasPortalControl = ["Exame", "Documento", "Vacina"].includes(event.type) && typeof event.isConfidential === "boolean";
+  const showStatus = event.status && event.status !== "Concluído";
+
   return (
-    <article className="min-w-0 rounded-[16px] border border-hpsr-border bg-white p-3.5 transition [overflow-wrap:anywhere] hover:bg-[#fffdf9]">
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full border border-hpsr-border bg-[#fff8f0] px-3 py-1 text-xs font-black text-hpsr-wine">
+    <article className="min-w-0 rounded-[15px] border border-hpsr-border bg-white p-3.5 transition [overflow-wrap:anywhere] hover:border-[#d8bda9] hover:bg-[#fffdf9]">
+      <div className="flex min-w-0 flex-col gap-3">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-hpsr-border bg-[#fff8f0] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">
               {eventIcon(event.type)}
               {event.type}
             </span>
-            <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-xs font-black text-hpsr-muted">
-              {event.status}
-            </span>
+            {showStatus && (
+              <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-muted">{event.status}</span>
+            )}
+            {hasPortalControl && (
+              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black ${event.isConfidential ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
+                {event.isConfidential ? <EyeOff size={11} /> : <Eye size={11} />}
+                {event.isConfidential ? "Em sigilo" : "Liberado no Portal"}
+              </span>
+            )}
           </div>
-          <h3 className="mt-3 break-words text-lg font-black leading-snug text-hpsr-text [overflow-wrap:anywhere]">{event.title}</h3>
+
+          <h3 className="mt-2 break-words text-base font-black leading-snug text-hpsr-text [overflow-wrap:anywhere]">{event.title}</h3>
           <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-hpsr-muted [overflow-wrap:anywhere]">{event.summary}</p>
+
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] font-semibold text-hpsr-muted">
+            <span className="inline-flex items-center gap-1.5"><FileClock size={13} className="text-hpsr-wineLight" />{formatDate(event.date)}</span>
+            <span className="inline-flex min-w-0 items-center gap-1.5"><Stethoscope size={13} className="shrink-0 text-hpsr-wineLight" /><span className="break-words [overflow-wrap:anywhere]">{event.doctor}</span></span>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-2 lg:min-w-[210px]">
-        <div className="rounded-[16px] border border-hpsr-border bg-[#fff8f0] px-3 py-2 text-sm">
-          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Registro</p>
-          <p className="mt-1 font-black text-hpsr-text">{formatDate(event.date)}</p>
-          <p className="mt-0.5 break-words text-xs font-semibold leading-relaxed text-hpsr-muted [overflow-wrap:anywhere]">{event.doctor}</p>
-        </div>
-        {onOpen && (event.type === "Exame" || event.type === "Documento") && <button type="button" onClick={() => onOpen(event)} className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-hpsr-wine/20 bg-[#fff3e8] px-3 py-2 text-xs font-black text-hpsr-wine transition hover:bg-[#ffead8]"><Eye size={14} /> Visualizar {event.type.toLowerCase()}</button>}
-        {onDelete && (event.type === "Exame" || event.type === "Documento") && <button type="button" onClick={() => onDelete(event)} className="rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700">Excluir {event.type.toLowerCase()}</button>}
-        </div>
+        {(onOpen || onDelete || (hasPortalControl && onTogglePortalVisibility)) && (
+          <div className="flex flex-wrap items-center gap-2 border-t border-hpsr-border/70 pt-2.5">
+            {onOpen && (event.type === "Exame" || event.type === "Documento") && (
+              <button type="button" onClick={() => onOpen(event)} className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-[10px] border border-hpsr-wine/20 bg-[#fff3e8] px-2.5 text-[10px] font-black text-hpsr-wine transition hover:bg-[#ffead8]">
+                <Eye size={13} /> Visualizar / baixar
+              </button>
+            )}
+            {hasPortalControl && onTogglePortalVisibility && (
+              <button
+                type="button"
+                disabled={portalBusy}
+                onClick={() => void onTogglePortalVisibility(event)}
+                className={`inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-[10px] px-2.5 text-[10px] font-black text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${event.isConfidential ? "bg-emerald-700 hover:bg-emerald-800" : "bg-hpsr-wine hover:bg-[#57200f]"}`}
+              >
+                {event.isConfidential ? <Unlock size={13} /> : <Lock size={13} />}
+                {portalBusy ? "Salvando..." : event.isConfidential ? "Liberar no Portal" : "Colocar em sigilo"}
+              </button>
+            )}
+            {onDelete && (event.type === "Exame" || event.type === "Documento") && (
+              <button type="button" onClick={() => onDelete(event)} className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-[10px] border border-rose-200 bg-rose-50 px-2.5 text-[10px] font-black text-rose-700 transition hover:bg-rose-100">
+                <Trash2 size={13} /> Excluir
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </article>
   );
@@ -1815,7 +1951,7 @@ function SavedExamViewer({
   onClose,
   onDownload,
 }: {
-  exam: { open: boolean; loading: boolean; title: string; reportHtml: string; previewImages: string[]; patientName: string; doctorName: string; savedAt: string };
+  exam: { open: boolean; loading: boolean; title: string; recordType: "Exame" | "Documento"; reportHtml: string; previewImages: string[]; patientName: string; doctorName: string; savedAt: string };
   onClose: () => void;
   onDownload: () => void;
 }) {
@@ -1829,7 +1965,7 @@ function SavedExamViewer({
             <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{exam.patientName} · {exam.doctorName}{exam.savedAt ? ` · ${new Date(exam.savedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : ""}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" disabled={exam.loading} onClick={onDownload} className="inline-flex h-10 items-center gap-2 rounded-[13px] border border-hpsr-border bg-[#fff8f0] px-3 text-xs font-black text-hpsr-wine disabled:opacity-50"><Download size={15} /> Baixar</button>
+            <button type="button" disabled={exam.loading} onClick={onDownload} className="inline-flex h-10 items-center gap-2 rounded-[13px] border border-hpsr-border bg-[#fff8f0] px-3 text-xs font-black text-hpsr-wine disabled:opacity-50"><Download size={15} /> {exam.previewImages.length ? (exam.previewImages.length > 1 ? "Baixar PNGs" : "Baixar PNG") : "Baixar"}</button>
             <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-hpsr-border bg-white text-hpsr-wine"><X size={18} /></button>
           </div>
         </header>
@@ -1851,12 +1987,14 @@ function SavedExamViewer({
 
 function SummaryCard({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
-    <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">{label}</p>
-        <span className="text-hpsr-wine">{icon}</span>
+    <div className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2.5">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#fff3e8] text-hpsr-wine">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <p className="text-[9px] font-black uppercase tracking-[0.13em] text-hpsr-wineLight">{label}</p>
+        </div>
+        <p className="text-lg font-black leading-none text-hpsr-text">{value}</p>
       </div>
-      <p className="mt-2 text-lg font-black text-hpsr-text">{value}</p>
     </div>
   );
 }
@@ -1875,6 +2013,16 @@ function GeneralMetric({ label, value, icon }: { label: string; value: string; i
   );
 }
 
+
+function PatientMetaItem({ label, value, preferred = false }: { label: string; value: string; preferred?: boolean }) {
+  return (
+    <div className="min-w-0 border-r border-hpsr-border/70 pr-4 last:border-r-0 last:pr-0">
+      <p className="text-[8px] font-black uppercase tracking-[0.13em] text-hpsr-wineLight">{label}{preferred ? " · preferencial" : ""}</p>
+      <p className="mt-0.5 break-words text-[11px] font-black leading-snug text-hpsr-text [overflow-wrap:anywhere]">{value}</p>
+    </div>
+  );
+}
+
 function PatientCardInfo({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[16px] border border-hpsr-border bg-white/[0.86] px-3 py-2">
@@ -1886,9 +2034,9 @@ function PatientCardInfo({ label, value }: { label: string; value: string }) {
 
 function InfoPill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{label}</p>
-      <p className="mt-1 break-words text-sm font-black leading-snug text-hpsr-text [overflow-wrap:anywhere]">{value}</p>
+    <div className="rounded-[13px] border border-hpsr-border bg-white px-3 py-2.5">
+      <p className="text-[9px] font-black uppercase tracking-[0.13em] text-hpsr-wineLight">{label}</p>
+      <p className="mt-0.5 break-words text-sm font-black leading-snug text-hpsr-text [overflow-wrap:anywhere]">{value}</p>
     </div>
   );
 }

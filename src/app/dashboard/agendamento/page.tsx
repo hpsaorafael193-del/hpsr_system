@@ -387,8 +387,11 @@ export default function AppointmentsPage() {
       const requestedDoctorId = String(item.requestedDoctorId || "");
       const specialtyMatch = (currentUserProfile.specialties || []).some((specialty) => normalizeSpecialty(String(specialty)) === normalizeSpecialty(item.specialty));
       const isExam = item.flowType === "Exames";
+      const isGeneralClinician = currentUserProfile.role === "Médico Clínico";
       const hasCapacity = Number(capacityBySpecialty[normalizeSpecialty(item.specialty)] || 0) > 0;
-      const belongsToDoctor = isManager || (specialtyMatch && (isExam || hasCapacity) && (!requestedDoctorId || requestedDoctorId === currentUserProfile.id));
+      const examEligible = isExam && (isGeneralClinician || specialtyMatch);
+      const consultationEligible = !isExam && specialtyMatch && hasCapacity;
+      const belongsToDoctor = isManager || ((examEligible || consultationEligible) && (!requestedDoctorId || requestedDoctorId === currentUserProfile.id));
       return belongsToDoctor && pendingMarkers.some((marker) => normalizedStatus.includes(marker));
     });
   }, [publicRequests, currentUserProfile.accessLevel, currentUserProfile.id, currentUserProfile.role, currentUserProfile.specialties, capacityBySpecialty]);
@@ -516,8 +519,9 @@ export default function AppointmentsPage() {
       const pending = ["Solicitação enviada", "Aguardando análise"].includes(item.status);
       const acceptedBySelf = item.acceptedById === currentUserProfile.id || (item as any).doctorId === currentUserProfile.id;
       const specialtyMatch = (currentUserProfile.specialties || []).some((specialty) => normalizeSpecialty(String(specialty)) === normalizeSpecialty(item.specialty));
+      const isGeneralClinician = currentUserProfile.role === "Médico Clínico";
       const declinedBy = Array.isArray((item as any).declinedBy) ? (item as any).declinedBy.map(String) : [];
-      const eligiblePending = pending && specialtyMatch && !declinedBy.includes(String(currentUserProfile.id));
+      const eligiblePending = pending && (isGeneralClinician || specialtyMatch) && !declinedBy.includes(String(currentUserProfile.id));
       if (!isManager && !acceptedBySelf && !eligiblePending) return false;
       if (!normalizedSearch) return true;
       return item.patient.toLowerCase().includes(normalizedSearch) || item.passport.includes(normalizedSearch) || item.specialty.toLowerCase().includes(normalizedSearch) || (item.reason || "").toLowerCase().includes(normalizedSearch);

@@ -100,27 +100,7 @@ export function CurrentUserProfileProvider({ children }: { children: React.React
         const { data: publicData } = client.storage.from("signatures").getPublicUrl(signaturePath);
         resolvedSignatureImage = publicData.publicUrl || signaturePath;
       }
-      const passport = String(row.passport || "").trim();
-      let { data: teamMemberData } = await client
-        .from("team_members")
-        .select("payload")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (!teamMemberData && passport) {
-        const fallbackResult = await client
-          .from("team_members")
-          .select("payload")
-          .eq("passport", passport)
-          .limit(1)
-          .maybeSingle();
-        teamMemberData = fallbackResult.data;
-      }
-
-      const teamPayload = (teamMemberData?.payload || {}) as Record<string, unknown>;
-      const resolvedSystemRole = String(teamPayload.systemRole || "").trim();
-
-      setProfile(mapDatabaseProfile(row, resolvedSignatureImage, resolvedSystemRole));
+      setProfile(mapDatabaseProfile(row, resolvedSignatureImage));
     }
     else if (!data) setProfile({ ...localDevProfile, systemName: "Perfil não localizado", characterName: "Perfil não localizado", passport: "—", role: "Médico", systemRole: "Médico", specialty: "Não informado", specialties: ["Não informado"], crm: "—", cityPhone: "—", email: "", signatureName: "Perfil não localizado", signatureRole: "Médico" });
     setLoading(false);

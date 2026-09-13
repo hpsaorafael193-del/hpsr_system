@@ -121,7 +121,6 @@ type InsurancePlan = {
 type RegisterDraft = {
   name: string;
   passport: string;
-  age: string;
   activatedAt: string;
   selectedPlan: Plan["id"];
   dependents: DependentDraft[];
@@ -132,7 +131,6 @@ const todayIso = () => brazilDate();
 const initialRegisterDraft = (): RegisterDraft => ({
   name: "",
   passport: "",
-  age: "",
   activatedAt: todayIso(),
   selectedPlan: "combo",
   dependents: [],
@@ -313,10 +311,6 @@ function isPassportInActivePlan(plansList: Patient[], passport: string, ignoredP
   });
 }
 
-function isSpecialAgeEligible(age: number) {
-  return Number.isFinite(age) && (age <= 17 || age >= 50);
-}
-
 function getDependentsLabel(dependents: DependentDraft[]) {
   if (dependents.length === 0) return "Sem dependentes";
   return `${dependents.length} dependente${dependents.length === 1 ? "" : "s"}`;
@@ -495,7 +489,6 @@ export default function InsurancePage() {
     setRegisterDraft({
       name: plan.name,
       passport: plan.passport,
-      age: plan.holderAge ? String(plan.holderAge) : "",
       activatedAt: todayIso(),
       selectedPlan,
       dependents: plan.dependentsList,
@@ -505,11 +498,6 @@ export default function InsurancePage() {
 
   async function handleSavePlan(draft: RegisterDraft) {
     const selectedPlan = plans.find((plan) => plan.id === draft.selectedPlan) ?? plans[1];
-    const holderAge = Number(draft.age);
-    if (draft.selectedPlan === "crianca_terceira_idade" && !isSpecialAgeEligible(holderAge)) {
-      void hpsrAlert("O Plano Criança e Terceira Idade é exclusivo para pacientes de 0 a 17 anos ou com 50 anos ou mais.", "Faixa etária incompatível");
-      return;
-    }
     const duplicatedPassports = [draft.passport, ...draft.dependents.map((dependent) => dependent.passport)]
       .filter(Boolean)
       .filter((item, index, list) => list.indexOf(item) === index)
@@ -531,7 +519,6 @@ export default function InsurancePage() {
       activatedAt: draft.activatedAt,
       expiresAt: addDays(draft.activatedAt, 30),
       dependents: getDependentsLabel(draft.dependents),
-      holderAge: draft.age.trim() ? holderAge : undefined,
       financialEntryId: planId,
       financialCreatedAt: createdAt,
       financialValue: selectedPlan.value,
@@ -1034,11 +1021,6 @@ function RegisterPlanForm({
       return;
     }
 
-    if (draft.selectedPlan === "crianca_terceira_idade" && !isSpecialAgeEligible(Number(draft.age))) {
-      void hpsrAlert("Informe uma idade entre 0 e 17 anos ou igual/superior a 50 anos para esta modalidade.", "Faixa etária incompatível");
-      return;
-    }
-
     const duplicatedInForm = draft.dependents
       .map((dependent) => dependent.passport.trim())
       .filter(Boolean)
@@ -1069,7 +1051,7 @@ function RegisterPlanForm({
 
   const helperText =
     draft.selectedPlan === "crianca_terceira_idade"
-      ? "Plano individual exclusivo para pacientes de 0 a 17 anos ou a partir de 50 anos."
+      ? "Modalidade individual. A idade não é exigida no cadastro."
       : draft.selectedPlan === "individual"
         ? "Plano individual não permite dependentes."
         : `Este plano permite até ${dependentLimit} dependente${dependentLimit === 1 ? "" : "s"}.`;
@@ -1126,18 +1108,6 @@ function RegisterPlanForm({
                 placeholder="Número do passaporte"
               />
             </div>
-          </Field>
-
-          <Field label="Idade do titular">
-            <input
-              className={inputClass}
-              type="number"
-              min="0"
-              max="120"
-              value={draft.age}
-              onChange={(event) => updateDraft("age", event.target.value)}
-              placeholder="Necessária no plano por faixa etária"
-            />
           </Field>
 
           <Field label="Data de ativação">
@@ -1586,11 +1556,6 @@ function EditPlanForm({
       return;
     }
 
-    if (selectedPlan.id === "crianca_terceira_idade" && !isSpecialAgeEligible(Number(form.holderAge))) {
-      void hpsrAlert("O Plano Criança e Terceira Idade é exclusivo para pacientes de 0 a 17 anos ou com 50 anos ou mais.", "Faixa etária incompatível");
-      return;
-    }
-
     if (form.dependentsList.length > dependentLimit) {
       void hpsrAlert(`Este plano permite até ${dependentLimit} dependente${dependentLimit === 1 ? "" : "s"}.`, "Limite de dependentes");
       return;
@@ -1633,7 +1598,7 @@ function EditPlanForm({
 
   const helperText =
     selectedPlan.id === "crianca_terceira_idade"
-      ? "Modalidade individual para pacientes de 0 a 17 anos ou a partir de 50 anos."
+      ? "Modalidade individual. A idade não é exigida no cadastro."
       : dependentLimit === 0
         ? "O Plano Individual não permite dependentes."
         : `Este plano permite até ${dependentLimit} dependente${dependentLimit === 1 ? "" : "s"}.`;
@@ -1677,9 +1642,6 @@ function EditPlanForm({
           />
         </Field>
 
-        <Field label="Idade do titular">
-          <input className={inputClass} type="number" min="0" max="120" value={form.holderAge ?? ""} onChange={(event) => updateField("holderAge", event.target.value ? Number(event.target.value) : undefined)} />
-        </Field>
         <Field label="Plano">
           <StyledSelect
             className={inputClass}

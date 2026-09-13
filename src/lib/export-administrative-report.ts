@@ -86,19 +86,21 @@ export async function exportAdministrativeReport(data: AdministrativeReportData)
           updated_at: text(existing.updated_at, profile.updated_at),
         });
       } else {
+        const metadata = asRecord(profile.staff_metadata);
         byKey.set(key, {
           id: profile.id,
           name: profile.name,
           passport: profile.passport,
           hospital_role: profile.role,
-          status: /desativ|inativ|removid/i.test(normalize(text(profile.access_status, profile.service_status))) ? 'Inativo' : 'Ativo',
-          created_at: profile.created_at,
+          status: /desativ|inativ|removid|deslig/i.test(normalize(text(profile.access_status, profile.service_status))) ? 'Inativo' : 'Ativo',
+          created_at: text(metadata.joinedAt, profile.created_at),
           updated_at: profile.updated_at,
           payload: {
+            ...metadata,
             crm: profile.crm,
             specialty: profile.specialty,
-            department: profile.department,
-            joinedAt: profile.created_at,
+            department: text(metadata.department, 'Hospital São Rafael'),
+            joinedAt: text(metadata.joinedAt, profile.created_at),
             serviceStatus: profile.service_status,
             accessStatus: profile.access_status,
             source: 'profiles',

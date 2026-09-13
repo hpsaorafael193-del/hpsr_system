@@ -49,7 +49,7 @@ export default function DirectionPage() {
         client.from("staff_applications").select("id, passport, name, desired_role, status, payload, created_at").order("created_at", { ascending: false }).limit(300),
         client.from("appointments").select("id, passport, patient, status, payload, created_at").order("created_at", { ascending: false }).limit(500),
         client.from("financial_receipts").select("id, number, total, payload, created_at").order("created_at", { ascending: false }).limit(500),
-        client.from("team_members").select("id, passport, name, hospital_role, payload, created_at").order("created_at", { ascending: false }).limit(300),
+        client.from("profiles").select("id,name,passport,crm,role,specialty,service_status,access_status,staff_metadata,created_at,updated_at").order("created_at", { ascending: false }).limit(300),
       ]);
 
       if (!activityResult.error) {
@@ -72,17 +72,17 @@ export default function DirectionPage() {
         setReceiptCount(rows.length);
       }
       if (!teamResult.error) {
-        setTeamMembers((teamResult.data || []).map((row: GenericRecord) => {
-          const payload = (row.payload || {}) as GenericRecord;
+        setTeamMembers((teamResult.data || []).filter((row: GenericRecord) => row.access_status === "Aprovado").map((row: GenericRecord) => {
+          const metadata = (row.staff_metadata || {}) as GenericRecord;
           return {
-            name: row.name || payload.name || "Profissional",
-            passport: row.passport || payload.passport || "",
-            crm: payload.crm || "",
-            hospitalRole: row.hospital_role || payload.hospitalRole || "Não informado",
-            specialty: payload.specialty || "",
-            department: payload.department || "",
-            joinedAt: payload.joinedAt || row.created_at || "",
-            history: Array.isArray(payload.history) ? payload.history : [],
+            name: row.name || "Profissional",
+            passport: row.passport || "",
+            crm: row.crm || "",
+            hospitalRole: row.role || "Não informado",
+            specialty: row.specialty || "",
+            department: metadata.department || "Hospital São Rafael",
+            joinedAt: metadata.joinedAt || row.created_at || "",
+            history: Array.isArray(metadata.history) ? metadata.history : [],
           };
         }));
       }
@@ -170,9 +170,8 @@ export default function DirectionPage() {
       const fromIso = "";
       const reportWarnings: string[] = [];
       const reportColumns: Record<string, string> = {
-        profiles: "id,name,passport,crm,role,specialty,department,service_status,access_status,created_at,updated_at",
+        profiles: "id,name,passport,crm,role,specialty,service_status,access_status,staff_metadata,created_at,updated_at",
         system_activities: "created_at,module,action,description,actor,reference",
-        team_members: "id,name,passport,hospital_role,status,payload,created_at,updated_at",
         staff_applications: "id,name,passport,desired_role,status,payload,created_at,updated_at",
         staff_registration_requests: "id,name,passport,requested_role,status,payload,created_at,updated_at",
         patient_registry: "name,passport,birth_date,age,blood_type,city_phone,discord,created_at,updated_at,created_by",
@@ -202,10 +201,9 @@ export default function DirectionPage() {
         return rows;
       };
 
-      const [profileRows, activityRows, teamRows, applicationRows, registrationRows, patientRows, patientAccountRows, patientPortalRows, appointmentRows, clinicalRows, receiptRows, planRows, timeRows, auditRows, bedRows, donationRows, castRows, followupPlanRows, followupOccurrenceRows, guardianRows, availabilityRows, slotRows, timeBreakRows, timeSegmentRows, monthlyTimeRows, bedHistoryRows] = await Promise.all([
+      const [profileRows, activityRows, applicationRows, registrationRows, patientRows, patientAccountRows, patientPortalRows, appointmentRows, clinicalRows, receiptRows, planRows, timeRows, auditRows, bedRows, donationRows, castRows, followupPlanRows, followupOccurrenceRows, guardianRows, availabilityRows, slotRows, timeBreakRows, timeSegmentRows, monthlyTimeRows, bedHistoryRows] = await Promise.all([
         fetchAll("profiles"),
         fetchAll("system_activities"),
-        fetchAll("team_members"),
         fetchAll("staff_applications"),
         fetchAll("staff_registration_requests"),
         fetchAll("patient_registry"),
@@ -232,10 +230,10 @@ export default function DirectionPage() {
       ]);
 
       const allStartCandidates = [
-        ...profileRows, ...teamRows, ...activityRows, ...applicationRows, ...registrationRows,
+        ...profileRows, ...activityRows, ...applicationRows, ...registrationRows,
       ].map((row) => row.created_at).filter(Boolean).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-      const anneStart = [...profileRows, ...teamRows]
-        .filter((row) => /\banne\b/i.test(String(row.name || row.payload?.name || "")))
+      const anneStart = [...profileRows]
+        .filter((row) => /\banne\b/i.test(String(row.name || "")))
         .map((row) => row.created_at)
         .filter(Boolean)
         .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0];
@@ -246,7 +244,7 @@ export default function DirectionPage() {
         warnings: reportWarnings,
         profiles: profileRows,
         activities: activityRows,
-        teamMembers: teamRows,
+        teamMembers: [],
         applications: applicationRows,
         registrationRequests: registrationRows,
         patients: patientRows,
@@ -283,7 +281,7 @@ export default function DirectionPage() {
   return <div className="hpsr-page gap-3 lg:h-[calc(100dvh-2.4rem)] lg:min-h-0 lg:overflow-hidden">
     <PageHeader eyebrow="Administração" title="Relatórios" description="Acompanhe os principais indicadores por área, sem misturar todas as informações na mesma visão." />
 
-    <section className="shrink-0 overflow-hidden rounded-[20px] border border-white/80 bg-[linear-gradient(135deg,#ffffff_0%,#fff8f1_100%)] shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
+    <section className="!flex-none shrink-0 overflow-hidden rounded-[20px] border border-white/80 bg-[linear-gradient(135deg,#ffffff_0%,#fff8f1_100%)] shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
       <div className="flex flex-col gap-3 border-b border-hpsr-border/70 px-4 py-3.5 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Database size={18}/></span>
@@ -301,12 +299,12 @@ export default function DirectionPage() {
       </div>
     </section>
 
-    <section className="grid shrink-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid shrink-0 flex-none auto-rows-min gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <Stat icon={<Activity size={18}/>} label="Atividades no período" value={String(periodActivities.length)}/>
       <Stat icon={<UserPlus size={18}/>} label="Cadastros pendentes" value={String(pendingRegistrations)}/>
       <Stat icon={<CalendarDays size={18}/>} label="Agendas pendentes" value={String(pendingAppointments)}/>
       <Stat icon={<WalletCards size={18}/>} label="Receita registrada" value={formatMoney(periodRevenue)}/>
-    </section>
+    </div>
 
     <div className="hpsr-page-scroll min-h-0 flex-1 overscroll-contain pr-1" style={{ overflowY: "auto", overflowX: "hidden" }}>
       <div className="min-h-full pb-3">
@@ -360,9 +358,11 @@ function formatMoney(value: number) {
 }
 
 function Stat({icon,label,value}:{icon:React.ReactNode;label:string;value:string}) {
-  return <div className="rounded-[17px] border border-white/80 bg-white px-3.5 py-3 shadow-[0_8px_22px_rgba(79,42,21,0.05)]">
-    <div className="flex items-center justify-between gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-[11px] bg-[#fff1e5] text-hpsr-wine">{icon}</span><span className="truncate text-xl font-black text-hpsr-text">{value}</span></div>
-    <p className="mt-2 truncate text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{label}</p>
+  return <div className="min-h-[74px] self-start rounded-[17px] border border-white/80 bg-white px-3.5 py-3 shadow-[0_8px_22px_rgba(79,42,21,0.05)]">
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2.5"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] bg-[#fff1e5] text-hpsr-wine">{icon}</span><p className="truncate text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{label}</p></div>
+      <span className="shrink-0 truncate text-lg font-black text-hpsr-text xl:text-xl">{value}</span>
+    </div>
   </div>;
 }
 

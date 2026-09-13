@@ -392,51 +392,16 @@ export default function TeamPage() {
         return;
       }
 
-      const [membersResult, profilesResult, applicationsResult] = await Promise.all([
-        client.from("team_members").select("id, passport, name, hospital_role, status, payload, created_at").order("created_at", { ascending: false }),
-        client.from("profiles").select("id,name,email,passport,crm,role,specialty,city_phone,discord,service_status,access_status,created_at").eq("access_status", "Aprovado").order("name"),
+      const [profilesResult, applicationsResult] = await Promise.all([
+        client.from("profiles").select("id,name,email,passport,crm,role,specialty,city_phone,discord,service_status,access_status,staff_metadata,created_at").eq("access_status", "Aprovado").order("name"),
         client.from("staff_applications").select("id, passport, token, name, desired_role, status, payload, created_at").order("created_at", { ascending: false }),
       ]);
 
       if (!profilesResult.error) {
-        const supplementalRows = new Map<string, Partial<TeamMember>>();
-        for (const row of membersResult.data || []) {
-          const payload = (row.payload || {}) as Partial<TeamMember>;
-          const normalized = { ...payload, id: String(row.id), passport: String(row.passport || payload.passport || "") };
-          supplementalRows.set(String(row.id), normalized);
-          if (normalized.passport) supplementalRows.set(`passport:${normalized.passport}`, normalized);
-        }
-        const remoteMembers = (profilesResult.data || []).map((row: any) => {
-          const supplemental = supplementalRows.get(String(row.id)) || supplementalRows.get(`passport:${String(row.passport || "")}`);
-          return memberFromProfile(row, supplemental);
-        });
+        const remoteMembers = (profilesResult.data || []).map((row: any) =>
+          memberFromProfile(row, (row.staff_metadata || {}) as Partial<TeamMember>)
+        );
         setMembers(remoteMembers);
-      } else if (!membersResult.error) {
-        const fallbackMembers = (membersResult.data || []).map((row) => {
-          const payload = (row.payload || {}) as Partial<TeamMember>;
-          return {
-            ...payload,
-            id: String(row.id),
-            passport: String(row.passport || payload.passport || ""),
-            name: String(row.name || payload.name || "Não informado"),
-            hospitalRole: String(row.hospital_role || payload.hospitalRole || "Estagiário de Enfermagem"),
-            crm: String(payload.crm || ""),
-            accessLevel: payload.accessLevel || "Clínico",
-            category: payload.category || "Formação",
-            department: String(payload.department || "Hospital São Rafael"),
-            specialty: String(payload.specialty || "Não informado"),
-            cityPhone: formatPhoneDisplay(String(payload.cityPhone || ""), ""),
-            email: String(payload.email || ""),
-            radio: String(payload.radio || ""),
-            joinedAt: String(payload.joinedAt || String(row.created_at || "").slice(0, 10)),
-            serviceStatus: payload.serviceStatus || "Fora de serviço",
-            permissions: Array.isArray(payload.permissions) ? payload.permissions : [],
-            warnings: Number(payload.warnings || 0),
-            suspensions: Number(payload.suspensions || 0),
-            history: Array.isArray(payload.history) ? payload.history : [],
-          } as TeamMember;
-        });
-        setMembers(fallbackMembers);
       }
 
       if (!applicationsResult.error) {
@@ -479,7 +444,6 @@ export default function TeamPage() {
     const channel = client
       .channel("hpsr-team-live-sync")
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, scheduleSilentSync)
-      .on("postgres_changes", { event: "*", schema: "public", table: "team_members" }, scheduleSilentSync)
       .on("postgres_changes", { event: "*", schema: "public", table: "staff_applications" }, scheduleSilentSync)
       .on("postgres_changes", { event: "*", schema: "public", table: "staff_registration_requests" }, scheduleSilentSync)
       .subscribe();
