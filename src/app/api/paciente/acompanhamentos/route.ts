@@ -1,7 +1,7 @@
 import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession, resolvePortalPatientPassport } from "@/lib/patient-portal/server";
-import { normalizeClinicalSpecialty } from "@/lib/clinical-scheduling";
+import { nextClinicalDayStartIso, normalizeClinicalSpecialty } from "@/lib/clinical-scheduling";
 
 export const runtime = "nodejs";
 export const revalidate = 0;
@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
     const links = [...linksByKey.values()];
     const doctorIds = [...new Set(links.map((link) => link.doctorId).filter(Boolean))];
     const linkedSlotIds = [...new Set(occurrences.map((item) => String(item.slot_id || "")).filter(Boolean))];
-    const cutoffAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const cutoffAt = nextClinicalDayStartIso();
 
     const slotQueries: Array<PromiseLike<any>> = [];
     if (doctorIds.length) {
@@ -146,7 +146,7 @@ export async function GET(request: NextRequest) {
         .select("id,doctor_id,doctor_name,specialty,starts_at,ends_at,status,appointment_id")
         .in("doctor_id", doctorIds)
         .eq("status", "Disponível")
-        .gt("starts_at", cutoffAt)
+        .gte("starts_at", cutoffAt)
         .order("starts_at", { ascending: true })
         .limit(MAX_AVAILABLE_SLOTS));
     }

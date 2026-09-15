@@ -1,4 +1,3 @@
-export const CLINICAL_BOOKING_CUTOFF_MS = 24 * 60 * 60 * 1000;
 export const CLINICAL_TIMEZONE = "America/Sao_Paulo";
 
 export function normalizeClinicalPassport(value: unknown) {
@@ -77,6 +76,17 @@ export function clinicalDateKey(date: Date) {
     month: "2-digit",
     day: "2-digit",
   }).format(date);
+}
+
+/**
+ * Início do próximo dia civil do HPSR.
+ * O Portal aceita reservas enquanto o atendimento estiver em uma data posterior
+ * à data atual em America/Sao_Paulo; ao virar 00:00 do próprio dia, fecha.
+ */
+export function nextClinicalDayStartIso(date: Date = new Date()) {
+  const parts = clinicalDateKey(date).split("-").map(Number);
+  const base = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + 1, 3, 0, 0, 0));
+  return base.toISOString();
 }
 
 export function sameClinicalSpecialty(left: unknown, right: unknown) {

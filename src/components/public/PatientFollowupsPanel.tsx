@@ -225,7 +225,7 @@ export function PatientFollowupsPanel({
               {state === "available" && (
                 <div className="mt-3 rounded-[14px] border border-blue-200 bg-blue-50 p-3">
                   <p className="text-xs font-black text-blue-950">Escolha um horário</p>
-                  <p className="mt-1 text-[11px] font-semibold leading-relaxed text-blue-900">Só aparecem horários com mais de 24 horas de antecedência. Depois desse limite, a vaga deixa de aceitar novas confirmações.</p>
+                  <p className="mt-1 text-[11px] font-semibold leading-relaxed text-blue-900">Você pode confirmar até 23:59 do dia anterior ao atendimento. Quando virar o próprio dia da consulta, a vaga deixa de aceitar novas confirmações.</p>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {availableSlots.map((slot) => {
                       const active = selectedSlotId === slot.id;
