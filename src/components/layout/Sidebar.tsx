@@ -12,7 +12,7 @@ export function Sidebar({ collapsed, onToggle, onOpenSystemInfo, hasPendingAppoi
   const pathname = usePathname();
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const canSeeTeamAdmin =
-    currentUserProfile.systemRole === "Diretor Técnico / Dev" ||
+    currentUserProfile.systemRole === "Administrador do Sistema" ||
     ["Diretora", "Vice Diretor"].includes(currentUserProfile.role);
   const visibleAdminNavigation = canSeeTeamAdmin ? adminNavigation : [];
   const visibleToolsNavigation = toolsNavigation.filter((item) => canSeeNavigationItem(item, currentUserProfile.role));

@@ -83,7 +83,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       if (!active || error) return;
 
       const isManager =
-        ["Total", "Diretor Técnico / Dev"].includes(currentUserProfile.accessLevel) ||
+        currentUserProfile.accessLevel === "Total" ||
         ["Diretora", "Vice Diretor", "Vice-Diretor"].includes(currentUserProfile.role);
       const normalize = (value: unknown) => String(value || "").trim().toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       const capacityEntries = isManager ? [] : await Promise.all((currentUserProfile.specialties || []).map(async (specialty) => {

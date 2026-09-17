@@ -383,7 +383,7 @@ export default function AppointmentsPage() {
 
       const declinedBy = Array.isArray((item as any).declinedBy) ? (item as any).declinedBy.map(String) : [];
       if (declinedBy.includes(String(currentUserProfile.id))) return false;
-      const isManager = ["Total", "Diretor Técnico / Dev"].includes(currentUserProfile.accessLevel) || ["Diretora", "Vice Diretor", "Vice-Diretor"].includes(currentUserProfile.role);
+      const isManager = currentUserProfile.accessLevel === "Total" || ["Diretora", "Vice Diretor", "Vice-Diretor"].includes(currentUserProfile.role);
       const requestedDoctorId = String(item.requestedDoctorId || "");
       const specialtyMatch = (currentUserProfile.specialties || []).some((specialty) => normalizeSpecialty(String(specialty)) === normalizeSpecialty(item.specialty));
       const isExam = item.flowType === "Exames";
@@ -515,7 +515,7 @@ export default function AppointmentsPage() {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     return publicRequests.filter((item) => {
       if (item.flowType !== "Exames") return false;
-      const isManager = ["Total", "Diretor Técnico / Dev"].includes(currentUserProfile.accessLevel) || ["Diretora", "Vice Diretor", "Vice-Diretor"].includes(currentUserProfile.role);
+      const isManager = currentUserProfile.accessLevel === "Total" || ["Diretora", "Vice Diretor", "Vice-Diretor"].includes(currentUserProfile.role);
       const pending = ["Solicitação enviada", "Aguardando análise"].includes(item.status);
       const acceptedBySelf = item.acceptedById === currentUserProfile.id || (item as any).doctorId === currentUserProfile.id;
       const specialtyMatch = (currentUserProfile.specialties || []).some((specialty) => normalizeSpecialty(String(specialty)) === normalizeSpecialty(item.specialty));

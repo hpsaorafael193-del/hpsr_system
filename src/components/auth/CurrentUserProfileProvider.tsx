@@ -23,10 +23,12 @@ type CurrentUserProfileContextValue = {
 
 const CurrentUserProfileContext = createContext<CurrentUserProfileContextValue | null>(null);
 
-function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage: string | null, resolvedSystemRole?: string): CurrentUserProfile {
+function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage: string | null): CurrentUserProfile {
   const name = String(row.name || "Médico");
   const role = String(row.role || "Médico Clínico");
-  const systemRole = resolvedSystemRole || (role === "Diretor Técnico / Dev" ? role : "");
+  const staffMetadata = row.staff_metadata && typeof row.staff_metadata === "object" ? row.staff_metadata as Record<string, unknown> : {};
+  const systemRole = String(staffMetadata.systemRole || "").trim();
+  const accessLevel = String(staffMetadata.accessLevel || "").trim();
   const specialty = specialtyForStaffRole(role, String(row.specialty || ""));
   const specialties = specialtiesForStaffRole(role, specialty);
   const passport = String(row.passport || "—");
@@ -43,7 +45,7 @@ function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage
     passport,
     role,
     systemRole: systemRole || role,
-    accessLevel: systemRole === "Diretor Técnico / Dev" || role === "Diretor Técnico / Dev" ? "Total" : "Padrão",
+    accessLevel: systemRole === "Administrador do Sistema" || accessLevel === "Total" || role === "Vice Diretor / Dev" ? "Total" : "Padrão",
     department: "Hospital São Rafael",
     specialty,
     specialties,
@@ -88,7 +90,7 @@ export function CurrentUserProfileProvider({ children }: { children: React.React
 
     const { data, error } = await client
       .from("profiles")
-      .select("id, name, email, passport, crm, role, specialty, city_phone, discord, service_status, signature_path, specialty_capacity, created_at")
+      .select("id, name, email, passport, crm, role, specialty, city_phone, discord, service_status, signature_path, specialty_capacity, staff_metadata, created_at")
       .eq("id", user.id)
       .maybeSingle();
 

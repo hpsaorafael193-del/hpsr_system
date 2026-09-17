@@ -109,7 +109,7 @@ function normalizeSpecialty(value: unknown) {
   return aliases[key] || key;
 }
 
-const UNRESTRICTED_SPECIALTY_ROLES = new Set(["Diretor Técnico / Dev", "Diretora", "Vice Diretor"]);
+const UNRESTRICTED_SPECIALTY_ROLES = new Set(["Vice Diretor / Dev", "Diretora", "Vice Diretor"]);
 
 function doctorSpecialties(doctor?: Doctor | null) {
   if (doctor && UNRESTRICTED_SPECIALTY_ROLES.has(doctor.role)) {

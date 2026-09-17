@@ -170,7 +170,7 @@ export default function PartnershipsPage() {
   const [memberName, setMemberName] = useState("");
   const [memberPassport, setMemberPassport] = useState("");
 
-  const canManage = currentUserProfile.systemRole === "Diretor Técnico / Dev" || directorRoles.includes(currentUserProfile.role);
+  const canManage = currentUserProfile.systemRole === "Administrador do Sistema" || directorRoles.includes(currentUserProfile.role);
 
   const load = async () => {
     setLoading(true);
@@ -421,7 +421,7 @@ export default function PartnershipsPage() {
 
       {!canManage && (
         <div className="rounded-[18px] border border-[#e8d7c7] bg-[#fbf6f1] px-4 py-3 text-xs font-semibold text-hpsr-muted">
-          <ShieldCheck size={15} className="mr-2 inline text-hpsr-wine" /> O cadastro e a edição de parcerias são restritos à Diretora, Vice Diretor e Diretor Técnico / Dev.
+          <ShieldCheck size={15} className="mr-2 inline text-hpsr-wine" /> O cadastro e a edição de parcerias são restritos à Diretora, Vice Diretor e Vice Diretor / Dev.
         </div>
       )}
 

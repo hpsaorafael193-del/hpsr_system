@@ -166,7 +166,7 @@ function eventIcon(type: TimelineEvent["type"]) {
 
 export default function RecordsPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
-  const isInternalLinkManager = currentUserProfile.systemRole === "Diretor Técnico / Dev";
+  const isInternalLinkManager = currentUserProfile.systemRole === "Administrador do Sistema";
   const { patients: sharedPatients, loading: sharedPatientsLoading, selectedPassport: sharedSelectedPassport, selectPatient: selectSharedPatient } = usePatientSelection();
   const [patients, setPatients] = useState<PatientRecord[]>(initialPatients);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>(initialTimelineEvents);

@@ -134,14 +134,22 @@ async function renderVaccinationCard({
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
   if (group === "crianca") {
-    // Reforço visual discreto sem redesenhar o template: duas faixas translúcidas
-    // nas bordas externas preservam todos os campos e a aparência documental.
+    // A caderneta infantil usa uma identidade mais viva e amigável.
+    // O template mantém toda a informação documental, enquanto o canvas acrescenta
+    // pequenos acentos de cor para reforçar a leitura sem poluir o cartão.
     ctx.save();
-    ctx.globalAlpha = 0.055;
-    ctx.fillStyle = "#2563eb";
-    ctx.fillRect(0, 0, canvas.width, Math.max(4, canvas.height * 0.018));
-    ctx.fillStyle = "#f59e0b";
-    ctx.fillRect(0, canvas.height - Math.max(4, canvas.height * 0.014), canvas.width, Math.max(4, canvas.height * 0.014));
+    const topGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+    topGradient.addColorStop(0, "rgba(34,211,238,.12)");
+    topGradient.addColorStop(.5, "rgba(168,85,247,.10)");
+    topGradient.addColorStop(1, "rgba(244,114,182,.11)");
+    ctx.fillStyle = topGradient;
+    ctx.fillRect(0, 0, canvas.width, Math.max(8, canvas.height * 0.024));
+    const bottomGradient = ctx.createLinearGradient(0, canvas.height, canvas.width, canvas.height);
+    bottomGradient.addColorStop(0, "rgba(34,197,94,.12)");
+    bottomGradient.addColorStop(.5, "rgba(250,204,21,.10)");
+    bottomGradient.addColorStop(1, "rgba(59,130,246,.12)");
+    ctx.fillStyle = bottomGradient;
+    ctx.fillRect(0, canvas.height - Math.max(8, canvas.height * 0.018), canvas.width, Math.max(8, canvas.height * 0.018));
     ctx.restore();
   }
 
@@ -284,9 +292,19 @@ async function renderVaccinationCard({
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(-3 * Math.PI / 180);
-    ctx.strokeStyle = blue;
-    ctx.fillStyle = blue;
-    ctx.globalAlpha = .86;
+    const childStampPalette = ["#0ea5e9", "#8b5cf6", "#14b8a6", "#f97316", "#ec4899", "#22c55e", "#6366f1", "#eab308"];
+    const childStampIndex = group === "crianca" ? Math.max(0, Number(slot.id.replace(/\D/g, "")) - 1) : 0;
+    const stampColor = group === "crianca" ? childStampPalette[childStampIndex % childStampPalette.length] : blue;
+    if (group === "crianca") {
+      ctx.globalAlpha = .82;
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 1.03, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.strokeStyle = stampColor;
+    ctx.fillStyle = stampColor;
+    ctx.globalAlpha = .9;
     ctx.lineWidth = Math.max(3, radius * .075);
     ctx.setLineDash([radius * .18, radius * .055]);
     ctx.beginPath();
@@ -300,8 +318,8 @@ async function renderVaccinationCard({
     ctx.globalAlpha = .88;
     const doctorPreferred = Math.max(group === "crianca" ? 7 : 8, radius * (group === "crianca" ? .22 : .20));
     const crmPreferred = Math.max(group === "crianca" ? 7 : 8, radius * (group === "crianca" ? .20 : .18));
-    writeCenteredFitted(app.doctorName, 0, radius * .10, radius * 1.72, doctorPreferred, group === "crianca" ? 6 : 7, blue, "900");
-    writeCenteredFitted(`CRM ${app.doctorCrm}`, 0, radius * .70, radius * 1.68, crmPreferred, group === "crianca" ? 6 : 7, blue, "900");
+    writeCenteredFitted(app.doctorName, 0, radius * .10, radius * 1.72, doctorPreferred, group === "crianca" ? 6 : 7, stampColor, "900");
+    writeCenteredFitted(`CRM ${app.doctorCrm}`, 0, radius * .70, radius * 1.68, crmPreferred, group === "crianca" ? 6 : 7, stampColor, "900");
     if (app.signatureImage) {
       const signature = await loadCanvasImage(app.signatureImage).catch(() => null);
       if (signature) {

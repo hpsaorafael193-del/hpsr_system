@@ -167,7 +167,7 @@ export default function ClinicalSchedulePage() {
   const searchParams = useSearchParams();
   const requestedAppointmentId = searchParams.get("appointment") || "";
   const { profile: currentUserProfile } = useCurrentUserProfile();
-  const isDeveloper = currentUserProfile.systemRole === "Diretor Técnico / Dev" || currentUserProfile.accessLevel === "Total";
+  const isDeveloper = currentUserProfile.systemRole === "Administrador do Sistema" || currentUserProfile.accessLevel === "Total";
   const isDirector = ["Diretora", "Vice Diretor", "Vice-Diretor"].some((role) => role === currentUserProfile.role || role === currentUserProfile.systemRole);
   const canViewAllMedicalSchedules = isDeveloper || isDirector;
   const [scheduledAppointments, setScheduledAppointments] = useState<Appointment[]>([]);
@@ -856,7 +856,7 @@ function NewAppointmentForm({
         setMessage({ type: "error", text: `Não foi possível carregar os médicos: ${error.message}` });
         return;
       }
-      const canManageAllDoctors = currentUserProfile.systemRole === "Diretor Técnico / Dev" || currentUserProfile.accessLevel === "Total" || ["Diretora", "Vice Diretor", "Vice-Diretor"].some((role) => role === currentUserProfile.role || role === currentUserProfile.systemRole);
+      const canManageAllDoctors = currentUserProfile.systemRole === "Administrador do Sistema" || currentUserProfile.accessLevel === "Total" || ["Diretora", "Vice Diretor", "Vice-Diretor"].some((role) => role === currentUserProfile.role || role === currentUserProfile.systemRole);
       const available = (data || [])
         .filter((row) => isClinicalProfessional(row))
         .map((row) => ({ id: String(row.id), name: String(row.name || "Médico"), role: String(row.role || ""), specialty: String(row.specialty || "") }))

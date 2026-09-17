@@ -12,13 +12,13 @@ export const GENERAL_BASE_SPECIALTY_ROLES = new Set([
   "Diretor Clínico",
   "Diretora",
   "Vice Diretor",
-  "Diretor Técnico / Dev",
+  "Vice Diretor / Dev",
 ]);
 
 export const UNRESTRICTED_SPECIALTY_ROLES = new Set([
   "Diretora",
   "Vice Diretor",
-  "Diretor Técnico / Dev",
+  "Vice Diretor / Dev",
 ]);
 
 export function normalizeStaffSpecialtyName(value: string) {

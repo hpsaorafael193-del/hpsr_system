@@ -75,7 +75,7 @@ export function PatientEmailRecoveryModal({ onClose, onRecovered }: PatientEmail
               <RecoveryField label="Nova senha"><input className="portal-input" type="password" minLength={6} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></RecoveryField>
               <RecoveryField label="Repetir nova senha"><input className="portal-input" type="password" minLength={6} autoComplete="new-password" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} required /></RecoveryField>
             </div>
-            <div className="rounded-[14px] border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs font-semibold leading-relaxed text-amber-950"><strong>Sem código?</strong> Procure a equipe do HPSR. Após confirmar sua identidade, um Diretor Técnico / Dev pode emitir um código temporário de uso único.</div>
+            <div className="rounded-[14px] border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs font-semibold leading-relaxed text-amber-950"><strong>Sem código?</strong> Procure a equipe do HPSR. Após confirmar sua identidade, um Vice Diretor / Dev pode emitir um código temporário de uso único.</div>
             {error && <p className="rounded-[13px] border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm font-bold text-rose-800">{error}</p>}
           </div>
         </div>

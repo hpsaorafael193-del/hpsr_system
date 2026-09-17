@@ -150,7 +150,7 @@ type PublicStaffApplication = {
 const initialTeamMembers: TeamMember[] = [];
 
 const roleDescriptions = [
-  { title: "Diretor Técnico / Dev", description: "Acesso técnico total ao sistema e identificação clínica da direção técnica.", group: "Sistema" },
+  { title: "Vice Diretor / Dev", description: "Vice-direção hospitalar com atribuição técnica de desenvolvimento. A administração do sistema permanece vinculada separadamente à identidade autorizada.", group: "Direção" },
   { title: "Diretora", description: "Acesso administrativo hospitalar total. Promoções são decisão exclusiva da Diretora.", group: "Direção" },
   { title: "Vice Diretor", description: "Gestão operacional ampla, procedimentos, convênios, equipe e prontuários. Pode remover membros, mas não promover nem ajustar permissões.", group: "Direção" },
   { title: "Diretor Clínico", description: "Monitoramento do histórico assistencial da equipe para revisão de exames, documentos, convênios, consultas e procedimentos, com finalidade de orientação clínica.", group: "Direção" },
@@ -166,7 +166,7 @@ const serviceStatuses: ServiceStatus[] = ["Em serviço", "Fora de serviço", "Em
 
 const administrativeRoles = ["Diretora", "Vice Diretor"];
 const roleHierarchy: Record<string, number> = {
-  "Diretor Técnico / Dev": 0,
+  "Vice Diretor / Dev": 0,
   "Diretora": 1,
   "Vice Diretor": 2,
   "Diretor Clínico": 3,
@@ -362,7 +362,7 @@ function memberFromProfile(row: any, supplemental?: Partial<TeamMember>): TeamMe
 
 export default function TeamPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
-  const isDevUser = currentUserProfile.systemRole === "Diretor Técnico / Dev";
+  const isDevUser = currentUserProfile.systemRole === "Administrador do Sistema";
   const isDirectorUser = isDevUser || currentUserProfile.role === "Diretora";
   const isViceDirectorOrAboveUser = isDevUser || administrativeRoles.includes(currentUserProfile.role);
   const isClinicalDirectorUser = currentUserProfile.role === "Diretor Clínico";
@@ -1409,7 +1409,7 @@ function AdministrativeActionModal({
               />
             ) : action === "Editar cargo" || action === "Promover" ? (
               <StyledSelect value={value} onChange={(event) => onChange(event.target.value)} className="h-12 w-full rounded-[18px] border border-hpsr-border bg-white px-4 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20">
-                {(member.hospitalRole === "Diretor Técnico / Dev" || value === "Diretor Técnico / Dev") && <option value="Diretor Técnico / Dev">Diretor Técnico / Dev</option>}
+                {(member.hospitalRole === "Vice Diretor / Dev" || value === "Vice Diretor / Dev") && <option value="Vice Diretor / Dev">Vice Diretor / Dev</option>}
                 {roles.map((role) => <option key={role} value={role}>{role}</option>)}
               </StyledSelect>
             ) : (
@@ -1887,7 +1887,7 @@ function ContractStatusPanel({
   onAction: (member: TeamMember, action: string) => void;
 }) {
   const { profile: currentUserProfile } = useCurrentUserProfile();
-  const isDevUser = currentUserProfile.systemRole === "Diretor Técnico / Dev";
+  const isDevUser = currentUserProfile.systemRole === "Administrador do Sistema";
   const isDirectorUser = isDevUser || currentUserProfile.role === "Diretora";
   const isViceDirectorOrAboveUser = isDevUser || administrativeRoles.includes(currentUserProfile.role);
   const hasTeamAdminAccess = isDevUser || administrativeRoles.includes(currentUserProfile.role);
@@ -1948,7 +1948,7 @@ function ContractAlertCard({
   contract: NonNullable<ReturnType<typeof getContractInfo>>;
 }) {
   const { profile: currentUserProfile } = useCurrentUserProfile();
-  const isDevUser = currentUserProfile.systemRole === "Diretor Técnico / Dev";
+  const isDevUser = currentUserProfile.systemRole === "Administrador do Sistema";
   const isDirectorUser = isDevUser || currentUserProfile.role === "Diretora";
   const isViceDirectorOrAboveUser = isDevUser || administrativeRoles.includes(currentUserProfile.role);
   const hasTeamAdminAccess = isDevUser || administrativeRoles.includes(currentUserProfile.role);
@@ -2057,7 +2057,7 @@ function PracticalMetric({ label, value }: { label: string; value: string }) {
 
 function TeamMemberExpandedContent({ member, onContractAction, onAdministrativeAction }: { member: TeamMember; onContractAction: (member: TeamMember, action: string) => void; onAdministrativeAction: (member: TeamMember, action: string) => void }) {
   const { profile: currentUserProfile } = useCurrentUserProfile();
-  const isDevUser = currentUserProfile.systemRole === "Diretor Técnico / Dev";
+  const isDevUser = currentUserProfile.systemRole === "Administrador do Sistema";
   const isDirectorUser = isDevUser || currentUserProfile.role === "Diretora";
   const isViceDirectorOrAboveUser = isDevUser || administrativeRoles.includes(currentUserProfile.role);
   const hasTeamAdminAccess = isDevUser || administrativeRoles.includes(currentUserProfile.role);
@@ -2159,7 +2159,7 @@ function ClinicalActivityPanel({ member }: { member: TeamMember }) {
 
 function TeamMemberPanel({ member }: { member: TeamMember }) {
   const { profile: currentUserProfile } = useCurrentUserProfile();
-  const isDevUser = currentUserProfile.systemRole === "Diretor Técnico / Dev";
+  const isDevUser = currentUserProfile.systemRole === "Administrador do Sistema";
   const isDirectorUser = isDevUser || currentUserProfile.role === "Diretora";
   const isViceDirectorOrAboveUser = isDevUser || administrativeRoles.includes(currentUserProfile.role);
   const hasTeamAdminAccess = isDevUser || administrativeRoles.includes(currentUserProfile.role);
@@ -2268,7 +2268,7 @@ function ManageMemberModal({
       || ["residente", "diretor clínico", "diretora", "vice diretor"].includes(normalizedRole);
     const hasMedicalIdentity = Boolean(member.crm?.trim())
       || Boolean(member.specialty?.trim() && member.specialty !== "Não informado");
-    return hasMedicalRole || hasMedicalIdentity || member.systemRole === "Diretor Técnico / Dev";
+    return hasMedicalRole || hasMedicalIdentity || member.systemRole === "Administrador do Sistema";
   }), [members]);
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const emptyMember: TeamMember = { id: "", name: "", passport: "", crm: "", hospitalRole: "Médico Clínico", systemRole: "", accessLevel: "Clínico", category: "Corpo Médico", department: "Hospital São Rafael", specialty: "Clínico Geral", cityPhone: "", email: "", radio: "193", joinedAt: brazilDate(), serviceStatus: "Fora de serviço", permissions: [], warnings: 0, suspensions: 0, history: [], contractStatus: "Ativo", contractDurationDays: 15 };
@@ -2431,15 +2431,15 @@ function ManageMemberModal({
                     <input className={modalInputClass} value={form.crm} readOnly placeholder="Ex.: CRM-RP 193-001" />
                   </ModalField>
                   <ModalField label="Cargo hospitalar">
-                    <StyledSelect className={modalInputClass} value={form.hospitalRole} onChange={(event) => updateField("hospitalRole", event.target.value)} disabled={form.hospitalRole === "Diretor Técnico / Dev"}>
-                      {form.hospitalRole === "Diretor Técnico / Dev" && <option value="Diretor Técnico / Dev">Diretor Técnico / Dev</option>}
+                    <StyledSelect className={modalInputClass} value={form.hospitalRole} onChange={(event) => updateField("hospitalRole", event.target.value)} disabled={form.hospitalRole === "Vice Diretor / Dev"}>
+                      {form.hospitalRole === "Vice Diretor / Dev" && <option value="Vice Diretor / Dev">Vice Diretor / Dev</option>}
                       {roles.map((role) => <option key={role} value={role}>{role}</option>)}
                     </StyledSelect>
                   </ModalField>
                   <ModalField label="Cargo do sistema">
                     <StyledSelect className={modalInputClass} value={form.systemRole} disabled>
                       <option value="">Sem cargo técnico</option>
-                      {form.systemRole === "Diretor Técnico / Dev" && <option value="Diretor Técnico / Dev">Diretor Técnico / Dev</option>}
+                      {form.systemRole === "Administrador do Sistema" && <option value="Administrador do Sistema">Administrador do Sistema</option>}
                     </StyledSelect>
                     <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Cargo exclusivo protegido por identidade no banco de dados.</p>
                   </ModalField>

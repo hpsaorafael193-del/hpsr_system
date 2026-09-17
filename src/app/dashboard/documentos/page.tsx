@@ -181,25 +181,16 @@ const documentModels: DocumentModel[] = [
     subtitle: "Afastamento médico com período e observações.",
     icon: FileSignature,
     guidedFields: [
-      {
-        key: "dias",
-        label: "Dias de afastamento",
-        placeholder: "Ex.: 3",
-        type: "number",
-      },
+      { key: "dias", label: "Dias de afastamento", placeholder: "Ex.: 3", type: "number" },
       { key: "inicio", label: "Início do afastamento", type: "date" },
-      {
-        key: "motivo",
-        label: "Motivo / observação",
-        placeholder: "Ex.: quadro clínico avaliado em consulta",
-        type: "textarea",
-      },
+      { key: "motivo", label: "Motivo / observação", placeholder: "Ex.: quadro clínico avaliado em consulta", type: "textarea" },
     ],
     render: ({ patient, values, today }) => `
       <h1>ATESTADO MÉDICO</h1>
-      <p>Atesto, para os devidos fins, que <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, foi avaliado(a) nesta unidade em ${today}.</p>
-      <p>Recomenda-se afastamento de suas atividades por <strong>${escapeHtml(field(values, "dias", "___"))} dia(s)</strong>, a partir de <strong>${brDate(field(values, "inicio"))}</strong>, conforme avaliação médica.</p>
-      ${field(values, "motivo") ? `<p><strong>Observações:</strong><br />${paragraph(field(values, "motivo"))}</p>` : ""}
+      <p>Atesto, para os devidos fins, que <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, identificado(a) pelo documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, foi submetido(a) a avaliação médica nesta unidade na data de <strong>${today}</strong>.</p>
+      <p>Após avaliação do quadro apresentado e considerando a necessidade de recuperação clínica, recomenda-se o afastamento de suas atividades habituais pelo período de <strong>${escapeHtml(field(values, "dias", "___"))} dia(s)</strong>, com início em <strong>${brDate(field(values, "inicio"))}</strong>.</p>
+      ${field(values, "motivo") ? `<p><strong>Observações clínicas pertinentes:</strong><br />${paragraph(field(values, "motivo"))}</p>` : ""}
+      <p>O presente documento é emitido a pedido do(a) interessado(a), para fins de comprovação do atendimento e do período de afastamento recomendado, preservadas as informações clínicas sujeitas a sigilo profissional.</p>
     `,
   },
   {
@@ -210,19 +201,16 @@ const documentModels: DocumentModel[] = [
     icon: Check,
     guidedFields: [
       { key: "data", label: "Data do comparecimento", type: "date" },
-      {
-        key: "horario",
-        label: "Horário/período",
-        placeholder: "Ex.: 14h às 15h30",
-      },
+      { key: "horario", label: "Horário/período", placeholder: "Ex.: 14h às 15h30" },
       { key: "setor", label: "Setor", placeholder: "Ex.: Clínica médica" },
       { key: "observacoes", label: "Observações", type: "textarea" },
     ],
     render: ({ patient, values }) => `
       <h1>ATESTADO DE COMPARECIMENTO</h1>
-      <p>Declaramos que <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, compareceu ao Hospital São Rafael em <strong>${brDate(field(values, "data"))}</strong>, no período de <strong>${escapeHtml(field(values, "horario", "____"))}</strong>.</p>
-      <p><strong>Setor/atendimento:</strong> ${escapeHtml(field(values, "setor", "____"))}</p>
-      ${field(values, "observacoes") ? `<p><strong>Observações:</strong><br />${paragraph(field(values, "observacoes"))}</p>` : ""}
+      <p>Declaramos, para os devidos fins, que <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, esteve presente no Hospital São Rafael em <strong>${brDate(field(values, "data"))}</strong>, no período de <strong>${escapeHtml(field(values, "horario", "____"))}</strong>, para atendimento junto a esta instituição.</p>
+      <p><strong>Setor ou modalidade de atendimento:</strong> ${escapeHtml(field(values, "setor", "____"))}</p>
+      ${field(values, "observacoes") ? `<p><strong>Informações complementares:</strong><br />${paragraph(field(values, "observacoes"))}</p>` : ""}
+      <p>Este atestado limita-se à comprovação de comparecimento no período informado e é emitido a pedido do(a) paciente para apresentação onde se fizer necessário.</p>
     `,
   },
   {
@@ -232,28 +220,22 @@ const documentModels: DocumentModel[] = [
     subtitle: "Prescrição médica comum com orientações de uso.",
     icon: ClipboardList,
     guidedFields: [
-      {
-        key: "medicamento",
-        label: "Medicamento",
-        placeholder: "Nome, concentração e forma",
-      },
+      { key: "medicamento", label: "Medicamento", placeholder: "Nome, concentração e forma" },
       { key: "dose", label: "Dose", placeholder: "Ex.: 1 comprimido" },
-      {
-        key: "frequencia",
-        label: "Frequência",
-        placeholder: "Ex.: a cada 8 horas",
-      },
+      { key: "frequencia", label: "Frequência", placeholder: "Ex.: a cada 8 horas" },
       { key: "duracao", label: "Duração", placeholder: "Ex.: por 7 dias" },
       { key: "orientacoes", label: "Orientações adicionais", type: "textarea" },
     ],
-    render: ({ values }) => `
+    render: ({ patient, values, today }) => `
       <h1>RECEITA MÉDICA</h1>
+      <p>Prescrição emitida em <strong>${today}</strong> para <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, conforme avaliação realizada.</p>
       <h2>Prescrição</h2>
       <table><tbody>
         <tr><th>Medicamento</th><th>Dose</th><th>Frequência</th><th>Duração</th></tr>
         <tr><td>${escapeHtml(field(values, "medicamento", "____"))}</td><td>${escapeHtml(field(values, "dose", "____"))}</td><td>${escapeHtml(field(values, "frequencia", "____"))}</td><td>${escapeHtml(field(values, "duracao", "____"))}</td></tr>
       </tbody></table>
-      ${field(values, "orientacoes") ? `<p><strong>Orientações:</strong><br />${paragraph(field(values, "orientacoes"))}</p>` : "<p><strong>Orientações:</strong> seguir conforme prescrição médica.</p>"}
+      ${field(values, "orientacoes") ? `<h2>Orientações de uso</h2><p>${paragraph(field(values, "orientacoes"))}</p>` : "<p><strong>Orientações de uso:</strong> utilizar exclusivamente conforme a posologia descrita e as orientações fornecidas durante o atendimento.</p>"}
+      <p>Em caso de reação inesperada, intolerância ou dúvida quanto ao uso, recomenda-se nova orientação profissional antes de qualquer alteração da prescrição.</p>
     `,
   },
   {
@@ -263,22 +245,14 @@ const documentModels: DocumentModel[] = [
     subtitle: "Declaração livre em formato institucional.",
     icon: FileText,
     guidedFields: [
-      {
-        key: "finalidade",
-        label: "Finalidade",
-        placeholder: "Ex.: apresentação em instituição/empresa",
-      },
-      {
-        key: "conteudo",
-        label: "Texto da declaração",
-        type: "textarea",
-        placeholder: "Digite o conteúdo principal da declaração",
-      },
+      { key: "finalidade", label: "Finalidade", placeholder: "Ex.: apresentação em instituição/empresa" },
+      { key: "conteudo", label: "Texto da declaração", type: "textarea", placeholder: "Digite o conteúdo principal da declaração" },
     ],
     render: ({ patient, values, today }) => `
       <h1>DECLARAÇÃO MÉDICA</h1>
-      <p>Declaro, para fins de <strong>${escapeHtml(field(values, "finalidade", "comprovação"))}</strong>, que <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, encontra-se registrado(a) em atendimento nesta unidade.</p>
-      <p>${paragraph(field(values, "conteudo", `Documento emitido em ${today}, conforme solicitação do(a) paciente.`))}</p>
+      <p>Declaro, para os devidos fins e especialmente para <strong>${escapeHtml(field(values, "finalidade", "comprovação"))}</strong>, que <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, possui registro de atendimento nesta unidade hospitalar.</p>
+      <p>${paragraph(field(values, "conteudo", "A presente declaração é emitida de acordo com as informações registradas durante o atendimento e conforme solicitação do(a) interessado(a)."))}</p>
+      <p>Documento emitido em <strong>${today}</strong>, contendo apenas as informações necessárias à finalidade indicada e preservando-se o sigilo das demais informações clínicas.</p>
     `,
   },
   {
@@ -288,25 +262,17 @@ const documentModels: DocumentModel[] = [
     subtitle: "Recibo de atendimento ou serviço médico prestado.",
     icon: ReceiptText,
     guidedFields: [
-      {
-        key: "servico",
-        label: "Serviço prestado",
-        placeholder: "Ex.: consulta médica",
-      },
+      { key: "servico", label: "Serviço prestado", placeholder: "Ex.: consulta médica" },
       { key: "valor", label: "Valor", placeholder: "Ex.: R$ 250,00" },
-      {
-        key: "pagamento",
-        label: "Forma de pagamento",
-        placeholder: "Ex.: dinheiro, PIX, convênio",
-      },
+      { key: "pagamento", label: "Forma de pagamento", placeholder: "Ex.: dinheiro, PIX, convênio" },
       { key: "cpf", label: "CPF/CNPJ do responsável", placeholder: "Opcional" },
     ],
     render: ({ patient, values, today }) => `
       <h1>RECIBO MÉDICO</h1>
-      <p>Recebi de <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, o valor de <strong>${escapeHtml(field(values, "valor", "R$ ____"))}</strong>, referente a <strong>${escapeHtml(field(values, "servico", "serviço médico prestado"))}</strong>.</p>
-      <p><strong>Forma de pagamento:</strong> ${escapeHtml(field(values, "pagamento", "____"))}</p>
-      ${field(values, "cpf") ? `<p><strong>CPF/CNPJ do responsável:</strong> ${escapeHtml(field(values, "cpf"))}</p>` : ""}
-      <p>Documento emitido em ${today}.</p>
+      <p>Declaro ter recebido de <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, a importância de <strong>${escapeHtml(field(values, "valor", "R$ ____"))}</strong>, referente à prestação do serviço de <strong>${escapeHtml(field(values, "servico", "atendimento médico"))}</strong>.</p>
+      <p><strong>Forma de pagamento registrada:</strong> ${escapeHtml(field(values, "pagamento", "____"))}</p>
+      ${field(values, "cpf") ? `<p><strong>CPF/CNPJ do responsável pelo pagamento:</strong> ${escapeHtml(field(values, "cpf"))}</p>` : ""}
+      <p>Para maior clareza e comprovação do pagamento informado, firma-se o presente recibo em <strong>${today}</strong>, para os fins cabíveis.</p>
     `,
   },
   {
@@ -318,19 +284,17 @@ const documentModels: DocumentModel[] = [
     guidedFields: [
       { key: "cuidados", label: "Cuidados principais", type: "textarea" },
       { key: "sinais", label: "Sinais de alerta", type: "textarea" },
-      {
-        key: "retorno",
-        label: "Retorno recomendado",
-        placeholder: "Ex.: em 7 dias ou se piora",
-      },
+      { key: "retorno", label: "Retorno recomendado", placeholder: "Ex.: em 7 dias ou se piora" },
     ],
-    render: ({ values }) => `
+    render: ({ patient, values }) => `
       <h1>ORIENTAÇÕES AO PACIENTE</h1>
+      <p>As orientações abaixo destinam-se a <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong> e complementam as informações fornecidas durante o atendimento. Devem ser seguidas de acordo com a evolução clínica e com eventuais prescrições associadas.</p>
       <h2>Cuidados principais</h2>
-      <p>${paragraph(field(values, "cuidados", "Manter repouso relativo, hidratação adequada e seguir as orientações fornecidas durante o atendimento."))}</p>
+      <p>${paragraph(field(values, "cuidados", "Manter os cuidados gerais orientados durante a consulta, respeitar o período de repouso quando indicado, manter hidratação e alimentação adequadas e utilizar medicamentos somente conforme prescrição."))}</p>
       <h2>Sinais de alerta</h2>
-      <p>${paragraph(field(values, "sinais", "Retornar imediatamente em caso de piora clínica, dor intensa, febre persistente, falta de ar, sangramentos ou outros sintomas importantes."))}</p>
-      <p><strong>Retorno:</strong> ${escapeHtml(field(values, "retorno", "conforme orientação médica"))}</p>
+      <p>${paragraph(field(values, "sinais", "Procurar nova avaliação diante de piora importante dos sintomas, dor intensa ou progressiva, febre persistente, dificuldade respiratória, sangramento, alteração do nível de consciência ou qualquer manifestação considerada preocupante."))}</p>
+      <h2>Acompanhamento</h2>
+      <p>Recomenda-se retorno <strong>${escapeHtml(field(values, "retorno", "conforme orientação médica ou antes, caso haja piora clínica"))}</strong>. Em situações de urgência, procurar atendimento imediato.</p>
     `,
   },
   {
@@ -340,23 +304,17 @@ const documentModels: DocumentModel[] = [
     subtitle: "Encaminhamento para especialidade, serviço ou avaliação.",
     icon: Send,
     guidedFields: [
-      {
-        key: "destino",
-        label: "Destino/especialidade",
-        placeholder: "Ex.: Cardiologia",
-      },
+      { key: "destino", label: "Destino/especialidade", placeholder: "Ex.: Cardiologia" },
       { key: "motivo", label: "Motivo do encaminhamento", type: "textarea" },
-      {
-        key: "prioridade",
-        label: "Prioridade",
-        placeholder: "Rotina / Prioritário / Urgente",
-      },
+      { key: "prioridade", label: "Prioridade", placeholder: "Rotina / Prioritário / Urgente" },
     ],
-    render: ({ patient, values }) => `
+    render: ({ patient, values, today }) => `
       <h1>ENCAMINHAMENTO MÉDICO</h1>
-      <p>Encaminho <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, para avaliação em <strong>${escapeHtml(field(values, "destino", "____"))}</strong>.</p>
-      <p><strong>Motivo:</strong><br />${paragraph(field(values, "motivo", "Avaliação complementar conforme quadro clínico."))}</p>
-      <p><strong>Prioridade:</strong> ${escapeHtml(field(values, "prioridade", "Rotina"))}</p>
+      <p>Encaminho <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, para avaliação junto ao serviço/especialidade de <strong>${escapeHtml(field(values, "destino", "____"))}</strong>, a fim de dar continuidade à investigação, avaliação complementar ou condução especializada do caso.</p>
+      <h2>Justificativa do encaminhamento</h2>
+      <p>${paragraph(field(values, "motivo", "Solicita-se avaliação especializada para complementação da análise clínica e definição de conduta conforme os achados do atendimento atual."))}</p>
+      <p><strong>Prioridade sugerida:</strong> ${escapeHtml(field(values, "prioridade", "Rotina"))}</p>
+      <p>Encaminhamento emitido em <strong>${today}</strong>. Solicita-se que os achados e a conduta adotada sejam correlacionados ao quadro clínico apresentado.</p>
     `,
   },
   {
@@ -368,20 +326,17 @@ const documentModels: DocumentModel[] = [
     guidedFields: [
       { key: "exames", label: "Exames solicitados", type: "textarea" },
       { key: "hipotese", label: "Hipótese/justificativa", type: "textarea" },
-      {
-        key: "urgencia",
-        label: "Urgência",
-        placeholder: "Rotina / Prioritário / Urgente",
-      },
+      { key: "urgencia", label: "Urgência", placeholder: "Rotina / Prioritário / Urgente" },
     ],
-    render: ({ patient, values }) => `
+    render: ({ patient, values, today }) => `
       <h1>SOLICITAÇÃO DE EXAME</h1>
-      <p>Solicito os exames abaixo para <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>.</p>
+      <p>Solicito, para <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, a realização dos exames relacionados abaixo, com a finalidade de complementar a avaliação clínica e subsidiar a definição de conduta.</p>
       <h2>Exames solicitados</h2>
       <p>${paragraph(field(values, "exames", "____"))}</p>
       <h2>Justificativa clínica</h2>
-      <p>${paragraph(field(values, "hipotese", "Avaliação complementar."))}</p>
-      <p><strong>Urgência:</strong> ${escapeHtml(field(values, "urgencia", "Rotina"))}</p>
+      <p>${paragraph(field(values, "hipotese", "Exames solicitados para investigação complementar e correlação com o quadro apresentado durante o atendimento."))}</p>
+      <p><strong>Classificação de prioridade:</strong> ${escapeHtml(field(values, "urgencia", "Rotina"))}</p>
+      <p>Solicitação emitida em <strong>${today}</strong>. Os resultados deverão ser interpretados em conjunto com a avaliação clínica e o histórico do(a) paciente.</p>
     `,
   },
   {
@@ -397,13 +352,14 @@ const documentModels: DocumentModel[] = [
     ],
     render: ({ patient, values, today }) => `
       <h1>RELATÓRIO MÉDICO</h1>
-      <p>Relatório referente ao atendimento de <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, emitido em ${today}.</p>
-      <h2>Quadro clínico</h2>
-      <p>${paragraph(field(values, "quadro", "____"))}</p>
-      <h2>Conduta</h2>
-      <p>${paragraph(field(values, "conduta", "____"))}</p>
-      <h2>Plano</h2>
-      <p>${paragraph(field(values, "plano", "____"))}</p>
+      <p>Relatório referente ao acompanhamento de <strong>${escapeHtml(patient.name || "NOME DO PACIENTE")}</strong>, documento/passaporte <strong>${escapeHtml(patient.passport || "-")}</strong>, elaborado em <strong>${today}</strong> com base nas informações disponíveis no atendimento atual.</p>
+      <h2>Quadro clínico e evolução</h2>
+      <p>${paragraph(field(values, "quadro", "Descrever os principais achados clínicos, sintomas relevantes, evolução e informações pertinentes ao acompanhamento."))}</p>
+      <h2>Conduta adotada</h2>
+      <p>${paragraph(field(values, "conduta", "Descrever a conduta estabelecida, orientações fornecidas, medidas terapêuticas e demais providências adotadas."))}</p>
+      <h2>Plano e acompanhamento</h2>
+      <p>${paragraph(field(values, "plano", "Descrever o planejamento de seguimento, necessidade de retorno, reavaliação, exames ou encaminhamentos quando aplicáveis."))}</p>
+      <p>Este relatório tem caráter assistencial e deve ser interpretado em conjunto com o prontuário e demais registros clínicos pertinentes.</p>
     `,
   },
 ];
@@ -1969,7 +1925,6 @@ export default function DocumentsPage() {
                     handleRichEditorTableKeyDown(event, editorRef.current, syncEditor);
                   }}
                   className="hpsr-continuous-editor min-h-[740px] outline-none"
-                  dangerouslySetInnerHTML={{ __html: editorHtml || generatedHtml }}
                 />
                 </div>
               </div>

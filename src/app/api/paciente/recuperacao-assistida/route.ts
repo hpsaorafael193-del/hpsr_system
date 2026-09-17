@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     if (!accessToken) return NextResponse.json({ error: "Autenticação interna necessária." }, { status: 401 });
 
     const manager = await authorizeInternalManager(accessToken);
-    if (!manager) return NextResponse.json({ error: "Somente Diretor Técnico / Dev pode emitir recuperação assistida." }, { status: 403 });
+    if (!manager) return NextResponse.json({ error: "Somente Vice Diretor / Dev pode emitir recuperação assistida." }, { status: 403 });
 
     const body = await request.json().catch(() => ({}));
     const passport = normalizePassport(body.passport);

@@ -109,8 +109,8 @@ const adultSlots: CardSlot[] = [
 
 const childShortContent: VaccinationSlotContentLayout = { left: 4.5, top: 5, width: 59, lineGap: 21 };
 const childRegularContent: VaccinationSlotContentLayout = { left: 4.5, top: 6, width: 59, lineGap: 17 };
-const childShortStamp: VaccinationStampLayout = { centerX: 82, centerY: 58, radius: 22 };
-const childRegularStamp: VaccinationStampLayout = { centerX: 80, centerY: 69, radius: 18.5 };
+const childShortStamp: VaccinationStampLayout = { centerX: 80, centerY: 58, radius: 28 };
+const childRegularStamp: VaccinationStampLayout = { centerX: 79, centerY: 68, radius: 24 };
 
 const childSlots: CardSlot[] = [
   { id: "c1", left: 31.2, top: 35.8, width: 18.0, height: 10.0, contentLayout: childShortContent, stampLayout: childShortStamp },
@@ -140,7 +140,7 @@ const pregnantSlots: CardSlot[] = [
 ];
 
 export function getVaccinationCardDefinition(group: VaccinationGroup, adultVariant: AdultCardVariant = "masculino"): VaccinationCardDefinition {
-  if (group === "crianca") return { width: 1122, height: 1402, template: "/vacinacao/caderneta-crianca.png", slots: childSlots, identity: childIdentity };
+  if (group === "crianca") return { width: 1122, height: 1402, template: "/vacinacao/caderneta-crianca-moderna.png", slots: childSlots, identity: childIdentity };
   if (group === "gestante") return { width: 1448, height: 1086, template: "/vacinacao/caderneta-gestante.png", slots: pregnantSlots, identity: pregnantIdentity };
   if (group === "idoso") return { width: 1448, height: 1086, template: "/vacinacao/caderneta-idoso.png", slots: adultSlots, identity: elderlyIdentity };
   return {
