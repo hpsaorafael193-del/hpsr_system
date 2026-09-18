@@ -167,6 +167,7 @@ function eventIcon(type: TimelineEvent["type"]) {
 export default function RecordsPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const isInternalLinkManager = currentUserProfile.systemRole === "Administrador do Sistema";
+  const canDeleteClinicalData = isInternalLinkManager || ["Diretora", "Vice Diretor", "Vice Diretor / Dev"].includes(currentUserProfile.role);
   const { patients: sharedPatients, loading: sharedPatientsLoading, selectedPassport: sharedSelectedPassport, selectPatient: selectSharedPatient } = usePatientSelection();
   const [patients, setPatients] = useState<PatientRecord[]>(initialPatients);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>(initialTimelineEvents);
@@ -688,6 +689,11 @@ export default function RecordsPage() {
   }
 
   async function deletePatient(patient: PatientRecord) {
+    if (!canDeleteClinicalData) {
+      await hpsrAlert("Somente a administração pode excluir pacientes do prontuário.", "Acesso restrito");
+      return;
+    }
+
     const firstConfirmation = await hpsrConfirm(
       `Deseja excluir permanentemente ${patient.name} do Prontuário?\n\nEssa ação removerá o cadastro institucional, registros clínicos, consultas, vínculos médico-paciente, relações de responsável, conta e acesso ao Portal vinculados ao passaporte ${patient.passport}.`,
       "Excluir paciente"
@@ -819,6 +825,10 @@ export default function RecordsPage() {
 
   async function deleteClinicalRecord(event: TimelineEvent) {
     if (event.type !== "Exame" && event.type !== "Documento") return;
+    if (!canDeleteClinicalData) {
+      await hpsrAlert("Somente a administração pode excluir registros clínicos.", "Acesso restrito");
+      return;
+    }
     const confirmed = await hpsrConfirm(`Deseja excluir definitivamente “${event.title}”?`, "Excluir registro clínico");
     if (!confirmed) return;
     const client = createClient();
@@ -1221,16 +1231,18 @@ export default function RecordsPage() {
                         </p>
                       </button>
 
-                      <button
-                        type="button"
-                        aria-label={`Excluir ${patient.name}`}
-                        title="Excluir paciente"
-                        disabled={isDeletingPatient}
-                        onClick={() => void deletePatient(patient)}
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-transparent text-red-500 transition hover:border-red-100 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {canDeleteClinicalData && (
+                        <button
+                          type="button"
+                          aria-label={`Excluir ${patient.name}`}
+                          title="Excluir paciente"
+                          disabled={isDeletingPatient}
+                          onClick={() => void deletePatient(patient)}
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-transparent text-red-500 transition hover:border-red-100 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1290,16 +1302,18 @@ export default function RecordsPage() {
                         <ClipboardPlus size={16} />
                         Adicionar registro
                       </button>
-                      <button
-                        type="button"
-                        aria-label="Excluir paciente"
-                        title={isDeletingPatient ? "Excluindo paciente..." : "Excluir paciente"}
-                        disabled={isDeletingPatient}
-                        onClick={() => void deletePatient(selectedPatient)}
-                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      {canDeleteClinicalData && (
+                        <button
+                          type="button"
+                          aria-label="Excluir paciente"
+                          title={isDeletingPatient ? "Excluindo paciente..." : "Excluir paciente"}
+                          disabled={isDeletingPatient}
+                          onClick={() => void deletePatient(selectedPatient)}
+                          className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[13px] border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -1342,9 +1356,9 @@ export default function RecordsPage() {
                 )}
                 {activeTab === "timeline" && <TimelineTab events={patientEvents} />}
                 {activeTab === "consultas" && <FilteredEventsTab events={patientEvents} type="Consulta" empty="Nenhuma consulta registrada." />}
-                {activeTab === "exames" && <ExamsTab events={patientEvents} onDelete={deleteClinicalRecord} onOpen={openSavedExam} onTogglePortalVisibility={toggleRecordPortalVisibility} portalBusyId={portalVisibilityBusyId} />}
+                {activeTab === "exames" && <ExamsTab events={patientEvents} onDelete={canDeleteClinicalData ? deleteClinicalRecord : undefined} onOpen={openSavedExam} onTogglePortalVisibility={toggleRecordPortalVisibility} portalBusyId={portalVisibilityBusyId} />}
                 {activeTab === "vacinas" && <FilteredEventsTab events={patientEvents} type="Vacina" empty="Nenhuma vacina registrada." onTogglePortalVisibility={toggleRecordPortalVisibility} portalBusyId={portalVisibilityBusyId} />}
-                {activeTab === "documentos" && <FilteredEventsTab events={patientEvents} type="Documento" empty="Nenhum documento vinculado." onDelete={deleteClinicalRecord} onOpen={openSavedExam} onTogglePortalVisibility={toggleRecordPortalVisibility} portalBusyId={portalVisibilityBusyId} />}
+                {activeTab === "documentos" && <FilteredEventsTab events={patientEvents} type="Documento" empty="Nenhum documento vinculado." onDelete={canDeleteClinicalData ? deleteClinicalRecord : undefined} onOpen={openSavedExam} onTogglePortalVisibility={toggleRecordPortalVisibility} portalBusyId={portalVisibilityBusyId} />}
                 {activeTab === "prescricoes" && <FilteredEventsTab events={patientEvents} type="Prescrição" empty="Nenhuma prescrição registrada." />}
                 {activeTab === "procedimentos" && <FilteredEventsTab events={patientEvents} type="Procedimento" empty="Nenhum procedimento registrado." />}
               </div>
@@ -1802,7 +1816,7 @@ function ExamsTab({
   portalBusyId,
 }: {
   events: TimelineEvent[];
-  onDelete: (event: TimelineEvent) => void;
+  onDelete?: (event: TimelineEvent) => void | Promise<void>;
   onOpen: (event: TimelineEvent) => void;
   onTogglePortalVisibility: (event: TimelineEvent) => void | Promise<void>;
   portalBusyId: string;
@@ -1846,7 +1860,7 @@ function FilteredEventsTab({
   events: TimelineEvent[];
   type: TimelineEvent["type"];
   empty: string;
-  onDelete?: (event: TimelineEvent) => void;
+  onDelete?: (event: TimelineEvent) => void | Promise<void>;
   onOpen?: (event: TimelineEvent) => void;
   onTogglePortalVisibility?: (event: TimelineEvent) => void | Promise<void>;
   portalBusyId?: string;
@@ -1879,7 +1893,7 @@ function EventCard({
   portalBusy = false,
 }: {
   event: TimelineEvent;
-  onDelete?: (event: TimelineEvent) => void;
+  onDelete?: (event: TimelineEvent) => void | Promise<void>;
   onOpen?: (event: TimelineEvent) => void;
   onTogglePortalVisibility?: (event: TimelineEvent) => void | Promise<void>;
   portalBusy?: boolean;
@@ -1935,7 +1949,7 @@ function EventCard({
               </button>
             )}
             {onDelete && (event.type === "Exame" || event.type === "Documento") && (
-              <button type="button" onClick={() => onDelete(event)} className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-[10px] border border-rose-200 bg-rose-50 px-2.5 text-[10px] font-black text-rose-700 transition hover:bg-rose-100">
+              <button type="button" onClick={() => void onDelete(event)} className="inline-flex min-h-[34px] items-center justify-center gap-1.5 rounded-[10px] border border-rose-200 bg-rose-50 px-2.5 text-[10px] font-black text-rose-700 transition hover:bg-rose-100">
                 <Trash2 size={13} /> Excluir
               </button>
             )}
