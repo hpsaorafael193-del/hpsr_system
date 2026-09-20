@@ -99,7 +99,7 @@ const initialPatients: PatientRecord[] = [];
 
 const initialTimelineEvents: TimelineEvent[] = [];
 
-const PRONTUARIO_CACHE_KEY = "hpsr-prontuario-session-cache-v2";
+const PRONTUARIO_CACHE_KEY = "hpsr-prontuario-session-cache-v3";
 const PRONTUARIO_CACHE_TTL_MS = 5 * 60 * 1000;
 
 function readProntuarioCache(): { savedAt: number; patients: PatientRecord[]; timelineEvents: TimelineEvent[] } | null {
@@ -444,12 +444,15 @@ export default function RecordsPage() {
     const cached = refreshKey === 0 ? readProntuarioCache() : null;
     const cacheIsFresh = Boolean(cached && Date.now() - cached.savedAt < PRONTUARIO_CACHE_TTL_MS);
     if (cacheIsFresh && cached) {
+      // O cache serve apenas para renderização imediata. A fonte de verdade continua sendo o Supabase.
       setPatients(cached.patients);
       setTimelineEvents(cached.timelineEvents);
       setIsLoadingPatients(false);
-    } else {
-      void loadPatients();
     }
+
+    // Sempre sincroniza com o banco, mesmo quando existe cache recente.
+    // Isso evita que exames/documentos históricos fiquem invisíveis até o TTL expirar.
+    void loadPatients();
 
     const updateLastVisit = (passport: string, dateValue: unknown) => {
       const date = String(dateValue || "").slice(0, 10);

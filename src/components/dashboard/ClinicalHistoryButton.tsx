@@ -4,13 +4,18 @@ import { useEffect, useState } from "react";
 import { Clock3, FileText, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
+import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 
 type HistoryItem = { id: string; title: string; patient: string; doctor: string; createdAt: string };
 
 export function ClinicalHistoryButton({ recordType }: { recordType: "Exame" | "Documento" }) {
+  const { profile: currentUserProfile } = useCurrentUserProfile();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const canDelete = currentUserProfile.systemRole === "Administrador do Sistema"
+    || ["Diretora", "Vice Diretor", "Vice Diretor / Dev"].includes(currentUserProfile.role);
 
   useEffect(() => {
     if (!open) return;
@@ -18,19 +23,31 @@ export function ClinicalHistoryButton({ recordType }: { recordType: "Exame" | "D
     if (!client) return;
     let active = true;
     setLoading(true);
-    void client.from("clinical_records").select("id,record_type,created_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,patient_name:payload->patient->>name,patient_name_flat:payload->>patientName,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName").eq("record_type", recordType).order("created_at", { ascending: false }).limit(150).then(({ data }: { data: any[] | null }) => {
-      if (!active) return;
-      setItems((data || []).map((row: any) => {
-        return {
+    setLoadError("");
+    void client
+      .from("clinical_records")
+      .select("id,record_type,created_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,patient_name:payload->patient->>name,patient_name_flat:payload->>patientName,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName")
+      .ilike("record_type", recordType)
+      .order("created_at", { ascending: false })
+      .limit(150)
+      .then(({ data, error }: { data: any[] | null; error: { message?: string } | null }) => {
+        if (!active) return;
+        if (error) {
+          console.warn(`[HPSR][Histórico clínico] Falha ao carregar ${recordType.toLowerCase()}s:`, error.message);
+          setItems([]);
+          setLoadError(error.message || "Não foi possível carregar o histórico.");
+          setLoading(false);
+          return;
+        }
+        setItems((data || []).map((row: any) => ({
           id: String(row.id),
           title: String(row.exam_name || row.document_title || row.title || recordType),
           patient: String(row.patient_name || row.patient_name_flat || "Paciente não informado"),
           doctor: String(row.doctor_name || row.doctor_name_flat || "Médico não informado"),
           createdAt: String(row.created_at || ""),
-        };
-      }));
-      setLoading(false);
-    });
+        })));
+        setLoading(false);
+      });
     return () => { active = false; };
   }, [open, recordType]);
 
@@ -65,8 +82,8 @@ export function ClinicalHistoryButton({ recordType }: { recordType: "Exame" | "D
           <button type="button" onClick={() => setOpen(false)} className="rounded-full border border-hpsr-border bg-white p-2 text-hpsr-wine"><X size={18} /></button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          {loading ? <p className="py-8 text-center text-sm font-bold text-hpsr-muted">Carregando histórico...</p> : items.length ? <div className="space-y-2">{items.map((item) => <article key={item.id} className="rounded-[15px] border border-hpsr-border bg-[#fffaf4] p-3">
-            <div className="flex items-start gap-3"><FileText size={17} className="mt-0.5 shrink-0 text-hpsr-wine" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{item.title}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">Paciente: {item.patient}</p><p className="text-xs font-semibold text-hpsr-muted">Médico: {item.doctor}</p><p className="mt-1 text-[10px] font-bold text-hpsr-wineLight">{item.createdAt ? new Date(item.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Data não informada"}</p></div><button type="button" onClick={() => void deleteItem(item)} className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[11px] border border-rose-200 bg-rose-50 px-3 text-[11px] font-black text-rose-700 hover:bg-rose-100" aria-label={`Excluir ${recordType.toLowerCase()}`}><Trash2 size={14} /> Excluir</button></div>
+          {loading ? <p className="py-8 text-center text-sm font-bold text-hpsr-muted">Carregando histórico...</p> : loadError ? <p className="rounded-[14px] border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm font-bold text-rose-700">Não foi possível carregar o histórico: {loadError}</p> : items.length ? <div className="space-y-2">{items.map((item) => <article key={item.id} className="rounded-[15px] border border-hpsr-border bg-[#fffaf4] p-3">
+            <div className="flex items-start gap-3"><FileText size={17} className="mt-0.5 shrink-0 text-hpsr-wine" /><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-hpsr-text">{item.title}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">Paciente: {item.patient}</p><p className="text-xs font-semibold text-hpsr-muted">Médico: {item.doctor}</p><p className="mt-1 text-[10px] font-bold text-hpsr-wineLight">{item.createdAt ? new Date(item.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Data não informada"}</p></div>{canDelete ? <button type="button" onClick={() => void deleteItem(item)} className="inline-flex h-9 shrink-0 items-center gap-2 rounded-[11px] border border-rose-200 bg-rose-50 px-3 text-[11px] font-black text-rose-700 hover:bg-rose-100" aria-label={`Excluir ${recordType.toLowerCase()}`}><Trash2 size={14} /> Excluir</button> : null}</div>
           </article>)}</div> : <p className="py-8 text-center text-sm font-bold text-hpsr-muted">Nenhum registro salvo.</p>}
         </div>
       </div>
