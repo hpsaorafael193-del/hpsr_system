@@ -99,7 +99,7 @@ const initialPatients: PatientRecord[] = [];
 
 const initialTimelineEvents: TimelineEvent[] = [];
 
-const PRONTUARIO_CACHE_KEY = "hpsr-prontuario-session-cache-v3";
+const PRONTUARIO_CACHE_KEY = "hpsr-prontuario-session-cache-v4";
 const PRONTUARIO_CACHE_TTL_MS = 5 * 60 * 1000;
 
 function readProntuarioCache(): { savedAt: number; patients: PatientRecord[]; timelineEvents: TimelineEvent[] } | null {
@@ -260,7 +260,7 @@ export default function RecordsPage() {
       setIsLoadingPatients(true);
       const [registryResult, recordsResult, appointmentsResult, portalResult, linksResult] = await Promise.all([
         supabase.from("patient_registry").select("passport,name,age,birth_date,sex,blood_type,city_phone,discord,email,follow_up,portal_specialties,created_at,updated_at").order("created_at", { ascending: false }),
-        supabase.from("clinical_records").select("id,patient_passport,record_type,created_at,is_confidential,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName,summary:payload->>summary,exam_date:payload->>examDate").order("created_at", { ascending: false }),
+        supabase.from("clinical_records").select("id,patient_passport,record_type,created_at,is_confidential,history_title,history_doctor_name").order("created_at", { ascending: false }),
         supabase.from("appointments").select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,doctor_name:payload->>doctor,reason:payload->>reason,notes:payload->>notes").order("created_at", { ascending: false }),
         supabase.from("patient_portal_access").select("id,patient_passport,email,access_enabled,triage_status,created_at").order("created_at", { ascending: false }),
         supabase.from("patient_doctor_links").select("id,patient_passport,doctor_id,specialty,started_at").order("started_at", { ascending: false }),
@@ -419,11 +419,11 @@ export default function RecordsPage() {
           id: row.id,
           patientPassport: passport,
           type: kind,
-          title: row.exam_name || row.document_title || row.title || row.record_type,
-          date: String((recordType.includes("exame") && row.exam_date) || row.created_at || "").slice(0, 10),
-          doctor: row.doctor_name || row.doctor_name_flat || "Equipe médica",
+          title: row.history_title || row.record_type || "Registro clínico",
+          date: String(row.created_at || "").slice(0, 10),
+          doctor: row.history_doctor_name || "Equipe médica",
           status: "Concluído",
-          summary: row.summary || "Registro armazenado no prontuário.",
+          summary: "Registro armazenado no prontuário.",
           isConfidential: typeof row.is_confidential === "boolean" ? row.is_confidential : undefined,
         });
       }
@@ -486,9 +486,9 @@ export default function RecordsPage() {
         id: String(row.id),
         patientPassport: passport,
         type: kind,
-        title: String(payload.examName || payload.documentTitle || payload.title || row.record_type || "Registro clínico"),
+        title: String(row.history_title || payload.examName || payload.documentTitle || payload.title || row.record_type || "Registro clínico"),
         date: String(row.created_at || row.updated_at || "").slice(0, 10),
-        doctor: String(payload?.doctor?.name || payload.doctorName || "Equipe médica"),
+        doctor: String(row.history_doctor_name || payload?.doctor?.name || payload.doctorName || "Equipe médica"),
         status: "Concluído",
         summary: String(payload.summary || "Registro armazenado no prontuário."),
         isConfidential: typeof row.is_confidential === "boolean" ? row.is_confidential : undefined,
