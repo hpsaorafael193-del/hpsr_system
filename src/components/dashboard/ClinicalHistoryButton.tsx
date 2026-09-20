@@ -26,8 +26,8 @@ export function ClinicalHistoryButton({ recordType }: { recordType: "Exame" | "D
     setLoadError("");
     void client
       .from("clinical_records")
-      .select("id,record_type,created_at,title:payload->>title,exam_name:payload->>examName,document_title:payload->>documentTitle,patient_name:payload->patient->>name,patient_name_flat:payload->>patientName,doctor_name:payload->doctor->>name,doctor_name_flat:payload->>doctorName")
-      .ilike("record_type", recordType)
+      .select("id,record_type,created_at,history_title,history_patient_name,history_doctor_name")
+      .in("record_type", recordType === "Exame" ? ["Exame", "exame"] : ["Documento", "documento"])
       .order("created_at", { ascending: false })
       .limit(150)
       .then(({ data, error }: { data: any[] | null; error: { message?: string } | null }) => {
@@ -41,9 +41,9 @@ export function ClinicalHistoryButton({ recordType }: { recordType: "Exame" | "D
         }
         setItems((data || []).map((row: any) => ({
           id: String(row.id),
-          title: String(row.exam_name || row.document_title || row.title || recordType),
-          patient: String(row.patient_name || row.patient_name_flat || "Paciente não informado"),
-          doctor: String(row.doctor_name || row.doctor_name_flat || "Médico não informado"),
+          title: String(row.history_title || recordType),
+          patient: String(row.history_patient_name || "Paciente não informado"),
+          doctor: String(row.history_doctor_name || "Médico não informado"),
           createdAt: String(row.created_at || ""),
         })));
         setLoading(false);
