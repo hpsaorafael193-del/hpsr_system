@@ -23,6 +23,7 @@ import {
   FileSignature,
   FileText,
   HeartPulse,
+  ShieldCheck,
   Italic,
   List,
   ListOrdered,
@@ -36,13 +37,13 @@ import {
   Type,
   Underline,
   UserPlus,
+  UserRound,
   Wand2,
   X,
   type LucideIcon,
 } from "lucide-react";
-import { PageHeader } from "@/components/dashboard/PageHeader";
 import { hpsrSuccess } from "@/components/ui/HpsrToastProvider";
-import { ClinicalHistoryButton } from "@/components/dashboard/ClinicalHistoryButton";
+import { ClinicalHistoryPanel } from "@/components/dashboard/ClinicalHistoryPanel";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { createClient } from "@/lib/supabase";
@@ -112,6 +113,8 @@ type SavedDocumentDraft = {
   selectedDoctorId?: string;
   selectedModelId: string;
   guidedValues: Record<string, string>;
+  useModel?: boolean;
+  catalogOpen?: boolean;
   editorHtml: string;
   catalogSearch: string;
   catalogCategory: DocumentCategory | "todos";
@@ -383,30 +386,37 @@ function normalizeEditorHtml(html: string) {
 }
 
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function Panel({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   const iconMap: Record<string, LucideIcon> = {
-    "Dados do paciente": UserPlus,
+    "Informações do documento": ClipboardList,
+    "Dados do paciente": UserRound,
     "Profissional responsável": Stethoscope,
     "Catálogo de documentos": FileText,
+    "Modelo do documento": Wand2,
     "Modo guiado": Wand2,
   };
   const Icon = iconMap[title] || FileText;
+  const isCatalog = title === "Catálogo de documentos";
+  const isModel = title === "Modelo do documento";
   return (
-    <section className="overflow-hidden rounded-[20px] border border-[#e5dcd4] bg-white shadow-[0_5px_16px_rgba(42,7,0,0.032)]">
-      <div className="flex items-center gap-3 border-b border-[#f0ebe6] bg-[#fbfaf8] px-4 py-3.5">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[#f6ece5] text-hpsr-wine ring-1 ring-[#eadfd6]">
-          <Icon size={15} strokeWidth={2.3} />
+    <section className={`overflow-hidden rounded-[18px] border shadow-[0_4px_14px_rgba(42,7,0,0.028)] ${isCatalog ? "border-[#dfc5bc] bg-[#fff8f3]" : isModel ? "border-[#e7d0c0] bg-[#fff9f3]" : "border-[#ead8c8] bg-[#fffaf4]"}`}>
+      <div className={`flex items-start gap-3 border-b px-4 py-3 ${isCatalog ? "border-[#ead0c4] bg-[#f5e1d9]" : isModel ? "border-[#ecd8c8] bg-[#fae9df]" : "border-[#eedbca] bg-[#f9eada]"}`}>
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white">
+          <Icon size={17} strokeWidth={2.2} />
         </span>
-        <h3 className="text-[12px] font-black uppercase tracking-[0.08em] text-hpsr-text">{title}</h3>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-[14px] font-black uppercase tracking-[0.06em] text-hpsr-text">{title}</h3>
+          {description && <p className="mt-1 text-[13px] font-semibold leading-relaxed text-hpsr-muted">{description}</p>}
+        </div>
       </div>
-      <div className="p-4">{children}</div>
+      <div className="space-y-4 p-4">{children}</div>
     </section>
   );
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <span className="mb-1 block text-[11px] font-black uppercase tracking-[0.12em] text-hpsr-wine/70">
+    <span className="mb-1.5 block text-[12px] font-black uppercase tracking-[0.045em] text-[#5c2416]">
       {children}
     </span>
   );
@@ -415,7 +425,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 function TextInput({ value, onChange, placeholder, type = "text" }: { value: string; onChange: (value: string) => void; placeholder?: string; type?: string }) {
   return (
     <input
-      className="h-10 w-full rounded-[13px] border border-[#d8c1ad] bg-white px-3 text-sm font-semibold text-hpsr-text outline-none transition placeholder:text-zinc-400 focus:border-hpsr-wine/50 focus:ring-2 focus:ring-hpsr-wine/10"
+      className="h-11 w-full min-w-0 rounded-[12px] border border-[#d8bfa9] bg-white px-3.5 text-sm font-semibold text-hpsr-text outline-none transition placeholder:text-zinc-400 shadow-[inset_0_1px_2px_rgba(42,7,0,0.03)] hover:border-[#b98f75] focus:border-hpsr-wine/55 focus:ring-2 focus:ring-hpsr-wine/10"
       value={value}
       type={type}
       placeholder={placeholder}
@@ -427,7 +437,7 @@ function TextInput({ value, onChange, placeholder, type = "text" }: { value: str
 function SelectInput({ value, onChange, children }: { value: string; onChange: (value: string) => void; children: React.ReactNode }) {
   return (
     <StyledSelect
-      className="h-10 w-full rounded-[13px] border border-[#d8c1ad] bg-white px-3 text-sm font-black text-hpsr-text outline-none transition focus:border-hpsr-wine/50 focus:ring-2 focus:ring-hpsr-wine/10"
+      className="h-11 w-full min-w-0 rounded-[12px] border border-[#d8bfa9] bg-white px-3.5 text-sm font-black text-hpsr-text outline-none transition hover:border-[#b98f75] focus:border-hpsr-wine/55 focus:ring-2 focus:ring-hpsr-wine/10"
       value={value}
       onChange={(event) => onChange(event.target.value)}
     >
@@ -511,8 +521,10 @@ export default function DocumentsPage() {
     signatureImage: currentUserProfile.signatureImage || null,
   }]);
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const modelPanelRef = useRef<HTMLDivElement | null>(null);
   const lastRange = useRef<Range | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
+  const signatureInputRef = useRef<HTMLInputElement | null>(null);
   const [patient, setPatient] = useState<PatientDraft>(emptyPatient);
   const patientOptions = sharedPatients as PatientDraft[];
   const [quickPatientOpen, setQuickPatientOpen] = useState(false);
@@ -532,6 +544,9 @@ export default function DocumentsPage() {
     DocumentCategory | "todos"
   >("todos");
   const [catalogSearch, setCatalogSearch] = useState("");
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(true);
+  const [useModel, setUseModel] = useState(false);
   const [editorHtml, setEditorHtml] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState("");
   const [saveStatus, setSaveStatus] = useState("Rascunho local");
@@ -556,6 +571,12 @@ export default function DocumentsPage() {
       documentModels[0],
     [selectedModelId],
   );
+
+  const selectedDoctorOption = useMemo(
+    () => availableDoctors.find((item) => item.id === selectedDoctorId) || null,
+    [availableDoctors, selectedDoctorId],
+  );
+  const hasSavedDoctorSignature = Boolean(selectedDoctorOption?.signatureImage);
 
   const filteredModels = useMemo(() => {
     const query = catalogSearch.trim().toLowerCase();
@@ -590,12 +611,7 @@ export default function DocumentsPage() {
     try {
       const raw = localStorage.getItem(DRAFT_KEY);
       if (!raw) {
-        const initial = documentModels[0].render({
-          patient: emptyPatient,
-          doctor: initialDoctor,
-          values: {},
-          today,
-        });
+        const initial = `<h1>${documentModels[0].title}</h1><p><br></p>`;
         setEditorHtml(initial);
         window.setTimeout(() => {
           if (editorRef.current) editorRef.current.innerHTML = initial;
@@ -608,6 +624,8 @@ export default function DocumentsPage() {
       setSelectedDoctorId(saved.selectedDoctorId === "current-user" ? (currentUserProfile.id || "current-user") : (saved.selectedDoctorId || currentUserProfile.id || "current-user"));
       setSelectedModelId(saved.selectedModelId || documentModels[0].id);
       setGuidedValues(saved.guidedValues || {});
+      setUseModel(Boolean(saved.useModel));
+      setCatalogOpen(saved.catalogOpen ?? true);
       setCatalogSearch(saved.catalogSearch || "");
       setCatalogCategory(saved.catalogCategory || "todos");
       setEditorHtml(saved.editorHtml || "");
@@ -690,6 +708,8 @@ export default function DocumentsPage() {
     selectedDoctorId,
     selectedModelId,
     guidedValues,
+    useModel,
+    catalogOpen,
     catalogSearch,
     catalogCategory,
     editorHtml,
@@ -724,7 +744,7 @@ export default function DocumentsPage() {
 
   function saveDraft(manual = true) {
     const html = normalizeEditorHtml(
-      editorRef.current?.innerHTML || editorHtml || generatedHtml,
+      editorRef.current?.innerHTML ?? editorHtml,
     );
     const savedAt = brazilIso();
     const draft: SavedDocumentDraft = {
@@ -733,6 +753,8 @@ export default function DocumentsPage() {
       selectedDoctorId,
       selectedModelId,
       guidedValues,
+      useModel,
+      catalogOpen,
       editorHtml: html,
       catalogSearch,
       catalogCategory,
@@ -795,11 +817,12 @@ export default function DocumentsPage() {
 
   function applyModel() {
     const current = normalizeEditorHtml(editorRef.current?.innerHTML || "");
-    if (current && current !== generatedHtml) {
+    const blankBase = `<h1>${selectedModel?.title || ""}</h1><p><br></p>`;
+    if (current && current !== generatedHtml && current !== blankBase) {
       setAppDialog({
         title: "Aplicar modelo",
         message:
-          "Isso vai substituir o texto atual do editor pelo documento gerado no Modo guiado.",
+          "Isso vai substituir o texto atual do editor pelo modelo preenchido com os dados informados.",
         actions: [
           {
             label: "Cancelar",
@@ -826,14 +849,62 @@ export default function DocumentsPage() {
     saveDraft(false);
   }
 
+  function openModelEditor() {
+    if (catalogOpen) setCatalogOpen(false);
+    if (!useModel) setUseModel(true);
+    // Aguarda a montagem dos campos ao ativar a chave antes de rolar a coluna.
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      const panel = modelPanelRef.current;
+      if (!panel) return;
+      const formColumn = panel.closest<HTMLElement>("aside");
+      if (formColumn && window.matchMedia("(min-width: 1280px)").matches) {
+        const offset = panel.getBoundingClientRect().top - formColumn.getBoundingClientRect().top;
+        formColumn.scrollTo({ top: formColumn.scrollTop + offset - 8, behavior: "smooth" });
+        return;
+      }
+      panel.scrollIntoView({ behavior: "smooth", block: "start" });
+    }));
+  }
+
   function selectModel(id: string) {
-    setSelectedModelId(id);
-    setGuidedValues({});
     const nextModel = documentModels.find((model) => model.id === id);
     if (!nextModel) return;
-    const html = nextModel.render({ patient, doctor, values: {}, today });
-    if (editorRef.current) editorRef.current.innerHTML = html;
-    setEditorHtml(html);
+
+    const current = normalizeEditorHtml(editorRef.current?.innerHTML || editorHtml);
+    const blankTitle = `<h1>${selectedModel?.title || ""}</h1><p><br></p>`;
+    // Reabrir o catálogo e escolher o mesmo documento não apaga o rascunho.
+    if (id === selectedModelId && current) {
+      setCatalogOpen(false);
+      setCategoriesOpen(false);
+      return;
+    }
+
+    const applySelection = () => {
+      setSelectedModelId(id);
+      setCatalogOpen(false);
+      setCategoriesOpen(false);
+      setGuidedValues({});
+      setUseModel(false);
+      // Assim como em Exames, o modelo só preenche o editor após o usuário ativá-lo e aplicá-lo.
+      const html = `<h1>${nextModel.title}</h1><p><br></p>`;
+      if (editorRef.current) editorRef.current.innerHTML = html;
+      setEditorHtml(html);
+    };
+
+    const plainText = current.replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/\s+/g, " ").trim();
+    const onlyBase = !plainText || current === blankTitle || plainText === selectedModel?.title;
+    if (!onlyBase && plainText.length > 8) {
+      setAppDialog({
+        title: "Trocar documento",
+        message: "O editor atual possui conteúdo. Ao selecionar outro documento, esse texto será substituído pela base vazia do novo documento.",
+        actions: [
+          { label: "Cancelar", variant: "secondary", onClick: () => setAppDialog(null) },
+          { label: "Trocar documento", variant: "primary", onClick: () => { setAppDialog(null); applySelection(); } },
+        ],
+      });
+      return;
+    }
+    applySelection();
   }
 
   function exec(command: string, value?: string) {
@@ -948,6 +1019,18 @@ export default function DocumentsPage() {
     setPatient(nextPatient);
     selectSharedPatient(nextPatient);
     setQuickPatientOpen(false);
+  }
+
+  function addTemporarySignature(file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setAppDialog({ title: "Assinatura inválida", message: "Selecione uma imagem PNG, JPG ou WEBP.", actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setDoctor((current) => ({ ...current, signatureImage: String(reader.result || "") }));
+    reader.onerror = () => setAppDialog({ title: "Assinatura", message: "Não foi possível ler a imagem selecionada.", actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
+    reader.readAsDataURL(file);
   }
 
   function selectDoctor(id: string) {
@@ -1276,7 +1359,7 @@ export default function DocumentsPage() {
   }
 
   function buildDocumentPages() {
-    const html = normalizeEditorHtml(editorRef.current?.innerHTML || editorHtml || generatedHtml);
+    const html = normalizeEditorHtml(editorRef.current?.innerHTML ?? editorHtml);
     return splitClinicalReportHtmlIntoPages(html, doctor.signatureImage || null);
   }
 
@@ -1435,10 +1518,13 @@ export default function DocumentsPage() {
       const signature = await loadImage(signatureSource);
       if (signature) {
         const normalizedSignature = normalizeSignatureImage(signature);
-        if (normalizedSignature) {
-          drawSignatureContain(context, normalizedSignature, 257, 1019, 280, 48);
-        }
+        if (normalizedSignature) drawSignatureContain(context, normalizedSignature, 257, 1019, 280, 48);
       }
+    } else {
+      context.fillStyle = "#5b1809";
+      context.textAlign = "center";
+      context.font = "italic 22px Georgia";
+      context.fillText(doctor.name || "Nome do médico", 397, 1042);
     }
 
     context.strokeStyle = "#5b1809";
@@ -1526,7 +1612,7 @@ export default function DocumentsPage() {
 
 
   async function openDocumentPreview() {
-    const html = normalizeEditorHtml(editorRef.current?.innerHTML || editorHtml || generatedHtml);
+    const html = normalizeEditorHtml(editorRef.current?.innerHTML ?? editorHtml);
     if (editorRef.current) editorRef.current.innerHTML = html;
     setEditorHtml(html);
     const pages = buildDocumentPages();
@@ -1547,7 +1633,7 @@ export default function DocumentsPage() {
     setSavingDocument(true);
     try {
       const html = normalizeEditorHtml(
-        editorRef.current?.innerHTML || editorHtml || generatedHtml,
+        editorRef.current?.innerHTML ?? editorHtml,
       );
       if (editorRef.current) editorRef.current.innerHTML = html;
       setEditorHtml(html);
@@ -1599,6 +1685,7 @@ export default function DocumentsPage() {
       setPreviewImages(Array.from({ length: pages.length }, (_, index) => renderedImages[index] || ""));
       setPreviewPageIndex(0);
       setPreviewOpen(true);
+      window.dispatchEvent(new CustomEvent("hpsr:clinical-record-saved", { detail: { recordType: "Documento" } }));
       hpsrSuccess(`O documento foi salvo no prontuário de ${patient.name}.`, "Documento salvo");
     } catch (error) {
       setAppDialog({
@@ -1612,7 +1699,7 @@ export default function DocumentsPage() {
   }
 
 
-  const previewHtml = editorHtml || generatedHtml;
+  const previewHtml = editorHtml;
 
   useEffect(() => {
     if (!previewOpen) return;
@@ -1622,24 +1709,31 @@ export default function DocumentsPage() {
 
   return (
     <>
-      <div className="hpsr-page gap-3 text-hpsr-text 2xl:h-[calc(100dvh-2.4rem)] 2xl:min-h-0 2xl:overflow-hidden">
+      <div className="hpsr-page hpsr-documents-page gap-4 text-hpsr-text">
         <div className="hpsr-topbar" />
 
-        <section className="grid min-h-0 flex-1 gap-4 overflow-visible xl:grid-cols-[410px_minmax(0,1fr)] 2xl:grid-cols-[440px_minmax(0,1fr)] 2xl:overflow-hidden">
-          <aside className="min-h-0 overflow-visible pr-0 xl:pr-2 2xl:overflow-y-auto no-print">
-            <div className="rounded-[24px] border border-[#e2d7ce] bg-[linear-gradient(180deg,#fff_0%,#fdfbf9_100%)] p-4 shadow-[0_10px_28px_rgba(42,7,0,0.045)] ring-1 ring-white">
-              <PageHeader
-                eyebrow="Documentos"
-                title="Editor de documentos"
-                description="Gerador institucional com catálogo, modo guiado e editor livre."
-              />
+        <header className="flex items-center gap-4 rounded-[22px] border border-[#e4d8cf] bg-[linear-gradient(110deg,#fff3e9_0%,#f5e5df_100%)] px-5 py-4 shadow-[0_8px_25px_rgba(42,7,0,0.04)]">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white">
+            <FileText size={23} strokeWidth={1.9} />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[13px] font-black uppercase tracking-[0.12em] text-hpsr-wine">Documentos</p>
+            <h1 className="mt-0.5 text-xl font-black tracking-tight text-hpsr-text sm:text-2xl">Editor de documentos</h1>
+            <p className="mt-1 text-sm font-medium leading-relaxed text-hpsr-muted">Formulário à esquerda, editor à direita. Escolha um documento e aplique o modelo quando precisar.</p>
+          </div>
+        </header>
 
-              <div className="space-y-3">
-                <Panel title="Dados do paciente">
-                  <div className="space-y-3">
+        <section className="hpsr-documents-workspace grid min-h-0 flex-1 items-start gap-4 overflow-visible xl:grid-cols-[minmax(360px,420px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(400px,460px)_minmax(0,1fr)]">
+          <aside aria-label="Formulário do documento" className="hpsr-documents-form-scroll min-w-0 space-y-4 no-print xl:overflow-y-auto xl:overscroll-contain xl:rounded-[24px] xl:border xl:border-[#dfd6c8] xl:bg-[linear-gradient(180deg,#f8eee5_0%,#f3e2de_100%)] xl:p-2 xl:[scrollbar-gutter:stable]">
+              <div className="space-y-4">
+                <Panel title="Informações do documento" description="Paciente, médico responsável e assinatura.">
+                  <div className="space-y-4">
                     <div>
-                      <FieldLabel>Selecionar paciente</FieldLabel>
-                      <div className="grid grid-cols-[1fr_44px] gap-2">
+                      <div className="mb-2 flex items-center gap-2">
+                        <UserRound size={15} strokeWidth={2.2} className="text-hpsr-wine" />
+                        <FieldLabel>Paciente</FieldLabel>
+                      </div>
+                      <div className="grid grid-cols-[minmax(0,1fr)_44px] gap-2">
                         <SelectInput
                           value={patient.passport}
                           onChange={(passport) => {
@@ -1655,132 +1749,205 @@ export default function DocumentsPage() {
                         >
                           <option value="">{patientsLoading ? "Carregando pacientes..." : "Paciente livre..."}</option>
                           {patientOptions.map((item) => (
-                            <option key={item.passport} value={item.passport}>
-                              {item.name} · {item.passport}
-                            </option>
+                            <option key={item.passport} value={item.passport}>{item.name} · {item.passport}</option>
                           ))}
                         </SelectInput>
-                        <button
-                          type="button"
-                          onClick={openQuickPatient}
-                          title="Registro rápido de paciente"
-                          className="flex h-10 w-11 items-center justify-center rounded-[13px] border border-[#d8bfa9] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] text-hpsr-text shadow-[0_4px_12px_rgba(42,7,0,0.05)] transition hover:border-hpsr-wine/40 hover:bg-white"
-                        >
-                          <UserPlus size={18} strokeWidth={2.2} />
+                        <button type="button" onClick={openQuickPatient} title="Registro rápido de paciente" className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-[#d8bfa9] bg-white text-hpsr-wine transition hover:border-hpsr-wine/40 hover:bg-[#fff8f0]">
+                          <UserPlus size={16} strokeWidth={2.2} />
                         </button>
                       </div>
+                      <div className="mt-3 space-y-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.55fr)_minmax(108px,0.8fr)]">
+                          <label className="block min-w-0">
+                            <FieldLabel>Nome do paciente</FieldLabel>
+                            <TextInput value={patient.name} onChange={(name) => setPatient({ ...patient, name })} placeholder="Nome completo" />
+                          </label>
+                          <label className="block min-w-0">
+                            <FieldLabel>Idade</FieldLabel>
+                            <TextInput value={patient.age} onChange={(age) => setPatient({ ...patient, age })} placeholder="Anos" />
+                          </label>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          <label className="block min-w-0">
+                            <FieldLabel>Passaporte</FieldLabel>
+                            <TextInput value={patient.passport} onChange={(passport) => setPatient({ ...patient, passport })} placeholder="Número" />
+                          </label>
+                          <label className="block min-w-0">
+                            <FieldLabel>Tipo sanguíneo</FieldLabel>
+                            <SelectInput value={patient.bloodType} onChange={(bloodType) => setPatient({ ...patient, bloodType })}><option value="">Não informado</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></SelectInput>
+                          </label>
+                        </div>
+                      </div>
                     </div>
-                    <div className="grid grid-cols-[1fr_92px] gap-2">
-                      <div>
-                        <FieldLabel>Nome</FieldLabel>
-                        <TextInput value={patient.name} onChange={(name) => setPatient({ ...patient, name })} placeholder="Nome completo" />
-                      </div>
-                      <div>
-                        <FieldLabel>Documento</FieldLabel>
-                        <TextInput value={patient.passport} onChange={(passport) => setPatient({ ...patient, passport })} placeholder="Nº" />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <FieldLabel>Idade</FieldLabel>
-                        <TextInput value={patient.age} onChange={(age) => setPatient({ ...patient, age })} placeholder="Idade" />
-                      </div>
-                      <div>
-                        <FieldLabel>Tipo sanguíneo</FieldLabel>
-                        <SelectInput value={patient.bloodType} onChange={(bloodType) => setPatient({ ...patient, bloodType })}><option value="">Selecione</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></SelectInput>
-                      </div>
-                    </div>
-                  </div>
-                </Panel>
 
-                <Panel title="Profissional responsável">
-                  <div className="space-y-3">
-                    <div>
-                      <FieldLabel>Perfil do médico</FieldLabel>
+                    <div className="border-t border-[#eee5de] pt-4">
+                      <div className="mb-2 flex items-center gap-2">
+                        <Stethoscope size={15} strokeWidth={2.2} className="text-hpsr-wine" />
+                        <FieldLabel>Médico responsável</FieldLabel>
+                      </div>
                       <SelectInput value={selectedDoctorId} onChange={selectDoctor}>
                         {availableDoctors.map((item) => (
-                          <option key={item.id} value={item.id}>
-                            {item.name} · {item.crm}
-                          </option>
+                          <option key={item.id} value={item.id}>{item.name} · {item.crm}</option>
                         ))}
                       </SelectInput>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-semibold text-hpsr-muted">
+                        <span className="font-black text-hpsr-text">{doctor.name || "Médico não selecionado"}</span>
+                        <span>{doctor.specialty || "Especialidade não informada"}</span>
+                        <span>CRM {doctor.crm || "-"}</span>
+                      </div>
                     </div>
-                    <div className="rounded-[15px] border border-[#e0c7b0] bg-white/70 p-3">
-                      <p className="text-sm font-black text-hpsr-text">{doctor.name || "Médico não selecionado"}</p>
-                      <p className="mt-1 text-xs font-semibold text-hpsr-muted">{doctor.crm || "CRM não informado"}</p>
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        <span className="rounded-full bg-[#f7e9df] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{doctor.role || "Médico"}</span>
-                        <span className="rounded-full border border-[#ead7c8] bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-text">{doctor.specialty || "Especialidade não informada"}</span>
+
+                    <div className="border-t border-[#eee5de] pt-4">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <FileSignature size={15} strokeWidth={2.2} className="text-hpsr-wine" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-black text-hpsr-text">Assinatura</p>
+                          <p className="text-[10px] font-semibold text-hpsr-muted">{hasSavedDoctorSignature ? "Assinatura do perfil selecionada automaticamente." : doctor.signatureImage ? "Assinatura temporária deste documento." : "Sem imagem: o sistema usa nome e CRM como assinatura gráfica."}</p>
+                        </div>
+                        {!hasSavedDoctorSignature ? <div className="flex flex-wrap gap-2">
+                          <input ref={signatureInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => { addTemporarySignature(event.target.files?.[0] || null); event.target.value = ""; }} />
+                          <button type="button" onClick={() => signatureInputRef.current?.click()} className="rounded-[11px] border border-hpsr-wine/20 bg-white px-3 py-2 text-[11px] font-black text-hpsr-wine">{doctor.signatureImage ? "Trocar" : "Adicionar"}</button>
+                          {doctor.signatureImage ? <button type="button" onClick={() => setDoctor((current) => ({ ...current, signatureImage: null }))} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-[11px] font-black text-hpsr-muted">Remover</button> : null}
+                        </div> : null}
+                        {!doctor.signatureImage && !hasSavedDoctorSignature ? <div className="text-center"><p className="font-serif text-base italic leading-none text-[#5b1809]">{doctor.name || "Nome do médico"}</p><p className="mt-1 text-[9px] font-bold uppercase tracking-[0.08em] text-hpsr-muted">CRM {doctor.crm || "000000"}</p></div> : null}
                       </div>
                     </div>
                   </div>
                 </Panel>
 
-                <Panel title="Catálogo de documentos">
-                  <div className="mb-3 flex h-11 items-center gap-2 rounded-[14px] border border-[#ddd2c8] bg-[#fbfaf9] px-3 shadow-[0_3px_10px_rgba(42,7,0,0.025)] transition focus-within:border-hpsr-wine/45 focus-within:ring-2 focus-within:ring-hpsr-wine/10">
-                    <Search size={15} className="text-hpsr-muted" />
-                    <input
-                      value={catalogSearch}
-                      onChange={(event) => setCatalogSearch(event.target.value)}
-                      placeholder="Buscar documento..."
-                      className="h-10 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none"
-                    />
-                  </div>
-
-                  <div className="mb-3">
-                    <FieldLabel>Categoria dos documentos</FieldLabel>
-                    <div className="relative flex h-11 items-center rounded-[14px] border border-[#d8c1ad] bg-white shadow-[0_4px_12px_rgba(42,7,0,0.035)] transition focus-within:border-hpsr-wine/55 focus-within:ring-2 focus-within:ring-hpsr-wine/10">
-                      <div className="pointer-events-none flex h-full w-10 shrink-0 items-center justify-center border-r border-[#ead9ca] text-hpsr-wine">
-                        <FileText size={15} strokeWidth={2.2} />
-                      </div>
-                      <StyledSelect
-                        value={catalogCategory}
-                        onChange={(event) => setCatalogCategory(event.target.value as DocumentCategory | "todos")}
-                        aria-label="Filtrar documentos por categoria"
-                        className="h-full min-w-0 flex-1 appearance-none bg-transparent px-3 pr-10 text-sm font-black text-hpsr-text outline-none"
-                      >
-                        {(Object.keys(categoryLabels) as Array<DocumentCategory | "todos">).map((category) => (
-                          <option key={category} value={category}>{categoryLabels[category]}</option>
-                        ))}
-                      </StyledSelect>
-                      <ChevronDown size={16} className="pointer-events-none absolute right-3 text-hpsr-muted" />
-                    </div>
-                  </div>
-
-                  <div className="max-h-[470px] overflow-y-auto pr-1">
-                    <div className="grid grid-cols-1 gap-2.5 2xl:grid-cols-2">
-                      {filteredModels.map((model) => {
-                        const Icon = model.icon;
-                        const active = selectedModel?.id === model.id;
-                        return (
+                <Panel title="Catálogo de documentos" description="Pesquise ou abra a lista de categorias para escolher um documento.">
+                  {!catalogOpen && selectedModel ? (
+                    <div className="rounded-[18px] border border-[#d7b796] bg-white px-4 py-3 shadow-[0_10px_22px_rgba(42,7,0,0.05)]">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex min-w-[180px] flex-1 items-center gap-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-hpsr-wine text-white">
+                            {(() => { const SelectedIcon = selectedModel.icon; return <SelectedIcon size={18} strokeWidth={2.3} />; })()}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-[10px] font-black uppercase tracking-[0.1em] text-hpsr-muted">{categoryLabels[selectedModel.category]}</span>
+                            <span className="mt-0.5 block break-words text-sm font-black leading-snug text-hpsr-text">{selectedModel.title}</span>
+                          </span>
+                        </div>
+                        <div className="flex shrink-0 flex-wrap items-center gap-2">
+                          <div className={`inline-flex h-10 items-center gap-2 rounded-[11px] border px-2.5 transition ${useModel ? "border-emerald-300 bg-emerald-50" : "border-[#dfd4cb] bg-white"}`}>
+                            <span className={`text-[13px] font-black ${useModel ? "text-emerald-800" : "text-hpsr-text"}`}>Usar modelo</span>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={useModel}
+                              aria-label={useModel ? "Desativar modelo do documento" : "Ativar modelo do documento"}
+                              onClick={() => setUseModel((current) => !current)}
+                              className={`relative h-6 w-11 overflow-hidden rounded-full transition-colors duration-200 ${useModel ? "bg-emerald-600" : "bg-[#d7cec7]"}`}
+                            >
+                              <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.18)] transition-transform duration-200 ${useModel ? "translate-x-5" : "translate-x-0"}`} />
+                            </button>
+                          </div>
                           <button
-                            key={model.id}
                             type="button"
-                            onClick={() => selectModel(model.id)}
-                            className={`group relative min-h-[98px] overflow-hidden rounded-[17px] border p-3.5 text-left transition-all duration-200 ${active ? "border-hpsr-wine/70 bg-[#fff7ef] shadow-[0_7px_18px_rgba(103,38,20,0.09)] ring-1 ring-hpsr-wine/10" : "border-[#e2d8cf] bg-white shadow-[0_3px_10px_rgba(42,7,0,0.025)] hover:-translate-y-0.5 hover:border-hpsr-wine/30 hover:bg-[#fdfaf7] hover:shadow-[0_7px_18px_rgba(42,7,0,0.05)]"}`}
+                            onClick={() => { setCatalogOpen(true); setCategoriesOpen(false); }}
+                            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-[11px] border border-hpsr-wine/20 bg-[#fff8f1] px-3 text-[13px] font-black text-hpsr-wine transition hover:border-hpsr-wine/40 hover:bg-white"
                           >
-                            <span className={`absolute inset-y-0 left-0 w-1 ${active ? "bg-hpsr-wine" : "bg-transparent group-hover:bg-hpsr-wine/20"}`} />
-                            <div className="flex items-start gap-3">
-                              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border ${active ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-[#ead9cb] bg-[#f8ece3] text-hpsr-wine"}`}>
-                                <Icon size={18} strokeWidth={2.3} />
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="line-clamp-2 text-[13px] font-black leading-[1.2] text-hpsr-text">{model.title}</span>
-                                <span className="mt-1 line-clamp-2 block text-[10px] font-semibold leading-tight text-hpsr-muted">{model.subtitle}</span>
-                              </span>
-                              {active && <Check size={15} className="shrink-0 text-hpsr-wine" strokeWidth={3} />}
-                            </div>
+                            <RefreshCw size={14} /> Trocar documento
                           </button>
-                        );
-                      })}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <>
+                      <div className="mb-3 flex h-11 items-center gap-2 rounded-[14px] border border-[#ddd2c8] bg-[#fbfaf9] px-3 shadow-[0_3px_10px_rgba(42,7,0,0.025)] transition focus-within:border-hpsr-wine/45 focus-within:ring-2 focus-within:ring-hpsr-wine/10">
+                        <Search size={15} className="text-hpsr-wine" />
+                        <input
+                          value={catalogSearch}
+                          onChange={(event) => setCatalogSearch(event.target.value)}
+                          placeholder="Buscar por nome ou finalidade"
+                          className="h-10 min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-hpsr-muted/70"
+                        />
+                        {catalogSearch && (
+                          <button type="button" onClick={() => setCatalogSearch("")} className="flex h-7 w-7 items-center justify-center rounded-full text-hpsr-muted hover:bg-[#f7eadf] hover:text-hpsr-wine" aria-label="Limpar busca">
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="mb-3 space-y-2.5">
+                        <button
+                          type="button"
+                          aria-expanded={categoriesOpen}
+                          aria-controls="hpsr-document-category-options"
+                          onClick={() => setCategoriesOpen((current) => !current)}
+                          className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-[12px] border px-3.5 py-2.5 text-left transition ${categoriesOpen ? "border-[#b36b61] bg-[#f9e8e2]" : "border-[#dfc9bf] bg-[#fdf3ec] hover:border-[#b98478]"}`}
+                        >
+                          <span className="flex min-w-0 items-center gap-2.5">
+                            <FileText size={18} strokeWidth={2.1} className="shrink-0 text-hpsr-wine" />
+                            <span className="min-w-0">
+                              <span className="block text-[12px] font-semibold text-[#8a5147]">Categoria</span>
+                              <span className="block truncate text-sm font-black text-hpsr-text">{catalogCategory === "todos" ? "Todos os documentos" : categoryLabels[catalogCategory]}</span>
+                            </span>
+                          </span>
+                          <ChevronDown size={18} className={`shrink-0 text-hpsr-wine transition-transform ${categoriesOpen ? "rotate-180" : ""}`} />
+                        </button>
+                        {categoriesOpen && (
+                          <div id="hpsr-document-category-options" role="group" aria-label="Categorias de documentos" className="max-h-[225px] space-y-1 overflow-y-auto overscroll-contain rounded-[12px] border border-[#e4cec2] bg-[#fff8f2] p-1.5 [scrollbar-gutter:stable]">
+                            {(Object.keys(categoryLabels) as Array<DocumentCategory | "todos">).map((category) => {
+                              const active = catalogCategory === category;
+                              return (
+                                <button key={category} type="button" aria-pressed={active} onClick={() => { setCatalogCategory(category); setCategoriesOpen(false); }} className={`flex min-h-10 w-full items-center gap-2.5 rounded-[9px] px-3 py-2 text-left text-sm font-bold transition ${active ? "bg-[#f6ded6] text-[#712b23]" : "text-hpsr-text hover:bg-[#f9ece6]"}`}>
+                                  <span className="min-w-0 flex-1">{category === "todos" ? "Todos os documentos" : categoryLabels[category]}</span>
+                                  <span className="shrink-0 text-[12px] text-hpsr-muted">{category === "todos" ? documentModels.length : documentModels.filter((model) => model.category === category).length}</span>
+                                  {active && <Check size={16} className="shrink-0 text-hpsr-wine" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      <div aria-label="Lista de documentos" className="max-h-[360px] overflow-y-auto overscroll-contain rounded-[14px] border border-[#e6d5c9] bg-[#f6eee8] p-2.5 pr-2 [scrollbar-gutter:stable]">
+                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
+                        {filteredModels.map((model) => {
+                          const Icon = model.icon;
+                          const active = selectedModel?.id === model.id;
+                          return (
+                            <button
+                              key={model.id}
+                              type="button"
+                              onClick={() => selectModel(model.id)}
+                              className={`group relative min-h-[98px] w-full overflow-hidden rounded-[14px] border p-3.5 text-left transition-all duration-200 ${active ? "border-hpsr-wine/70 bg-[#fff7ef] shadow-[0_7px_18px_rgba(103,38,20,0.09)] ring-1 ring-hpsr-wine/10" : "border-[#e2d8cf] bg-white shadow-[0_3px_10px_rgba(42,7,0,0.025)] hover:-translate-y-0.5 hover:border-hpsr-wine/30 hover:bg-[#fdfaf7] hover:shadow-[0_7px_18px_rgba(42,7,0,0.05)]"}`}
+                            >
+                              <span className={`absolute inset-y-0 left-0 w-1 ${active ? "bg-hpsr-wine" : "bg-transparent group-hover:bg-hpsr-wine/20"}`} />
+                              <div className="flex items-start gap-3">
+                                <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border ${active ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-[#ead9cb] bg-[#f8ece3] text-hpsr-wine"}`}>
+                                  <Icon size={18} strokeWidth={2.3} />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="line-clamp-2 text-[14px] font-black leading-[1.4] text-hpsr-text">{model.title}</span>
+                                  <span className="mt-1 line-clamp-2 block text-[13px] font-semibold leading-[1.5] text-hpsr-muted">{model.subtitle}</span>
+                                </span>
+                                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-[#e4d2c2] bg-[#fffaf5] text-hpsr-muted transition group-hover:border-hpsr-wine/30 group-hover:text-hpsr-wine">
+                                  <ChevronDown size={14} className="-rotate-90" />
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      </div>
+                      {filteredModels.length === 0 && (
+                        <div className="py-5 text-center">
+                          <p className="text-sm font-black text-hpsr-text">Nenhum documento encontrado</p>
+                          <button type="button" onClick={() => { setCatalogSearch(""); setCatalogCategory("todos"); }} className="mt-2 text-[13px] font-black text-hpsr-wine hover:underline">Limpar filtros</button>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </Panel>
 
-                <Panel title="Modo guiado">
+                {!catalogOpen && useModel && selectedModel && (
+                <div ref={modelPanelRef} id="hpsr-document-model-fields" className="scroll-mt-4">
+                <Panel title="Modelo do documento" description="Preencha os campos do modelo e aplique ao editor.">
                   <div className="mb-3 rounded-[15px] border border-[#e0c7b0] bg-white/70 p-2.5">
                     <p className="text-sm font-black text-hpsr-text">{selectedModel?.title || "Documento livre"}</p>
-                    <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Preencha os campos e aplique no editor.</p>
+                    <p className="mt-1 text-[13px] font-semibold text-hpsr-muted">Preencha os campos e aplique no editor.</p>
                   </div>
                   <div className="space-y-3">
                     {selectedModel?.guidedFields.map((item) => (
@@ -1788,7 +1955,7 @@ export default function DocumentsPage() {
                         <FieldLabel>{item.label}</FieldLabel>
                         {item.type === "textarea" ? (
                           <textarea
-                            className="min-h-[90px] w-full rounded-[13px] border border-[#d8c1ad] bg-white px-3 py-2 text-sm font-semibold text-hpsr-text outline-none transition placeholder:text-zinc-400 focus:border-hpsr-wine/50 focus:ring-2 focus:ring-hpsr-wine/10"
+                            className="min-h-[105px] w-full rounded-[13px] border border-[#d8c1ad] bg-white px-3.5 py-3 text-sm font-semibold text-hpsr-text outline-none transition placeholder:text-zinc-400 focus:border-hpsr-wine/50 focus:ring-2 focus:ring-hpsr-wine/10"
                             placeholder={item.placeholder}
                             value={guidedValues[item.key] || ""}
                             onChange={(event) => setGuidedValues({ ...guidedValues, [item.key]: event.target.value })}
@@ -1803,31 +1970,41 @@ export default function DocumentsPage() {
                         )}
                       </label>
                     ))}
-                    <button type="button" onClick={applyModel} className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 text-xs font-black text-white shadow-soft hover:bg-hpsr-wineDark">
+                    <button type="button" onClick={applyModel} className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 text-sm font-black text-white shadow-soft hover:bg-hpsr-wineDark">
                       <Wand2 size={16} /> Aplicar no editor
                     </button>
                   </div>
                 </Panel>
+                </div>
+                )}
               </div>
-            </div>
           </aside>
 
-          <main className="hpsr-light-editor-shell flex min-h-0 flex-col overflow-visible rounded-[24px] 2xl:overflow-hidden border border-[#ddd4cc] bg-white shadow-[0_14px_38px_rgba(42,7,0,0.065)] ring-1 ring-white">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#ece5df] bg-[linear-gradient(180deg,#ffffff_0%,#fdfaf7_100%)] px-6 py-4 no-print">
+          <main aria-label="Editor do documento" className="hpsr-light-editor-shell flex min-h-0 min-w-0 flex-col overflow-visible rounded-[24px] border border-[#ddd4cc] bg-[#fffaf5] shadow-[0_14px_38px_rgba(42,7,0,0.065)] ring-1 ring-white xl:overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#ece5df] bg-[linear-gradient(110deg,#fff8ed_0%,#f5e9e5_100%)] px-6 py-4 no-print">
               <div>
                 <h2 className="text-xl font-black tracking-[-0.01em] text-hpsr-text">
                   {selectedModel?.title || "Documento livre"}
                 </h2>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-hpsr-muted">
-                  Editor contínuo · preview institucional ao salvar
+                <p className="text-xs font-semibold uppercase tracking-[0.06em] text-hpsr-muted">
+                  Editor contínuo · pré-visualização somente quando solicitada
                 </p>
+                <div className="mt-2 inline-flex h-9 items-center gap-1 rounded-[11px] border border-[#e2d8cf] bg-[#fbfaf9] p-1">
+                  <ShieldCheck size={14} className="ml-1.5 text-hpsr-wine" />
+                  <button type="button" onClick={() => setIsConfidential(true)} className={`h-7 rounded-[8px] px-2.5 text-[10px] font-black transition ${isConfidential ? "bg-hpsr-wine text-white" : "text-hpsr-muted hover:text-hpsr-wine"}`}>Sigilo</button>
+                  <button type="button" onClick={() => setIsConfidential(false)} className={`h-7 rounded-[8px] px-2.5 text-[10px] font-black transition ${!isConfidential ? "bg-emerald-600 text-white" : "text-hpsr-muted hover:text-emerald-700"}`}>Portal liberado</button>
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs font-black text-hpsr-text">
-                <ClinicalHistoryButton recordType="Documento" />
-                <span className="rounded-full border border-[#dec8b6] bg-white px-3 py-2 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
-                  {today}
-                </span>
-              </div>
+
+              <button
+                type="button"
+                onClick={openModelEditor}
+                aria-controls="hpsr-document-model-fields"
+                className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-[12px] border border-hpsr-wine/25 bg-[#fff8f1] px-3.5 text-[13px] font-black text-hpsr-wine transition hover:border-hpsr-wine/45 hover:bg-white"
+              >
+                <Wand2 size={16} /> {useModel ? "Editar modelo" : "Usar modelo"}
+              </button>
+
             </div>
 
             <div className="border-b border-[#eee8e2] bg-[#fbfaf9] px-6 py-2.5 text-xs font-semibold text-hpsr-muted no-print">
@@ -1838,7 +2015,7 @@ export default function DocumentsPage() {
             </div>
 
             <div
-              className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-[#e7dfd8] bg-white/95 px-4 py-2.5 backdrop-blur-md no-print"
+              className="flex flex-wrap items-center gap-2 border-b border-[#e7dfd8] bg-white/95 px-4 py-2.5 no-print"
               onMouseDownCapture={(event) => {
                 rememberSelection();
                 if ((event.target as HTMLElement).closest("button")) event.preventDefault();
@@ -1900,7 +2077,7 @@ export default function DocumentsPage() {
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f4f0ed_0%,#ebe5e0_100%)] p-5">
+            <div className="hpsr-documents-editor-viewport min-h-0 bg-[linear-gradient(180deg,#f3eee8_0%,#eee5e1_100%)] p-4 xl:p-5">
               <div className="mx-auto min-h-full max-w-[1100px] rounded-[20px] border border-[#dfd5ce] bg-white p-8 shadow-[0_14px_34px_rgba(42,7,0,0.055)] ring-1 ring-white">
                 <div className="relative">
                   {editorPageGuideTops.map((top, index) => (
@@ -1924,17 +2101,14 @@ export default function DocumentsPage() {
                   onKeyDown={(event) => {
                     handleRichEditorTableKeyDown(event, editorRef.current, syncEditor);
                   }}
-                  className="hpsr-continuous-editor min-h-[740px] outline-none"
+                  className="hpsr-continuous-editor min-h-[420px] outline-none"
                 />
                 </div>
               </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e9e1da] bg-[#fcfbfa] px-6 py-3.5 no-print">
-              <label className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">
-                <input type="checkbox" checked={isConfidential} onChange={(event) => setIsConfidential(event.target.checked)} />
-                Sigilo no Portal do Paciente
-              </label>
+<span className="text-[11px] font-semibold text-hpsr-muted">A visibilidade no Portal pode ser ajustada diretamente no cabeçalho do editor.</span>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
@@ -1948,13 +2122,6 @@ export default function DocumentsPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={applyModel}
-                  className="inline-flex h-10 items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-4 text-xs font-black text-hpsr-text hover:border-hpsr-wine/40"
-                >
-                  <RefreshCw size={15} /> Atualizar
-                </button>
-                <button
-                  type="button"
                   onClick={openDocumentPreview}
                   className="inline-flex h-10 items-center gap-2 rounded-[13px] bg-hpsr-wine px-5 text-xs font-black text-white shadow-soft hover:bg-hpsr-wineDark"
                 >
@@ -1964,6 +2131,9 @@ export default function DocumentsPage() {
             </div>
           </main>
         </section>
+        <div className="hpsr-documents-history">
+          <ClinicalHistoryPanel recordType="Documento" comfortable />
+        </div>
       </div>
 
         <div
@@ -2028,12 +2198,10 @@ export default function DocumentsPage() {
                   dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />
                 <footer className="mt-[2%] rounded-[14px] border border-[#e6dad2] bg-[#fffdfb] px-4 py-1.5 text-center text-[5.7px] text-[#7a5148]">
-                  {doctor.signatureImage && (
-                    <img
-                      src={doctor.signatureImage}
-                      alt="Assinatura cadastrada do médico"
-                      className="mx-auto h-[50px] w-[280px] object-contain"
-                    />
+                  {doctor.signatureImage ? (
+                    <img src={doctor.signatureImage} alt="Assinatura cadastrada do médico" className="mx-auto h-[50px] w-[280px] object-contain" />
+                  ) : (
+                    <div className="mx-auto flex h-[50px] items-end justify-center text-[13px] italic text-[#5b1809]" style={{ fontFamily: "Georgia, serif" }}>{doctor.name || "Nome do médico"}</div>
                   )}
                   <div className="mx-auto mb-0.5 h-1.5 w-[40%] border-b border-dashed border-[#8d665b]" />
                   <p className="font-black text-[#5b1809]">

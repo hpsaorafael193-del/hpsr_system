@@ -1,5 +1,6 @@
 "use client";
 import { formatCityPhoneNumber } from "@/lib/phone";
+import { formatPersonName } from "@/lib/person-name";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase";
@@ -58,7 +59,7 @@ function normalizePatient(input: Partial<SharedPatient>): SharedPatient | null {
   const passport = normalizePassport(input.passport);
   if (!passport) return null;
   return {
-    name: text(input.name) || `Paciente ${passport}`,
+    name: formatPersonName(input.name) || `Paciente ${passport}`,
     passport,
     age: text(input.age),
     bloodType: text(input.bloodType),

@@ -3,7 +3,7 @@ import type { IntelligentExamModel } from "../types";
 export const gineco_usg_monitorizacao_folicularModel: IntelligentExamModel = {
   "id": "gineco_usg_monitorizacao_folicular",
   "nome": "Transvaginal com Monitorização Folicular",
-  "descricao": "Avaliação ultrassonográfica seriada para acompanhamento do desenvolvimento folicular, espessura endometrial e monitorização da ovulação.",
+  "descricao": "Avaliação ultrassonográfica seriada com foco definido entre acompanhamento dos folículos ou avaliação do endométrio.",
   "categoria": "ginecologia",
   "icone": "fa-wave-square",
   "campos": [
@@ -200,8 +200,8 @@ export const gineco_usg_monitorizacao_folicularModel: IntelligentExamModel = {
     "description": "Modelo direto, configurável por perfil e variáveis clínicas relevantes."
   },
   "clinicalContexts": [
-    "Rotina",
-    "Personalizado"
+    "Folículos",
+    "Endométrio"
   ],
   "profiles": [
     {
@@ -295,9 +295,29 @@ export const gineco_usg_monitorizacao_folicularModel: IntelligentExamModel = {
   ],
   "variables": [
     {
-      "id": "contexto_clinico",
-      "label": "Contexto clínico",
-      "tipo": "text"
+      "id": "foco_monitorizacao",
+      "label": "Foco do exame",
+      "tipo": "select",
+      "options": [
+        "Folículos",
+        "Endométrio"
+      ]
+    },
+    {
+      "id": "dia_estimulacao",
+      "label": "Dia da estimulação ovariana",
+      "tipo": "number",
+      "appliesTo": [
+        "Folículos"
+      ]
+    },
+    {
+      "id": "dia_preparo_endometrial",
+      "label": "Dia do preparo endometrial",
+      "tipo": "number",
+      "appliesTo": [
+        "Endométrio"
+      ]
     }
   ],
   "editorModel": {

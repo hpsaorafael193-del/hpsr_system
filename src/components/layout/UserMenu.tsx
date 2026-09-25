@@ -7,7 +7,6 @@ import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvi
 import { createClient } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { clearLoginPersistence } from "@/lib/auth-persistence";
-import { normalizeClinicalSpecialty } from "@/lib/clinical-scheduling";
 
 type ClockStatus = "Fora de serviço" | "Em serviço" | "Em pausa";
 type MedicalNotification = {
@@ -86,13 +85,6 @@ export function UserMenu() {
     return [...new Set(source.map((item) => String(item).trim()).filter((item) => item && item !== "Não informado"))];
   }, [currentUserProfile.specialties, currentUserProfile.specialty]);
 
-  const normalizedMedicalSpecialties = useMemo(
-    () => medicalSpecialties.map(normalizeClinicalSpecialty).filter(Boolean),
-    [medicalSpecialties]
-  );
-
-  const canReceiveAllExamRequests = currentUserProfile.role === "Médico Clínico";
-
   const canUseMedicalNotifications = useMemo(() => {
     const role = `${currentUserProfile.role || ""} ${currentUserProfile.systemRole || ""}`.toLocaleLowerCase("pt-BR");
     return Boolean(currentUserProfile.id && (medicalSpecialties.length || role.includes("médic") || role.includes("diretor clínico")));
@@ -125,99 +117,33 @@ export function UserMenu() {
       const userId = String(currentUserProfile.id);
 
       if (canUseMedicalNotifications) {
-        const capacityEntries = await Promise.all(medicalSpecialties.map(async (specialty) => {
-          const { data } = await client.rpc("hpsr_my_clinical_capacity", { p_specialty: specialty });
-          return [normalizeClinicalSpecialty(specialty), Number((data as { available?: number } | null)?.available || 0)] as const;
-        }));
-        const capacityBySpecialty = Object.fromEntries(capacityEntries);
-        const columns = "id,patient,passport,status,payload,created_at,updated_at";
-        const directQuery = client
-          .from("appointments")
-          .select(columns)
-          .or(`payload->>doctorId.eq.${currentUserProfile.id},payload->>requestedDoctorId.eq.${currentUserProfile.id}`)
-          .in("status", ["Solicitação enviada", "Aguardando análise", "Acompanhamento aguardando confirmação"])
-          .order("updated_at", { ascending: false })
-          .limit(40);
+        const { data: inboxRows, error: inboxError } = await client.rpc("hpsr_my_clinical_request_board", { p_limit: 400 });
+        if (inboxError) throw inboxError;
 
-        const { data: directRows, error: directError } = await directQuery;
-        if (directError) throw directError;
+        // O sino anuncia apenas pedidos que o próprio profissional pode assumir;
+        // a Direção acompanha os demais na Central de Agendamentos.
+        const mapped = (inboxRows || []).filter((row: any) => row.own_specialty === true && row.can_claim === true).map((row: any): MedicalNotification => {
+          const payload = (row.payload || {}) as Record<string, unknown>;
+          const readBy = Array.isArray(payload.notificationReadBy) ? payload.notificationReadBy.map(String) : [];
+          const flowType = String(payload.flowType || "Consulta comum");
+          const isExam = flowType === "Exames";
+          const patient = String(row.patient || payload.patient || "Paciente");
+          const specialty = String(payload.specialty || "Especialidade não informada");
 
-        let specialtyRows: any[] = [];
-        if (medicalSpecialties.length) {
-          const { data, error: specialtyError } = await client
-            .from("appointments")
-            .select(columns)
-            .in("payload->>specialty", medicalSpecialties)
-            .in("status", ["Solicitação enviada", "Aguardando análise", "Acompanhamento aguardando confirmação"])
-            .order("created_at", { ascending: false })
-            .limit(50);
-          if (specialtyError) throw specialtyError;
-          specialtyRows = data || [];
-        }
-
-        let generalClinicianExamRows: any[] = [];
-        if (canReceiveAllExamRequests) {
-          const { data, error: examError } = await client
-            .from("appointments")
-            .select(columns)
-            .eq("payload->>flowType", "Exames")
-            .in("status", ["Solicitação enviada", "Aguardando análise"])
-            .order("created_at", { ascending: false })
-            .limit(50);
-          if (examError) throw examError;
-          generalClinicianExamRows = data || [];
-        }
-
-        const rows = [...(directRows || []), ...specialtyRows, ...generalClinicianExamRows];
-        const unique = new Map<string, any>();
-        rows.forEach((row: any) => unique.set(String(row.id), row));
-        const mapped = [...unique.values()]
-          .map((row: any): MedicalNotification | null => {
-            const payload = (row.payload || {}) as Record<string, unknown>;
-            const requestedDoctorId = String(payload.requestedDoctorId || "");
-            const doctorId = String(payload.doctorId || "");
-            const readBy = Array.isArray(payload.notificationReadBy) ? payload.notificationReadBy.map(String) : [];
-            const normalizedSpecialty = normalizeClinicalSpecialty(payload.specialty);
-            const directlyRelated = requestedDoctorId === userId || doctorId === userId;
-            const specialtyRelated = !requestedDoctorId && normalizedMedicalSpecialties.includes(normalizedSpecialty);
-            const flowType = String(payload.flowType || "Consulta comum");
-            const generalClinicianExamRelated = flowType === "Exames" && canReceiveAllExamRequests && !requestedDoctorId;
-            const declinedBy = Array.isArray(payload.declinedBy) ? payload.declinedBy.map(String) : [];
-            if (declinedBy.includes(userId)) return null;
-            if (!directlyRelated && !specialtyRelated && !generalClinicianExamRelated) return null;
-            if (flowType !== "Exames" && Number(capacityBySpecialty[normalizedSpecialty] || 0) <= 0) return null;
-
-            const patient = String(row.patient || payload.patient || "Paciente");
-            const specialty = String(payload.specialty || "Especialidade não informada");
-            let category: MedicalNotification["category"] = "Consulta";
-            let title = `Nova solicitação de ${patient}`;
-            let description = `${flowType} · ${specialty}`;
-
-            if (row.status === "Acompanhamento aguardando confirmação") {
-              category = "Acompanhamento";
-              title = `${patient} solicitou acompanhamento`;
-              description = `Pré-registro direcionado para você em ${specialty}.`;
-            } else if (flowType === "Exames") {
-              category = "Exame";
-              title = `${patient} enviou uma solicitação de exame`;
-              description = String(payload.otherFlowDescription || payload.reason || payload.notes || specialty);
-            }
-
-            const actionableStatuses = ["Solicitação enviada", "Aguardando análise", "Acompanhamento aguardando confirmação"];
-            if (!actionableStatuses.includes(String(row.status))) return null;
-            return {
-              id: String(row.id),
-              title,
-              description,
-              category,
-              source: "appointments",
-              createdAt: String(row.updated_at || row.created_at || ""),
-              unread: !readBy.includes(userId) && (Boolean(payload.doctorNotificationUnread) || actionableStatuses.includes(String(row.status))),
-              payload,
-              status: String(row.status),
-            };
-          })
-          .filter((item: MedicalNotification | null): item is MedicalNotification => Boolean(item));
+          return {
+            id: String(row.id),
+            title: isExam ? `${patient} enviou uma solicitação de exame` : `Nova solicitação de ${patient}`,
+            description: isExam
+              ? String(payload.otherFlowDescription || payload.reason || payload.notes || specialty)
+              : `Consulta · ${specialty}`,
+            category: isExam ? "Exame" : "Consulta",
+            source: "appointments",
+            createdAt: String(row.created_at || row.updated_at || ""),
+            unread: !readBy.includes(userId),
+            payload,
+            status: String(row.status || "Solicitação enviada"),
+          };
+        });
         combined.push(...mapped);
       }
 
@@ -257,7 +183,7 @@ export function UserMenu() {
     } finally {
       setNotificationsLoading(false);
     }
-  }, [canUseNotifications, canUseMedicalNotifications, canUseDirectorNotifications, canReceiveAllExamRequests, currentUserProfile.id, medicalSpecialties, normalizedMedicalSpecialties]);
+  }, [canUseNotifications, canUseMedicalNotifications, canUseDirectorNotifications, currentUserProfile.id]);
 
   useEffect(() => {
     void loadNotifications();
@@ -273,23 +199,9 @@ export function UserMenu() {
         if (document.visibilityState === "visible") void loadNotifications();
       }, 900);
     };
-    const isPotentiallyRelevant = (payload: any) => {
-      const row = payload.new || payload.old || {};
-      const data = (row.payload || {}) as Record<string, unknown>;
-      const userId = String(currentUserProfile.id);
-      const requestedDoctorId = String(data.requestedDoctorId || "");
-      const doctorId = String(data.doctorId || "");
-      const specialty = normalizeClinicalSpecialty(data.specialty);
-      if (requestedDoctorId === userId || doctorId === userId) return true;
-      if (!requestedDoctorId && normalizedMedicalSpecialties.includes(specialty)) return true;
-      return payload.eventType === "DELETE";
-    };
-
     let channel = client.channel(`user-notifications-${currentUserProfile.id}`);
     if (canUseMedicalNotifications) {
-      channel = channel.on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, (payload: any) => {
-        if (isPotentiallyRelevant(payload)) scheduleRefresh();
-      });
+      channel = channel.on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, scheduleRefresh);
     }
     if (canUseDirectorNotifications) {
       channel = channel.on("postgres_changes", { event: "*", schema: "public", table: "staff_applications" }, scheduleRefresh);
@@ -300,7 +212,7 @@ export function UserMenu() {
       if (refreshTimer !== null) window.clearTimeout(refreshTimer);
       void client.removeChannel(channel);
     };
-  }, [canUseNotifications, canUseMedicalNotifications, canUseDirectorNotifications, currentUserProfile.id, normalizedMedicalSpecialties, loadNotifications]);
+  }, [canUseNotifications, canUseMedicalNotifications, canUseDirectorNotifications, currentUserProfile.id, loadNotifications]);
 
   const unreadNotificationCount = notifications.filter((item) => item.unread).length;
 

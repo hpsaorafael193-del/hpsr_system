@@ -19,6 +19,11 @@ export type AdaptiveDynamicField = IntelligentClinicalVariable & {
   value: string | boolean;
 };
 
+export type AdaptivePatientContext = {
+  age?: string;
+  bloodType?: string;
+};
+
 export type AdaptiveResolvedExam = {
   model: IntelligentExamModel;
   adapterLabel: string;
@@ -33,10 +38,17 @@ export type AdaptiveResolvedExam = {
   supportsFutureSmartPagination: boolean;
   supportsFutureRenderEngine: boolean;
   generationSeed: number;
+  patientContext: AdaptivePatientContext;
 };
 
 function firstOption(options?: string[]) {
   return options?.find(Boolean) || "";
+}
+
+function defaultClinicalContext(model: IntelligentExamModel) {
+  const contexts = model.clinicalContexts || [];
+  return contexts.find((item) => normalizedFieldKey(item) === "rotina")
+    || firstOption(contexts);
 }
 
 export function createInitialAdaptiveConfiguration(model: IntelligentExamModel): AdaptiveExamConfiguration {
@@ -47,7 +59,7 @@ export function createInitialAdaptiveConfiguration(model: IntelligentExamModel):
   return {
     examId: model.id,
     adapterValue: model.adapter.enabled && model.adapter.kind !== "clinical-context" ? firstOption(model.adapter.options) : "",
-    clinicalContext: "",
+    clinicalContext: defaultClinicalContext(model),
     profileId: defaultProfile?.id || "",
     variables: {},
     generationSeed: 0,
@@ -102,7 +114,9 @@ function appliesToSelection(variable: IntelligentClinicalVariable, configuration
   if (!variable.appliesTo?.length) return true;
   const selected = [
     configuration.adapterValue,
+    configuration.clinicalContext,
     configuration.profileId,
+    ...Object.values(configuration.variables || {}).map((value) => String(value ?? "")),
   ].map((value) => value.toLowerCase());
   return variable.appliesTo.some((item) => selected.includes(item.toLowerCase()));
 }
@@ -117,33 +131,50 @@ function normalizedFieldKey(value: string) {
 }
 
 function usefulTechnicalVariable(model: IntelligentExamModel, variable: IntelligentClinicalVariable) {
-  const key = normalizedFieldKey(`${variable.id} ${variable.label}`);
+  const variableId = normalizedFieldKey(variable.id);
   const adapterKey = normalizedFieldKey(`${model.adapter.id} ${model.adapter.label}`);
 
-  // A nova interface não volta a exibir contexto clínico genérico nem dados
-  // já disponíveis no cadastro do paciente.
-  if (/contexto|indicacao|correlacao|acompanhamento|rotina/.test(key)) return false;
-  if (/^(idade|sexo|genero|patient_age|patient_sex)/.test(normalizedFieldKey(variable.id))) return false;
-  if (normalizedFieldKey(variable.id) === normalizedFieldKey(model.adapter.id)) return false;
-  if (normalizedFieldKey(variable.id) === "contraste") return false;
+  // Dados demográficos que já vêm do cadastro não voltam a ser digitados.
+  // Idade gestacional é uma informação clínica própria do exame e deve aparecer.
+  if (new Set(["idade", "idade_paciente", "patient_age", "sexo", "genero", "patient_sex"]).has(variableId)) return false;
+  const modelSemantic = normalizedFieldKey(`${model.id} ${model.nome} ${model.categoria}`);
+  const gestationalOnly = new Set(["idade_gestacional", "numero_fetos", "fiv", "risco"]);
+  if (gestationalOnly.has(variableId) && !/obst|monitorizacao_folicular/.test(modelSemantic)) return false;
+  if (variableId === "idade_gestacional_referida" && model.id !== "lab_beta_hcg_completo") return false;
+  if (variableId === normalizedFieldKey(model.adapter.id)) return false;
+  if (variableId === "contraste") return false;
   if (adapterKey && normalizedFieldKey(variable.label) === normalizedFieldKey(model.adapter.label)) return false;
 
   const parameterIds = new Set(model.parameters.map((parameter) => normalizedFieldKey(parameter.id)));
   const supportOnly = new Set([
+    "contexto_clinico",
     "participantes",
     "mae_presente",
+    "papel_no_protocolo",
+    "foco_monitorizacao",
     "dia_estimulacao",
+    "dia_preparo_endometrial",
+    "idade_gestacional",
+    "idade_gestacional_referida",
+    "numero_fetos",
+    "fiv",
+    "risco",
     "incidencias",
     "finalidade_avaliacao",
     "segmento",
     "articulacao",
   ]);
-  return parameterIds.has(normalizedFieldKey(variable.id)) || supportOnly.has(normalizedFieldKey(variable.id));
+  return parameterIds.has(variableId) || supportOnly.has(variableId);
 }
 
 function defaultVariableValue(variable: IntelligentClinicalVariable, configuration: AdaptiveExamConfiguration) {
   const current = configuration.variables[variable.id];
   if (current !== undefined && current !== null && String(current).trim() !== "") return current;
+  if (variable.id === "foco_monitorizacao") {
+    const legacyFocus = normalizedFieldKey(String(configuration.variables.papel_no_protocolo ?? ""));
+    if (legacyFocus.includes("receptora") || legacyFocus.includes("gestante") || legacyFocus.includes("endometr")) return "Endométrio";
+    if (legacyFocus.includes("doadora") || legacyFocus.includes("folicul")) return "Folículos";
+  }
   if (variable.tipo === "boolean") return false;
   if (variable.tipo === "select") {
     const adapterMatch = variable.options?.find((option) => normalizedFieldKey(option) === normalizedFieldKey(configuration.adapterValue));
@@ -153,21 +184,108 @@ function defaultVariableValue(variable: IntelligentClinicalVariable, configurati
 }
 
 function clinicalVariableFields(model: IntelligentExamModel, configuration: AdaptiveExamConfiguration): AdaptiveDynamicField[] {
-  return model.variables
-    .filter((variable) => appliesToSelection(variable, configuration))
-    .filter((variable) => usefulTechnicalVariable(model, variable))
-    .map((variable) => ({
-      ...variable,
-      source: "variable" as const,
-      value: defaultVariableValue(variable, configuration),
-    }));
+  const workingVariables: Record<string, string | boolean> = { ...configuration.variables };
+  const fields: AdaptiveDynamicField[] = [];
+
+  model.variables.forEach((variable) => {
+    const workingConfiguration: AdaptiveExamConfiguration = { ...configuration, variables: workingVariables };
+    if (!appliesToSelection(variable, workingConfiguration) || !usefulTechnicalVariable(model, variable)) return;
+
+    const value = defaultVariableValue(variable, workingConfiguration);
+    if (workingVariables[variable.id] === undefined || String(workingVariables[variable.id]).trim() === "") {
+      workingVariables[variable.id] = value;
+    }
+    fields.push({ ...variable, source: "variable" as const, value });
+  });
+
+  const hasContextDetail = model.variables.some((variable) => normalizedFieldKey(variable.id) === "contexto_clinico");
+  const contextKey = normalizedFieldKey(configuration.clinicalContext || "");
+  const specialContextOwner = model.adapter.kind === "bond-type"
+    || model.variables.some((variable) => variable.id === "finalidade_avaliacao")
+    || model.id === "gineco_usg_monitorizacao_folicular";
+  if (!hasContextDetail && !specialContextOwner && contextKey && contextKey !== "rotina") {
+    fields.push({
+      id: "contexto_clinico",
+      label: "Detalhe do contexto",
+      tipo: "text",
+      required: false,
+      value: configuration.variables.contexto_clinico ?? "",
+      source: "variable",
+    });
+  }
+
+  return fields;
 }
 
-export function resolveAdaptiveExam(model: IntelligentExamModel, configuration: AdaptiveExamConfiguration): AdaptiveResolvedExam {
-  const safeConfiguration = configuration.examId === model.id ? configuration : createInitialAdaptiveConfiguration(model);
-  const profile = model.profiles.find((item) => item.id === safeConfiguration.profileId)
-    || model.profiles.find((item) => item.id === model.editorModel.defaultProfileId)
+function contextualParameters(model: IntelligentExamModel, variables: Record<string, string | boolean>, profileId?: string) {
+  if (model.id === "gineco_usg_monitorizacao_folicular") {
+    const focus = normalizedFieldKey(String(variables.foco_monitorizacao ?? variables.papel_no_protocolo ?? ""));
+    const ids = focus.includes("folicul") || focus.includes("doadora")
+      ? new Set(["ovario_direito", "foliculos_od", "ovario_esquerdo", "foliculos_oe", "foliculo_dominante", "sinais_ovulacao", "liquido_fundo_saco", "impressao"])
+      : focus.includes("endometr") || focus.includes("receptora") || focus.includes("gestante")
+        ? new Set(["utero", "endometrio", "espessura_endometrial", "liquido_fundo_saco", "impressao"])
+        : null;
+    return ids ? model.parameters.filter((parameter) => ids.has(parameter.id)) : model.parameters;
+  }
+
+  if (model.id === "lab_beta_hcg_completo" && profileId === "negativo") {
+    return model.parameters.filter((parameter) => parameter.id !== "idade_gestacional_referida");
+  }
+
+  return model.parameters;
+}
+
+function resolvedClinicalContext(model: IntelligentExamModel, configuration: AdaptiveExamConfiguration, variables: Record<string, string | boolean>) {
+  const explicitPurpose = String(variables.finalidade_avaliacao ?? "").trim();
+  if (explicitPurpose) return explicitPurpose;
+
+  const focus = model.id === "gineco_usg_monitorizacao_folicular"
+    ? String(variables.foco_monitorizacao ?? variables.papel_no_protocolo ?? "").trim()
+    : "";
+  if (focus) return focus;
+
+  const role = String(variables.papel_no_protocolo ?? "").trim();
+  if (role && normalizedFieldKey(role) !== "avaliacao_geral_fora_de_fiv") return role;
+
+  const configured = String(configuration.clinicalContext || "").trim();
+  if (configured) {
+    const available = model.clinicalContexts || [];
+    if (!available.length || available.some((item) => normalizedFieldKey(item) === normalizedFieldKey(configured))) {
+      return configured;
+    }
+  }
+
+  if (model.adapter.kind === "clinical-context" || model.adapter.kind === "bond-type") {
+    const adapter = String(configuration.adapterValue || "").trim();
+    if (adapter) return adapter;
+  }
+
+  return defaultClinicalContext(model);
+}
+
+function profileForClinicalContext(model: IntelligentExamModel, configuration: AdaptiveExamConfiguration, clinicalContext: string) {
+  const selected = model.profiles.find((item) => item.id === configuration.profileId);
+  const defaultId = model.editorModel.defaultProfileId;
+  if (selected && selected.id !== defaultId && selected.id !== "normal") return selected;
+
+  const contextKey = normalizedFieldKey(clinicalContext);
+  const contextual = model.profiles.find((item) =>
+    item.status === "contextual"
+    && (normalizedFieldKey(item.id) === contextKey || normalizedFieldKey(item.name) === contextKey),
+  );
+  return contextual
+    || selected
+    || model.profiles.find((item) => item.id === defaultId)
+    || model.profiles.find((item) => item.id === "normal")
     || model.profiles[0];
+}
+
+export function resolveAdaptiveExam(
+  model: IntelligentExamModel,
+  configuration: AdaptiveExamConfiguration,
+  patientContext: AdaptivePatientContext = {},
+): AdaptiveResolvedExam {
+  const safeConfiguration = configuration.examId === model.id ? configuration : createInitialAdaptiveConfiguration(model);
   const technicalVariables = clinicalVariableFields(model, safeConfiguration);
   const resolvedVariables: Record<string, string | boolean> = { ...safeConfiguration.variables };
   technicalVariables.forEach((field) => {
@@ -175,9 +293,11 @@ export function resolveAdaptiveExam(model: IntelligentExamModel, configuration: 
       resolvedVariables[field.id] = field.value;
     }
   });
+  const clinicalContext = resolvedClinicalContext(model, safeConfiguration, resolvedVariables);
+  const profile = profileForClinicalContext(model, safeConfiguration, clinicalContext);
   const dynamicFields = [
     adapterField(model, safeConfiguration),
-    profileField(model, safeConfiguration),
+    profileField(model, { ...safeConfiguration, profileId: profile?.id || safeConfiguration.profileId }),
     secondaryAdapterField(model, safeConfiguration),
     ...technicalVariables,
   ].filter(Boolean) as AdaptiveDynamicField[];
@@ -186,16 +306,17 @@ export function resolveAdaptiveExam(model: IntelligentExamModel, configuration: 
     model,
     adapterLabel: model.adapter.label,
     adapterValue: safeConfiguration.adapterValue,
-    clinicalContext: "",
+    clinicalContext,
     profile,
     dynamicFields,
     variables: resolvedVariables,
-    parameters: model.parameters,
+    parameters: contextualParameters(model, resolvedVariables, profile?.id),
     automaticBlocks: model.editorModel.sections.filter((section) => section.visibleByDefault).map((section) => section.id),
     supportsFutureAttachments: model.attachments.mode === "future",
     supportsFutureSmartPagination: true,
     supportsFutureRenderEngine: true,
     generationSeed: mixAdaptiveGenerationSeed(Number(safeConfiguration.generationSeed || 0)),
+    patientContext,
   };
 }
 
@@ -799,6 +920,87 @@ type GuidedRuntimeContext = {
   generationSeed?: number;
 };
 
+type BetaHcgGestationalRange = {
+  min: number;
+  max: number;
+  startWeek: number;
+  endWeek: number;
+};
+
+const BETA_HCG_EARLY_GESTATIONAL_RANGES: BetaHcgGestationalRange[] = [
+  { min: 5, max: 50, startWeek: 3, endWeek: 3 },
+  { min: 5, max: 426, startWeek: 4, endWeek: 4 },
+  { min: 18, max: 7340, startWeek: 5, endWeek: 5 },
+  { min: 1080, max: 56500, startWeek: 6, endWeek: 6 },
+  { min: 7650, max: 229000, startWeek: 7, endWeek: 8 },
+  { min: 25700, max: 288000, startWeek: 9, endWeek: 12 },
+];
+
+function betaHcgNumber(value: unknown) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return Number.NaN;
+  const token = raw.match(/[0-9][0-9.,]*/)?.[0] || "";
+  return token ? parsePtNumber(token) : Number.NaN;
+}
+
+function betaHcgGeneratedValue(profileId: string, referredWeeks: unknown, generationSeed: number) {
+  if (profileId === "negativo") {
+    return Number(deterministicBetween(`beta:negative:${generationSeed}`, 0.4, 4.6).toFixed(1));
+  }
+
+  const weeks = betaHcgNumber(referredWeeks);
+  const compatible = Number.isFinite(weeks) && weeks > 0
+    ? BETA_HCG_EARLY_GESTATIONAL_RANGES.filter((range) => weeks >= range.startWeek && weeks <= range.endWeek)
+    : [];
+  const min = compatible.length ? Math.max(25, Math.min(...compatible.map((range) => range.min))) : 25;
+  const max = compatible.length ? Math.max(min + 1, Math.max(...compatible.map((range) => range.max))) : 120000;
+  const fraction = deterministicBetween(`beta:positive:${weeks || "unknown"}:${generationSeed}`, 0.18, 0.82);
+  const value = Math.exp(Math.log(min) + fraction * (Math.log(max) - Math.log(min)));
+  return Math.max(25, Math.round(value));
+}
+
+function betaHcgGestationalEstimate(value: unknown) {
+  const numeric = betaHcgNumber(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return "Informe o valor quantitativo do β-hCG para calcular a estimativa gestacional.";
+  }
+  if (numeric < 25) {
+    return "Valor baixo/limítrofe para estimativa gestacional isolada; correlacionar clinicamente e considerar controle seriado.";
+  }
+
+  const compatible = BETA_HCG_EARLY_GESTATIONAL_RANGES.filter((range) => numeric >= range.min && numeric <= range.max);
+  if (!compatible.length) {
+    if (numeric > 288000) {
+      return "Valor acima da faixa usada pelo motor para estimativa inicial; confirmar idade gestacional por DUM e/ou ultrassonografia.";
+    }
+    return "Sem correspondência gestacional segura pelo valor isolado informado.";
+  }
+
+  const startWeek = Math.min(...compatible.map((range) => range.startWeek));
+  const endWeek = Math.max(...compatible.map((range) => range.endWeek));
+  const weekText = startWeek === endWeek ? `${startWeek} semanas` : `${startWeek}–${endWeek} semanas`;
+  return `Compatível aproximadamente com ${weekText}; estimativa laboratorial com faixas sobrepostas, confirmar por DUM e/ou ultrassonografia.`;
+}
+
+function betaHcgGestationalCompatibility(value: unknown, referredWeeks: unknown) {
+  const numeric = betaHcgNumber(value);
+  const weeks = betaHcgNumber(referredWeeks);
+  if (!Number.isFinite(weeks) || weeks <= 0) return betaHcgGestationalEstimate(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) return `Idade gestacional referida: ${weeks} semanas; informe o valor quantitativo para correlação.`;
+
+  const ranges = BETA_HCG_EARLY_GESTATIONAL_RANGES.filter((range) => weeks >= range.startWeek && weeks <= range.endWeek);
+  if (!ranges.length) {
+    return `Idade gestacional referida: ${weeks} semanas. O β-hCG isolado não é adequado para datar com precisão essa etapa; correlacionar com DUM e ultrassonografia.`;
+  }
+
+  const min = Math.min(...ranges.map((range) => range.min));
+  const max = Math.max(...ranges.map((range) => range.max));
+  if (numeric >= min && numeric <= max) {
+    return `Valor compatível com a faixa ampla esperada para aproximadamente ${weeks} semanas; confirmar evolução por DUM e/ou ultrassonografia.`;
+  }
+  return `Valor fora da faixa ampla usada pelo motor para ${weeks} semanas informadas; revisar idade gestacional, contexto de FIV e evolução seriada antes de concluir.`;
+}
+
 function guidedRuntimeOverride(
   model: IntelligentExamModel,
   parameter: IntelligentExamParameter,
@@ -811,7 +1013,22 @@ function guidedRuntimeOverride(
   const clinicalContext = runtime?.clinicalContext?.trim() || "";
   const generationSeed = Number(runtime?.generationSeed || 0);
   const runtimeVariables = runtime?.variables || {};
+  const protocolRole = model.id === "gineco_usg_monitorizacao_folicular"
+    ? String(runtimeVariables.foco_monitorizacao ?? runtimeVariables.papel_no_protocolo ?? "").trim()
+    : String(runtimeVariables.papel_no_protocolo ?? "").trim();
+  const protocolRoleKey = normalizedFieldKey(protocolRole);
+  const stimulationDay = String(runtimeVariables.dia_estimulacao ?? "").trim();
+  const endometrialPrepDay = String(runtimeVariables.dia_preparo_endometrial ?? "").trim();
   const directVariable = runtimeVariables[parameter.id];
+
+  if (model.id === "hormonal_painel_hormonal_completo" && parameter.id === "fase_ciclo" && protocolRoleKey) {
+    if (protocolRoleKey.includes("doadora")) {
+      return stimulationDay ? `FIV — estimulação ovariana (dia ${stimulationDay})` : "FIV — estimulação ovariana";
+    }
+    if (protocolRoleKey.includes("receptora") || protocolRoleKey.includes("gestante")) {
+      return endometrialPrepDay ? `FIV — preparo endometrial (dia ${endometrialPrepDay})` : "FIV — preparo endometrial";
+    }
+  }
 
   if (directVariable !== undefined && directVariable !== null && String(directVariable).trim() !== "") {
     return String(directVariable);
@@ -823,6 +1040,32 @@ function guidedRuntimeOverride(
     return clinicalContext;
   }
   if (hasAny(parameterText, ["impressão", "impressao", "classificação", "classificacao"])) {
+    if (model.id === "gineco_usg_monitorizacao_folicular") {
+      if (protocolRoleKey.includes("folicul") || protocolRoleKey.includes("doadora")) {
+        return profile.status === "normal" || profile.id === "normal"
+          ? "Desenvolvimento folicular em acompanhamento, com resposta ovariana compatível com a etapa avaliada"
+          : profile.results?.[parameter.id]?.trim() || "Desenvolvimento folicular a correlacionar com a evolução seriada";
+      }
+      if (protocolRoleKey.includes("endometr") || protocolRoleKey.includes("receptora") || protocolRoleKey.includes("gestante")) {
+        return profile.status === "normal" || profile.id === "normal"
+          ? "Endométrio em acompanhamento, com padrão e espessura compatíveis com a etapa avaliada"
+          : profile.results?.[parameter.id]?.trim() || "Endométrio a correlacionar com a evolução seriada";
+      }
+    }
+
+    if (model.id === "hormonal_painel_hormonal_completo" && protocolRoleKey) {
+      if (protocolRoleKey.includes("doadora")) {
+        return profile.status === "normal" || profile.id === "normal"
+          ? "Perfil hormonal em acompanhamento de estimulação ovariana para FIV"
+          : profile.results?.[parameter.id]?.trim() || "Perfil hormonal a correlacionar com a resposta ao estímulo ovariano";
+      }
+      if (protocolRoleKey.includes("receptora") || protocolRoleKey.includes("gestante")) {
+        return profile.status === "normal" || profile.id === "normal"
+          ? "Perfil hormonal em acompanhamento de preparo endometrial para transferência embrionária"
+          : profile.results?.[parameter.id]?.trim() || "Perfil hormonal a correlacionar com o preparo endometrial";
+      }
+    }
+
     // Raio-X e Psicotécnico permanecem exatamente no fluxo legado. Nos demais
     // modelos, a impressão/classificação curada do perfil tem prioridade sobre
     // o resumo genérico, evitando frases soltas no lugar do resultado técnico.
@@ -858,23 +1101,35 @@ function guidedRuntimeOverride(
   }
 
   if (model.id === "lab_beta_hcg_completo") {
-    const values: Record<string, Record<string, string>> = {
-      negativo: {
-        tipo_exame: "Quantitativo",
-        resultado_qualitativo: "Negativo",
-        beta_hcg_quantitativo: `${formatPtNumber(deterministicBetween(`beta:negativo:${generationSeed}`, 0.6, 4.4), "0,0", "mUI/mL")} mUI/mL`,
-        correspondencia_gestacional: "Faixa de não gestante",
-        evolucao_seriada: "Sem indicação de curva seriada neste resultado isolado",
-        impressao: "β-hCG negativo",
-      },
-      positivo: {
-        tipo_exame: "Quantitativo",
-        resultado_qualitativo: "Positivo",
-        beta_hcg_quantitativo: `${formatPtNumber(deterministicBetween(`beta:positivo:${generationSeed}`, 650, 4200), "0", "mUI/mL")} mUI/mL`,
-        correspondencia_gestacional: "Compatível com gestação inicial; correlacionar com idade gestacional",
-        evolucao_seriada: "Controle seriado somente quando clinicamente indicado",
-        impressao: "β-hCG positivo",
-      },
+    const referredWeeks = String(runtimeVariables.idade_gestacional_referida ?? "").trim();
+
+    if (profile.id === "negativo" || profile.id === "positivo") {
+      const isPositive = profile.id === "positivo";
+      const generatedBeta = betaHcgGeneratedValue(profile.id, referredWeeks, generationSeed);
+      const generatedBetaText = isPositive
+        ? `${formatPtNumber(generatedBeta, "0", "mUI/mL")} mUI/mL`
+        : `${formatPtNumber(generatedBeta, "0.0", "mUI/mL")} mUI/mL`;
+      if (parameter.id === "tipo_exame") return "Quantitativo";
+      if (parameter.id === "resultado_qualitativo") return isPositive ? "Positivo" : "Negativo";
+      if (parameter.id === "beta_hcg_quantitativo") return generatedBetaText;
+      if (parameter.id === "idade_gestacional_referida") return isPositive ? (referredWeeks ? `${referredWeeks} semanas` : "Não informada") : null;
+      if (parameter.id === "correspondencia_gestacional") {
+        if (!isPositive) return "Sem estimativa gestacional para resultado negativo.";
+        return referredWeeks
+          ? betaHcgGestationalCompatibility(generatedBeta, referredWeeks)
+          : betaHcgGestationalEstimate(generatedBeta);
+      }
+      if (parameter.id === "evolucao_seriada") {
+        return isPositive
+          ? "Avaliar tendência apenas quando houver dosagens seriadas e indicação clínica"
+          : "Sem curva seriada definida neste resultado isolado";
+      }
+      if (parameter.id === "impressao") return isPositive ? "β-hCG positivo" : "β-hCG negativo";
+      return null;
+    }
+
+    // Compatibilidade com rascunhos/configurações anteriores do Beta-hCG.
+    const legacyValues: Record<string, Record<string, string>> = {
       indeterminado: {
         tipo_exame: "Quantitativo",
         resultado_qualitativo: "Indeterminado",
@@ -892,7 +1147,7 @@ function guidedRuntimeOverride(
         impressao: "β-hCG em seguimento seriado",
       },
     };
-    return values[profile.id]?.[parameter.id] || null;
+    return legacyValues[profile.id]?.[parameter.id] || null;
   }
 
   if (model.id === "lab_urocultura") {
@@ -1007,7 +1262,7 @@ function resultForParameter(model: IntelligentExamModel, parameter: IntelligentE
     const hasNumericReference = extractReferenceNumbers(parameter.referencia || "").length > 0;
     const isMeasuredNumeric = /\d/.test(explicitResult)
       && (Boolean(parameter.unidade) || (sourceField?.tipo === "number" && hasNumericReference));
-    const isLegacyVariableModel = model.id === "img_raio_x_unico" || model.id === "psiquiatria_psicotecnico";
+    const isLegacyVariableModel = model.id === "img_raio_x_unico";
     const shouldRefreshMeasuredValue = generationSeed > 0
       && profile.status !== "personalizado"
       && isMeasuredNumeric;
@@ -1037,16 +1292,38 @@ function resultForParameter(model: IntelligentExamModel, parameter: IntelligentE
 
 function tableHtml(headers: string[], rows: string[][]) {
   if (!rows.length) return "";
-  return `<table><thead><tr>${headers.map((header) => `<th>${htmlEscape(header)}</th>`).join("")}</tr></thead><tbody>${rows
+  return `<table class="hpsr-exam-table"><thead><tr>${headers.map((header) => `<th>${htmlEscape(header)}</th>`).join("")}</tr></thead><tbody>${rows
     .map((row) => `<tr>${row.map((cell) => `<td>${htmlEscape(cell || "-")}</td>`).join("")}</tr>`)
     .join("")}</tbody></table>`;
 }
 
+function contextualReference(resolved: AdaptiveResolvedExam, parameter: IntelligentExamParameter) {
+  const fallback = parameter.referencia || "Conforme método / contexto clínico";
+  if (resolved.model.id !== "hormonal_painel_hormonal_completo") return fallback;
+
+  const role = normalizedFieldKey(String(resolved.variables.papel_no_protocolo ?? ""));
+  if (!role.includes("doadora") && !role.includes("receptora") && !role.includes("gestante")) return fallback;
+
+  if (parameter.id === "fase_ciclo") return "Contexto do protocolo de reprodução assistida";
+  if (role.includes("doadora")) {
+    if (parameter.id === "fsh") return "Interpretar conforme protocolo de estimulação ovariana";
+    if (parameter.id === "lh") return "Avaliação seriada conforme resposta ao estímulo";
+    if (parameter.id === "estradiol") return "Evolução seriada conforme resposta folicular";
+    if (parameter.id === "progesterona") return "Interpretar conforme etapa do estímulo e programação do gatilho";
+  }
+  if (role.includes("receptora") || role.includes("gestante")) {
+    if (parameter.id === "fsh" || parameter.id === "lh") return "Interpretar conforme protocolo de preparo endometrial";
+    if (parameter.id === "estradiol") return "Interpretar conforme esquema e etapa do preparo endometrial";
+    if (parameter.id === "progesterona") return "Interpretar conforme fase do preparo e início do suporte progestagênico";
+  }
+  return fallback;
+}
+
 function parameterRows(resolved: AdaptiveResolvedExam) {
-  return resolved.parameters.map((parameter) => [
+  return orderParametersByContext(resolved, resolved.parameters).map((parameter) => [
     parameter.label,
     resultForParameter(resolved.model, parameter, resolved.profile, resolved),
-    parameter.referencia || "Conforme método / contexto clínico",
+    contextualReference(resolved, parameter),
   ]);
 }
 
@@ -1088,14 +1365,257 @@ function simplifyClinicalNarrative(value: string) {
     .trim();
 }
 
+function clinicalDetail(resolved: AdaptiveResolvedExam) {
+  const detail = String(resolved.variables.contexto_clinico ?? "").trim();
+  return detail;
+}
+
+function patientAgeDescription(resolved: AdaptiveResolvedExam) {
+  const age = String(resolved.patientContext.age || "").trim();
+  if (!age) return "";
+  const number = Number(age.replace(/[^0-9.,]/g, "").replace(",", "."));
+  if (!Number.isFinite(number)) return `faixa etária informada: ${age}`;
+  if (number < 1) return `paciente com idade inferior a 1 ano`;
+  if (number < 12) return `paciente pediátrico de ${age} ${Number(age) === 1 ? "ano" : "anos"}`;
+  if (number < 18) return `paciente adolescente de ${age} anos`;
+  if (number >= 60) return `paciente de ${age} anos, em faixa etária idosa`;
+  return `paciente de ${age} anos`;
+}
+
+function isRoutineContext(value: string) {
+  const key = normalizedFieldKey(value);
+  return !key || key === "rotina" || key === "monitorizacao_convencional" || key === "avaliacao_geral_fora_de_fiv";
+}
+
+function contextKeywords(resolved: AdaptiveResolvedExam) {
+  const context = normalizedFieldKey(resolved.clinicalContext);
+  const model = normalizedFieldKey(`${resolved.model.id} ${resolved.model.nome} ${resolved.model.categoria}`);
+  const detail = normalizedFieldKey(clinicalDetail(resolved));
+  const keywords = new Set<string>();
+  const add = (...values: string[]) => values.forEach((value) => keywords.add(normalizedFieldKey(value)));
+
+  if (/trauma/.test(context)) add("fratura", "alinhamento", "continuidade", "lesao", "edema", "hemorragia", "partes moles");
+  if (/dor/.test(context)) add("inflamacao", "edema", "lesao", "articulacao", "obstrucao", "massa", "cisto", "compressao");
+  if (/pos_operatorio|controle_pos_operatorio/.test(context)) add("alinhamento", "material", "colecao", "cicatrizacao", "complicacao", "edema");
+  if (/oncolog/.test(context)) add("massa", "nodulo", "lesao", "linfonodo", "infiltracao", "metastase", "volume");
+  if (/rastreamento/.test(context)) add("triagem", "alteracao", "marcador", "risco");
+  if (/controle|acompanhamento|seguimento/.test(context)) add("evolucao", "controle", "comparacao", "tendencia");
+  if (/suspeita_clinica/.test(context)) add("alteracao", "marcador", "inflamacao", "infeccao");
+  if (/porte_de_arma/.test(context)) add("atencao", "impulsividade", "controle emocional", "decisao", "julgamento");
+  if (/pilotagem/.test(context)) add("atencao", "tempo de reacao", "coordenacao", "equilibrio", "decisao");
+  if (/primeiro_trimestre/.test(context)) add("idade gestacional", "batimentos", "embriao", "feto", "biometria");
+  if (/segundo_trimestre/.test(context)) add("biometria", "placenta", "liquido amniotico", "crescimento", "batimentos");
+  if (/terceiro_trimestre/.test(context)) add("biometria", "crescimento", "placenta", "liquido amniotico", "apresentacao", "batimentos");
+  if (/gemelar/.test(context)) add("feto", "fetos", "batimentos", "biometria", "placenta", "liquido amniotico");
+  if (/gestacao_de_risco/.test(context)) add("crescimento", "doppler", "placenta", "liquido amniotico", "batimentos", "biometria");
+  if (/infertilidade/.test(context)) add("fsh", "lh", "estradiol", "progesterona", "prolactina", "tsh", "amh");
+  if (/sop/.test(context)) add("lh", "fsh", "androgen", "testosterona", "estradiol");
+  if (/menopausa/.test(context)) add("fsh", "lh", "estradiol");
+  if (/masculino/.test(context)) add("testosterona", "fsh", "lh", "prolactina", "tsh");
+  if (/pediatr/.test(context) || /pediatria|neonatal/.test(model)) add("idade", "desenvolvimento", "crescimento", "saturacao", "frequencia");
+  if (/fiv|doadora|receptora|gestante/.test(context)) add("estradiol", "progesterona", "lh", "foliculo", "endometrio", "espessura");
+
+  detail.split("_").filter((token) => token.length >= 4 && !new Set(["para", "com", "sem", "uma", "pela", "pelo", "clinico", "clinica"]).has(token)).forEach((token) => keywords.add(token));
+  if (/infecc|bacter|febre/.test(detail)) add("leucocito", "neutrofilo", "linfocito", "bacteria", "nitrito", "cultura", "microorganismo");
+  if (/anemia|cansaco|palidez/.test(detail)) add("hemoglobina", "hematocrito", "vcm", "hcm", "ferritina", "ferro", "reticulocito");
+  if (/renal|rim|creatin|ureia/.test(detail)) add("creatinina", "ureia", "filtracao", "egfr", "proteinuria");
+  if (/hepatic|figado|icter|transamin/.test(detail)) add("ast", "alt", "tgo", "tgp", "ggt", "bilirrubina", "fosfatase");
+  if (/glic|diabet|hiperglic|hipoglic/.test(detail)) add("glicose", "glicemia", "hba1c", "hemoglobina glicada");
+  if (/alerg|urtic|prurido/.test(detail)) add("ige", "eosinofilo", "alergeno", "sensibilidade");
+  if (/urin|disuria|cistite/.test(detail)) add("leucocito", "nitrito", "bacteria", "cultura", "hemacia");
+  if (/tireo/.test(detail)) add("tsh", "t4", "t3", "tireoide");
+  if (/palpit|tontura|sincope/.test(detail)) add("ritmo", "frequencia", "intervalo", "pressao", "arritmia");
+  if (/dispne|falta_de_ar|respirat/.test(detail)) add("saturacao", "frequencia respiratoria", "volume", "capacidade", "fluxo");
+  return [...keywords].filter(Boolean);
+}
+
+function parameterContextScore(resolved: AdaptiveResolvedExam, parameter: IntelligentExamParameter, index: number) {
+  if (isRoutineContext(resolved.clinicalContext) && !clinicalDetail(resolved)) return -index / 1000;
+  const text = normalizedFieldKey(`${parameter.id} ${parameter.label} ${parameter.interpretationHint || ""}`);
+  const score = contextKeywords(resolved).reduce((total, keyword) => total + (text.includes(keyword) ? 5 : 0), 0);
+  const id = normalizedFieldKey(parameter.id);
+  if (/impressao|conclusao/.test(id)) return -1000 - index;
+  return score - index / 1000;
+}
+
+function orderParametersByContext(resolved: AdaptiveResolvedExam, parameters: IntelligentExamParameter[]) {
+  // O psicotécnico monta tabelas por grupos fixos e depende da ordem original.
+  if (resolved.model.id === "psiquiatria_psicotecnico") return parameters;
+  if (isRoutineContext(resolved.clinicalContext) && !clinicalDetail(resolved)) return parameters;
+  return parameters
+    .map((parameter, index) => ({ parameter, index, score: parameterContextScore(resolved, parameter, index) }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((item) => item.parameter);
+}
+
+function contextualMethodFocus(resolved: AdaptiveResolvedExam) {
+  const context = resolved.clinicalContext.trim();
+  const key = normalizedFieldKey(context);
+  const detail = clinicalDetail(resolved);
+  const age = patientAgeDescription(resolved);
+  const modelText = normalizedFieldKey(`${resolved.model.id} ${resolved.model.categoria}`);
+  const parts: string[] = [];
+
+  const dedicatedPurposeNarrative = resolved.model.id === "psiquiatria_psicotecnico" || resolved.model.id === "gineco_usg_monitorizacao_folicular";
+  if (detail) parts.push(`avaliação direcionada para ${detail}`);
+  else if (!dedicatedPurposeNarrative && !isRoutineContext(context) && key !== "personalizado") parts.push(`avaliação direcionada ao contexto de ${context.toLowerCase()}`);
+
+  if (/controle|acompanhamento|seguimento/.test(key)) parts.push("com atenção à evolução e à comparação com resultados anteriores quando disponíveis");
+  else if (/rastreamento/.test(key)) parts.push("com foco em rastreamento e identificação de alterações relevantes");
+  else if (/suspeita_clinica/.test(key)) parts.push("com foco nos achados relacionados à hipótese clínica informada");
+  else if (/trauma/.test(key)) parts.push("priorizando integridade estrutural, alinhamento e sinais de lesão traumática");
+  else if (/dor/.test(key)) parts.push("priorizando alterações que possam explicar o sintoma informado na região avaliada");
+  else if (/pos_operatorio/.test(key)) parts.push("priorizando o aspecto do sítio tratado, alinhamento e sinais de complicação");
+  else if (/oncolog/.test(key)) parts.push("priorizando lesões focais, massas e sinais de progressão ou resposta ao acompanhamento");
+  else if (/ocupacional|administrativo|porte_de_arma|pilotagem|treinamento_de_combate/.test(key) && resolved.model.id === "geral_exame_toxicologico") parts.push("com finalidade documental compatível com a atividade informada");
+
+  if (/obstetricia|gineco|pediatria|neonatal|hormonal/.test(modelText) && age) parts.push(`considerando ${age}`);
+  if ((resolved.model.id === "lab_teste_coombs" || resolved.model.id === "lab_anticorpos_irregulares") && resolved.patientContext.bloodType) {
+    parts.push(`considerando o tipo sanguíneo informado (${resolved.patientContext.bloodType})`);
+  }
+
+  const gestationalAge = String(resolved.variables.idade_gestacional ?? resolved.variables.idade_gestacional_referida ?? "").trim();
+  const fetuses = String(resolved.variables.numero_fetos ?? "").trim();
+  const fiv = String(resolved.variables.fiv ?? "").trim();
+  const risk = String(resolved.variables.risco ?? "").trim();
+  if (gestationalAge) parts.push(`considerando idade gestacional informada de ${gestationalAge}${/sem/i.test(gestationalAge) ? "" : " semanas"}`);
+  if (fetuses && Number(fetuses) > 1) parts.push(`com avaliação de gestação múltipla (${fetuses} fetos informados)`);
+  if (/^sim$/i.test(fiv)) parts.push("no contexto de gestação por fertilização in vitro");
+  if (/^sim$/i.test(risk)) parts.push("com atenção adicional ao contexto de gestação de risco informado");
+
+  if (resolved.model.id === "lab_teste_dna") {
+    const participants = String(resolved.variables.participantes ?? "").trim();
+    const motherPresent = String(resolved.variables.mae_presente ?? "").trim();
+    if (participants) parts.push(`considerando ${participants} participantes informados`);
+    if (motherPresent && normalizedFieldKey(motherPresent) !== "nao_se_aplica") parts.push(`presença materna informada: ${motherPresent.toLowerCase()}`);
+  }
+
+  return parts.join(", ");
+}
+
+function generalContextNarrative(resolved: AdaptiveResolvedExam, kind: "interpretation" | "conclusion") {
+  const context = resolved.clinicalContext.trim();
+  const key = normalizedFieldKey(context);
+  const detail = clinicalDetail(resolved);
+  if (resolved.model.id === "psiquiatria_psicotecnico") return "";
+  if (resolved.model.id === "gineco_usg_monitorizacao_folicular") return "";
+  if (resolved.model.id === "hormonal_painel_hormonal_completo") {
+    const role = normalizedFieldKey(String(resolved.variables.papel_no_protocolo ?? ""));
+    if (role.includes("doadora") || role.includes("receptora") || role.includes("gestante")) return "";
+  }
+
+  if (resolved.model.id === "lab_beta_hcg_completo") {
+    const referred = String(resolved.variables.idade_gestacional_referida ?? "").trim();
+    if (resolved.profile.id === "positivo" && referred) {
+      return kind === "interpretation"
+        ? `A leitura do β-hCG considera a idade gestacional informada de ${referred} semanas, usando o valor quantitativo como dado complementar e não como datação isolada.`
+        : `β-hCG positivo interpretado no contexto de aproximadamente ${referred} semanas informadas; a evolução gestacional deve ser integrada à DUM, FIV quando aplicável e ultrassonografia.`;
+    }
+  }
+
+  if (resolved.model.id === "lab_beta_hcg_completo" && /gestacao|fiv|abortamento|seguimento/.test(key)) {
+    const target = key.includes("fiv") ? "fertilização in vitro"
+      : key.includes("abortamento") ? "acompanhamento após suspeita/evento gestacional"
+        : key.includes("seguimento") ? "seguimento gestacional"
+          : "avaliação gestacional";
+    return kind === "interpretation"
+      ? `O β-hCG é interpretado no contexto de ${target}, valorizando o valor quantitativo, a idade gestacional informada e a tendência seriada quando houver dosagens anteriores.`
+      : `Conclusão do β-hCG contextualizada para ${target}; a leitura isolada do valor não substitui a correlação com DUM, ultrassonografia e evolução clínica.`;
+  }
+
+  if (resolved.model.id === "lab_teste_dna" && resolved.adapterValue) {
+    const bond = resolved.adapterValue.replace(/^Investigação\s+de\s+/i, "").trim();
+    return kind === "interpretation"
+      ? `A análise genética foi estruturada para ${bond.toLowerCase()}, considerando o conjunto de marcadores e os participantes informados no motor.`
+      : `Conclusão genética emitida especificamente para ${bond.toLowerCase()}, conforme a compatibilidade dos marcadores analisados.`;
+  }
+
+  if (resolved.model.id === "hormonal_painel_hormonal_completo" && /infertilidade|sop|menopausa|masculino|pediatr/.test(key)) {
+    const focus = key.includes("infertilidade") ? "eixo reprodutivo e fatores hormonais relacionados à fertilidade"
+      : key.includes("sop") ? "padrão ovulatório e equilíbrio entre gonadotrofinas e hormônios ovarianos"
+        : key.includes("menopausa") ? "padrão hormonal compatível com transição menopausal"
+          : key.includes("masculino") ? "eixo gonadal masculino e hormônios reguladores"
+            : "interpretação hormonal compatível com a faixa etária pediátrica informada";
+    return kind === "interpretation"
+      ? `O painel foi organizado para o contexto de ${context.toLowerCase()}, com foco em ${focus}.`
+      : `Conclusão hormonal contextualizada para ${context.toLowerCase()}, considerando os parâmetros mais relevantes para ${focus}.`;
+  }
+
+  if (/primeiro_trimestre|segundo_trimestre|terceiro_trimestre|gemelar|gestacao_de_risco/.test(key)) {
+    const gestationalAge = String(resolved.variables.idade_gestacional ?? "").trim();
+    const fetuses = String(resolved.variables.numero_fetos ?? "").trim();
+    const contextBits = [context, gestationalAge ? `${gestationalAge}${/sem/i.test(gestationalAge) ? "" : " semanas"}` : "", fetuses && Number(fetuses) > 1 ? `${fetuses} fetos` : ""].filter(Boolean).join(" · ");
+    return kind === "interpretation"
+      ? `A leitura obstétrica foi organizada para ${contextBits}, priorizando vitalidade, crescimento, biometria, placenta e líquido amniótico conforme a etapa informada.`
+      : `Conclusão obstétrica contextualizada para ${contextBits}, com síntese dos achados mais relevantes para a etapa gestacional informada.`;
+  }
+
+  if (/controle|acompanhamento|seguimento/.test(key)) {
+    return kind === "interpretation"
+      ? `Os resultados são apresentados como exame de ${context.toLowerCase()}, priorizando tendência e evolução; quando houver exames anteriores, a comparação seriada é mais informativa que um valor isolado.`
+      : `Resultado de ${context.toLowerCase()} sintetizado conforme o padrão atual, devendo a evolução ser comparada com registros prévios quando disponíveis.`;
+  }
+  if (/rastreamento/.test(key)) {
+    return kind === "interpretation"
+      ? "A leitura foi direcionada para rastreamento, destacando alterações que mereçam investigação sem transformar achados isolados em diagnóstico definitivo."
+      : "Exame de rastreamento concluído conforme os achados descritos; alterações relevantes devem ser confirmadas ou acompanhadas conforme o contexto assistencial.";
+  }
+  if (/suspeita_clinica/.test(key) || detail) {
+    const target = detail || "a suspeita clínica informada";
+    return kind === "interpretation"
+      ? `A leitura foi direcionada para ${target}, dando maior peso aos parâmetros relacionados a essa hipótese sem ignorar os demais achados do exame.`
+      : `Conclusão organizada para responder a ${target}, conforme os resultados objetivos descritos.`;
+  }
+  if (/trauma|dor|pos_operatorio|oncolog/.test(key)) {
+    const target = key.includes("trauma") ? "trauma"
+      : key.includes("dor") ? "dor"
+        : key.includes("pos_operatorio") ? "controle pós-operatório"
+          : "acompanhamento oncológico";
+    return kind === "interpretation"
+      ? `A leitura foi direcionada ao contexto de ${target}, priorizando os achados com maior relação com essa finalidade.`
+      : `Conclusão estruturada para o contexto de ${target}, destacando os achados diretamente relevantes para a finalidade do exame.`;
+  }
+  if (/ocupacional|administrativo|porte_de_arma|pilotagem|treinamento_de_combate/.test(key) && resolved.model.id === "geral_exame_toxicologico") {
+    return kind === "interpretation"
+      ? `O resultado toxicológico é interpretado para finalidade ${context.toLowerCase()}, preservando a distinção entre detecção laboratorial e avaliação funcional.`
+      : `Resultado toxicológico emitido para finalidade ${context.toLowerCase()}, conforme as substâncias pesquisadas e a qualidade da amostra.`;
+  }
+
+  return "";
+}
+
 function technicalMethodNarrative(resolved: AdaptiveResolvedExam) {
   const { model } = resolved;
-  // O laudo precisa continuar técnico, mas a seção de método não deve repetir
-  // duas descrições extensas. A técnica principal informa o essencial; detalhes
-  // objetivos permanecem nos parâmetros e campos próprios do exame.
-  const primary = cleanTechnicalSentence(model.technique || model.method);
-  const scope = resolved.adapterValue ? `Área avaliada: ${resolved.adapterValue}` : "";
-  const parts = [primary, scope].filter(Boolean);
+  const protocolRole = normalizedFieldKey(String(
+    model.id === "gineco_usg_monitorizacao_folicular"
+      ? (resolved.variables.foco_monitorizacao ?? resolved.variables.papel_no_protocolo ?? "")
+      : (resolved.variables.papel_no_protocolo ?? "")
+  ));
+  let primary = cleanTechnicalSentence(model.technique || model.method);
+
+  if (model.id === "gineco_usg_monitorizacao_folicular") {
+    if (protocolRole.includes("folicul") || protocolRole.includes("doadora")) {
+      primary = "Ultrassonografia transvaginal seriada com foco no desenvolvimento folicular, incluindo avaliação dos ovários, mensuração dos folículos e pesquisa de sinais de maturação/ovulação";
+    } else if (protocolRole.includes("endometr") || protocolRole.includes("receptora") || protocolRole.includes("gestante")) {
+      primary = "Ultrassonografia transvaginal seriada com foco endometrial, incluindo avaliação uterina, padrão e espessura do endométrio";
+    }
+  }
+
+  if (model.id === "psiquiatria_psicotecnico") {
+    const purpose = normalizedFieldKey(resolved.clinicalContext);
+    if (purpose.includes("porte_de_arma")) {
+      primary = "Avaliação presencial estruturada voltada à aptidão para porte de arma, com entrevista dirigida, observação comportamental e tarefas de atenção, controle de impulsos, julgamento, tomada de decisão e resposta psicomotora";
+    } else if (purpose.includes("pilotagem")) {
+      primary = "Avaliação presencial estruturada voltada à pilotagem aérea, com entrevista dirigida e tarefas de atenção sustentada, tempo de reação, coordenação, autorregulação sob pressão e tomada de decisão";
+    }
+  }
+
+  const scope = resolved.adapterValue && model.adapter.enabled
+    ? `${model.adapter.label}: ${resolved.adapterValue}`
+    : "";
+  const focusRaw = contextualMethodFocus(resolved);
+  const focus = focusRaw ? focusRaw.charAt(0).toUpperCase() + focusRaw.slice(1) : "";
+  const parts = [primary, scope, focus].filter(Boolean);
   return simplifyClinicalNarrative(parts.join(". ") + ".");
 }
 
@@ -1190,7 +1710,7 @@ function profileChangedRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
 
   const ranked: Array<{ row: string[]; rank: number; index: number }> = [];
   rows.forEach((row, index) => {
-    const parameter = model.parameters[index];
+    const parameter = model.parameters.find((item) => item.label === row[0]);
     if (!parameter || /impressão|impressao|conclusão|conclusao/i.test(parameter.label || "")) return;
     const current = profile.results?.[parameter.id];
     const normal = normalProfile.results?.[parameter.id];
@@ -1262,6 +1782,50 @@ function refreshedNarrative(
   return narrativeForSelection(resolved, genericNarrativeForProfile(resolved, kind));
 }
 
+function contextualProtocolNarrative(resolved: AdaptiveResolvedExam, kind: "interpretation" | "conclusion") {
+  const role = normalizedFieldKey(String(
+    resolved.model.id === "gineco_usg_monitorizacao_folicular"
+      ? (resolved.variables.foco_monitorizacao ?? resolved.variables.papel_no_protocolo ?? "")
+      : (resolved.variables.papel_no_protocolo ?? "")
+  ));
+  if (!role) return "";
+
+  const stimulationDay = String(resolved.variables.dia_estimulacao ?? "").trim();
+  const prepDay = String(resolved.variables.dia_preparo_endometrial ?? "").trim();
+
+  if (resolved.model.id === "gineco_usg_monitorizacao_folicular") {
+    if (role.includes("folicul") || role.includes("doadora")) {
+      const stage = stimulationDay ? ` no dia ${stimulationDay} informado de estimulação` : "";
+      return kind === "interpretation"
+        ? `Avaliação seriada com foco nos folículos${stage}, priorizando resposta ovariana, quantidade, dimensões e sinais de maturação/ovulação.`
+        : `Monitorização com foco folicular${stage}; a conclusão deve ser correlacionada com a evolução seriada e o objetivo do acompanhamento.`;
+    }
+    if (role.includes("endometr") || role.includes("receptora") || role.includes("gestante")) {
+      const stage = prepDay ? ` no dia ${prepDay} informado de preparo` : "";
+      return kind === "interpretation"
+        ? `Avaliação seriada com foco no endométrio${stage}, priorizando padrão e espessura endometrial e os achados uterinos relacionados.`
+        : `Monitorização com foco endometrial${stage}; a conclusão deve ser correlacionada com a evolução seriada e o objetivo do acompanhamento.`;
+    }
+  }
+
+  if (resolved.model.id === "hormonal_painel_hormonal_completo") {
+    if (role.includes("doadora")) {
+      const stage = stimulationDay ? ` no dia ${stimulationDay} de estimulação` : " durante a estimulação ovariana";
+      return kind === "interpretation"
+        ? `Painel interpretado no contexto de doação de óvulos/FIV${stage}, priorizando a correlação de estradiol, LH e progesterona com a resposta folicular e a monitorização ultrassonográfica.`
+        : `Perfil hormonal de acompanhamento da doadora em protocolo de FIV${stage}; a conduta deve ser integrada à evolução folicular e ao protocolo de estimulação.`;
+    }
+    if (role.includes("receptora") || role.includes("gestante")) {
+      const stage = prepDay ? ` no dia ${prepDay} do preparo endometrial` : " durante o preparo endometrial";
+      return kind === "interpretation"
+        ? `Painel interpretado no contexto de receptora/gestante em FIV${stage}, com ênfase na adequação hormonal ao preparo endometrial e à programação da transferência embrionária.`
+        : `Perfil hormonal de acompanhamento do preparo endometrial${stage}, devendo ser integrado à avaliação ultrassonográfica e ao protocolo de transferência.`;
+    }
+  }
+
+  return "";
+}
+
 function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][]) {
   // Exceção expressa do projeto: não alterar o comportamento do Raio-X.
   if (resolved.model.id === "img_raio_x_unico") return legacyTechnicalInterpretation(resolved, rows);
@@ -1269,12 +1833,17 @@ function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][
   const evidence = reportEvidenceRows(resolved, rows)
     .map((row) => `${row[0]}: ${row[1]}`)
     .join("; ");
+  const protocolContext = contextualProtocolNarrative(resolved, "interpretation");
+  const generalContext = generalContextNarrative(resolved, "interpretation");
+  const contextual = [protocolContext, generalContext].filter(Boolean).join("\n");
   const narrative = refreshedNarrative(resolved, resolved.profile.interpretation, "interpretation");
   const fallback = refreshedNarrative(resolved, resolved.profile.resultSummary, "interpretation");
-  if (!evidence) return simplifyClinicalNarrative(narrative || fallback);
+  const contextOwnsNarrative = resolved.model.id === "gineco_usg_monitorizacao_folicular" && Boolean(protocolContext);
+  const base = contextOwnsNarrative ? protocolContext : [contextual, narrative || fallback].filter(Boolean).join("\n");
+  if (!evidence) return simplifyClinicalNarrative(base);
 
   const noun = isImagingReportModel(resolved.model) ? "Principais achados" : "Principais resultados";
-  return simplifyClinicalNarrative(`${narrative || fallback}\n${noun}: ${evidence}.`);
+  return simplifyClinicalNarrative(`${base}\n${noun}: ${evidence}.`);
 }
 
 function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
@@ -1285,10 +1854,15 @@ function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
     .slice(0, 2)
     .map((row) => `${row[0]}: ${row[1]}`)
     .join("; ");
+  const protocolContext = contextualProtocolNarrative(resolved, "conclusion");
+  const generalContext = generalContextNarrative(resolved, "conclusion");
+  const contextual = [protocolContext, generalContext].filter(Boolean).join("\n");
   const conclusion = refreshedNarrative(resolved, resolved.profile.conclusion, "conclusion")
     || refreshedNarrative(resolved, resolved.profile.resultSummary, "conclusion");
-  if (!evidence || /personalizado/i.test(resolved.profile.id)) return simplifyClinicalNarrative(conclusion);
-  return simplifyClinicalNarrative(`${conclusion}\nResumo principal: ${evidence}.`);
+  const contextOwnsNarrative = resolved.model.id === "gineco_usg_monitorizacao_folicular" && Boolean(protocolContext);
+  const base = contextOwnsNarrative ? protocolContext : [contextual, conclusion].filter(Boolean).join("\n");
+  if (!evidence || /personalizado/i.test(resolved.profile.id)) return simplifyClinicalNarrative(base);
+  return simplifyClinicalNarrative(`${base}\nResumo principal: ${evidence}.`);
 }
 
 function resultSummaryFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
@@ -1327,7 +1901,7 @@ function legacyFindingsFromRows(resolved: AdaptiveResolvedExam, rows: string[][]
   const opening = resolved.adapterValue
     ? `${model.nome} direcionado para ${resolved.adapterValue.toLowerCase()}.`
     : `${model.nome} realizado conforme protocolo institucional.`;
-  const context = resolved.clinicalContext ? ` Indicação: ${resolved.clinicalContext}.` : "";
+  const context = "";
 
   if (!informative.length) return `${opening}${context} ${profile.resultSummary}`;
 
@@ -1376,7 +1950,7 @@ function findingsFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
   const opening = resolved.adapterValue
     ? `${model.nome}. Área avaliada: ${resolved.adapterValue}.`
     : `${model.nome}.`;
-  const context = resolved.clinicalContext ? ` Indicação: ${resolved.clinicalContext}.` : "";
+  const context = "";
 
   if (!informative.length) return simplifyClinicalNarrative(`${opening}${context} ${profile.resultSummary}`);
 
@@ -1391,21 +1965,46 @@ function findingsFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
   return simplifyClinicalNarrative(lines.filter(Boolean).join("\n"));
 }
 
+function renderVariableInMethod(resolved: AdaptiveResolvedExam, field: AdaptiveDynamicField) {
+  const id = normalizedFieldKey(field.id);
+  const parameterIds = new Set(resolved.parameters.map((parameter) => normalizedFieldKey(parameter.id)));
+  if (parameterIds.has(id)) return false;
+  if (new Set([
+    "contexto_clinico",
+    "finalidade_avaliacao",
+    "papel_no_protocolo",
+    "foco_monitorizacao",
+    "dia_estimulacao",
+    "dia_preparo_endometrial",
+    "idade_gestacional",
+    "idade_gestacional_referida",
+    "numero_fetos",
+    "fiv",
+    "risco",
+    "participantes",
+    "mae_presente",
+  ]).has(id)) return false;
+  return true;
+}
+
 export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
   const { model, profile } = resolved;
   const rows = parameterRows(resolved);
+  const displayRows = rows.filter((row) => !/impressão|impressao|conclusão|conclusao/i.test(row[0] || ""));
   const isLaboratory = model.structure.standard === "laboratorio";
   const isImage = isImagingReportModel(model);
-  const adapterText = resolved.adapterValue ? `<p><strong>${htmlEscape(model.adapter.label)}:</strong> ${htmlEscape(resolved.adapterValue)}</p>` : "";
-  const contextText = resolved.clinicalContext ? `<p><strong>Contexto clínico:</strong> ${htmlEscape(resolved.clinicalContext)}</p>` : "";
+  const adapterText = "";
+  // O contexto já participa da construção do método, da ordem dos achados e
+  // da interpretação. Evitamos reduzi-lo novamente a uma linha isolada.
+  const contextText = "";
   const contrastField = resolved.dynamicFields.find((field) => field.id === "contraste");
   const contrastText = contrastField?.value ? `<p><strong>Contraste:</strong> ${htmlEscape(String(contrastField.value))}</p>` : "";
   const technicalVariableText = resolved.dynamicFields
-    .filter((field) => field.source === "variable" && String(field.value ?? "").trim() !== "")
+    .filter((field) => field.source === "variable" && String(field.value ?? "").trim() !== "" && renderVariableInMethod(resolved, field))
     .map((field) => `<p><strong>${htmlEscape(field.label)}:</strong> ${htmlEscape(String(field.value))}</p>`)
     .join("");
   const technique = paragraphs(technicalMethodNarrative(resolved));
-  const table = isLaboratory && rows.length ? tableHtml(["Parâmetro", "Resultado", "Valores de referência"], rows) : "";
+  const table = isLaboratory && displayRows.length ? tableHtml(["Parâmetro", "Resultado", "Valores de referência"], displayRows) : "";
   if (model.id === "psiquiatria_psicotecnico") {
     const rowById = new Map(model.parameters.map((parameter, index) => [parameter.id, rows[index]]));
     const selectRows = (ids: string[]) => ids.map((id) => rowById.get(id)).filter(Boolean) as string[][];
@@ -1463,17 +2062,27 @@ ${profile.conclusion}`))),
   }
 
   if (isImage) {
+    const findingsTable = displayRows.length
+      ? tableHtml(["Estrutura / parâmetro", "Achado", "Referência"], displayRows)
+      : paragraphs(findingsFromRows(resolved, rows));
     return [
       section("tecnica", "1. Método", technique + adapterText + contrastText + technicalVariableText + contextText),
-      section("achados", "2. Achados", paragraphs(findingsFromRows(resolved, rows))),
+      section("achados", "2. Achados", findingsTable),
       section("interpretacao", "3. Leitura clínica", paragraphs(technicalInterpretation(resolved, rows))),
       section("conclusao", "4. Conclusão", paragraphs(technicalConclusion(resolved, rows))),
     ].join("");
   }
 
+  const structuredResults = displayRows.length
+    ? tableHtml(
+        isLaboratory ? ["Parâmetro", "Resultado", "Valores de referência"] : ["Parâmetro avaliado", "Resultado", "Referência"],
+        displayRows,
+      )
+    : paragraphs(isLaboratory ? resultSummaryFromRows(resolved, rows) : findingsFromRows(resolved, rows));
+
   return [
     section("tecnica", "1. Método", technique + adapterText + contrastText + technicalVariableText + contextText),
-    section(isLaboratory ? "resultados" : "achados", isLaboratory ? "2. Resultados" : "2. Achados", isLaboratory ? (table || paragraphs(resultSummaryFromRows(resolved, rows))) : paragraphs(findingsFromRows(resolved, rows))),
+    section(isLaboratory ? "resultados" : "achados", isLaboratory ? "2. Resultados" : "2. Achados", structuredResults),
     section("interpretacao", "3. Leitura clínica", paragraphs(technicalInterpretation(resolved, rows))),
     section("conclusao", "4. Conclusão", paragraphs(technicalConclusion(resolved, rows))),
   ].join("");

@@ -72,8 +72,8 @@ export function ClinicalHistoryButton({ recordType }: { recordType: "Exame" | "D
   }
 
   return <>
-    <button type="button" onClick={() => setOpen(true)} className="inline-flex items-center gap-2 rounded-full border border-[#dec8b6] bg-white px-3 py-2 text-xs font-black text-hpsr-text shadow-[0_4px_10px_rgba(42,7,0,0.04)] hover:border-hpsr-wine/40">
-      <Clock3 size={14} /> Histórico
+    <button type="button" onClick={() => setOpen(true)} className="inline-flex h-10 items-center gap-2 rounded-[12px] border border-hpsr-wine/20 bg-[#fff8f1] px-3.5 text-xs font-black text-hpsr-wine shadow-[0_5px_14px_rgba(42,7,0,0.05)] transition hover:-translate-y-0.5 hover:border-hpsr-wine/40 hover:bg-white hover:shadow-[0_8px_18px_rgba(42,7,0,0.08)]">
+      <Clock3 size={15} strokeWidth={2.3} /> {recordType === "Exame" ? "Histórico de exames" : "Histórico de documentos"}
     </button>
     {open && <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/55 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
       <div className="flex max-h-[78vh] w-full max-w-2xl flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-2xl">

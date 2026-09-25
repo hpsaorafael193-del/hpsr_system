@@ -789,6 +789,30 @@ button:active {
   padding: 0.34rem 0.4rem;
   line-height: 1.34;
 }
+
+.hpsr-continuous-editor table.hpsr-exam-table,
+.hpsr-continuous-editor section[data-hpsr-auto-block="true"] table.hpsr-exam-table {
+  width: min(88%, 660px);
+  max-width: 100%;
+  margin: 0.5rem auto 0.65rem;
+  font-size: 12px;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid rgba(91, 24, 9, 0.16);
+  border-radius: 14px;
+  overflow: hidden;
+  table-layout: auto;
+  background: #ffffff;
+}
+.hpsr-continuous-editor table.hpsr-exam-table td,
+.hpsr-continuous-editor table.hpsr-exam-table th,
+.hpsr-continuous-editor section[data-hpsr-auto-block="true"] table.hpsr-exam-table td,
+.hpsr-continuous-editor section[data-hpsr-auto-block="true"] table.hpsr-exam-table th {
+  padding: 0.34rem 0.4rem;
+  line-height: 1.34;
+  vertical-align: middle;
+  text-align: center;
+}
 .hpsr-continuous-editor blockquote {
   border-left: 4px solid rgba(91, 24, 9, 0.28);
   background: linear-gradient(180deg, rgba(255, 248, 244, 0.98) 0%, rgba(255, 252, 249, 0.98) 100%);
@@ -797,3 +821,126 @@ button:active {
   color: #6f5148;
   border-radius: 0 12px 12px 0;
 }
+
+
+/* Exames: apenas a área de trabalho adota a altura compartilhada no desktop.
+   O formulário rola internamente e acompanha o editor até o início do histórico. */
+@media (min-width: 1280px) {
+  .hpsr-exams-workspace {
+    height: clamp(820px, calc(68dvh + 260px), 1120px);
+    flex: none;
+    align-items: stretch;
+  }
+  .hpsr-exams-workspace > aside,
+  .hpsr-exams-workspace > main {
+    height: 100%;
+    min-height: 0;
+  }
+  .hpsr-exams-editor-viewport {
+    height: auto;
+    min-height: 0;
+    flex: 1 1 0%;
+  }
+}
+
+/* Escala legível de controles, sem alterar o tamanho real do laudo exportado.
+   As regras são restritas à página de Exames e ao seu histórico. */
+.hpsr-exams-page .text-xs,
+.hpsr-exams-history .text-xs {
+  font-size: 13px;
+  line-height: 1.42;
+}
+.hpsr-exams-page .text-sm,
+.hpsr-exams-history .text-sm {
+  font-size: 14px;
+  line-height: 1.45;
+}
+.hpsr-exams-history .text-\[10px\] { font-size: 13px; line-height: 1.4; }
+.hpsr-exams-history .text-\[9px\] { font-size: 12px; line-height: 1.4; }
+.hpsr-exams-history .text-\[8px\] { font-size: 11px; line-height: 1.4; }
+.hpsr-exams-history button { min-height: 42px; }
+.hpsr-exams-history input { font-size: 14px; }
+.hpsr-exams-history article { background-color: #fffdf8; }
+
+/* Documentos: as duas colunas têm rolagem própria e visível no desktop.
+   Só o formulário e o conteúdo do editor rolam; cabeçalho, ferramentas,
+   ações e histórico continuam no fluxo normal da página. */
+@media (min-width: 1280px) {
+  /* Especificidade protege a área de trabalho nos notebooks touch, para os
+     quais a regra geral de rolagem natural altera a altura de .hpsr-page. */
+  .hpsr-page.hpsr-documents-page > section.hpsr-documents-workspace:not(.fixed) {
+    height: clamp(680px, calc(54dvh + 168px), 795px) !important;
+    min-height: 0 !important;
+    flex: none;
+    align-items: stretch;
+    overflow: visible !important;
+  }
+  .hpsr-documents-workspace > aside,
+  .hpsr-documents-workspace > main {
+    height: 100%;
+    min-height: 0;
+  }
+  .hpsr-documents-page .hpsr-documents-form-scroll {
+    overflow-y: scroll !important;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+  }
+  .hpsr-documents-page .hpsr-documents-editor-viewport {
+    height: auto;
+    min-height: 0;
+    flex: 1 1 0%;
+    overflow-y: scroll !important;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+  }
+
+  /* Em Windows e notebooks com toque, o estilo global não deve esconder as
+     barras destes dois painéis. O catálogo tem sua própria rolagem limitada. */
+  .hpsr-documents-page .hpsr-documents-form-scroll,
+  .hpsr-documents-page .hpsr-documents-editor-viewport {
+    scrollbar-width: thin !important;
+    scrollbar-color: #ab8071 #f2e8e2 !important;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+  .hpsr-documents-page .hpsr-documents-form-scroll::-webkit-scrollbar,
+  .hpsr-documents-page .hpsr-documents-editor-viewport::-webkit-scrollbar {
+    display: block !important;
+    width: 10px !important;
+  }
+  .hpsr-documents-page .hpsr-documents-form-scroll::-webkit-scrollbar-track,
+  .hpsr-documents-page .hpsr-documents-editor-viewport::-webkit-scrollbar-track {
+    background: #f2e8e2;
+    border-radius: 12px;
+  }
+  .hpsr-documents-page .hpsr-documents-form-scroll::-webkit-scrollbar-thumb,
+  .hpsr-documents-page .hpsr-documents-editor-viewport::-webkit-scrollbar-thumb {
+    background: #ab8071;
+    border: 2px solid #f2e8e2;
+    border-radius: 12px;
+  }
+  .hpsr-documents-page .hpsr-documents-form-scroll::-webkit-scrollbar-thumb:hover,
+  .hpsr-documents-page .hpsr-documents-editor-viewport::-webkit-scrollbar-thumb:hover {
+    background: #855c50;
+  }
+}
+
+/* Em telas estreitas, as colunas ficam empilhadas e a página assume a
+   rolagem para não criar dois painéis pequenos dentro de outro scroll. */
+@media (max-width: 1279px) {
+  .hpsr-documents-editor-viewport {
+    height: auto;
+    min-height: 0;
+    flex: none;
+    overflow: visible;
+    scrollbar-gutter: auto;
+  }
+}
+
+.hpsr-documents-page .text-xs { font-size: 13px; line-height: 1.42; }
+.hpsr-documents-page .text-sm { font-size: 14px; line-height: 1.45; }
+.hpsr-documents-page .text-\[11px\] { font-size: 12px; line-height: 1.45; }
+.hpsr-documents-page .text-\[10px\] { font-size: 12px; line-height: 1.4; }
+.hpsr-documents-page .text-\[9px\] { font-size: 11px; line-height: 1.4; }

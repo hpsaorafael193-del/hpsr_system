@@ -5,7 +5,7 @@ import { brazilIso } from "@/lib/brazil-datetime";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { StyledSelect } from "@/components/ui/StyledSelect";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   CalendarDays,
   CalendarClock,
@@ -166,6 +166,7 @@ const labelClass = "text-xs font-semibold uppercase tracking-[0.16em] text-hpsr-
 export default function ClinicalSchedulePage() {
   const searchParams = useSearchParams();
   const requestedAppointmentId = searchParams.get("appointment") || "";
+  const openNewAppointmentFromShortcut = searchParams.get("new") === "1";
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const isDeveloper = currentUserProfile.systemRole === "Administrador do Sistema" || currentUserProfile.accessLevel === "Total";
   const isDirector = ["Diretora", "Vice Diretor", "Vice-Diretor"].some((role) => role === currentUserProfile.role || role === currentUserProfile.systemRole);
@@ -177,6 +178,7 @@ export default function ClinicalSchedulePage() {
   );
   const [selectedDate, setSelectedDate] = useState(brasiliaToday);
   const [modal, setModal] = useState<ModalState>(null);
+  const newAppointmentShortcutHandled = useRef(false);
   const [scheduleToolModal, setScheduleToolModal] = useState<ScheduleToolModal>(null);
   const [appointmentSearch, setAppointmentSearch] = useState("");
   const [scheduleScope, setScheduleScope] = useState<"mine" | "all">("mine");
@@ -233,6 +235,12 @@ export default function ClinicalSchedulePage() {
       void client.removeChannel(channel);
     };
   }, [loadAppointments]);
+
+  useEffect(() => {
+    if (!openNewAppointmentFromShortcut || newAppointmentShortcutHandled.current) return;
+    newAppointmentShortcutHandled.current = true;
+    setModal({ mode: "new" });
+  }, [openNewAppointmentFromShortcut]);
 
   useEffect(() => {
     if (!requestedAppointmentId || modal) return;
@@ -611,6 +619,7 @@ export default function ClinicalSchedulePage() {
                           <CalendarDays size={14} />
                           {appointment.time} · Brasília
                         </span>
+                        <span className="inline-flex rounded-full border border-[#ead8cf] bg-white px-3 py-1 text-xs font-black text-hpsr-text">Consulta</span>
                         <span
                           className={cn(
                             "inline-flex rounded-full border px-3 py-1 text-xs font-semibold",

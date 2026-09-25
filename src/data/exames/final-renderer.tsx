@@ -94,7 +94,7 @@ function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity
     const thead = root.querySelector("thead")?.outerHTML || "";
     const rows = Array.from(root.querySelectorAll("tbody tr"));
     if (!rows.length) return [html];
-    return rows.map((row) => `<table>${thead}<tbody>${row.outerHTML}</tbody></table>`);
+    return rows.map((row) => `<table class="hpsr-exam-table">${thead}<tbody>${row.outerHTML}</tbody></table>`);
   }
 
   if (tag === "ul" || tag === "ol") {
@@ -422,7 +422,7 @@ function splitLongTable(tableHtml: string) {
 
   const chunks: string[] = [];
   for (let index = 0; index < rows.length; index += rowsPerChunk) {
-    chunks.push(`<table>${thead}<tbody>${rows.slice(index, index + rowsPerChunk).join("")}</tbody></table>`);
+    chunks.push(`<table class="hpsr-exam-table">${thead}<tbody>${rows.slice(index, index + rowsPerChunk).join("")}</tbody></table>`);
   }
   return chunks;
 }
@@ -668,7 +668,7 @@ function Footer({ metadata, pageIndex, totalPages }: { metadata: RenderMetadata;
     <div className="pointer-events-none absolute bottom-[12px] left-[42px] right-[42px] h-[97px] overflow-hidden border-t border-[#5b1809]/20 bg-[#fffaf4]/95 pt-2 text-[#7a5148]" style={{ fontFamily: "Arial, sans-serif", zIndex: 4 }}>
       <div className="flex h-[58px] items-end justify-center overflow-hidden">
         <div className="w-[52%] text-center">
-          {metadata.signatureImage && <img src={metadata.signatureImage} alt="Assinatura cadastrada" className="mx-auto block object-contain" style={{ width: 240, height: 38, maxWidth: 240, maxHeight: 38, objectFit: "contain", mixBlendMode: "multiply", background: "transparent" }} />}
+          {metadata.signatureImage ? <img src={metadata.signatureImage} alt="Assinatura cadastrada" className="mx-auto block object-contain" style={{ width: 240, height: 38, maxWidth: 240, maxHeight: 38, objectFit: "contain", mixBlendMode: "multiply", background: "transparent" }} /> : <div className="mx-auto flex h-[38px] items-end justify-center overflow-hidden text-[22px] italic text-[#5b1809]" style={{ fontFamily: "Georgia, Times New Roman, serif" }}>{metadata.doctor.name || "Nome do médico"}</div>}
           <div className="mx-auto mt-0.5 h-px w-[68%] border-b border-dotted border-[#5b1809]" />
           <p className="mt-1 text-[11px]"><span className="font-bold text-[#5b1809]">Dr(a).</span> {metadata.doctor.name || "Nome do médico"}</p>
           <p className="text-[9px]"><span className="font-bold text-[#5b1809]">CRM:</span> {metadata.doctor.crm || "000000"}</p>

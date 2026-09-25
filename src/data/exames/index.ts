@@ -192,31 +192,259 @@ const baseExamModels: IntelligentExamModel[] = [
 ];
 
 
-const COMPACT_EXAM_NAMES: Record<string, string> = {
-  derm_exame_clinico: "Exame Dermatológico",
-  derm_micologico_direto: "Exame Micológico Direto",
-  derm_patch_test: "Teste de Contato",
-  derm_teste_sensibilidade: "Sensibilidade Cutânea",
-  gineco_papanicolau: "Papanicolau",
-  gineco_usg_monitorizacao_folicular: "Monitorização Folicular",
-  img_tomografia_unica: "Tomografia",
-  img_ressonancia_unica: "Ressonância Magnética",
-  lab_dtpa: "Sorologia dTpa",
-  lab_feze_analise: "Análise de Fezes",
-  lab_hba1c_completa: "Hemoglobina Glicada",
-  lab_urina_analise: "Urina Tipo I",
-  neuro_eeg: "Eletroencefalograma",
-  neuro_enmg: "Eletroneuromiografia",
-  neuro_liquor: "Análise do Líquor",
-  obst_doppler_materno_fetal: "Doppler Materno-Fetal",
-  obst_us_abdominal_gestacao_inicial: "US Obstétrica Inicial",
-  pediatria_crescimento_desenvolvimento: "Crescimento e Desenvolvimento",
-  pediatria_glicemia_capilar: "Glicemia Capilar",
+const CATALOG_EXAM_PRESENTATION: Record<string, { nome?: string; descricao: string }> = {
+  img_ultrassonografia_unica: {
+    nome: "Ultrassonografia (USG)",
+    descricao: "Examina órgãos e estruturas com ultrassom. Escolha o tipo do exame na próxima etapa.",
+  },
+  img_tomografia_unica: {
+    nome: "Tomografia",
+    descricao: "Cria imagens detalhadas da região escolhida, com ou sem contraste.",
+  },
+  img_ressonancia_unica: {
+    nome: "Ressonância Magnética",
+    descricao: "Mostra tecidos, órgãos e articulações com alto nível de detalhe.",
+  },
+  img_raio_x_unico: {
+    nome: "Raio-X",
+    descricao: "Radiografia simples da região escolhida, principalmente para ossos e tórax.",
+  },
+  lab_beta_hcg_completo: {
+    nome: "Beta-hCG",
+    descricao: "Confirma ou acompanha uma gestação pelo hormônio beta-hCG.",
+  },
+  lab_hemograma_completo: {
+    descricao: "Avalia glóbulos vermelhos, glóbulos brancos e plaquetas.",
+  },
+  lab_teste_coombs: {
+    descricao: "Pesquisa anticorpos que podem reagir contra as células do sangue.",
+  },
+  lab_sorologia: {
+    descricao: "Pesquisa anticorpos ou sinais de infecções no sangue.",
+  },
+  lab_painel_alergia: {
+    descricao: "Ajuda a investigar possíveis alergias e sensibilizações.",
+  },
+  lab_glicemia: {
+    descricao: "Mede a quantidade de açúcar no sangue.",
+  },
+  lab_urina_analise: {
+    nome: "Urina Tipo I",
+    descricao: "Avalia a urina em busca de infecção e outras alterações.",
+  },
+  lab_feze_analise: {
+    nome: "Análise de Fezes",
+    descricao: "Pesquisa parasitas e outras alterações nas fezes.",
+  },
+  lab_urocultura: {
+    descricao: "Identifica bactérias na urina e ajuda a orientar o antibiótico.",
+  },
+  lab_anticorpos_irregulares: {
+    nome: "Pesquisa de Anticorpos Irregulares",
+    descricao: "Pesquisa anticorpos importantes em transfusões e durante a gestação.",
+  },
+  lab_funcao_renal_completa: {
+    descricao: "Mostra como os rins estão funcionando.",
+  },
+  lab_funcao_hepatica_completa: {
+    descricao: "Mostra como o fígado e as vias biliares estão funcionando.",
+  },
+  lab_eletrolitos_completos: {
+    nome: "Eletrólitos",
+    descricao: "Mede sais do sangue, como sódio e potássio.",
+  },
+  lab_hba1c_completa: {
+    nome: "Hemoglobina Glicada",
+    descricao: "Mostra a média da glicose dos últimos dois a três meses.",
+  },
+  lab_dtpa: {
+    nome: "dTpa — Imunização",
+    descricao: "Registra ou avalia a proteção contra difteria, tétano e coqueluche.",
+  },
+  lab_painel_autoimune: {
+    descricao: "Ajuda a investigar doenças em que o sistema imune reage contra o próprio corpo.",
+  },
+  lab_metabolismo_ferro: {
+    nome: "Painel de Ferro",
+    descricao: "Avalia ferro, ferritina e como o organismo transporta esse mineral.",
+  },
+  lab_reticulocitos: {
+    nome: "Reticulócitos",
+    descricao: "Mostra como a medula está produzindo novas células vermelhas do sangue.",
+  },
+  lab_eletroforese_hemoglobina: {
+    descricao: "Identifica diferentes tipos de hemoglobina no sangue.",
+  },
+  lab_gasometria_arterial: {
+    descricao: "Mede oxigênio, gás carbônico e o equilíbrio ácido-base do sangue.",
+  },
+  cardio_ecg: {
+    nome: "Eletrocardiograma (ECG)",
+    descricao: "Registra o ritmo e a atividade elétrica do coração.",
+  },
+  cardio_ecocardiograma: {
+    nome: "Ecocardiograma",
+    descricao: "Ultrassom do coração para avaliar estrutura, movimento e funcionamento.",
+  },
+  cardio_holter_24h: {
+    descricao: "Registra o ritmo do coração continuamente durante 24 horas.",
+  },
+  cardio_teste_ergometrico: {
+    nome: "Teste de Esforço (Ergométrico)",
+    descricao: "Avalia como o coração responde durante o esforço físico.",
+  },
+  cardio_mapa_24h: {
+    descricao: "Mede a pressão arterial várias vezes ao longo de 24 horas.",
+  },
+  neuro_eeg: {
+    nome: "Eletroencefalograma (EEG)",
+    descricao: "Registra a atividade elétrica do cérebro.",
+  },
+  neuro_enmg: {
+    nome: "Eletroneuromiografia (ENMG)",
+    descricao: "Avalia o funcionamento dos nervos e dos músculos.",
+  },
+  neuro_doppler_transcraniano: {
+    descricao: "Avalia o fluxo de sangue nas principais artérias do cérebro.",
+  },
+  neuro_liquor: {
+    nome: "Análise do Líquor",
+    descricao: "Avalia o líquido que circula ao redor do cérebro e da medula.",
+  },
+  gineco_papanicolau: {
+    nome: "Papanicolau",
+    descricao: "Avalia células do colo do útero para rastreamento e prevenção.",
+  },
+  gineco_colposcopia: {
+    descricao: "Examina o colo do útero e a vagina com aumento para procurar alterações.",
+  },
+  gineco_usg_monitorizacao_folicular: {
+    nome: "Monitorização Folicular (Transvaginal)",
+    descricao: "Acompanha os folículos ou o endométrio em avaliações seriadas, conforme o foco escolhido no exame.",
+  },
+  obst_doppler_materno_fetal: {
+    nome: "Doppler Obstétrico",
+    descricao: "Avalia a circulação entre gestante, placenta e bebê.",
+  },
+  obst_cardiotocografia: {
+    nome: "Cardiotocografia (CTG)",
+    descricao: "Acompanha os batimentos do bebê e as contrações uterinas.",
+  },
+  img_us_morfologica: {
+    nome: "Ultrassonografia Morfológica",
+    descricao: "Avalia detalhadamente a formação e o desenvolvimento do bebê.",
+  },
+  pediatria_crescimento_desenvolvimento: {
+    nome: "Crescimento e Desenvolvimento",
+    descricao: "Acompanha peso, altura e marcos do desenvolvimento da criança.",
+  },
+  pediatria_glicemia_capilar: {
+    nome: "Glicemia Capilar",
+    descricao: "Mede rapidamente o açúcar no sangue da criança.",
+  },
+  pediatria_teste_rapido_viral: {
+    descricao: "Pesquisa rapidamente vírus respiratórios comuns em crianças.",
+  },
+  func_espirometria: {
+    descricao: "Mede quanto ar a pessoa consegue inspirar e expirar e como os pulmões funcionam.",
+  },
+  func_oximetria: {
+    descricao: "Mede de forma rápida a quantidade de oxigênio no sangue.",
+  },
+  func_potenciais_evocados: {
+    descricao: "Avalia como estímulos visuais, auditivos ou sensitivos chegam ao cérebro.",
+  },
+  func_tilt_test: {
+    nome: "Teste de Inclinação (Tilt Test)",
+    descricao: "Ajuda a investigar desmaios, tonturas e alterações da pressão ao mudar de posição.",
+  },
+  func_teste_pezinho: {
+    descricao: "Triagem do recém-nascido para algumas doenças metabólicas e genéticas.",
+  },
+  neonatal_teste_orelhinha: {
+    descricao: "Triagem rápida da audição do recém-nascido.",
+  },
+  neonatal_teste_coracaozinho: {
+    descricao: "Mede a oxigenação do recém-nascido para rastrear alterações do coração.",
+  },
+  neonatal_teste_linguinha: {
+    descricao: "Avalia o frênulo da língua e possíveis limitações de movimento.",
+  },
+  oftalmo_acuidade_visual: {
+    descricao: "Mede o quanto a pessoa consegue enxergar de perto e de longe.",
+  },
+  oftalmo_biomicroscopia: {
+    descricao: "Examina em detalhe as estruturas da parte da frente do olho.",
+  },
+  oftalmo_fundo_olho: {
+    descricao: "Avalia retina, mácula, vasos e nervo óptico.",
+  },
+  oftalmo_refracao: {
+    descricao: "Mede grau de miopia, hipermetropia e astigmatismo.",
+  },
+  oftalmo_campimetria: {
+    descricao: "Avalia a visão central e periférica, mostrando possíveis falhas no campo visual.",
+  },
+  oftalmo_erg_pediatrico: {
+    nome: "Eletrorretinograma (ERG)",
+    descricao: "Avalia como a retina responde à luz, inclusive em crianças.",
+  },
+  derm_exame_clinico: {
+    nome: "Exame Dermatológico",
+    descricao: "Avalia manchas, feridas, lesões e outras alterações da pele.",
+  },
+  derm_dermatoscopia: {
+    descricao: "Amplia pintas e lesões da pele para uma avaliação mais detalhada.",
+  },
+  derm_micologico_direto: {
+    nome: "Exame Micológico",
+    descricao: "Pesquisa fungos em pele, unhas ou cabelos.",
+  },
+  derm_biopsia_pele: {
+    descricao: "Analisa uma pequena amostra da pele para identificar alterações.",
+  },
+  derm_patch_test: {
+    nome: "Teste de Contato",
+    descricao: "Ajuda a descobrir substâncias que provocam alergia na pele.",
+  },
+  derm_teste_sensibilidade: {
+    nome: "Sensibilidade Cutânea",
+    descricao: "Avalia a sensibilidade da pele ao toque e a outros estímulos.",
+  },
+  hormonal_painel_hormonal_completo: {
+    nome: "Painel Hormonal",
+    descricao: "Reúne hormônios usados para avaliar ciclo, fertilidade e equilíbrio hormonal.",
+  },
+  horm_cortisol: {
+    descricao: "Mede o cortisol para avaliar a resposta hormonal das glândulas adrenais.",
+  },
+  hormonal_amh: {
+    nome: "AMH — Reserva Ovariana",
+    descricao: "Ajuda a estimar a reserva ovariana e a resposta esperada em tratamentos de fertilidade.",
+  },
+  genetico_sexagem_fetal: {
+    descricao: "Pesquisa DNA fetal no sangue materno para indicar o sexo do bebê.",
+  },
+  lab_teste_dna: {
+    descricao: "Compara material genético para investigar vínculo biológico ou outras análises genéticas.",
+  },
+  psiquiatria_psicotecnico: {
+    nome: "Psicotécnico",
+    descricao: "Avalia atenção, reação, julgamento, segurança e condições para a finalidade escolhida.",
+  },
+  geral_exame_toxicologico: {
+    descricao: "Pesquisa presença de drogas, medicamentos ou outras substâncias no organismo.",
+  },
 };
 
-function withCompactExamName(model: IntelligentExamModel): IntelligentExamModel {
-  const compactName = COMPACT_EXAM_NAMES[model.id];
-  return compactName ? { ...model, nome: compactName } : model;
+function withCatalogPresentation(model: IntelligentExamModel): IntelligentExamModel {
+  const presentation = CATALOG_EXAM_PRESENTATION[model.id];
+  if (!presentation) return model;
+  return {
+    ...model,
+    nome: presentation.nome || model.nome,
+    descricao: presentation.descricao || model.descricao,
+  };
 }
 
 export const intelligentExamModels: IntelligentExamModel[] = [
@@ -224,7 +452,7 @@ export const intelligentExamModels: IntelligentExamModel[] = [
   imgTomografiaUnicaModel,
   imgRessonanciaUnicaModel,
   ...baseExamModels.filter((model) => !UNIQUE_IMAGE_VARIANT_IDS.has(model.id)),
-].map(withCompactExamName);
+].map(withCatalogPresentation);
 
 export const hiddenUniqueImageVariantModels: IntelligentExamModel[] = baseExamModels.filter((model) => UNIQUE_IMAGE_VARIANT_IDS.has(model.id));
 
@@ -274,9 +502,9 @@ export function resolveIntelligentExamModel(model: IntelligentExamModel, adapter
     categoria: model.categoria,
     icone: model.icone || variant.icone,
     adapter: model.adapter,
-    // Contextos genéricos foram removidos da nova interface. Mantemos apenas
-    // variáveis técnicas específicas do modelo detalhado.
-    clinicalContexts: [],
+    // O catálogo continua com um único item, mas o motor recebe os contextos
+    // clínicos do modelo detalhado para adaptar método, achados e conclusão.
+    clinicalContexts: variant.clinicalContexts?.length ? variant.clinicalContexts : model.clinicalContexts,
   };
 }
 

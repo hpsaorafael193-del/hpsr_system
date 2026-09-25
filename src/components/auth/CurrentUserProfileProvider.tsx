@@ -2,6 +2,7 @@
 
 import { brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneDisplay } from "@/lib/phone";
+import { formatPersonName } from "@/lib/person-name";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { currentUserProfile as localDevProfile } from "@/data/current-user-profile";
@@ -24,7 +25,7 @@ type CurrentUserProfileContextValue = {
 const CurrentUserProfileContext = createContext<CurrentUserProfileContextValue | null>(null);
 
 function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage: string | null): CurrentUserProfile {
-  const name = String(row.name || "Médico");
+  const name = formatPersonName(row.name) || "Médico";
   const role = String(row.role || "Médico Clínico");
   const staffMetadata = row.staff_metadata && typeof row.staff_metadata === "object" ? row.staff_metadata as Record<string, unknown> : {};
   const systemRole = String(staffMetadata.systemRole || "").trim();
@@ -126,7 +127,7 @@ export function CurrentUserProfileProvider({ children }: { children: React.React
     if (!user) return { ok: false, error: "Sessão não encontrada." };
 
     const payload: Record<string, string | null | Record<string, number>> = {};
-    if (changes.characterName !== undefined) payload.name = changes.characterName.trim();
+    if (changes.characterName !== undefined) payload.name = formatPersonName(changes.characterName);
     if (changes.passport !== undefined) payload.passport = changes.passport.trim() || null;
     if (changes.crm !== undefined) payload.crm = changes.crm.trim() || null;
     if (changes.cityPhone !== undefined) payload.city_phone = changes.cityPhone.trim() || null;

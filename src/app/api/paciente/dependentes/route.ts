@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
     if (!Number.isFinite(numericAge) || numericAge < 0 || numericAge >= 18) {
       return NextResponse.json({ ok: false, error: "Este fluxo é exclusivo para pacientes menores de 18 anos." }, { status: 400 });
     }
+    if (bloodType && !["A+", "A-", "B+", "B-"].includes(bloodType)) {
+      return NextResponse.json({ ok: false, error: "Selecione um tipo sanguíneo válido: A+, A-, B+ ou B-." }, { status: 400 });
+    }
     if (passport === guardianPassport) {
       return NextResponse.json({ ok: false, error: "A criança não pode usar o mesmo passaporte do responsável." }, { status: 400 });
     }

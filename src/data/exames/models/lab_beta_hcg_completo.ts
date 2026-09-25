@@ -49,7 +49,7 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
     {
       "id": "correspondencia_gestacional",
       "tipo": "select",
-      "label": "Correspondência Gestacional",
+      "label": "Estimativa Gestacional pelo β-hCG",
       "opcoes": [
         {
           "valor": "nao_gestante",
@@ -68,7 +68,7 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
           "label": "Valor incompatível com IG referida"
         }
       ],
-      "referencia": "Não gestante"
+      "referencia": "Estimativa aproximada; faixas de β-hCG se sobrepõem"
     },
     {
       "id": "evolucao_seriada",
@@ -238,7 +238,17 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados."
     }
   ],
-  "variables": [],
+  "variables": [
+    {
+      "id": "idade_gestacional_referida",
+      "label": "Idade gestacional referida (semanas)",
+      "tipo": "number",
+      "required": false,
+      "appliesTo": [
+        "positivo"
+      ]
+    }
+  ],
   "editorModel": {
     "title": "β-hCG (Beta hCG)",
     "sections": [
@@ -386,12 +396,20 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "interpretationHint": "Interpretar β-hCG Quantitativo conforme referência, contexto clínico e método utilizado."
     },
     {
+      "id": "idade_gestacional_referida",
+      "label": "Idade Gestacional Informada",
+      "unidade": "semanas",
+      "referencia": "Informação clínica",
+      "resultPlaceholder": "A informar",
+      "interpretationHint": "Usar a idade gestacional informada para contextualizar o valor quantitativo, sem substituir DUM ou ultrassonografia."
+    },
+    {
       "id": "correspondencia_gestacional",
-      "label": "Correspondência Gestacional",
+      "label": "Estimativa Gestacional pelo β-hCG",
       "unidade": null,
-      "referencia": "Não gestante",
+      "referencia": "Estimativa aproximada; faixas de β-hCG se sobrepõem",
       "resultPlaceholder": "A preencher",
-      "interpretationHint": "Interpretar Correspondência Gestacional conforme referência, contexto clínico e método utilizado."
+      "interpretationHint": "Estimativa gestacional aproximada calculada a partir do valor quantitativo gerado pelo motor; confirmar idade gestacional por DUM e/ou ultrassonografia."
     },
     {
       "id": "evolucao_seriada",

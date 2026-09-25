@@ -110,7 +110,7 @@ export default function DashboardHomePage() {
 
             <div className="mt-5 flex flex-wrap gap-3">
               <Link
-                href="/dashboard/laudos"
+                href="/dashboard/exames"
                 className="inline-flex h-10 items-center gap-2 rounded-[14px] bg-[#fcf6ee] px-4 text-[13px] font-semibold text-[#2a0700]  transition"
               >
                 <FilePlus2 size={15} />

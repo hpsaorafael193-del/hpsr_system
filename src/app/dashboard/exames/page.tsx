@@ -4,7 +4,7 @@ import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { EditorFontSizeMenu } from "@/components/ui/EditorFontSizeMenu";
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   Activity,
   AlignCenter,
@@ -14,6 +14,7 @@ import {
   Beaker,
   Bold,
   Brain,
+  CalendarDays,
   Check,
   ChevronDown,
   Clock3,
@@ -22,6 +23,7 @@ import {
   Dna,
   Ear,
   Eye,
+  FileSignature,
   FileText,
   FlaskConical,
   Hand,
@@ -42,6 +44,7 @@ import {
   RotateCcw,
   Save,
   Scan,
+  ShieldCheck,
   Search,
   SquareActivity,
   Stethoscope,
@@ -52,15 +55,15 @@ import {
   Underline,
   Upload,
   UserPlus,
+  UserRound,
   Wand2,
   Waves,
   X,
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { PageHeader } from "@/components/dashboard/PageHeader";
 import { hpsrSuccess } from "@/components/ui/HpsrToastProvider";
-import { ClinicalHistoryButton } from "@/components/dashboard/ClinicalHistoryButton";
+import { ClinicalHistoryPanel } from "@/components/dashboard/ClinicalHistoryPanel";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { normalizeXrayKey, resolveXrayAttachmentAsset } from "@/lib/xray-attachment-resolver";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
@@ -171,17 +174,50 @@ const categoryLabels: Record<string, string> = {
   cardiologia: "Cardiologia",
   neurologia: "Neurologia",
   ginecologia: "Ginecologia",
-  obstetricia: "Obstetrícia",
+  obstetricia: "Gestação",
   pediatria: "Pediatria",
-  neonatal: "Neonatal",
+  neonatal: "Recém-nascido",
   oftalmologia: "Oftalmologia",
   dermatologia: "Dermatologia",
-  hormonal: "Hormonal",
-  genetico: "Genético",
+  hormonal: "Hormônios e fertilidade",
+  genetico: "Genética",
   genetica: "Genética",
-  funcional: "Funcional",
-  psicologia_psiquiatria: "Psicologia e Psiquiatria",
+  funcional: "Testes funcionais",
+  psicologia_psiquiatria: "Psicotécnico",
   toxicologia: "Toxicologia",
+};
+
+const categoryIconMap: Record<string, LucideIcon> = {
+  laboratorio: FlaskConical,
+  imagem: Scan,
+  cardiologia: HeartPulse,
+  neurologia: Brain,
+  ginecologia: Stethoscope,
+  obstetricia: Baby,
+  pediatria: Baby,
+  neonatal: Baby,
+  oftalmologia: Eye,
+  dermatologia: Hand,
+  hormonal: Droplets,
+  genetico: Dna,
+  genetica: Dna,
+  funcional: Activity,
+  psicologia_psiquiatria: Brain,
+  toxicologia: Beaker,
+};
+
+const examSearchAliases: Record<string, string> = {
+  lab_beta_hcg_completo: "gravidez gestação gestante beta hcg positivo negativo semanas",
+  gineco_usg_monitorizacao_folicular: "fertilização fertilizacao fiv folículos foliculos ovulação ovulacao endométrio endometrio transvaginal doadora receptora",
+  hormonal_painel_hormonal_completo: "fertilidade fiv ciclo menstrual hormônios hormonios",
+  hormonal_amh: "fertilidade reserva ovariana fiv folículos foliculos",
+  psiquiatria_psicotecnico: "porte arma pilotagem aérea aerea aptidão aptidao avaliação psicológica psicologica",
+  lab_gasometria_arterial: "oxigênio oxigenio respiração respiracao sangue acidose alcalose",
+  cardio_ecg: "coração coracao ritmo eletro",
+  cardio_mapa_24h: "pressão pressao arterial 24 horas",
+  cardio_holter_24h: "coração coracao ritmo palpitação palpitacao 24 horas",
+  neuro_eeg: "cérebro cerebro atividade elétrica eletrica convulsão convulsao",
+  img_us_morfologica: "gravidez bebê bebe formação formacao ultrassom",
 };
 
 const examIconMap: Record<string, LucideIcon> = {
@@ -229,7 +265,8 @@ function resolveExamIcon(icon?: string): LucideIcon {
 }
 
 function resolvePanelIcon(title: string): LucideIcon {
-  if (/paciente/i.test(title)) return FileText;
+  if (/informações do exame/i.test(title)) return ClipboardPaste;
+  if (/paciente/i.test(title)) return UserRound;
   if (/profissional|médico|responsável|data/i.test(title)) return Stethoscope;
   if (/consulta|vínculo/i.test(title)) return Activity;
   if (/configuração|modo guiado|motor/i.test(title)) return Wand2;
@@ -381,6 +418,17 @@ function cleanEditorHtml(html: string) {
     .replace(/<div><br><\/div>/g, "<p><br></p>")
     .replace(/<div>/g, "<p>")
     .replace(/<\/div>/g, "</p>")
+    .replace(/<table\b([^>]*)>/gi, (_match, attrs: string) => {
+      if (/\bclass\s*=/.test(attrs)) {
+        const nextAttrs = attrs.replace(/\bclass=(['"])(.*?)\1/i, (_classMatch: string, quote: string, classes: string) => {
+          const normalized = classes.split(/\s+/).filter(Boolean);
+          if (!normalized.includes("hpsr-exam-table")) normalized.push("hpsr-exam-table");
+          return `class=${quote}${normalized.join(" ")}${quote}`;
+        });
+        return `<table${nextAttrs}>`;
+      }
+      return `<table class="hpsr-exam-table"${attrs}>`;
+    })
     .trim();
 }
 
@@ -460,45 +508,50 @@ function Button({
       title={title}
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
-      className={`inline-flex h-9 items-center justify-center gap-2 rounded-[12px] border px-3 text-xs font-black transition duration-150 ${active ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_8px_18px_rgba(103,38,20,0.15)]" : "border-[#dec9b7] bg-white/90 text-hpsr-text hover:border-hpsr-wine/40 hover:bg-[#fff8f0] hover:shadow-[0_6px_16px_rgba(42,7,0,0.05)]"} ${className}`}
+      className={`inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border px-3 text-[14px] font-black transition duration-150 ${active ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_8px_18px_rgba(103,38,20,0.15)]" : "border-[#dec9b7] bg-white/90 text-hpsr-text hover:border-hpsr-wine/40 hover:bg-[#fff8f0] hover:shadow-[0_6px_16px_rgba(42,7,0,0.05)]"} ${className}`}
     >
       {children}
     </button>
   );
 }
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
+function FieldLabel({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
   return (
-    <label className="mb-1.5 block text-[10px] font-black uppercase tracking-[0.08em] text-[#5c2416]">
+    <label htmlFor={htmlFor} className="mb-1.5 block text-[12px] font-black uppercase tracking-[0.045em] text-[#5c2416]">
       {children}
     </label>
   );
 }
 
 function TextInput({
+  id,
   value,
   onChange,
   placeholder,
 }: {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
 }) {
   return (
     <input
+      id={id}
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className="h-10 w-full rounded-[12px] border border-[#d8bfa9] bg-white px-3 text-sm font-semibold text-hpsr-text outline-none transition placeholder:text-zinc-400 shadow-[inset_0_1px_2px_rgba(42,7,0,0.03)] hover:border-[#b98f75] focus:border-hpsr-wine/55 focus:ring-2 focus:ring-hpsr-wine/10"
+      className="h-11 w-full rounded-[12px] border border-[#d8bfa9] bg-white px-3.5 text-sm font-semibold text-hpsr-text outline-none transition placeholder:text-zinc-400 shadow-[inset_0_1px_2px_rgba(42,7,0,0.03)] hover:border-[#b98f75] focus:border-hpsr-wine/55 focus:ring-2 focus:ring-hpsr-wine/10"
     />
   );
 }
 
 function SelectInput({
+  id,
   value,
   onChange,
   children,
 }: {
+  id?: string;
   value: string;
   onChange: (value: string) => void;
   children: React.ReactNode;
@@ -506,9 +559,10 @@ function SelectInput({
   return (
     <div className="relative">
       <StyledSelect
+        id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-10 w-full appearance-none rounded-[13px] border border-[#d8bfa9] bg-[linear-gradient(180deg,#ffffff_0%,#fffaf5_100%)] px-3 pr-10 text-sm font-black text-hpsr-text outline-none transition shadow-[inset_0_1px_2px_rgba(42,7,0,0.03),0_4px_12px_rgba(42,7,0,0.04)] hover:border-[#b98f75] focus:border-hpsr-wine/55 focus:ring-2 focus:ring-hpsr-wine/10"
+        className="h-11 w-full appearance-none rounded-[13px] border border-[#d8bfa9] bg-[linear-gradient(180deg,#ffffff_0%,#fffaf5_100%)] px-3.5 pr-10 text-sm font-black text-hpsr-text outline-none transition shadow-[inset_0_1px_2px_rgba(42,7,0,0.03),0_4px_12px_rgba(42,7,0,0.04)] hover:border-[#b98f75] focus:border-hpsr-wine/55 focus:ring-2 focus:ring-hpsr-wine/10"
       >
         {children}
       </StyledSelect>
@@ -687,7 +741,16 @@ export default function ExamesPage() {
   }]);
   const editorRef = useRef<HTMLDivElement | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
+  const signatureInputRef = useRef<HTMLInputElement | null>(null);
   const editorHtmlRef = useRef("");
+  // O editor é montado à direita depois da escolha do exame. Reaplica o HTML
+  // guardado caso a primeira seleção tenha ocorrido com a área ainda desmontada.
+  const bindEditor = useCallback((node: HTMLDivElement | null) => {
+    editorRef.current = node;
+    if (node && node.innerHTML !== editorHtmlRef.current) {
+      node.innerHTML = editorHtmlRef.current;
+    }
+  }, []);
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRange = useRef<Range | null>(null);
 
@@ -704,6 +767,7 @@ export default function ExamesPage() {
   const [attachments, setAttachments] = useState<RenderAttachmentFile[]>([]);
   const [attachmentOverrideActive, setAttachmentOverrideActive] = useState(false);
   const [automaticAttachmentRemoved, setAutomaticAttachmentRemoved] = useState(false);
+  const [attachmentControlsOpen, setAttachmentControlsOpen] = useState(false);
   const [attachmentEditorOpen, setAttachmentEditorOpen] = useState(false);
   const [automaticAttachmentNotes, setAutomaticAttachmentNotes] = useState("");
   const [doctor, setDoctor] = useState<DoctorDraft>(initialDoctor);
@@ -745,6 +809,7 @@ export default function ExamesPage() {
   const [showCatalog, setShowCatalog] = useState(true);
   const [smartConfigOpen, setSmartConfigOpen] = useState(false);
   const [catalogCategory, setCatalogCategory] = useState<string>("all");
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [examSearch, setExamSearch] = useState("");
   const [examNameInput, setExamNameInput] = useState("");
   const [protocol, setProtocol] = useState("");
@@ -765,6 +830,7 @@ export default function ExamesPage() {
   const [tableRows, setTableRows] = useState(4);
   const [tableCols, setTableCols] = useState(3);
   const [editorPageGuideTops, setEditorPageGuideTops] = useState<number[]>([]);
+  const [editorReportPageCount, setEditorReportPageCount] = useState(1);
 
   const categories = useMemo(() => {
     const set = new Set(intelligentExamModels.map((model) => model.categoria));
@@ -798,8 +864,24 @@ export default function ExamesPage() {
     return resolveAdaptiveExam(
       activeExamModel,
       adaptiveConfig || createInitialAdaptiveConfiguration(selectedExam),
+      { age: patient.age, bloodType: patient.bloodType },
     );
-  }, [selectedExam, activeExamModel, adaptiveConfig]);
+  }, [selectedExam, activeExamModel, adaptiveConfig, patient.age, patient.bloodType]);
+
+  const visibleExamProfiles = useMemo(() => {
+    if (!activeExamModel) return [];
+    if (activeExamModel.id !== "lab_beta_hcg_completo") return activeExamModel.profiles;
+    return activeExamModel.profiles.filter((profile) => profile.id === "negativo" || profile.id === "positivo");
+  }, [activeExamModel]);
+
+  const availableClinicalContexts = useMemo(() => activeExamModel?.clinicalContexts || [], [activeExamModel]);
+  const showClinicalContextSelector = useMemo(() => {
+    if (!activeExamModel || availableClinicalContexts.length <= 1) return false;
+    if (activeExamModel.adapter.kind === "bond-type") return false;
+    if (activeExamModel.variables.some((variable) => variable.id === "finalidade_avaliacao")) return false;
+    if (activeExamModel.id === "gineco_usg_monitorizacao_folicular") return false;
+    return true;
+  }, [activeExamModel, availableClinicalContexts.length]);
 
   const categoryCounts = useMemo(() => {
     return intelligentExamModels.reduce<Record<string, number>>((acc, exam) => {
@@ -825,13 +907,20 @@ export default function ExamesPage() {
         const matchesCategory = catalogCategory === "all" || exam.categoria === catalogCategory;
         if (!matchesCategory) return false;
         if (!query) return true;
-        const aliases = exam.id === "psiquiatria_psicotecnico"
-          ? "psicotecnico psicotecnica avaliacao psicologica aptidao"
-          : "";
+        const aliases = examSearchAliases[exam.id] || "";
         const searchable = normalizeSearch(`${exam.nome} ${exam.descricao} ${exam.categoria} ${categoryLabels[exam.categoria] || ""} ${aliases}`);
         return query.split(/\s+/).every((term) => searchable.includes(term));
       });
   }, [catalogCategory, examSearch]);
+
+
+
+  const selectedDoctorOption = useMemo(
+    () => availableDoctors.find((item) => item.id === selectedDoctorId) || null,
+    [availableDoctors, selectedDoctorId],
+  );
+
+  const hasSavedDoctorSignature = Boolean(selectedDoctorOption?.signatureImage);
 
   const metadata = useMemo<RenderMetadata>(
     () => ({
@@ -937,7 +1026,7 @@ export default function ExamesPage() {
   useEffect(() => {
     setAutomaticAttachmentRemoved(false);
     setAttachmentOverrideActive(false);
-  }, [selectedExamId, adaptiveConfig?.adapterValue, adaptiveConfig?.profileId]);
+  }, [selectedExamId, adaptiveConfig?.adapterValue, adaptiveConfig?.profileId, adaptiveConfig?.clinicalContext]);
 
   useEffect(() => {
     setSignatureImage(currentUserProfile.signatureImage || null);
@@ -957,6 +1046,7 @@ export default function ExamesPage() {
     setAttachmentEditorOpen(Boolean(draft.ui?.attachmentEditorOpen));
     setAutomaticAttachmentNotes(draft.ui?.automaticAttachmentNotes || "");
     setShowCatalog(draft.ui?.showCatalog ?? true);
+    setCategoriesOpen(false);
 
     setCatalogCategory(draft.ui?.catalogCategory || "all");
     setExamSearch(draft.ui?.examSearch || "");
@@ -1022,6 +1112,7 @@ export default function ExamesPage() {
     try {
       const previewDocument = buildPreviewDocument();
       const pages = previewDocument.pages.filter((page) => page.type === "report").map((page) => page.reportHtml || "");
+      setEditorReportPageCount(Math.max(1, pages.length));
       if (pages.length <= 1) {
         setEditorPageGuideTops([]);
         return;
@@ -1088,6 +1179,7 @@ export default function ExamesPage() {
       });
     } catch {
       setEditorPageGuideTops([]);
+      setEditorReportPageCount(1);
     }
   }
 
@@ -1350,7 +1442,7 @@ export default function ExamesPage() {
         `<tr>${Array.from({ length: cols }, () => "<td>&nbsp;</td>").join("")}</tr>`,
     ).join("");
     insertHtml(
-      `<table><thead><tr>${headers}</tr></thead><tbody>${body}</tbody></table><p><br></p>`,
+      `<table class="hpsr-exam-table"><thead><tr>${headers}</tr></thead><tbody>${body}</tbody></table><p><br></p>`,
     );
     setTablePickerOpen(false);
   }
@@ -1453,39 +1545,39 @@ export default function ExamesPage() {
     setShowCatalog(false);
   }
 
+  function blankExamBase(model: IntelligentExamModel) {
+    return `<h1>${model.nome}</h1><p><br></p>`;
+  }
+
   function applyModelFor(model: IntelligentExamModel) {
     const nextConfig = createInitialAdaptiveConfiguration(model);
-    const modelForSelection = resolveIntelligentExamModel(model, nextConfig.adapterValue);
-    const resolved = resolveAdaptiveExam(modelForSelection, nextConfig);
-    const generated = renderAdaptiveExamReport(resolved);
+    const applySelection = () => {
+      setSelectedExamId(model.id);
+      setSelectedCategory(model.categoria);
+      setCatalogCategory(model.categoria);
+      setCategoriesOpen(false);
+      setExamNameInput(model.nome);
+      setAdaptiveConfig(nextConfig);
+      setSmartConfigOpen(false);
+      setShowCatalog(false);
+      setEditorContent(blankExamBase(model), { moveCaretToEnd: true });
+    };
 
-    setSelectedExamId(model.id);
-    setSelectedCategory(model.categoria);
-    setCatalogCategory(model.categoria);
-    setExamNameInput(model.nome);
-    setAdaptiveConfig(nextConfig);
-    setSmartConfigOpen(true);
-    setShowCatalog(false);
-
-    const currentText = textFromHtml(
-      editorRef.current?.innerHTML || editorHtmlRef.current,
-    );
-
-    if (currentText.length > 8) {
+    const currentText = textFromHtml(editorRef.current?.innerHTML || editorHtmlRef.current).trim();
+    const currentIsOnlyBase = !currentText || currentText === selectedExam?.nome;
+    if (!currentIsOnlyBase && currentText.length > 8) {
       setAppDialog({
-        title: "Aplicar modelo",
-        message: "O editor já possui conteúdo. Escolha se deseja substituir o laudo atual ou inserir o modelo no ponto do cursor.",
-        tone: "info",
+        title: "Trocar exame",
+        message: "O editor atual possui conteúdo. Ao selecionar outro exame, o conteúdo será substituído pela base vazia do novo exame.",
+        tone: "warning",
         actions: [
           { label: "Cancelar", onClick: () => setAppDialog(null) },
-          { label: "Inserir no cursor", onClick: () => { setAppDialog(null); insertHtml(generated); } },
-          { label: "Substituir laudo", variant: "primary", onClick: () => { setAppDialog(null); setEditorContent(generated, { moveCaretToEnd: true }); } },
+          { label: "Trocar exame", variant: "primary", onClick: () => { setAppDialog(null); applySelection(); } },
         ],
       });
       return;
     }
-
-    setEditorContent(generated, { moveCaretToEnd: true });
+    applySelection();
   }
 
   function updateConfig(partial: Partial<AdaptiveExamConfiguration>) {
@@ -1500,7 +1592,23 @@ export default function ExamesPage() {
           || modelForSelection.profiles[0];
         next.profileId = fallback?.id || "";
       }
+      if (modelForSelection.clinicalContexts?.length && !modelForSelection.clinicalContexts.some((context) => context === next.clinicalContext)) {
+        next.clinicalContext = modelForSelection.clinicalContexts.find((context) => context === "Rotina")
+          || modelForSelection.clinicalContexts[0]
+          || "";
+        next.variables = { ...next.variables, contexto_clinico: "" };
+      }
       return next;
+    });
+    setSmartConfigOpen(true);
+    setShowCatalog(false);
+  }
+
+  function updateClinicalContext(clinicalContext: string) {
+    if (!selectedExam) return;
+    setAdaptiveConfig((current) => {
+      const base = current || createInitialAdaptiveConfiguration(selectedExam);
+      return { ...base, clinicalContext };
     });
     setSmartConfigOpen(true);
     setShowCatalog(false);
@@ -1539,9 +1647,11 @@ export default function ExamesPage() {
     for (let attempt = 0; attempt < 6; attempt += 1) {
       nextConfig = { ...adaptiveConfig, generationSeed };
       const refreshedModel = resolveIntelligentExamModel(selectedExam, nextConfig.adapterValue);
-      const refreshedExam = resolveAdaptiveExam(refreshedModel, nextConfig);
+      const refreshedExam = resolveAdaptiveExam(refreshedModel, nextConfig, { age: patient.age, bloodType: patient.bloodType });
       const generated = renderAdaptiveExamReport(refreshedExam);
-      merged = mergeAutomaticBlocks(current, generated);
+      const currentText = textFromHtml(current).trim();
+      const onlyBase = !currentText || currentText === selectedExam.nome;
+      merged = onlyBase ? generated : mergeAutomaticBlocks(current, generated);
       if (merged !== current) break;
       generationSeed = nextAdaptiveGenerationSeed(generationSeed);
     }
@@ -1583,6 +1693,18 @@ export default function ExamesPage() {
     });
   }
 
+
+  function addTemporarySignature(file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setAppDialog({ title: "Assinatura inválida", message: "Selecione uma imagem PNG, JPG ou WEBP.", tone: "warning", actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setSignatureImage(String(reader.result || ""));
+    reader.onerror = () => setAppDialog({ title: "Assinatura", message: "Não foi possível ler a imagem selecionada.", tone: "warning", actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
+    reader.readAsDataURL(file);
+  }
 
   function formatAttachmentSize(bytes: number) {
     if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -1782,6 +1904,7 @@ export default function ExamesPage() {
       setPreviewImage(null);
       setPreview({ open: true, document, pageIndex: 0 });
       registerSystemActivity({ module: "Exames", action: "Exame salvo", description: `${document.metadata.examName} salvo para ${patient.name || "paciente não informado"}.`, actor: currentUserProfile.systemName, reference: currentUserProfile.passport });
+      window.dispatchEvent(new CustomEvent("hpsr:clinical-record-saved", { detail: { recordType: "Exame" } }));
       hpsrSuccess(`${document.metadata.examName} foi salvo no prontuário de ${patient.name}.`, "Exame salvo");
     } catch (error) {
       console.error("[HPSR][Exames] Falha ao salvar ou preparar o preview:", error);
@@ -2172,6 +2295,11 @@ export default function ExamesPage() {
       if (signature) {
         const normalizedSignature = normalizeSignatureImage(signature);
         if (normalizedSignature) drawImageContain(normalizedSignature, 257, 1019, 280, 48);
+      } else {
+        context.fillStyle = "#5b1809";
+        context.textAlign = "center";
+        context.font = "italic 22px Georgia";
+        context.fillText(finalDocument.metadata.doctor.name || "Nome do médico", 397, 1042);
       }
 
       context.strokeStyle = "#5b1809";
@@ -2299,55 +2427,35 @@ export default function ExamesPage() {
   }
 
   return (
-    <div className="hpsr-page gap-3 text-hpsr-text 2xl:h-[calc(100dvh-2.4rem)] 2xl:min-h-0 2xl:overflow-hidden">
+    <div className="hpsr-page hpsr-exams-page gap-4 text-hpsr-text">
       <div className="hpsr-topbar" />
 
-      <section className="grid min-h-0 flex-1 gap-4 overflow-visible xl:grid-cols-[460px_minmax(0,1fr)] 2xl:grid-cols-[480px_minmax(0,1fr)] 2xl:overflow-hidden">
-        <aside className="min-h-0 overflow-visible pr-0 xl:pr-2 2xl:overflow-y-auto">
-          <div className="rounded-[24px] border border-[#e2d7ce] bg-[linear-gradient(180deg,#fff_0%,#fdfbf9_100%)] p-4 shadow-[0_10px_28px_rgba(42,7,0,0.045)] ring-1 ring-white">
-            <PageHeader
-              eyebrow="Exames"
-              title="Editor de laudos"
-              description="Preencha os dados na ordem indicada e finalize o laudo no editor ao lado."
-            />
+      <header className="flex items-center gap-4 rounded-[22px] border border-[#e4d8cf] bg-[linear-gradient(110deg,#fff3e9_0%,#f5e5df_100%)] px-5 py-4 shadow-[0_8px_25px_rgba(42,7,0,0.04)]">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[15px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white">
+          <FileText size={23} strokeWidth={1.9} />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[13px] font-black uppercase tracking-[0.12em] text-hpsr-wine">Exames</p>
+          <h1 className="mt-0.5 text-xl font-black tracking-tight text-hpsr-text sm:text-2xl">Editor de laudos</h1>
+          <p className="mt-1 text-sm font-medium leading-relaxed text-hpsr-muted">Formulário à esquerda, laudo à direita. Escolha um exame e use o modelo somente quando precisar.</p>
+        </div>
+      </header>
 
-            <div className="mb-4 rounded-[18px] border border-[#eadfd6] bg-[#fbfaf8] p-3.5">
-              <div className="flex items-center justify-between gap-3">
+      <section className="hpsr-exams-workspace grid min-h-0 flex-1 items-start gap-4 overflow-visible xl:grid-cols-[minmax(360px,420px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(400px,460px)_minmax(0,1fr)]">
+        <aside aria-label="Formulário do exame" className="min-w-0 space-y-4 xl:overflow-y-auto xl:overscroll-contain xl:rounded-[24px] xl:border xl:border-[#dfd6c8] xl:bg-[linear-gradient(180deg,#f8eee5_0%,#f3e2de_100%)] xl:p-2 [scrollbar-gutter:stable]">
+              <Panel title="Informações do exame" description="Paciente, médico responsável e assinatura.">
+              <div className="space-y-4">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.13em] text-hpsr-wine">Fluxo de preenchimento</p>
-                  <p className="mt-1 text-[11px] font-semibold leading-relaxed text-hpsr-muted">Siga as etapas de cima para baixo. O editor é atualizado conforme o exame é configurado.</p>
-                </div>
-                <span className="shrink-0 rounded-full border border-[#e5d4c6] bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-muted">3 etapas</span>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-1.5">
-                {[
-                  ["1", "Identificação"],
-                  ["2", "Exame"],
-                  ["3", "Finalização"],
-                ].map(([number, label]) => (
-                  <div key={number} className="min-w-0 rounded-[12px] border border-[#ece4dd] bg-white px-2 py-2 text-center">
-                    <span className="mx-auto flex h-5 w-5 items-center justify-center rounded-full bg-[#f4e8df] text-[9px] font-black text-hpsr-wine">{number}</span>
-                    <p className="mt-1 truncate text-[9px] font-black text-hpsr-text">{label}</p>
+                  <div className="mb-2 flex items-center gap-2">
+                    <UserRound size={17} strokeWidth={2.2} className="text-hpsr-wine" />
+                    <FieldLabel htmlFor="hpsr-exam-patient-select">Paciente</FieldLabel>
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-            <SidebarStage number="1" title="Identificação" description="Quem é o paciente, quem assina o exame e quando ele foi realizado." />
-            <Panel title="Paciente" description="Selecione um cadastro existente ou informe os dados essenciais.">
-              <div className="space-y-3">
-                <div>
-                  <FieldLabel>Selecionar paciente</FieldLabel>
-                  <div className="grid grid-cols-[1fr_44px] gap-2">
-                    <SelectInput
-                      value={patient.passport}
-                      onChange={selectPatient}
-                    >
+                  <div className="grid grid-cols-[minmax(0,1fr)_44px] gap-2">
+                    <SelectInput id="hpsr-exam-patient-select" value={patient.passport} onChange={selectPatient}>
                       <option value="">Paciente livre...</option>
                       {patientOptions.map((item) => (
                         <option key={item.passport} value={item.passport}>
-                          {item.name} · {item.passport}
+                          {item.name}
                         </option>
                       ))}
                     </SelectInput>
@@ -2355,232 +2463,186 @@ export default function ExamesPage() {
                       type="button"
                       onClick={openQuickPatient}
                       title="Registro rápido de paciente"
-                      className="flex h-10 w-11 items-center justify-center rounded-[13px] border border-[#d8bfa9] bg-[linear-gradient(180deg,#ffffff_0%,#f8fbff_100%)] text-hpsr-text shadow-[0_4px_12px_rgba(42,7,0,0.05)] transition hover:border-hpsr-wine/40 hover:bg-white"
+                      aria-label="Registro rápido de paciente"
+                      className="flex h-11 w-11 items-center justify-center rounded-[12px] border border-[#d8bfa9] bg-white text-hpsr-wine transition hover:border-hpsr-wine/40 hover:bg-[#fff8f0]"
                     >
-                      <UserPlus size={18} strokeWidth={2.2} />
+                      <UserPlus size={17} strokeWidth={2.2} />
                     </button>
                   </div>
-                </div>
-                <div className="grid grid-cols-[1fr_92px] gap-2">
-                  <div>
-                    <FieldLabel>Nome</FieldLabel>
-                    <TextInput
-                      value={patient.name}
-                      onChange={(name) =>
-                        setPatient((current) => ({ ...current, name }))
-                      }
-                      placeholder="Nome completo"
-                    />
-                  </div>
-                  <div>
-                    <FieldLabel>Passaporte</FieldLabel>
-                    <TextInput
-                      value={patient.passport}
-                      onChange={(passport) =>
-                        setPatient((current) => ({ ...current, passport }))
-                      }
-                      placeholder="Nº"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <FieldLabel>Idade</FieldLabel>
-                    <TextInput
-                      value={patient.age}
-                      onChange={(age) =>
-                        setPatient((current) => ({ ...current, age }))
-                      }
-                      placeholder="Idade"
-                    />
-                  </div>
-                  <div>
-                    <FieldLabel>Tipo sanguíneo</FieldLabel>
-                    <SelectInput value={patient.bloodType} onChange={(bloodType) => setPatient((current) => ({ ...current, bloodType }))}>
-                      <option value="">Selecione</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option>
-                    </SelectInput>
-                  </div>
-                </div>
-              </div>
-            </Panel>
-
-            <Panel title="Responsável e data" description="Confirme o profissional emitente e a data/hora do exame.">
-              <div className="space-y-3">
-                <div>
-                  <FieldLabel>Selecionar médico</FieldLabel>
-                  <SelectInput value={selectedDoctorId} onChange={selectDoctor}>
-                    {availableDoctors.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.name} · {item.crm}
-                      </option>
-                    ))}
-                  </SelectInput>
-                </div>
-                <div className="grid grid-cols-[1fr_120px] gap-2 rounded-[15px] border border-[#e0c7b0] bg-white/70 p-2.5">
-                  <div>
-                    <FieldLabel>Médico</FieldLabel>
-                    <p className="break-words text-sm font-black leading-snug text-hpsr-text">{doctor.name || "-"}</p>
-                    <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">
-                      {availableDoctors.find((item) => item.id === selectedDoctorId)?.specialty || "Especialidade"}
-                    </p>
-                  </div>
-                  <div>
-                    <FieldLabel>CRM</FieldLabel>
-                    <p className="text-sm font-black text-hpsr-text">{doctor.crm || "-"}</p>
-                  </div>
-                </div>
-                <div className="rounded-[15px] border border-[#e0c7b0] bg-[#fffaf4] p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <FieldLabel>Data e hora do exame</FieldLabel>
-                      <p className="text-[11px] font-semibold leading-relaxed text-hpsr-muted">
-                        {manualExamDateTime ? "Data definida manualmente." : "Por padrão, será usada a data e hora atuais no momento do salvamento."}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (manualExamDateTime) {
-                          setManualExamDateTime(false);
-                          setExamDate(todayISO());
-                          setExamTime(nowHHMM());
-                        } else {
-                          setExamDate(todayISO());
-                          setExamTime(nowHHMM());
-                          setManualExamDateTime(true);
-                        }
-                      }}
-                      className="shrink-0 rounded-[11px] border border-hpsr-wine/20 bg-white px-3 py-2 text-[11px] font-black text-hpsr-wine hover:border-hpsr-wine/40"
-                    >
-                      {manualExamDateTime ? "Usar agora" : "Editar"}
-                    </button>
-                  </div>
-                  {manualExamDateTime && (
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <div>
-                        <FieldLabel>Data</FieldLabel>
-                        <input
-                          type="date"
-                          value={examDate}
-                          onChange={(event) => setExamDate(event.target.value)}
-                          className="h-10 w-full rounded-[12px] border border-[#d8bfa9] bg-white px-3 text-sm font-semibold text-hpsr-text outline-none focus:border-hpsr-wine/55 focus:ring-2 focus:ring-hpsr-wine/10"
-                        />
-                      </div>
-                      <div>
-                        <FieldLabel>Hora</FieldLabel>
-                        <input
-                          type="time"
-                          value={examTime}
-                          onChange={(event) => setExamTime(event.target.value)}
-                          className="h-10 w-full rounded-[12px] border border-[#d8bfa9] bg-white px-3 text-sm font-semibold text-hpsr-text outline-none focus:border-hpsr-wine/55 focus:ring-2 focus:ring-hpsr-wine/10"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </Panel>
-
-            <SidebarStage number="2" title="Exame" description="Escolha o exame e ajuste apenas os parâmetros necessários para o caso." />
-
-            <Panel title="Escolha do exame" description="Busque pelo nome ou filtre por categoria para carregar o modelo correto.">
-              {!showCatalog && selectedExam ? (
-                <div className="rounded-[18px] border border-[#d7b796] bg-white px-4 py-3 shadow-[0_10px_22px_rgba(42,7,0,0.05)]">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-hpsr-wine text-white">
-                        {(() => { const ExamIcon = resolveExamIcon(selectedExam?.icone); return <ExamIcon size={20} strokeWidth={2.2} />; })()}
+                  <div className="mt-3 space-y-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1.55fr)_minmax(108px,0.8fr)]">
+                      <div className="min-w-0">
+                        <FieldLabel htmlFor="hpsr-exam-patient-name">Nome do paciente</FieldLabel>
+                        <TextInput id="hpsr-exam-patient-name" value={patient.name} onChange={(name) => setPatient((current) => ({ ...current, name }))} placeholder="Nome completo" />
                       </div>
                       <div className="min-w-0">
-                        <p className="break-words text-sm font-black leading-snug text-hpsr-text">{selectedExam?.nome || "Exame selecionado"}</p>
-                        <p className="text-[11px] font-semibold text-hpsr-muted">{categoryLabels[selectedExam?.categoria || selectedCategory] || selectedCategory}</p>
+                        <FieldLabel htmlFor="hpsr-exam-patient-age">Idade</FieldLabel>
+                        <TextInput id="hpsr-exam-patient-age" value={patient.age} onChange={(age) => setPatient((current) => ({ ...current, age }))} placeholder="Anos" />
                       </div>
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="min-w-0">
+                        <FieldLabel htmlFor="hpsr-exam-patient-passport">Passaporte</FieldLabel>
+                        <TextInput id="hpsr-exam-patient-passport" value={patient.passport} onChange={(passport) => setPatient((current) => ({ ...current, passport }))} placeholder="Número" />
+                      </div>
+                      <div className="min-w-0">
+                        <FieldLabel htmlFor="hpsr-exam-patient-blood">Tipo sanguíneo</FieldLabel>
+                        <SelectInput id="hpsr-exam-patient-blood" value={patient.bloodType} onChange={(bloodType) => setPatient((current) => ({ ...current, bloodType }))}>
+                          <option value="">Não informado</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option>
+                        </SelectInput>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-[#eee5de] pt-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Stethoscope size={15} strokeWidth={2.2} className="text-hpsr-wine" />
+                    <FieldLabel htmlFor="hpsr-exam-doctor-select">Médico responsável</FieldLabel>
+                  </div>
+                  <SelectInput id="hpsr-exam-doctor-select" value={selectedDoctorId} onChange={selectDoctor}>
+                    {availableDoctors.map((item) => (
+                      <option key={item.id} value={item.id}>{item.name}</option>
+                    ))}
+                  </SelectInput>
+                  <div className="mt-2 text-xs font-semibold text-hpsr-muted">
+                    <span className="font-black text-hpsr-text">{doctor.name || "Médico não selecionado"}</span>
+                    <span className="mx-2 text-[#ccb7a7]">|</span>
+                    <span>CRM {doctor.crm || "-"}</span>
+                  </div>
+                </div>
+
+                <div className="border-t border-[#eee5de] pt-4">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <FileSignature size={15} strokeWidth={2.2} className="text-hpsr-wine" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-black text-hpsr-text">Assinatura</p>
+                      <p className="text-[12px] font-semibold text-hpsr-muted">{hasSavedDoctorSignature ? "Assinatura do perfil selecionada automaticamente." : signatureImage ? "Assinatura temporária deste exame." : "Sem imagem: o sistema usa nome e CRM como assinatura gráfica."}</p>
+                    </div>
+                    {!hasSavedDoctorSignature && (
+                      <div className="flex flex-wrap gap-2">
+                        <input ref={signatureInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => { addTemporarySignature(event.target.files?.[0] || null); event.target.value = ""; }} />
+                        <button type="button" onClick={() => signatureInputRef.current?.click()} className="inline-flex h-9 items-center gap-2 rounded-[11px] border border-hpsr-wine/20 bg-white px-3 text-[13px] font-black text-hpsr-wine"><Upload size={14} /> {signatureImage ? "Trocar" : "Adicionar"}</button>
+                        {signatureImage ? <button type="button" onClick={() => setSignatureImage(null)} className="h-9 rounded-[11px] border border-hpsr-border bg-white px-3 text-[13px] font-black text-hpsr-muted">Remover</button> : null}
+                      </div>
+                    )}
+                    {!signatureImage && !hasSavedDoctorSignature && (
+                      <div className="text-center">
+                        <p className="font-serif text-base italic leading-none text-[#5b1809]">{doctor.name || "Nome do médico"}</p>
+                        <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.08em] text-hpsr-muted">CRM {doctor.crm || "000000"}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              </Panel>
+
+            <Panel title="Catálogo de exames" description="Pesquise ou abra a lista de categorias para escolher um exame.">
+              {!showCatalog && selectedExam ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-[#d7b796] bg-white px-4 py-3 shadow-[0_8px_20px_rgba(42,7,0,0.045)]">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-hpsr-wine text-white">
+                      {(() => { const ExamIcon = resolveExamIcon(selectedExam?.icone); return <ExamIcon size={18} strokeWidth={2.2} />; })()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="break-words text-sm font-black leading-snug text-hpsr-text">{selectedExam?.nome || "Exame selecionado"}</p>
+                      <p className="text-[12px] font-semibold text-hpsr-muted">{categoryLabels[selectedExam?.categoria || selectedCategory] || selectedCategory}</p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <div className={`inline-flex h-10 items-center gap-2 rounded-[11px] border px-2.5 transition ${smartConfigOpen ? "border-emerald-300 bg-emerald-50" : "border-[#dfd4cb] bg-white"}`}>
+                      <span className={`text-xs font-black ${smartConfigOpen ? "text-emerald-800" : "text-hpsr-text"}`}>Usar modelo</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={smartConfigOpen}
+                        aria-label={smartConfigOpen ? "Desativar painel do modelo" : "Ativar painel do modelo"}
+                        onClick={() => setSmartConfigOpen((current) => !current)}
+                        className={`relative h-6 w-11 overflow-hidden rounded-full transition-colors duration-200 ${smartConfigOpen ? "bg-emerald-600" : "bg-[#d7cec7]"}`}
+                      >
+                        <span className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.18)] transition-transform duration-200 ${smartConfigOpen ? "translate-x-5" : "translate-x-0"}`} />
+                      </button>
                     </div>
                     <button
                       type="button"
                       onClick={clearSelectedModel}
-                      className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-hpsr-wine text-white shadow-soft hover:bg-hpsr-wineDark"
-                      aria-label="Fechar modelo selecionado"
+                      className="inline-flex h-10 items-center gap-2 rounded-[11px] border border-hpsr-wine/20 bg-[#fff8f1] px-3 text-xs font-black text-hpsr-wine transition hover:border-hpsr-wine/40 hover:bg-white"
                     >
-                      <X size={18} />
+                      <RefreshCw size={13} /> Trocar exame
                     </button>
                   </div>
                 </div>
               ) : (
-                <>
-                  <div className="mb-3 rounded-[18px] border border-[#e3d8cf] bg-[#fbfaf8] p-3.5">
-                    <div className="mb-2.5 flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Selecionar exame</p>
-                        <p className="mt-0.5 text-[11px] font-semibold text-hpsr-muted">Busque pelo nome ou filtre rapidamente pela categoria.</p>
-                      </div>
-                      <span className="shrink-0 rounded-full border border-[#e4cbb5] bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-wine">
-                        {filteredCatalog.length} {filteredCatalog.length === 1 ? "resultado" : "resultados"}
-                      </span>
-                    </div>
-
-                    <div className="flex h-11 items-center gap-2 rounded-[14px] border border-[#ddd2c8] bg-white px-3 shadow-[0_3px_10px_rgba(42,7,0,0.025)] transition focus-within:border-hpsr-wine/45 focus-within:ring-2 focus-within:ring-hpsr-wine/10">
-                      <Search size={16} className="shrink-0 text-hpsr-wine" />
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-[12px] border border-[#ddd2c8] bg-white px-3 transition focus-within:border-hpsr-wine/45 focus-within:ring-2 focus-within:ring-hpsr-wine/10">
+                      <Search size={15} className="shrink-0 text-hpsr-wine" />
                       <input
                         value={examSearch}
                         onChange={(event) => setExamSearch(event.target.value)}
-                        placeholder="Buscar exame, especialidade ou palavra-chave"
+                        placeholder="Buscar exame ou finalidade"
                         className="min-w-0 flex-1 bg-transparent text-sm font-semibold outline-none placeholder:text-hpsr-muted/70"
                       />
                       {examSearch && (
                         <button
                           type="button"
                           onClick={() => setExamSearch("")}
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-hpsr-muted transition hover:bg-[#f7eadf] hover:text-hpsr-wine"
+                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-hpsr-muted transition hover:bg-[#f7eadf] hover:text-hpsr-wine"
                           aria-label="Limpar busca"
                         >
-                          <X size={14} />
+                          <X size={13} />
                         </button>
                       )}
                     </div>
+                    <span className="shrink-0 text-[13px] font-black text-hpsr-muted">
+                      {filteredCatalog.length} {filteredCatalog.length === 1 ? "exame" : "exames"}
+                    </span>
                   </div>
 
-                  <div className="mb-3">
-                    <div className="mb-2 flex items-center justify-between gap-2">
-                      <label className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-muted">Categorias</label>
-                      {catalogCategory !== "all" && (
-                        <button type="button" onClick={() => setCatalogCategory("all")} className="text-[10px] font-black text-hpsr-wine hover:underline">
-                          Ver todas
-                        </button>
-                      )}
-                    </div>
-                    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                      <button
-                        type="button"
-                        onClick={() => setCatalogCategory("all")}
-                        aria-pressed={catalogCategory === "all"}
-                        className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-[12px] border px-3 text-[11px] font-black transition ${catalogCategory === "all" ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_6px_14px_rgba(103,38,20,0.16)]" : "border-[#dec7b3] bg-white text-hpsr-text hover:border-hpsr-wine/35 hover:bg-[#fff8f1]"}`}
-                      >
-                        <Table2 size={14} strokeWidth={2.3} />
-                        Todos
-                        <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${catalogCategory === "all" ? "bg-white/15 text-white" : "bg-[#f4e7db] text-hpsr-muted"}`}>{intelligentExamModels.length}</span>
-                      </button>
-                      {categories.map((category) => {
-                        const active = catalogCategory === category;
-                        return (
-                          <button
-                            key={category}
-                            type="button"
-                            onClick={() => setCatalogCategory(category)}
-                            aria-pressed={active}
-                            className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-[12px] border px-3 text-[11px] font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_6px_14px_rgba(103,38,20,0.16)]" : "border-[#dec7b3] bg-white text-hpsr-text hover:border-hpsr-wine/35 hover:bg-[#fff8f1]"}`}
-                          >
-                            {categoryLabels[category] || category}
-                            <span className={`rounded-full px-1.5 py-0.5 text-[9px] ${active ? "bg-white/15 text-white" : "bg-[#f4e7db] text-hpsr-muted"}`}>{categoryCounts[category] || 0}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                  <div>
+                    <button
+                      type="button"
+                      aria-expanded={categoriesOpen}
+                      aria-controls="hpsr-exam-category-options"
+                      onClick={() => setCategoriesOpen((current) => !current)}
+                      className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-[12px] border px-3.5 py-2.5 text-left transition ${categoriesOpen ? "border-[#b36b61] bg-[#f9e8e2]" : "border-[#dfc9bf] bg-[#fdf3ec] hover:border-[#b98478]"}`}
+                    >
+                      <span className="flex min-w-0 items-center gap-2.5">
+                        <Microscope size={18} strokeWidth={2.1} className="shrink-0 text-hpsr-wine" />
+                        <span className="min-w-0">
+                          <span className="block text-[12px] font-semibold text-[#8a5147]">Categoria</span>
+                          <span className="block truncate text-sm font-black text-hpsr-text">{catalogCategory === "all" ? "Todos os exames" : categoryLabels[catalogCategory] || catalogCategory}</span>
+                        </span>
+                      </span>
+                      <ChevronDown size={18} className={`shrink-0 text-hpsr-wine transition-transform ${categoriesOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    {categoriesOpen && (
+                      <div id="hpsr-exam-category-options" role="group" aria-label="Categorias de exames" className="mt-2 max-h-[235px] space-y-1 overflow-y-auto rounded-[12px] border border-[#e4cec2] bg-[#fff8f2] p-1.5 [scrollbar-gutter:stable]">
+                        {["all", ...categories].map((category) => {
+                          const CategoryIcon = category === "all" ? Microscope : categoryIconMap[category] || Microscope;
+                          const isActive = catalogCategory === category;
+                          return (
+                            <button
+                              key={category}
+                              type="button"
+                              aria-pressed={isActive}
+                              onClick={() => { setCatalogCategory(category); setCategoriesOpen(false); }}
+                              className={`flex min-h-10 w-full items-center gap-2.5 rounded-[9px] px-3 py-2 text-left text-sm font-bold transition ${isActive ? "bg-[#f6ded6] text-[#712b23]" : "text-hpsr-text hover:bg-[#f9ece6]"}`}
+                            >
+                              <CategoryIcon size={17} strokeWidth={2.1} className="shrink-0" />
+                              <span className="min-w-0 flex-1">{category === "all" ? "Todos os exames" : categoryLabels[category] || category}</span>
+                              <span className="shrink-0 text-[12px] text-hpsr-muted">{category === "all" ? intelligentExamModels.length : categoryCounts[category] || 0}</span>
+                              {isActive && <Check size={16} className="shrink-0 text-hpsr-wine" />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
-                  <div className="max-h-[470px] overflow-y-auto pr-1">
+                  <div className="max-h-[420px] overflow-y-auto rounded-[14px] border border-[#e6d5c9] bg-[#f6eee8] p-2.5 pr-2 [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]">
                     {filteredCatalog.length > 0 ? (
-                      <div className="space-y-2">
+                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-1">
                         {filteredCatalog.map((exam) => {
                           const isSelected = exam.id === selectedExam?.id;
                           const ExamIcon = resolveExamIcon(exam.icone);
@@ -2590,22 +2652,17 @@ export default function ExamesPage() {
                               type="button"
                               onClick={() => applyModelFor(exam)}
                               aria-pressed={isSelected}
-                              className={`group relative w-full overflow-hidden rounded-[17px] border px-3.5 py-3 text-left transition-all duration-200 ${isSelected ? "border-hpsr-wine/70 bg-[#fff7ef] shadow-[0_7px_18px_rgba(103,38,20,0.09)] ring-1 ring-hpsr-wine/10" : "border-[#e2d8cf] bg-white shadow-[0_3px_10px_rgba(42,7,0,0.025)] hover:border-hpsr-wine/30 hover:bg-[#fdfaf7] hover:shadow-[0_7px_18px_rgba(42,7,0,0.055)]"}`}
+                              className={`group relative min-h-[96px] w-full overflow-hidden rounded-[14px] border p-3.5 text-left transition-all duration-200 ${isSelected ? "border-hpsr-wine/70 bg-[#fff7ef] ring-1 ring-hpsr-wine/10" : "border-[#e2d8cf] bg-white hover:border-hpsr-wine/30 hover:bg-[#fffdfb]"}`}
                             >
                               <span className={`absolute inset-y-0 left-0 w-1 transition ${isSelected ? "bg-hpsr-wine" : "bg-transparent group-hover:bg-hpsr-wine/20"}`} />
-                              <div className="flex items-center gap-3">
-                                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border transition ${isSelected ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_5px_12px_rgba(103,38,20,0.17)]" : "border-[#e5d2c1] bg-[#f8ecdf] text-hpsr-wine group-hover:border-hpsr-wine/25"}`}>
-                                  <ExamIcon size={19} strokeWidth={2.15} />
+                              <div className="flex items-start gap-2.5">
+                                <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border transition ${isSelected ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-[#e5d2c1] bg-[#f8ecdf] text-hpsr-wine"}`}>
+                                  <ExamIcon size={17} strokeWidth={2.15} />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <div className="mb-0.5 flex items-center gap-2">
-                                    <span className="truncate text-[9px] font-black uppercase tracking-[0.1em] text-hpsr-muted">{categoryLabels[exam.categoria] || exam.categoria}</span>
-                                  </div>
-                                  <p className="break-words text-[13px] font-black leading-[1.25] text-hpsr-text">{exam.nome}</p>
-                                  {exam.descricao && <p className="mt-1 line-clamp-1 text-[10px] font-semibold leading-relaxed text-hpsr-muted">{exam.descricao}</p>}
-                                </div>
-                                <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition ${isSelected ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-[#e4d2c2] bg-[#fffaf5] text-hpsr-muted group-hover:border-hpsr-wine/30 group-hover:text-hpsr-wine"}`}>
-                                  {isSelected ? <Check size={14} strokeWidth={3} /> : <ChevronDown size={14} className="-rotate-90" />}
+                                  <p className="break-words text-[14px] font-black leading-[1.4] text-hpsr-text">{exam.nome}</p>
+                                  {exam.descricao && <p className="mt-1 line-clamp-2 text-[13px] font-semibold leading-[1.5] text-hpsr-muted">{exam.descricao}</p>}
+                                  <span className="mt-1.5 block text-[12px] font-bold text-[#886353]">{categoryLabels[exam.categoria] || exam.categoria}</span>
                                 </div>
                               </div>
                             </button>
@@ -2613,44 +2670,30 @@ export default function ExamesPage() {
                         })}
                       </div>
                     ) : (
-                      <div className="rounded-[16px] border border-dashed border-[#d8bfa9] bg-[#fffaf4] px-4 py-6 text-center">
-                        <Search size={22} className="mx-auto mb-2 text-hpsr-wine/60" />
+                      <div className="px-4 py-7 text-center">
+                        <Search size={20} className="mx-auto mb-2 text-hpsr-wine/55" />
                         <p className="text-sm font-black text-hpsr-text">Nenhum exame encontrado</p>
-                        <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">Tente outro termo ou selecione uma categoria diferente.</p>
-                        <button type="button" onClick={() => { setExamSearch(""); setCatalogCategory("all"); }} className="mt-3 rounded-[11px] border border-[#d8bfa9] bg-white px-3 py-2 text-[11px] font-black text-hpsr-wine transition hover:bg-[#fff3e8]">
+                        <p className="mt-1 text-[13px] font-semibold text-hpsr-muted">Tente outro nome, finalidade ou categoria.</p>
+                        <button type="button" onClick={() => { setExamSearch(""); setCatalogCategory("all"); }} className="mt-3 text-[13px] font-black text-hpsr-wine hover:underline">
                           Limpar filtros
                         </button>
                       </div>
                     )}
                   </div>
-                </>
+                </div>
               )}
             </Panel>
 
-            {!showCatalog && selectedExam && adaptiveConfig && (
-              <Panel title="Motor inteligente" description="O modelo do exame selecionado já está pronto. Ajuste somente o que realmente interfere nos achados.">
+            {!showCatalog && selectedExam && adaptiveConfig && smartConfigOpen && (
+              <div className="rounded-[18px] border border-[#dfc9bf] bg-[linear-gradient(170deg,#fff9f4_0%,#f7e8e4_100%)] p-4 shadow-[0_8px_20px_rgba(82,28,20,0.045)]">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.07em] text-hpsr-wine">Modelo ativo</p>
+                    <p className="mt-0.5 text-[13px] font-semibold text-hpsr-muted">Preencha somente o necessário e aplique ao editor.</p>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f0e8] px-2.5 py-1 text-[12px] font-black text-[#2f634c]"><Check size={12} /> Ligado</span>
+                </div>
                 <div className="space-y-3">
-                  <div className="rounded-[13px] border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-semibold leading-relaxed text-amber-950">
-                    O modo guiado sugere achados coerentes com o perfil e as referências do exame. Confirme os dados efetivamente obtidos no paciente antes de liberar o laudo.
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 rounded-[15px] border border-[#e0c7b0] bg-white/70 p-2.5">
-                    <div>
-                      <FieldLabel>Exame</FieldLabel>
-                      <p className="text-sm font-black text-hpsr-text">{activeExamModel?.nome || selectedExam?.nome || "-"}</p>
-                    </div>
-                    <div>
-                      <FieldLabel>Especialidade</FieldLabel>
-                      <p className="text-sm font-black text-hpsr-text">{categoryLabels[selectedExam?.categoria || selectedCategory] || selectedCategory}</p>
-                    </div>
-                  </div>
-
-                  {activeExamModel && selectedExam && activeExamModel.nome !== selectedExam.nome && (
-                    <div className="rounded-[13px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-semibold leading-relaxed text-emerald-950">
-                      Modelo detalhado carregado automaticamente: <strong>{activeExamModel.nome}</strong>.
-                    </div>
-                  )}
-
                   {selectedExam?.adapter.enabled && selectedExam.adapter.kind !== "clinical-context" && adaptiveConfig && (
                     <div>
                       <FieldLabel>{selectedExam.adapter.label}</FieldLabel>
@@ -2679,14 +2722,35 @@ export default function ExamesPage() {
                     </div>
                   )}
 
-                  {!!activeExamModel?.profiles.length && adaptiveConfig && (
+                  {showClinicalContextSelector && adaptiveConfig && (
                     <div>
-                      <FieldLabel>Perfil de resultado</FieldLabel>
+                      <FieldLabel>Contexto / finalidade</FieldLabel>
                       <SelectInput
-                        value={resolvedExam?.profile.id || adaptiveConfig.profileId}
+                        value={availableClinicalContexts.includes(adaptiveConfig.clinicalContext)
+                          ? adaptiveConfig.clinicalContext
+                          : (availableClinicalContexts.find((item) => item === "Rotina") || availableClinicalContexts[0] || "")}
+                        onChange={updateClinicalContext}
+                      >
+                        {availableClinicalContexts.map((context) => (
+                          <option key={context} value={context}>{context}</option>
+                        ))}
+                      </SelectInput>
+                      <p className="mt-1.5 text-[12px] font-semibold leading-relaxed text-hpsr-muted">
+                        O contexto reorganiza a leitura do exame, a prioridade dos achados e a conclusão; não é apenas uma observação no laudo.
+                      </p>
+                    </div>
+                  )}
+
+                  {!!visibleExamProfiles.length && adaptiveConfig && (
+                    <div>
+                      <FieldLabel>{activeExamModel?.id === "lab_beta_hcg_completo" ? "Resultado" : "Perfil de resultado"}</FieldLabel>
+                      <SelectInput
+                        value={visibleExamProfiles.some((profile) => profile.id === (resolvedExam?.profile.id || adaptiveConfig.profileId))
+                          ? (resolvedExam?.profile.id || adaptiveConfig.profileId)
+                          : visibleExamProfiles[0]?.id || ""}
                         onChange={(profileId) => updateConfig({ profileId })}
                       >
-                        {activeExamModel.profiles.map((profile) => (
+                        {visibleExamProfiles.map((profile) => (
                           <option key={profile.id} value={profile.id}>{profile.name}</option>
                         ))}
                       </SelectInput>
@@ -2695,8 +2759,24 @@ export default function ExamesPage() {
 
                   {resolvedExam?.dynamicFields.filter((field) => field.source === "variable").map((field) => (
                     <div key={field.id}>
-                      <FieldLabel>{field.label}</FieldLabel>
-                      {field.tipo === "select" ? (
+                      <FieldLabel>{field.id === "dia_estimulacao" ? "Dia da estimulação (opcional)" : field.id === "dia_preparo_endometrial" ? "Dia do preparo (opcional)" : field.label}</FieldLabel>
+                      {field.id === "foco_monitorizacao" ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          {(field.options || ["Folículos", "Endométrio"]).map((option) => {
+                            const active = String(field.value ?? "") === option;
+                            return (
+                              <button
+                                key={option}
+                                type="button"
+                                onClick={() => updateVariable(field.id, option)}
+                                className={`h-10 rounded-[11px] border text-xs font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-[#d8bfa9] bg-white text-hpsr-text hover:border-hpsr-wine/35 hover:text-hpsr-wine"}`}
+                              >
+                                {option}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : field.tipo === "select" ? (
                         <SelectInput
                           value={String(field.value ?? "")}
                           onChange={(value) => updateVariable(field.id, value)}
@@ -2717,9 +2797,22 @@ export default function ExamesPage() {
                         <input
                           type={field.tipo === "number" ? "number" : field.tipo === "date" ? "date" : "text"}
                           value={String(field.value ?? "")}
+                          min={field.id === "idade_gestacional_referida" || field.id === "dia_estimulacao" || field.id === "dia_preparo_endometrial" ? 1 : undefined}
+                          step={field.id === "idade_gestacional_referida" || field.id === "dia_estimulacao" || field.id === "dia_preparo_endometrial" ? "1" : undefined}
+                          placeholder={field.id === "idade_gestacional_referida" ? "Ex.: 6" : field.id === "idade_gestacional" ? "Ex.: 28 semanas" : field.id === "contexto_clinico" ? "Ex.: dor pélvica, controle pós-trauma, investigação específica..." : field.id === "dia_estimulacao" ? "Ex.: 8" : field.id === "dia_preparo_endometrial" ? "Ex.: 10" : undefined}
                           onChange={(event) => updateVariable(field.id, event.target.value)}
-                          className="h-10 w-full rounded-[12px] border border-[#d8bfa9] bg-white px-3 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wine/55 focus:ring-2 focus:ring-hpsr-wine/10"
+                          className="h-11 w-full rounded-[12px] border border-[#d8bfa9] bg-white px-3.5 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wine/55 focus:ring-2 focus:ring-hpsr-wine/10"
                         />
+                      )}
+                      {activeExamModel?.id === "lab_beta_hcg_completo" && field.id === "idade_gestacional_referida" && (
+                        <p className="mt-1.5 text-[12px] font-semibold leading-relaxed text-hpsr-muted">
+                          Essa informação passa a orientar método, interpretação, conclusão e a correlação com o valor de β-hCG; ela não é usada como uma simples linha de contexto.
+                        </p>
+                      )}
+                      {field.id === "contexto_clinico" && (
+                        <p className="mt-1.5 text-[12px] font-semibold leading-relaxed text-hpsr-muted">
+                          Use este campo para indicar o motivo real do exame. O motor prioriza os achados relacionados a essa informação e adapta a leitura clínica.
+                        </p>
                       )}
                     </div>
                   ))}
@@ -2727,17 +2820,29 @@ export default function ExamesPage() {
                   <button
                     type="button"
                     onClick={refreshFindings}
-                    className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-[12px] border border-[#d8bfa9] bg-white px-3 text-xs font-black text-hpsr-text hover:border-hpsr-wine/40 hover:bg-[#fff8f0]"
+                    className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[12px] border border-hpsr-wine bg-hpsr-wine px-3 text-sm font-black text-white shadow-[0_7px_16px_rgba(103,38,20,0.16)] transition hover:bg-[#7a2f1b]"
                   >
-                    <RefreshCw size={15} /> Atualizar achados
+                    <Wand2 size={15} /> Aplicar modelo
                   </button>
                 </div>
-              </Panel>
+              </div>
             )}
 
-            <SidebarStage number="3" title="Finalização" description="Revise anexos e conclua o laudo no editor ao lado." />
 
-            <Panel title="Anexos" description="Confira o anexo automático ou inclua imagens adicionais quando necessário.">
+            <Panel title="Anexos" description="Opcional · gerencie imagens do exame quando precisar.">
+              <button
+                type="button"
+                aria-expanded={attachmentControlsOpen}
+                onClick={() => setAttachmentControlsOpen((current) => !current)}
+                className="flex h-11 w-full items-center justify-between gap-3 rounded-[12px] border border-[#decdbf] bg-[#fffaf6] px-3.5 text-left text-xs font-black text-hpsr-text transition hover:border-hpsr-wine/35 hover:bg-white"
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <Paperclip size={17} className="shrink-0 text-hpsr-wine" />
+                  {attachmentCount ? `${attachmentCount} ${attachmentCount === 1 ? "anexo" : "anexos"} neste exame` : "Adicionar ou gerenciar anexos"}
+                </span>
+                <ChevronDown size={16} className={`shrink-0 text-hpsr-wine transition-transform ${attachmentControlsOpen ? "rotate-180" : ""}`} />
+              </button>
+              {attachmentControlsOpen && (
               <div className="space-y-3">
                 {effectiveAutomaticAttachment && (
                   <div className="rounded-[16px] border border-[#e4d7ce] bg-[#fff9f5] p-3 text-hpsr-text shadow-[0_8px_18px_rgba(42,7,0,0.045)]">
@@ -2757,26 +2862,26 @@ export default function ExamesPage() {
                               setAutomaticAttachmentRemoved(true);
                               setSaveStatus("Salvando...");
                             }}
-                            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[10px] border border-red-200 bg-white px-2.5 text-[10px] font-black text-red-700 transition hover:bg-red-50"
+                            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[10px] border border-red-200 bg-white px-2.5 text-[12px] font-black text-red-700 transition hover:bg-red-50"
                             aria-label="Remover anexo automático"
                           >
                             <X size={13} /> Remover
                           </button>
                         </div>
-                        <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">{effectiveAutomaticAttachment?.subtitle}</p>
-                        <p className="mt-2 text-[11px] font-semibold leading-relaxed text-[#6f5148]">{effectiveAutomaticAttachment?.legend}</p>
+                        <p className="mt-1 text-[13px] font-semibold text-hpsr-muted">{effectiveAutomaticAttachment?.subtitle}</p>
+                        <p className="mt-2 text-[13px] font-semibold leading-relaxed text-[#6f5148]">{effectiveAutomaticAttachment?.legend}</p>
                       </div>
                     </div>
                   </div>
                 )}
 
                 {automaticAttachmentRemoved && automaticAttachment && (
-                  <div className="flex items-center justify-between gap-3 rounded-[16px] border border-amber-200 bg-amber-50/90 px-3 py-2 text-[11px] font-semibold text-amber-800">
+                  <div className="flex items-center justify-between gap-3 rounded-[16px] border border-amber-200 bg-amber-50/90 px-3 py-2 text-[13px] font-semibold text-amber-800">
                     <span>O anexo automático foi removido deste exame.</span>
                     <button
                       type="button"
                       onClick={() => setAutomaticAttachmentRemoved(false)}
-                      className="shrink-0 rounded-[10px] border border-amber-300 bg-white px-2.5 py-1.5 text-[10px] font-black text-amber-800 hover:bg-amber-100"
+                      className="shrink-0 rounded-[10px] border border-amber-300 bg-white px-2.5 py-1.5 text-[12px] font-black text-amber-800 hover:bg-amber-100"
                     >
                       Restaurar
                     </button>
@@ -2802,12 +2907,12 @@ export default function ExamesPage() {
                   <Upload size={16} /> Adicionar anexo
                 </button>
 
-                <div className="rounded-[16px] border border-[#e5d8cf] bg-[#fffaf6] px-3 py-2 text-[11px] font-semibold leading-relaxed text-hpsr-muted">
+                <div className="rounded-[16px] border border-[#e5d8cf] bg-[#fffaf6] px-3 py-2 text-[13px] font-semibold leading-relaxed text-hpsr-muted">
                   A página de anexo usa uma única imagem centralizada. Ao adicionar uma nova imagem manual, ela será exibida como anexo visual do exame.
                 </div>
 
                 {attachmentOverrideActive && attachments.length > 0 && (
-                  <div className="rounded-[16px] border border-amber-200 bg-amber-50/90 px-3 py-2 text-[11px] font-semibold leading-relaxed text-amber-800">
+                  <div className="rounded-[16px] border border-amber-200 bg-amber-50/90 px-3 py-2 text-[13px] font-semibold leading-relaxed text-amber-800">
                     O anexo manual está substituindo o anexo automático deste exame.
                   </div>
                 )}
@@ -2825,7 +2930,7 @@ export default function ExamesPage() {
                           </span>
                           <div className="min-w-0">
                             <p className="truncate text-xs font-black text-hpsr-text">{attachment.name}</p>
-                            <p className="text-[11px] font-semibold text-hpsr-muted">{attachment.size}</p>
+                            <p className="text-[13px] font-semibold text-hpsr-muted">{attachment.size}</p>
                           </div>
                         </div>
                         <button
@@ -2845,40 +2950,59 @@ export default function ExamesPage() {
                   </div>
                 )}
               </div>
+              )}
             </Panel>
-            </div>
-          </div>
         </aside>
 
-        <main className="hpsr-light-editor-shell flex min-h-0 flex-col overflow-visible rounded-[24px] 2xl:overflow-hidden border border-[#ddd4cc] bg-white shadow-[0_14px_38px_rgba(42,7,0,0.065)] ring-1 ring-white">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#ece5df] bg-[linear-gradient(180deg,#ffffff_0%,#fdfaf7_100%)] px-6 py-4">
+        {(!showCatalog || Boolean(editorHtmlRef.current.trim())) ? (
+        <main aria-label="Editor do exame" className="hpsr-light-editor-shell flex min-h-0 min-w-0 flex-col overflow-visible rounded-[24px] border border-[#ddd4cc] bg-[#fffaf5] shadow-[0_14px_38px_rgba(42,7,0,0.065)] ring-1 ring-white xl:overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#ece5df] bg-[linear-gradient(110deg,#fff8ed_0%,#f5e9e5_100%)] px-6 py-4">
             <div>
               <h2 className="text-xl font-black tracking-[-0.01em] text-hpsr-text">
                 {selectedExam?.nome || "Exame livre"}
               </h2>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-hpsr-muted">
-                Editor contínuo · preview institucional apenas ao salvar
+              <p className="text-xs font-semibold uppercase tracking-[0.06em] text-hpsr-muted">
+                Editor do exame · pré-visualização institucional sob demanda
               </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <div className="inline-flex min-h-9 items-center gap-2 rounded-[11px] border border-[#e2d8cf] bg-[#fbfaf9] px-2.5 text-[13px] font-bold text-hpsr-text">
+                  <CalendarDays size={14} className="text-hpsr-wine" />
+                  {manualExamDateTime ? (
+                    <>
+                      <input type="date" value={examDate} onChange={(event) => setExamDate(event.target.value)} className="h-7 w-[126px] bg-transparent text-[13px] font-bold outline-none" aria-label="Data do exame" />
+                      <input type="time" value={examTime} onChange={(event) => setExamTime(event.target.value)} className="h-7 w-[76px] bg-transparent text-[13px] font-bold outline-none" aria-label="Hora do exame" />
+                      <button type="button" onClick={() => { setManualExamDateTime(false); setExamDate(todayISO()); setExamTime(nowHHMM()); }} className="rounded-[8px] px-2 py-1 text-[12px] font-black text-hpsr-wine hover:bg-[#f7eadf]">Usar agora</button>
+                    </>
+                  ) : (
+                    <button type="button" onClick={() => { setExamDate(todayISO()); setExamTime(nowHHMM()); setManualExamDateTime(true); }} className="font-black text-hpsr-text hover:text-hpsr-wine">Data atual · alterar</button>
+                  )}
+                </div>
+
+                <div className="inline-flex h-9 items-center gap-1 rounded-[11px] border border-[#e2d8cf] bg-[#fbfaf9] p-1">
+                  <ShieldCheck size={14} className="ml-1.5 text-hpsr-wine" />
+                  <button type="button" onClick={() => setIsConfidential(true)} className={`h-7 rounded-[8px] px-2.5 text-[12px] font-black transition ${isConfidential ? "bg-hpsr-wine text-white" : "text-hpsr-muted hover:text-hpsr-wine"}`}>Sigilo</button>
+                  <button type="button" onClick={() => setIsConfidential(false)} className={`h-7 rounded-[8px] px-2.5 text-[12px] font-black transition ${!isConfidential ? "bg-emerald-600 text-white" : "text-hpsr-muted hover:text-emerald-700"}`}>Portal liberado</button>
+                </div>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-xs font-black text-hpsr-text">
-              <ClinicalHistoryButton recordType="Exame" />
+              <span className={`inline-flex h-10 items-center gap-2 rounded-[12px] border px-3 text-[13px] font-black ${editorReportPageCount > 1 ? "border-amber-200 bg-amber-50 text-amber-800" : "border-[#e2d8cf] bg-[#fbfaf9] text-hpsr-muted"}`}>
+                <FileText size={14} /> {editorReportPageCount} {editorReportPageCount === 1 ? "página" : "páginas"}
+              </span>
               <button
                 type="button"
                 onClick={() => setAttachmentEditorOpen((current) => !current)}
-                className="rounded-full border border-[#dec8b6] bg-white px-3 py-2 text-xs font-black text-hpsr-text shadow-[0_4px_10px_rgba(42,7,0,0.04)] transition hover:border-hpsr-wine/40 hover:bg-[#fff8ef]"
+                className={`inline-flex h-10 items-center gap-2 rounded-[12px] border px-3.5 text-xs font-black shadow-[0_5px_14px_rgba(42,7,0,0.05)] transition hover:-translate-y-0.5 hover:shadow-[0_8px_18px_rgba(42,7,0,0.08)] ${attachmentEditorOpen ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-wine/20 bg-[#fff8f1] text-hpsr-wine hover:border-hpsr-wine/40 hover:bg-white"}`}
               >
-                Ver anexo
+                <Paperclip size={15} strokeWidth={2.3} /> {attachmentEditorOpen ? "Ocultar anexo" : "Ver anexo"}
               </button>
-              <span className="rounded-full border border-[#dec8b6] bg-white px-3 py-2 shadow-[0_4px_10px_rgba(42,7,0,0.04)]">
-                {formatDateBR(todayISO())}
-              </span>
             </div>
           </div>
 
           <div className="border-b border-[#eee8e2] bg-[#fbfaf9] px-6 py-2.5 text-xs font-semibold text-hpsr-muted">
             <div className="flex items-center gap-2">
               <Info size={14} className="text-hpsr-wine" />
-              <span>Revise resultados, referências, interpretação e conclusão antes de salvar ou imprimir o laudo.</span>
+              <span>Revise resultados, referências, interpretação e conclusão. As linhas no editor indicam onde uma nova página começa no documento final.</span>
             </div>
           </div>
 
@@ -2898,7 +3022,7 @@ export default function ExamesPage() {
             rememberSelection={rememberSelection}
           />
 
-          <div className="min-h-0 flex-1 overflow-y-auto bg-[linear-gradient(180deg,#f4f0ed_0%,#ebe5e0_100%)] p-5">
+          <div className="hpsr-exams-editor-viewport h-[clamp(510px,68dvh,760px)] flex-none overflow-y-auto overscroll-contain bg-[linear-gradient(180deg,#f3eee8_0%,#eee5e1_100%)] p-5 [scrollbar-gutter:stable]">
             <div className="mx-auto min-h-full max-w-[1100px] rounded-[20px] border border-[#dfd5ce] bg-white p-8 shadow-[0_14px_34px_rgba(42,7,0,0.055)] ring-1 ring-white">
               <div className="relative">
                 {editorPageGuideTops.map((top, index) => {
@@ -2909,10 +3033,10 @@ export default function ExamesPage() {
                         className="pointer-events-none absolute left-0 right-0 z-10"
                         style={{ top }}
                       >
-                        <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wine/60">
+                        <div className="flex items-center gap-3 text-[12px] font-black uppercase tracking-[0.14em] text-hpsr-wine/60">
                           <span className="h-px flex-1 border-t border-dashed border-hpsr-wine/25" />
                           <span className="rounded-full border border-hpsr-wine/20 bg-[#fff7ed]/95 px-3 py-1 shadow-[0_4px_12px_rgba(42,7,0,0.05)]">
-                            Conteúdo continua na página {pageNumber}
+                            Página {pageNumber} começa aqui
                           </span>
                           <span className="h-px flex-1 border-t border-dashed border-hpsr-wine/25" />
                         </div>
@@ -2960,7 +3084,7 @@ export default function ExamesPage() {
                             </div>
                           )}
                         </div>
-                        <p className="mt-3 rounded-[14px] border border-[#eadbd1] bg-[#fffaf6] px-3 py-2 text-[11px] font-semibold leading-relaxed text-hpsr-muted">
+                        <p className="mt-3 rounded-[14px] border border-[#eadbd1] bg-[#fffaf6] px-3 py-2 text-[13px] font-semibold leading-relaxed text-hpsr-muted">
                           Anexo automático do exame. O texto técnico permanece no laudo principal.
                         </p>
                       </div>
@@ -2972,9 +3096,9 @@ export default function ExamesPage() {
                           <div key={attachment.id} className="rounded-[18px] border border-[#d7c3b8] bg-white p-4">
                             <div className="mb-3 flex items-center justify-between gap-3">
                               <div className="min-w-0">
-                                <p className="text-[10px] font-black uppercase tracking-[0.08em] text-hpsr-muted">Anexo manual · página {index + 1}</p>
+                                <p className="text-[12px] font-black uppercase tracking-[0.08em] text-hpsr-muted">Anexo manual · página {index + 1}</p>
                                 <p className="mt-1 truncate text-sm font-black text-hpsr-text">{attachment.name}</p>
-                                <p className="mt-0.5 text-[11px] font-semibold text-hpsr-muted">{attachment.size}</p>
+                                <p className="mt-0.5 text-[13px] font-semibold text-hpsr-muted">{attachment.size}</p>
                               </div>
                               <button
                                 type="button"
@@ -3012,7 +3136,7 @@ export default function ExamesPage() {
                 )}
 
                 <div
-                  ref={editorRef}
+                  ref={bindEditor}
                   contentEditable
                   suppressContentEditableWarning
                   onInput={syncEditorFromDom}
@@ -3033,37 +3157,40 @@ export default function ExamesPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e9e1da] bg-[#fcfbfa] px-6 py-3.5">
-            <label className="inline-flex items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">
-              <input type="checkbox" checked={isConfidential} onChange={(event) => setIsConfidential(event.target.checked)} />
-              Sigilo no Portal do Paciente
-            </label>
+            <span className="text-[13px] font-semibold text-hpsr-muted">Revise o conteúdo antes de pré-visualizar.</span>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={clearEditor}
-                className="inline-flex h-10 items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-4 text-xs font-black text-hpsr-text hover:border-hpsr-wine/40"
+                className="inline-flex h-11 items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-4 text-sm font-black text-hpsr-text hover:border-hpsr-wine/40"
               >
                 <Trash2 size={15} /> Limpar editor
-              </button>
-              <button
-                type="button"
-                onClick={refreshFindings}
-                className="inline-flex h-10 items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-4 text-xs font-black text-hpsr-text hover:border-hpsr-wine/40"
-              >
-                <RefreshCw size={15} /> Atualizar
               </button>
 
               <button
                 type="button"
                 onClick={openExamPreview}
-                className="inline-flex h-10 items-center gap-2 rounded-[13px] bg-hpsr-wine px-5 text-xs font-black text-white shadow-soft hover:bg-hpsr-wineDark"
+                className="inline-flex h-11 items-center gap-2 rounded-[13px] bg-hpsr-wine px-5 text-sm font-black text-white shadow-soft hover:bg-hpsr-wineDark"
               >
                 <Save size={16} /> Pré-visualizar
               </button>
             </div>
           </div>
         </main>
+        ) : (
+          <main aria-label="Editor do exame" className="flex min-h-[540px] min-w-0 flex-col items-center justify-center rounded-[24px] border border-[#e2d8ca] bg-[linear-gradient(145deg,#fff9f0_0%,#f5e9e5_100%)] px-6 py-12 text-center shadow-[0_12px_32px_rgba(42,7,0,0.045)]">
+            <span className="mb-4 flex h-16 w-16 items-center justify-center rounded-[19px] bg-[#f7ede5] text-hpsr-wine">
+              <FileText size={30} strokeWidth={1.8} />
+            </span>
+            <h2 className="text-xl font-black text-hpsr-text">Seu editor começa aqui</h2>
+            <p className="mt-2 max-w-[340px] text-sm font-semibold leading-relaxed text-hpsr-muted">
+              Selecione um exame no catálogo à esquerda para abrir o editor. Você pode escrever livremente ou ativar Usar modelo.
+            </p>
+          </main>
+        )}
       </section>
+
+      <ClinicalHistoryPanel recordType="Exame" comfortable />
 
       {preview.open && preview.document && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1f0805]/60 p-4">
@@ -3189,28 +3316,6 @@ export default function ExamesPage() {
   );
 }
 
-function SidebarStage({
-  number,
-  title,
-  description,
-}: {
-  number: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="flex items-center gap-3 px-1 pt-2">
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-hpsr-wine text-[11px] font-black text-white shadow-[0_4px_10px_rgba(103,38,20,0.15)]">
-        {number}
-      </span>
-      <div className="min-w-0">
-        <p className="text-[11px] font-black uppercase tracking-[0.1em] text-hpsr-text">{title}</p>
-        <p className="mt-0.5 text-[10px] font-semibold leading-relaxed text-hpsr-muted">{description}</p>
-      </div>
-    </div>
-  );
-}
-
 function Panel({
   title,
   description,
@@ -3221,18 +3326,20 @@ function Panel({
   children: React.ReactNode;
 }) {
   const Icon = resolvePanelIcon(title);
+  const isCatalog = title === "Catálogo de exames";
+  const isAttachments = title === "Anexos";
   return (
-    <section className="overflow-hidden rounded-[18px] border border-[#e5dcd4] bg-white shadow-[0_4px_14px_rgba(42,7,0,0.028)]">
-      <div className="flex items-start gap-3 border-b border-[#f0ebe6] bg-[#fcfbf9] px-4 py-3">
-        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#f6ece5] text-hpsr-wine ring-1 ring-[#eadfd6]">
-          <Icon size={14} strokeWidth={2.3} />
+    <section className={`overflow-hidden rounded-[18px] border shadow-[0_4px_14px_rgba(42,7,0,0.028)] ${isCatalog ? "border-[#dfc5bc] bg-[#fff8f3]" : isAttachments ? "border-[#e9d5bd] bg-[#fffbf4]" : "border-[#ead8c8] bg-[#fffaf4]"}`}>
+      <div className={`flex items-start gap-3 border-b px-4 py-3 ${isCatalog ? "border-[#ead0c4] bg-[#f5e1d9]" : isAttachments ? "border-[#f0dfcc] bg-[#fff1e0]" : "border-[#eedbca] bg-[#f9eada]"}`}>
+        <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] text-white ${isCatalog ? "bg-[linear-gradient(135deg,#8b3d31,#672614)]" : isAttachments ? "bg-[#a96d37]" : "bg-[linear-gradient(135deg,#672614,#2a0700)]"}`}>
+          <Icon size={17} strokeWidth={2.2} />
         </span>
         <div className="min-w-0 flex-1">
-          <h3 className="text-[11px] font-black uppercase tracking-[0.08em] text-hpsr-text">{title}</h3>
-          {description && <p className="mt-1 text-[10px] font-semibold leading-relaxed text-hpsr-muted">{description}</p>}
+          <h3 className="text-[14px] font-black uppercase tracking-[0.06em] text-hpsr-text">{title}</h3>
+          {description && <p className="mt-1 text-[13px] font-semibold leading-relaxed text-hpsr-muted">{description}</p>}
         </div>
       </div>
-      <div className="space-y-3.5 p-4">{children}</div>
+      <div className="space-y-4 p-4">{children}</div>
     </section>
   );
 }
@@ -3247,7 +3354,7 @@ function SoftBadge({
 }) {
   return (
     <div className="rounded-[16px] border border-[#e2ccb9] bg-white/90 px-3 py-2 shadow-[0_6px_16px_rgba(42,7,0,0.04)]">
-      <p className="text-[10px] font-black uppercase tracking-[0.08em] text-[#8a6355]">{label}</p>
+      <p className="text-[12px] font-black uppercase tracking-[0.08em] text-[#8a6355]">{label}</p>
       <p className="mt-1 truncate text-xs font-black text-hpsr-text">{value || "-"}</p>
     </div>
   );

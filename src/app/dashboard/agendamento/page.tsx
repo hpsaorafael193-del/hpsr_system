@@ -6,19 +6,18 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
-  BadgeDollarSign,
   CalendarClock,
   CalendarDays,
+  CalendarPlus2,
   CheckCircle2,
   ChevronRight,
   Clock3,
   Copy,
   FlaskConical,
   Hash,
-  HeartPulse,
   Phone,
-  RotateCcw,
   Search,
+  Trash2,
   Stethoscope,
   UserCheck,
   UsersRound,
@@ -28,12 +27,9 @@ import {
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
-import { doctorCanAccessSpecialty, doctorVisibleSpecialties, normalizeSpecialty } from "@/data/appointment-rules";
+import { normalizeSpecialty } from "@/data/appointment-rules";
 import { createClient } from "@/lib/supabase";
-import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
-import { ClinicalFollowupPlanner } from "@/components/dashboard/ClinicalFollowupPlanner";
-
-type TabId = "solicitacoes" | "aceitas" | "exames" | "consultas" | "acompanhamentos" | "reagendamentos" | "cobrancas";
+import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 
 type PublicAppointmentRequest = {
   id: string;
@@ -78,6 +74,21 @@ type PublicAppointmentRequest = {
   sourceRequestId?: string;
   syncedScheduleId?: string;
 };
+
+type ClinicalRequestBoardItem = PublicAppointmentRequest & {
+  ownSpecialty: boolean;
+  canClaim: boolean;
+  availabilityReason: string;
+};
+
+function isDirectionRole(role: string) {
+  return ["Diretora", "Vice Diretor", "Vice Diretor / Dev"].includes(role.trim());
+}
+
+function belongsToProfileSpecialties(specialty: string, specialties: string[]) {
+  const normalized = normalizeSpecialty(specialty);
+  return Boolean(normalized) && specialties.some((item) => normalizeSpecialty(item) === normalized);
+}
 
 function publicRequestPreferred(item: PublicAppointmentRequest) {
   if (!item.preferredDate && !item.preferredTime && !item.preferredPeriod) return "Definição pela equipe médica";
@@ -124,23 +135,6 @@ const inputClass =
 type ScheduledAppointment = { id: string; time: string; date: string; passport: string; patient: string; specialty: string; doctor: string; type: string; status: string; acceptedAt?: string; acceptedById?: string; acceptedByName?: string; acceptedBySelf?: boolean; contactEmail?: string; discordId?: string; discord?: string; cityPhone?: string; reason?: string; notes?: string; createdAt?: string };
 const scheduledAppointments: ScheduledAppointment[] = [];
 
-const followUps: Array<{ passport: string; patient: string; program: string; specialty: string; doctor: string; availability: string[]; nextSlot: string }> = [];
-
-const reschedules: Array<{ id: string; patient: string; passport: string; specialty: string; original: string; next: string; reason: string; count: number; feeAlert: boolean }> = [];
-
-const billingIssues: Array<{ id: string; patient: string; passport: string; appointment: string; reason: string; status: string }> = [];
-
-const availableSlots: Array<{ specialty: string; doctor: string; date: string; times: string[]; type: string }> = [];
-
-const tabs: Array<{ id: TabId; label: string; icon: ReactNode }> = [
-  { id: "solicitacoes", label: "Solicitações", icon: <CalendarDays size={15} /> },
-  { id: "aceitas", label: "Meus aceites", icon: <UserCheck size={15} /> },
-  { id: "exames", label: "Exames", icon: <FlaskConical size={15} /> },
-  { id: "consultas", label: "Consultas", icon: <Stethoscope size={15} /> },
-  { id: "acompanhamentos", label: "Acompanhamentos", icon: <HeartPulse size={15} /> },
-  { id: "reagendamentos", label: "Reagendamentos", icon: <RotateCcw size={15} /> },
-  { id: "cobrancas", label: "Cobranças", icon: <BadgeDollarSign size={15} /> },
-];
 
 function formatDate(value: string) {
   if (!value || !value.includes("-")) return value || "A definir";
@@ -191,10 +185,6 @@ function consultationStatusClass(status: string) {
   }
 }
 
-const baseVisibleAppointments = scheduledAppointments.filter((item) =>
-  doctorCanAccessSpecialty(item.specialty)
-);
-
 function mapAppointmentRow(row: any): PublicAppointmentRequest {
   const payload = (row?.payload || {}) as Partial<PublicAppointmentRequest>;
   return {
@@ -209,13 +199,25 @@ function mapAppointmentRow(row: any): PublicAppointmentRequest {
   };
 }
 
+function mapRequestBoardRow(row: any): ClinicalRequestBoardItem {
+  return {
+    ...mapAppointmentRow(row),
+    ownSpecialty: row?.own_specialty === true,
+    canClaim: row?.can_claim === true,
+    availabilityReason: String(row?.availability_reason || ""),
+  };
+}
+
 export default function AppointmentsPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
-  const [activeTab, setActiveTab] = useState<TabId>("solicitacoes");
   const [searchTerm, setSearchTerm] = useState("");
   const [publicRequests, setPublicRequests] = useState<PublicAppointmentRequest[]>([]);
+  const [requestBoard, setRequestBoard] = useState<ClinicalRequestBoardItem[]>([]);
   const [requestsModalOpen, setRequestsModalOpen] = useState(false);
-  const [capacityBySpecialty, setCapacityBySpecialty] = useState<Record<string, number>>({});
+  const [deletingRequestId, setDeletingRequestId] = useState<string | null>(null);
+
+  const isDirection = isDirectionRole(currentUserProfile.role);
+  const userSpecialties = currentUserProfile.specialties;
 
   const loadAppointments = useCallback(async () => {
     const client = createClient();
@@ -247,21 +249,26 @@ export default function AppointmentsPage() {
     }));
   }, []);
 
-  useEffect(() => {
+  const loadRequestBoard = useCallback(async () => {
     const client = createClient();
-    if (!client || !currentUserProfile.id) return;
-    const userSpecialties = (currentUserProfile.specialties || []).map((item) => String(item).trim()).filter(Boolean);
-    let active = true;
-    void Promise.all(userSpecialties.map(async (specialty) => {
-      const { data } = await client.rpc("hpsr_my_clinical_capacity", { p_specialty: specialty });
-      return [normalizeSpecialty(specialty), Number((data as { available?: number } | null)?.available || 0)] as const;
-    })).then((entries) => { if (active) setCapacityBySpecialty(Object.fromEntries(entries)); });
-    return () => { active = false; };
-  }, [currentUserProfile.id, currentUserProfile.specialties, publicRequests]);
+    if (!client || !currentUserProfile.id) {
+      setRequestBoard([]);
+      return;
+    }
+
+    const { data, error } = await client.rpc("hpsr_my_clinical_request_board", { p_limit: 400 });
+    if (error) {
+      console.error("[HPSR][Agendamento] Falha ao carregar quadro de solicitações:", error);
+      setRequestBoard([]);
+      return;
+    }
+
+    setRequestBoard((data || []).map(mapRequestBoardRow));
+  }, [currentUserProfile.id]);
 
   useEffect(() => {
     const client = createClient();
-    void loadAppointments();
+    void Promise.all([loadAppointments(), loadRequestBoard()]);
     if (!client) return;
 
     const channel = client
@@ -269,18 +276,8 @@ export default function AppointmentsPage() {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "appointments" },
-        (change: any) => {
-          if (change.eventType === "DELETE") {
-            const deletedId = String(change.old?.id || "");
-            if (deletedId) setPublicRequests((current) => current.filter((item) => item.id !== deletedId));
-            return;
-          }
-          const next = mapAppointmentRow(change.new);
-          if (!next.id) return;
-          setPublicRequests((current) => {
-            const exists = current.some((item) => item.id === next.id);
-            return exists ? current.map((item) => item.id === next.id ? next : item) : [next, ...current];
-          });
+        () => {
+          void Promise.all([loadAppointments(), loadRequestBoard()]);
         }
       )
       .subscribe();
@@ -288,7 +285,7 @@ export default function AppointmentsPage() {
     return () => {
       void client.removeChannel(channel);
     };
-  }, [loadAppointments]);
+  }, [loadAppointments, loadRequestBoard]);
 
   async function updatePublicRequestStatus(
     request: PublicAppointmentRequest,
@@ -302,17 +299,10 @@ export default function AppointmentsPage() {
       const result = (data || {}) as { ok?: boolean; error?: string; status?: string };
       if (error || !result.ok) {
         await hpsrAlert(result.error || error?.message || "Não foi possível atualizar esta solicitação.", "Solicitação não atualizada");
-        await loadAppointments();
+        await Promise.all([loadAppointments(), loadRequestBoard()]);
         return;
       }
-      await loadAppointments();
-      if (status === "Aceita") {
-        if (["Acompanhamento", "Acompanhamento com especialista"].includes(request.flowType || "")) {
-          setActiveTab("acompanhamentos");
-        } else {
-          setActiveTab("aceitas");
-        }
-      }
+      await Promise.all([loadAppointments(), loadRequestBoard()]);
       return;
     }
 
@@ -361,40 +351,42 @@ export default function AppointmentsPage() {
     });
   }
 
-  const pendingRequests = useMemo(() => {
-    const pendingMarkers = [
-      "solicit",
-      "acompanhamento aguardando confirmacao",
-      "em analise",
-      "aguardando ajuste",
-      "pendente",
-      "nova proposta do paciente",
-      "reagendamento recusado",
-      "disponibilidade informada",
-      "desistencia solicitada",
-    ];
+  async function deleteMistakenRequest(request: PublicAppointmentRequest) {
+    if (!isDirection || deletingRequestId) return;
+    const confirmed = await hpsrConfirm(
+      `Excluir a solicitação pendente de ${request.patient} (passaporte ${request.passport})?\n\nUse apenas para pedidos enviados por engano. Esta ação não exclui o cadastro do paciente nem atendimentos já confirmados e ficará registrada no histórico do sistema.`,
+      "Excluir solicitação enviada por engano"
+    );
+    if (!confirmed) return;
+    const client = createClient();
+    if (!client) {
+      await hpsrAlert("Conexão com o banco indisponível.", "Solicitação não excluída");
+      return;
+    }
+    setDeletingRequestId(request.id);
+    try {
+      const { data, error } = await client.rpc("hpsr_delete_mistaken_clinical_request", { p_request_id: request.id });
+      const result = (data || {}) as { ok?: boolean; error?: string };
+      if (error || !result.ok) {
+        await hpsrAlert(result.error || error?.message || "Não foi possível excluir esta solicitação.", "Solicitação não excluída");
+        return;
+      }
+      await Promise.all([loadAppointments(), loadRequestBoard()]);
+    } finally {
+      setDeletingRequestId(null);
+    }
+  }
 
-    return publicRequests.filter((item) => {
-      const normalizedStatus = item.status
-        .trim()
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "");
+  const pendingRequests = useMemo(() =>
+    [...requestBoard].sort((a, b) =>
+      Number(b.ownSpecialty) - Number(a.ownSpecialty)
+      || String(b.createdAt || b.updatedAt || "").localeCompare(String(a.createdAt || a.updatedAt || ""))
+    ),
+    [requestBoard]
+  );
 
-      const declinedBy = Array.isArray((item as any).declinedBy) ? (item as any).declinedBy.map(String) : [];
-      if (declinedBy.includes(String(currentUserProfile.id))) return false;
-      const isManager = currentUserProfile.accessLevel === "Total" || ["Diretora", "Vice Diretor", "Vice-Diretor"].includes(currentUserProfile.role);
-      const requestedDoctorId = String(item.requestedDoctorId || "");
-      const specialtyMatch = (currentUserProfile.specialties || []).some((specialty) => normalizeSpecialty(String(specialty)) === normalizeSpecialty(item.specialty));
-      const isExam = item.flowType === "Exames";
-      const isGeneralClinician = currentUserProfile.role === "Médico Clínico";
-      const hasCapacity = Number(capacityBySpecialty[normalizeSpecialty(item.specialty)] || 0) > 0;
-      const examEligible = isExam && (isGeneralClinician || specialtyMatch);
-      const consultationEligible = !isExam && specialtyMatch && hasCapacity;
-      const belongsToDoctor = isManager || ((examEligible || consultationEligible) && (!requestedDoctorId || requestedDoctorId === currentUserProfile.id));
-      return belongsToDoctor && pendingMarkers.some((marker) => normalizedStatus.includes(marker));
-    });
-  }, [publicRequests, currentUserProfile.accessLevel, currentUserProfile.id, currentUserProfile.role, currentUserProfile.specialties, capacityBySpecialty]);
+  const availableRequestCount = pendingRequests.filter((item) => item.canClaim).length;
+  const requestMonitoringCount = pendingRequests.length - availableRequestCount;
 
   const publicAcceptedAppointments = useMemo(() => {
     const scheduledRows = publicRequests.filter((item) =>
@@ -423,6 +415,7 @@ export default function AppointmentsPage() {
     });
 
     return publicRequests
+      .filter((item) => isDirection || belongsToProfileSpecialties(item.specialty, userSpecialties))
       .filter((item) => item.flowType !== "Exames" && ["Aceita", "Reagendamento aceito", "Agendada", "Confirmada", "Em atendimento", "Realizada", "Concluída", "Adiada", "Atrasada", "Não compareceu", "Cancelada"].includes(item.status))
       .filter((item) => item.status !== "Aceita" || !hasScheduledCounterpart(item))
       .map((item) => {
@@ -438,7 +431,7 @@ export default function AppointmentsPage() {
           passport: item.passport,
           patient: item.patient,
           specialty: item.specialty,
-          doctor: item.doctor || currentUserProfile.systemName,
+          doctor: item.doctor || "A definir",
           type: item.flowType || "Consulta comum",
           status: item.status === "Reagendamento aceito" ? "Confirmada" : item.status,
           acceptedAt: item.acceptedAt,
@@ -452,7 +445,7 @@ export default function AppointmentsPage() {
           createdAt: item.createdAt,
         };
       });
-  }, [publicRequests]);
+  }, [publicRequests, isDirection, userSpecialties, currentUserProfile.id]);
 
   const visibleAppointments = useMemo(
     () => [...publicAcceptedAppointments, ...scheduledAppointments],
@@ -497,36 +490,16 @@ export default function AppointmentsPage() {
 
   const filteredRequests = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
+    if (!normalizedSearch) return pendingRequests;
 
-    return pendingRequests.filter((item) => {
-      if (item.flowType === "Exames") return false;
-      if (!normalizedSearch) return true;
-      return (
-        item.patient.toLowerCase().includes(normalizedSearch) ||
-        item.passport.includes(normalizedSearch) ||
-        item.specialty.toLowerCase().includes(normalizedSearch) ||
-        (item.flowType || "Consulta comum").toLowerCase().includes(normalizedSearch) ||
-        (item.flowDetails || "").toLowerCase().includes(normalizedSearch)
-      );
-    });
+    return pendingRequests.filter((item) =>
+      item.patient.toLowerCase().includes(normalizedSearch) ||
+      item.passport.toLowerCase().includes(normalizedSearch) ||
+      item.specialty.toLowerCase().includes(normalizedSearch) ||
+      (item.flowType === "Exames" ? "exame" : "consulta").includes(normalizedSearch) ||
+      (item.reason || item.flowDetails || "").toLowerCase().includes(normalizedSearch)
+    );
   }, [pendingRequests, searchTerm]);
-
-  const filteredExamRequests = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    return publicRequests.filter((item) => {
-      if (item.flowType !== "Exames") return false;
-      const isManager = currentUserProfile.accessLevel === "Total" || ["Diretora", "Vice Diretor", "Vice-Diretor"].includes(currentUserProfile.role);
-      const pending = ["Solicitação enviada", "Aguardando análise"].includes(item.status);
-      const acceptedBySelf = item.acceptedById === currentUserProfile.id || (item as any).doctorId === currentUserProfile.id;
-      const specialtyMatch = (currentUserProfile.specialties || []).some((specialty) => normalizeSpecialty(String(specialty)) === normalizeSpecialty(item.specialty));
-      const isGeneralClinician = currentUserProfile.role === "Médico Clínico";
-      const declinedBy = Array.isArray((item as any).declinedBy) ? (item as any).declinedBy.map(String) : [];
-      const eligiblePending = pending && (isGeneralClinician || specialtyMatch) && !declinedBy.includes(String(currentUserProfile.id));
-      if (!isManager && !acceptedBySelf && !eligiblePending) return false;
-      if (!normalizedSearch) return true;
-      return item.patient.toLowerCase().includes(normalizedSearch) || item.passport.includes(normalizedSearch) || item.specialty.toLowerCase().includes(normalizedSearch) || (item.reason || "").toLowerCase().includes(normalizedSearch);
-    });
-  }, [publicRequests, searchTerm, currentUserProfile.accessLevel, currentUserProfile.id, currentUserProfile.role, currentUserProfile.specialties, capacityBySpecialty]);
 
   return (
     <div className="hpsr-page gap-3">
@@ -547,7 +520,7 @@ export default function AppointmentsPage() {
           </div>
         </div>
 
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-3">
           <ScheduleCard
             icon={Stethoscope}
             title="Agenda do Médico"
@@ -555,60 +528,52 @@ export default function AppointmentsPage() {
             href="/dashboard/agendamento/clinica"
           />
 
+          <ScheduleCard
+            icon={CalendarPlus2}
+            title="Agendar consulta"
+            description="Abra a Agenda do Médico já no formulário de nova consulta."
+            href="/dashboard/agendamento/clinica?new=1"
+          />
 
           <button
             type="button"
-            onClick={() => { setActiveTab("aceitas"); setRequestsModalOpen(true); }}
-            className="group rounded-[17px] border border-hpsr-border bg-[#fffdfb] p-3.5 text-left transition hover:border-hpsr-wineLight/50 hover:bg-[#fff8f3]"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-[#f7e9e3] text-hpsr-wine shadow-sm">
-                <UserCheck size={19} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="truncate text-sm font-black text-hpsr-text">Aceitos para contato</h3>
-                  <span className="rounded-full bg-hpsr-wine px-2.5 py-1 text-[10px] font-black text-white">{acceptedForContactCount}</span>
-                </div>
-                <p className="mt-1 text-xs font-semibold text-hpsr-muted">Passaporte e contato de quem você assumiu.</p>
-              </div>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setRequestsModalOpen(true)}
-            className="group rounded-[17px] border border-hpsr-border bg-[#fffdfb] p-3.5 text-left transition hover:border-hpsr-wineLight/50 hover:bg-[#fff8f3]"
+            onClick={() => { setSearchTerm(""); setRequestsModalOpen(true); }}
+            className="group rounded-[17px] border border-hpsr-border bg-[#fffdfb] p-3.5 text-left transition hover:border-hpsr-wineLight/50 hover:bg-[#fff8f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hpsr-wine/30"
           >
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white shadow-sm">
                 <CalendarDays size={19} />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="truncate text-sm font-black text-hpsr-text">Solicitações de Consulta</h3>
-                  <span className="rounded-full bg-[#f6e7e1] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{pendingRequests.length}</span>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="truncate text-sm font-black text-hpsr-text">Solicitações</h3>
+                  <div className="flex items-center gap-1.5">
+                    <span className="rounded-full bg-[#f6e7e1] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{availableRequestCount} para atender</span>
+                    {requestMonitoringCount > 0 && <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-800">{requestMonitoringCount} para acompanhar</span>}
+                    <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-muted">{acceptedForContactCount} aceite{acceptedForContactCount === 1 ? "" : "s"}</span>
+                  </div>
                 </div>
-                <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">Pedidos enviados pelo Portal do Paciente.</p>
+                <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">Consultas e exames por especialidade, com indisponíveis identificadas e seus aceites logo abaixo.</p>
               </div>
             </div>
           </button>
         </div>
       </section>
 
-      <ConsultationOverview appointments={visibleAppointments} />
+      <ConsultationOverview appointments={visibleAppointments} prioritySpecialties={isDirection ? userSpecialties : []} />
 
       {requestsModalOpen && (
         <RequestsCenterModal
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
           searchTerm={searchTerm}
           setSearchTerm={setSearchTerm}
-          filteredRequests={filteredRequests}
-          filteredExamRequests={filteredExamRequests}
+          requests={filteredRequests}
+          totalPending={pendingRequests.length}
+          isDirection={isDirection}
+          prioritySpecialties={userSpecialties}
           myAcceptedRequests={filteredAcceptedRequests}
-          visibleAppointments={visibleAppointments}
           onUpdateStatus={updatePublicRequestStatus}
+          onDeleteRequest={deleteMistakenRequest}
+          deletingRequestId={deletingRequestId}
           onClose={() => setRequestsModalOpen(false)}
         />
       )}
@@ -616,7 +581,7 @@ export default function AppointmentsPage() {
   );
 }
 
-function ConsultationOverview({ appointments }: { appointments: typeof scheduledAppointments }) {
+function ConsultationOverview({ appointments, prioritySpecialties }: { appointments: typeof scheduledAppointments; prioritySpecialties: string[] }) {
   const [recentOnly, setRecentOnly] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<ScheduledAppointment | null>(null);
   const [relatedRecords, setRelatedRecords] = useState<Array<{ id: string; type: string; title: string; released: boolean }>>([]);
@@ -678,6 +643,11 @@ function ConsultationOverview({ appointments }: { appointments: typeof scheduled
     ? appointments.filter((item) => item.acceptedAt && new Date(item.acceptedAt).getTime() >= recentCutoff)
     : appointments;
   const sortedAppointments = [...filteredAppointments].sort((first, second) => {
+    // Na Direção, atendimentos das próprias especialidades aparecem primeiro.
+    const firstOwn = belongsToProfileSpecialties(first.specialty, prioritySpecialties);
+    const secondOwn = belongsToProfileSpecialties(second.specialty, prioritySpecialties);
+    if (firstOwn !== secondOwn) return firstOwn ? -1 : 1;
+
     const timestamp = (item: ScheduledAppointment) => {
       const preferred = item.acceptedAt || item.createdAt;
       if (preferred) {
@@ -818,43 +788,41 @@ function DetailCard({ label, value, wide = false }: { label: string; value: stri
 }
 
 function RequestsCenterModal({
-  activeTab,
-  setActiveTab,
   searchTerm,
   setSearchTerm,
-  filteredRequests,
-  filteredExamRequests,
+  requests,
+  totalPending,
+  isDirection,
+  prioritySpecialties,
   myAcceptedRequests,
-  visibleAppointments,
   onUpdateStatus,
+  onDeleteRequest,
+  deletingRequestId,
   onClose,
 }: {
-  activeTab: TabId;
-  setActiveTab: (tab: TabId) => void;
   searchTerm: string;
   setSearchTerm: (value: string) => void;
-  filteredRequests: PublicAppointmentRequest[];
-  filteredExamRequests: PublicAppointmentRequest[];
+  requests: ClinicalRequestBoardItem[];
+  totalPending: number;
+  isDirection: boolean;
+  prioritySpecialties: string[];
   myAcceptedRequests: PublicAppointmentRequest[];
-  visibleAppointments: typeof scheduledAppointments;
   onUpdateStatus: (
     request: PublicAppointmentRequest,
     status: string,
     details?: { proposedDate?: string; proposedTime?: string; reason?: string }
   ) => void;
+  onDeleteRequest: (request: PublicAppointmentRequest) => void;
+  deletingRequestId: string | null;
   onClose: () => void;
 }) {
-  const { profile: currentUserProfile } = useCurrentUserProfile();
-
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     const previousPaddingRight = document.body.style.paddingRight;
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
 
     document.body.style.overflow = "hidden";
-    if (scrollbarWidth > 0) {
-      document.body.style.paddingRight = `${scrollbarWidth}px`;
-    }
+    if (scrollbarWidth > 0) document.body.style.paddingRight = `${scrollbarWidth}px`;
 
     return () => {
       document.body.style.overflow = previousOverflow;
@@ -862,8 +830,10 @@ function RequestsCenterModal({
     };
   }, []);
 
+  const acceptedForContact = myAcceptedRequests.filter((item) => item.status === "Aceita" && !item.syncedScheduleId).length;
+
   return (
-    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-3 py-3 sm:px-5 sm:py-5">
+    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden p-0 sm:px-5 sm:py-5">
       <button
         type="button"
         aria-label="Fechar solicitações"
@@ -871,80 +841,71 @@ function RequestsCenterModal({
         className="fixed inset-0 bg-[#1f0805]/70 backdrop-blur-[2px]"
       />
 
-      <section className="hpsr-modal-motion relative z-10 flex max-h-[calc(100dvh-1rem)] w-full max-w-6xl flex-col overflow-hidden rounded-[22px] border border-[#eadfd8] bg-white shadow-[0_22px_60px_rgba(42,14,7,0.22)]">
+      <section className="hpsr-modal-motion relative z-10 flex h-dvh w-full flex-col overflow-hidden bg-white shadow-[0_22px_60px_rgba(42,14,7,0.22)] sm:max-h-[calc(100dvh-2rem)] sm:max-w-6xl sm:rounded-[22px] sm:border sm:border-[#eadfd8]">
         <header className="shrink-0 border-b border-hpsr-border bg-[#fffaf7] px-4 py-4 sm:px-6">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 text-hpsr-wineLight">
-                <Stethoscope size={15} />
+                <CalendarDays size={15} />
                 <span className="text-[10px] font-black uppercase tracking-[0.14em]">Central clínica</span>
-                <span className="text-[10px] font-bold text-hpsr-muted">• por fluxo e especialidade</span>
+                <span className="text-[10px] font-bold text-hpsr-muted">• {isDirection ? "visão da Direção" : "suas especialidades"}</span>
               </div>
-              <h2 className="mt-1.5 text-xl font-black tracking-tight text-hpsr-text sm:text-2xl">Solicitações e atendimentos</h2>
+              <h2 className="mt-1.5 text-xl font-black tracking-tight text-hpsr-text sm:text-2xl">Solicitações</h2>
               <p className="mt-1 max-w-3xl text-xs font-semibold leading-relaxed text-hpsr-muted sm:text-sm">
-                Solicitações, aceites e exames organizados sem alterar o fluxo de agendamento manual.
+                {isDirection
+                  ? "Suas especialidades primeiro; as demais ficam disponíveis para acompanhamento. Aceites respeitam a elegibilidade clínica."
+                  : "Consultas e exames das suas especialidades, separados das solicitações que você já assumiu."}
               </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="rounded-full bg-hpsr-wine px-3 py-1.5 text-[10px] font-black text-white sm:text-xs">
+                  {requests.filter((item) => item.canClaim).length} para atender
+                </span>
+                {requests.some((item) => !item.canClaim) && <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-[10px] font-black text-amber-800 sm:text-xs">
+                  {requests.filter((item) => !item.canClaim).length} para acompanhar
+                </span>}
+                {searchTerm.trim() && <span className="rounded-full border border-hpsr-border bg-white px-3 py-1.5 text-[10px] font-black text-hpsr-muted sm:text-xs">
+                  {requests.length} de {totalPending} no filtro
+                </span>}
+                <span className="rounded-full border border-hpsr-border bg-white px-3 py-1.5 text-[10px] font-black text-hpsr-muted sm:text-xs">
+                  {acceptedForContact} aceite{acceptedForContact === 1 ? "" : "s"} para contato
+                </span>
+              </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] border border-hpsr-border bg-white text-hpsr-wine transition hover:bg-[#fff5ef]"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] border border-hpsr-border bg-white text-hpsr-wine shadow-sm transition hover:border-hpsr-wineLight/50 hover:bg-[#fff5ef] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hpsr-wine/30"
               aria-label="Fechar"
             >
               <X size={18} />
             </button>
           </div>
-
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="shrink-0 border-b border-hpsr-border bg-white px-4 py-3 sm:px-6">
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-center">
-              <nav className="flex gap-1 overflow-x-auto" aria-label="Áreas da central de solicitações">
-                {tabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`inline-flex shrink-0 items-center gap-2 rounded-[10px] px-3 py-2 text-xs font-black transition ${
-                      activeTab === tab.id
-                        ? "bg-hpsr-wine text-white"
-                        : "text-hpsr-wine hover:bg-[#fff5ef]"
-                    }`}
-                  >
-                    {tab.icon}
-                    {tab.label}
-                  </button>
-                ))}
-              </nav>
-
-              <div className="relative">
-                <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-hpsr-wineLight" />
-                <input
-                  className={`${inputClass} h-[42px] rounded-[12px] border-[#e5d5ca] bg-white pl-11 pr-4`}
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Buscar paciente, passaporte ou especialidade"
-                />
-              </div>
-            </div>
+        <div className="shrink-0 border-b border-hpsr-border bg-white px-4 py-3 sm:px-6">
+          <div className="relative">
+            <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-hpsr-wineLight" />
+            <input
+              className={`${inputClass} h-[44px] rounded-[12px] border-[#e5d5ca] bg-white pl-11 pr-4`}
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Buscar paciente, passaporte, especialidade, consulta ou exame"
+            />
           </div>
+        </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto bg-white p-4 sm:p-5">
-            {activeTab === "solicitacoes" && <RequestsTab requests={filteredRequests} onUpdateStatus={onUpdateStatus} />}
-            {activeTab === "aceitas" && <MyAcceptedRequestsTab requests={myAcceptedRequests} />}
-            {activeTab === "exames" && <ExamRequestsTab requests={filteredExamRequests} onUpdateStatus={onUpdateStatus} />}
-            {activeTab === "consultas" && <ConsultationsTab appointments={visibleAppointments} />}
-            {activeTab === "acompanhamentos" && <FollowUpsTab doctorId={currentUserProfile.id} doctorName={currentUserProfile.systemName} doctorRole={currentUserProfile.role} defaultSpecialty={currentUserProfile.specialty || ""} />}
-            {activeTab === "reagendamentos" && <ReschedulesTab />}
-            {activeTab === "cobrancas" && <BillingTab />}
+        <div className="min-h-0 flex-1 overflow-y-auto bg-[#fffdfb] p-3 sm:p-5">
+          <div className="grid gap-7">
+            <UnifiedRequestsQueue requests={requests} isDirection={isDirection} prioritySpecialties={prioritySpecialties} onUpdateStatus={onUpdateStatus} onDeleteRequest={onDeleteRequest} deletingRequestId={deletingRequestId} />
+            <div className="border-t border-hpsr-border pt-6">
+              <MyAcceptedRequestsTab requests={myAcceptedRequests} />
+            </div>
           </div>
         </div>
       </section>
     </div>
   );
 }
-
 
 function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentRequest[] }) {
   const [copied, setCopied] = useState("");
@@ -967,12 +928,14 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
   const groupBySpecialty = (items: PublicAppointmentRequest[]) => {
     const groups = new Map<string, PublicAppointmentRequest[]>();
     [...items]
-      .sort((a, b) => a.specialty.localeCompare(b.specialty, "pt-BR") || String(b.acceptedAt || b.updatedAt || b.createdAt || "").localeCompare(String(a.acceptedAt || a.updatedAt || a.createdAt || "")))
+      .sort((a, b) => String(b.acceptedAt || b.updatedAt || b.createdAt || "").localeCompare(String(a.acceptedAt || a.updatedAt || a.createdAt || "")))
       .forEach((item) => {
         const specialty = item.specialty || "Sem especialidade";
         groups.set(specialty, [...(groups.get(specialty) || []), item]);
       });
-    return Array.from(groups.entries());
+    return Array.from(groups.entries()).sort(([, first], [, second]) =>
+      String(second[0]?.acceptedAt || second[0]?.updatedAt || second[0]?.createdAt || "").localeCompare(String(first[0]?.acceptedAt || first[0]?.updatedAt || first[0]?.createdAt || ""))
+    );
   };
 
   const renderRequest = (item: PublicAppointmentRequest) => {
@@ -991,7 +954,7 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
               <h3 className="text-base font-black text-hpsr-text">{item.patient}</h3>
               <StatusBadge status={alreadyScheduled ? item.status : "Aceita"} />
               <span className="rounded-full border border-hpsr-border bg-[#fffaf5] px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-hpsr-wine">{item.specialty}</span>
-              <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[9px] font-black text-hpsr-muted">{isExam ? "Exame" : (item.flowType || "Consulta comum")}</span>
+              <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[9px] font-black text-hpsr-muted">{isExam ? "Exame" : "Consulta"}</span>
             </div>
             <p className="mt-2 text-xs font-semibold text-hpsr-muted">
               {alreadyScheduled ? "Solicitação já encaminhada após o aceite." : isExam ? "Solicitação de exame recebida. Use os dados abaixo para contato." : "Aceita e aguardando contato/agendamento manual."}
@@ -1032,7 +995,7 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
 
   return (
     <div className="grid gap-5">
-      <SectionTitle icon={<UserCheck size={18} />} title="Meus aceites" description="Fila pessoal do médico. Aceitar apenas assume a solicitação; o agendamento continua sendo feito manualmente." />
+      <SectionTitle icon={<UserCheck size={18} />} title="Meus aceites" description="Solicitações que você assumiu. O aceite libera os dados de contato; o agendamento continua sendo feito manualmente." />
 
       <section className="grid gap-3">
         <div className="flex items-center justify-between gap-3">
@@ -1078,357 +1041,183 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
   );
 }
 
-function ExamRequestsTab({ requests, onUpdateStatus }: { requests: PublicAppointmentRequest[]; onUpdateStatus: (request: PublicAppointmentRequest, status: string) => void }) {
-  const actionable = new Set(["Solicitação enviada", "Aguardando análise"]);
-  const orderedRequests = [...requests].sort((a, b) => a.specialty.localeCompare(b.specialty, "pt-BR") || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
-  return (
-    <div className="grid gap-3">
-      <SectionTitle icon={<FlaskConical size={18} />} title="Solicitações de exame" description="Pedidos de exame ficam separados das consultas e nunca entram automaticamente no Agendamento Geral." />
-      {orderedRequests.length ? <div className="max-h-[540px] overflow-y-auto pr-2"><div className="grid gap-3">{orderedRequests.map((item, index) => <div key={item.id}>{(index === 0 || orderedRequests[index - 1].specialty !== item.specialty) && <div className="mb-2 mt-1 flex items-center gap-2"><span className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{item.specialty}</span><span className="h-px flex-1 bg-hpsr-border"/></div>}<AppointmentCard
-        
-        title={item.patient}
-        subtitle={`Passaporte ${item.passport} · ${item.specialty}`}
-        status={<StatusBadge status={item.status} />}
-        meta={[["Fluxo", "Exame"], ["Necessidade", item.reason || "Não informada"], ["Discord", item.discordId || "Não informado"], ["Telefone", item.cityPhone || "Não informado"]]}
-        alert={item.answer || undefined}
-        alertTone={item.status === "Recusada" ? "warning" : "success"}
-        actions={actionable.has(item.status) ? <><ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Aceita")}>Receber solicitação</ActionButton><ActionButton variant="danger" onClick={() => onUpdateStatus(item, "Recusada")}>Recusar</ActionButton></> : <span className="rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-muted">Fluxo de exame · {item.status}</span>}
-      /></div>)}</div></div> : <EmptyState title="Nenhuma solicitação de exame" description="Os pedidos de exame enviados pelo Portal aparecerão aqui, separados das consultas." />}
-    </div>
-  );
-}
-
-function RequestsTab({
+function UnifiedRequestsQueue({
   requests,
+  isDirection,
+  prioritySpecialties,
   onUpdateStatus,
+  onDeleteRequest,
+  deletingRequestId,
 }: {
-  requests: PublicAppointmentRequest[];
-  onUpdateStatus: (
-    request: PublicAppointmentRequest,
-    status: string,
-    details?: { proposedDate?: string; proposedTime?: string; reason?: string }
-  ) => void;
+  requests: ClinicalRequestBoardItem[];
+  isDirection: boolean;
+  prioritySpecialties: string[];
+  onUpdateStatus: (request: PublicAppointmentRequest, status: string) => void;
+  onDeleteRequest: (request: PublicAppointmentRequest) => void;
+  deletingRequestId: string | null;
 }) {
-  const [rescheduleRequest, setRescheduleRequest] = useState<PublicAppointmentRequest | null>(null);
-  const [proposedDate, setProposedDate] = useState("");
-  const [proposedTime, setProposedTime] = useState("");
-  const [rescheduleReason, setRescheduleReason] = useState("");
-  const orderedRequests = [...requests].sort((a, b) => a.specialty.localeCompare(b.specialty, "pt-BR") || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
-  const requestsBySpecialty = Array.from(orderedRequests.reduce((groups, item) => {
-    const specialty = item.specialty || "Sem especialidade";
-    groups.set(specialty, [...(groups.get(specialty) || []), item]);
-    return groups;
-  }, new Map<string, PublicAppointmentRequest[]>()).entries());
-
-  function openReschedule(request: PublicAppointmentRequest) {
-    setRescheduleRequest(request);
-    setProposedDate(request.proposedDate || request.preferredDate || "");
-    setProposedTime(request.proposedTime || "");
-    setRescheduleReason(request.rescheduleReason || "");
-  }
-
-  function confirmReschedule() {
-    if (!rescheduleRequest || !proposedDate || !proposedTime) return;
-    onUpdateStatus(rescheduleRequest, "Reagendamento solicitado", {
-      proposedDate,
-      proposedTime,
-      reason: rescheduleReason.trim(),
-    });
-    setRescheduleRequest(null);
-  }
+  const segments = isDirection
+    ? [
+        { title: "Suas especialidades", description: "Solicitações relacionadas às especialidades do seu perfil.", items: requests.filter((item) => item.ownSpecialty) },
+        { title: "Demais especialidades", description: "Visão da Direção. Solicitações fora da sua atuação clínica permanecem apenas para acompanhamento.", items: requests.filter((item) => !item.ownSpecialty) },
+      ]
+    : [{ title: "Suas especialidades", description: "Solicitações das especialidades do seu perfil.", items: requests }];
 
   return (
-    <div className="grid gap-3">
+    <section className="grid gap-4">
       <SectionTitle
         icon={<CalendarDays size={18} />}
-        title="Solicitações de consulta"
-        description="Pedidos enviados pelo Portal do Paciente, separados visualmente por especialidade para facilitar triagem, leitura e aceite."
+        title="Solicitações pendentes"
+        description="Consultas e exames em filas separadas. Solicitações indisponíveis permanecem identificadas, sem liberar aceite indevido."
       />
 
-      {orderedRequests.length > 0 ? (
-        <div className="max-h-[560px] overflow-y-auto pr-2">
-          <div className="grid gap-5">
-            {requestsBySpecialty.map(([specialty, specialtyRequests]) => (
-              <section key={specialty} className="overflow-hidden rounded-[20px] border border-hpsr-border bg-[#fffdfb] shadow-[0_5px_18px_rgba(89,44,30,0.05)]">
-                <div className="flex flex-col gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#f7e8e1_0%,#fff9f4_100%)] px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Área clínica</p>
-                    <h3 className="mt-1 text-base font-black text-hpsr-text">{specialty}</h3>
-                    <p className="mt-1 text-xs font-semibold text-hpsr-muted">Solicitações desta especialidade, separadas das demais áreas.</p>
-                  </div>
-                  <span className="inline-flex w-fit items-center rounded-full bg-hpsr-wine px-3 py-1.5 text-xs font-black text-white">
-                    {specialtyRequests.length} {specialtyRequests.length === 1 ? "solicitação" : "solicitações"}
-                  </span>
-                </div>
-                <div className="grid gap-3 p-3.5 sm:p-4">
-            {specialtyRequests.map((item) => {
-              const patientAcceptedReschedule = item.status === "Reagendamento aceito";
-              const patientAnsweredReschedule = [
-                "Nova proposta do paciente",
-                "Reagendamento recusado",
-                "Disponibilidade informada",
-                "Desistência solicitada",
-              ].includes(item.status);
-
-              const responseAlert = patientAcceptedReschedule
-                ? `Reagendamento aceito pelo paciente. Nova consulta confirmada para ${formatDate(item.proposedDate || item.preferredDate || "")} às ${item.proposedTime || item.preferredTime || "horário a definir"}.`
-                : patientAnsweredReschedule
-                  ? `Resposta do paciente: ${item.patientResponse || item.status}.${item.patientAlternativeDate ? ` Preferência: ${formatDate(item.patientAlternativeDate)} às ${item.patientAlternativeTime || "horário a definir"}.` : ""}`
-                  : undefined;
-
-              return (
-                <div key={item.id ?? item.passport}>
-                <AppointmentCard
-                  title={item.patient}
-                  subtitle={`Passaporte ${item.passport} · ${item.specialty} · Data e horário definidos após contato médico`}
-                  status={<StatusBadge status={item.status} />}
-                  meta={[
-                    ["Fluxo", item.flowType || "Consulta comum"],
-                    ["Discord", item.discordId || item.discord || "Não informado"],
-                    ["Telefone", item.cityPhone || "Não informado"],
-                    ...(item.flowType === "Acompanhamento com especialista" ? [["Médico solicitado", item.requestedDoctorName || "Não informado"] as [string, string]] : []),
-                    ["Objetivo", ["Acompanhamento", "Outros"].includes(item.flowType || "") ? (item.flowDetails || item.reason || "Não informado") : (item.reason || "Aguardando análise médica")],
-                    ...(patientAnsweredReschedule ? [["Resposta do paciente", item.patientResponse || item.status] as [string, string]] : []),
-                    ...(patientAcceptedReschedule ? [["Data confirmada", `${formatDate(item.proposedDate || item.preferredDate || "")} · ${item.proposedTime || item.preferredTime || "A definir"}`] as [string, string]] : []),
-                  ]}
-                  alert={responseAlert}
-                  alertTone={patientAcceptedReschedule ? "success" : "warning"}
-                  emphasis
-                  actions={
-                    patientAnsweredReschedule ? (
-                      <span className={`inline-flex items-center gap-2 rounded-[14px] border px-3 py-2 text-xs font-black ${patientAcceptedReschedule ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
-                        {patientAcceptedReschedule ? <CheckCircle2 size={15} /> : <AlertTriangle size={15} />}
-                        {patientAcceptedReschedule ? "Paciente confirmou" : "Resposta recebida"}
-                      </span>
-                    ) : item.flowType === "Acompanhamento com especialista" ? (
-                      <>
-                        <ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Aceita")}>Confirmar acompanhamento</ActionButton>
-                        <ActionButton variant="danger" onClick={() => onUpdateStatus(item, "Recusada")}>Recusar vínculo</ActionButton>
-                      </>
-                    ) : (
-                      <>
-                        <ActionButton variant="primary" onClick={() => onUpdateStatus(item, "Aceita")}>Aceitar</ActionButton>
-                        <ActionButton variant="danger" onClick={() => onUpdateStatus(item, "Recusada")}>Recusar</ActionButton>
-                      </>
-                    )
-                  }
-                />
-                </div>
-              );
-            })}
-                </div>
-              </section>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <EmptyState title="Nenhuma solicitação encontrada" description="Ajuste a busca ou aguarde novos pedidos do Portal do Paciente." />
+      {requests.length ? segments.filter((segment) => segment.items.length > 0).map((segment, index) => (
+        <section key={segment.title} className={`grid gap-4 ${index > 0 ? "border-t border-hpsr-border pt-5" : ""}`}>
+          {isDirection && <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-base font-black text-hpsr-text">{segment.title}</h3>
+              <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{segment.description}</p>
+            </div>
+            <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-xs font-black text-hpsr-wine">{segment.items.length}</span>
+          </div>}
+          <RequestTypeSection kind="Consulta" requests={segment.items} prioritySpecialties={prioritySpecialties} onUpdateStatus={onUpdateStatus} isDirection={isDirection} onDeleteRequest={onDeleteRequest} deletingRequestId={deletingRequestId} />
+          <RequestTypeSection kind="Exames" requests={segment.items} prioritySpecialties={prioritySpecialties} onUpdateStatus={onUpdateStatus} isDirection={isDirection} onDeleteRequest={onDeleteRequest} deletingRequestId={deletingRequestId} />
+        </section>
+      )) : (
+        <EmptyState title="Nenhuma solicitação para este perfil" description="Não há consultas ou exames pendentes visíveis para suas especialidades neste momento." />
       )}
-
-      {rescheduleRequest && (
-        <div className="fixed inset-0 z-[100000] grid place-items-center px-4 py-6">
-          <button
-            type="button"
-            aria-label="Fechar reagendamento"
-            onClick={() => setRescheduleRequest(null)}
-            className="fixed inset-0 bg-[#1f0805]/65"
-          />
-          <section className="hpsr-modal-motion relative z-10 w-full max-w-lg overflow-hidden rounded-[18px] border border-hpsr-border bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-4">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Sugestão médica</p>
-                <h3 className="mt-1 text-lg font-black text-hpsr-text">Sugerir nova data e horário</h3>
-                <p className="mt-1 text-sm font-semibold text-hpsr-muted">{rescheduleRequest.patient} · {rescheduleRequest.specialty}</p>
-              </div>
-              <button type="button" onClick={() => setRescheduleRequest(null)} className="rounded-[14px] border border-hpsr-border bg-white p-2.5 text-hpsr-wine">
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="grid gap-4 p-4 sm:grid-cols-2">
-              <label className="text-xs font-black text-hpsr-muted">
-                Nova data
-                <input
-                  type="date"
-                  value={proposedDate}
-                  min={todayInSaoPaulo()}
-                  onChange={(event) => setProposedDate(event.target.value)}
-                  className={`${inputClass} mt-1.5`}
-                />
-              </label>
-              <label className="text-xs font-black text-hpsr-muted">
-                Novo horário
-                <input
-                  type="time"
-                  value={proposedTime}
-                  onChange={(event) => setProposedTime(event.target.value)}
-                  className={`${inputClass} mt-1.5`}
-                />
-              </label>
-              <label className="text-xs font-black text-hpsr-muted sm:col-span-2">
-                Motivo ou orientação (opcional)
-                <textarea
-                  rows={3}
-                  value={rescheduleReason}
-                  onChange={(event) => setRescheduleReason(event.target.value)}
-                  placeholder="Informe uma orientação breve para o paciente."
-                  className={`${inputClass} mt-1.5 resize-none`}
-                />
-              </label>
-            </div>
-
-            <div className="flex flex-col-reverse gap-2 border-t border-hpsr-border bg-[#fffaf4] p-4 sm:flex-row sm:justify-end">
-              <button type="button" onClick={() => setRescheduleRequest(null)} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-2.5 text-xs font-black text-hpsr-wine">Cancelar</button>
-              <button
-                type="button"
-                disabled={!proposedDate || !proposedTime}
-                onClick={confirmReschedule}
-                className="rounded-[14px] bg-hpsr-wine px-4 py-2.5 text-xs font-black text-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Enviar sugestão
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
-    </div>
+    </section>
   );
 }
 
-function ConsultationsTab({ appointments }: { appointments: typeof scheduledAppointments }) {
-  return (
-    <div className="grid gap-3">
-      <SectionTitle
-        icon={<Stethoscope size={18} />}
-        title="Consultas marcadas"
-        description="Status simples: Agendada, Confirmada, Reagendada, Cancelada, Ausente e Realizada."
-      />
-
-      {appointments.map((item) => (
-        <AppointmentCard
-          key={item.id}
-          title={item.patient}
-          subtitle={`Passaporte ${item.passport} · ${item.specialty} · ${item.doctor}`}
-          status={
-            <span className={`rounded-full border px-3 py-1 text-xs font-black ${consultationStatusClass(item.status)}`}>
-              {item.status}
-            </span>
-          }
-          meta={[
-            ["Data", formatDate(item.date)],
-            ["Horário", item.time],
-            ["Tipo", item.type],
-          ]}
-          alert={item.status === "Ausente" ? "Ausência registrada: gerar pendência para cobrança via boleto dentro do RP." : undefined}
-          actions={
-            <>
-              <ActionButton variant="primary">Confirmar</ActionButton>
-              <ActionButton>Reagendar</ActionButton>
-              <ActionButton variant="danger">Cancelar</ActionButton>
-              <ActionButton>Ausente</ActionButton>
-              <ActionButton>Concluir</ActionButton>
-            </>
-          }
-        />
-      ))}
-    </div>
-  );
-}
-
-function FollowUpsTab({
-  doctorId,
-  doctorName,
-  doctorRole,
-  defaultSpecialty,
+function RequestTypeSection({
+  kind,
+  requests,
+  prioritySpecialties,
+  onUpdateStatus,
+  isDirection,
+  onDeleteRequest,
+  deletingRequestId,
 }: {
-  doctorId?: string;
-  doctorName: string;
-  doctorRole: string;
-  defaultSpecialty: string;
+  kind: "Consulta" | "Exames";
+  requests: ClinicalRequestBoardItem[];
+  prioritySpecialties: string[];
+  onUpdateStatus: (request: PublicAppointmentRequest, status: string) => void;
+  isDirection: boolean;
+  onDeleteRequest: (request: PublicAppointmentRequest) => void;
+  deletingRequestId: string | null;
 }) {
+  const typeRequests = requests.filter((item) => (item.flowType === "Exames") === (kind === "Exames"));
+  const grouped = Array.from(typeRequests.reduce((groups, item) => {
+    const specialty = item.specialty || "Sem especialidade";
+    const key = normalizeSpecialty(specialty);
+    const group = groups.get(key) || { specialty, items: [] as ClinicalRequestBoardItem[] };
+    group.items.push(item);
+    groups.set(key, group);
+    return groups;
+  }, new Map<string, { specialty: string; items: ClinicalRequestBoardItem[] }>()).values());
+  grouped.sort((first, second) => {
+    const priority = (specialty: string) => {
+      const position = prioritySpecialties.findIndex((value) => normalizeSpecialty(value) === normalizeSpecialty(specialty));
+      return position < 0 ? Number.MAX_SAFE_INTEGER : position;
+    };
+    const firstPriority = priority(first.specialty);
+    const secondPriority = priority(second.specialty);
+    return firstPriority - secondPriority
+      || String(second.items[0]?.createdAt || "").localeCompare(String(first.items[0]?.createdAt || ""));
+  });
+
   return (
-    <div className="grid gap-3">
-      <SectionTitle
-        icon={<HeartPulse size={18} />}
-        title="Acompanhamentos e planejamentos"
-        description="Solicitações de acompanhamento aceitas entram aqui automaticamente. Organize os pacientes por especialidade e configure frequência e referências somente quando fizer sentido clínico."
-      />
-      <ClinicalFollowupPlanner doctorId={doctorId} doctorName={doctorName} doctorRole={doctorRole} defaultSpecialty={defaultSpecialty} embedded />
-    </div>
-  );
-}
-
-function ReschedulesTab() {
-  return (
-    <div className="grid gap-3">
-      <SectionTitle
-        icon={<RotateCcw size={18} />}
-        title="Reagendamentos"
-        description="O paciente não escolhe o novo horário pelo Portal. Após o contato, a equipe registra aqui o horário que foi combinado com o médico."
-      />
-
-      {reschedules.map((item) => (
-        <AppointmentCard
-          key={item.id}
-          title={item.patient}
-          subtitle={`Passaporte ${item.passport} · ${item.specialty}`}
-          status={<span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">Reagendada</span>}
-          meta={[
-            ["Data original", item.original],
-            ["Nova data", item.next],
-            ["Quantidade", `${item.count} reagendamento${item.count === 1 ? "" : "s"}`],
-            ["Motivo", item.reason],
-          ]}
-          alert={item.feeAlert ? "Reagendamento/cancelamento fora do prazo: possível taxa administrativa." : undefined}
-          actions={
-            <>
-              <ActionButton variant="primary">Registrar novo horário</ActionButton>
-              <ActionButton>Histórico</ActionButton>
-            </>
-          }
-        />
-      ))}
-    </div>
-  );
-}
-
-function BillingTab() {
-  return (
-    <div className="grid gap-3">
-      <SectionTitle
-        icon={<BadgeDollarSign size={18} />}
-        title="Pendências de cobrança"
-        description="O sistema apenas avisa a equipe. Boleto, cobrança e pagamento são confirmados manualmente dentro do RP."
-      />
-
-      <div className="rounded-[16px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-        Ausência ou cancelamento fora do prazo poderá gerar taxa administrativa pelo Hospital São Rafael, cobrada via boleto bancário dentro do RP.
+    <section className="grid gap-3">
+      <div className="flex items-center justify-between gap-3 border-b border-hpsr-border pb-2">
+        <div className="flex items-center gap-2">
+          {kind === "Exames" ? <FlaskConical size={17} className="text-blue-700" /> : <Stethoscope size={17} className="text-hpsr-wine" />}
+          <h4 className="text-sm font-black text-hpsr-text">{kind === "Exames" ? "Exames" : "Consultas"}</h4>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-xs font-black ${kind === "Exames" ? "bg-blue-50 text-blue-800" : "bg-[#f7e8e1] text-hpsr-wine"}`}>{typeRequests.length}</span>
       </div>
+      {grouped.length ? <div className="grid gap-3">
+        {grouped.map(({ specialty, items }) => (
+          <div key={normalizeSpecialty(specialty)} className="overflow-hidden rounded-[16px] border border-hpsr-border bg-white">
+            <div className="flex items-center justify-between gap-2 border-b border-hpsr-border bg-[#fff9f5] px-4 py-2.5">
+              <h5 className="text-sm font-black text-hpsr-text">{specialty}</h5>
+              <span className="text-xs font-bold text-hpsr-muted">{items.length}</span>
+            </div>
+            <div className="grid gap-3 p-3">{items.map((item) => (
+              <ClinicalRequestCard key={item.id} item={item} onUpdateStatus={onUpdateStatus} isDirection={isDirection} onDeleteRequest={onDeleteRequest} deletingRequestId={deletingRequestId} />
+            ))}</div>
+          </div>
+        ))}
+      </div> : <p className="rounded-[12px] bg-[#fffaf7] px-3 py-2.5 text-xs font-semibold text-hpsr-muted">
+        Nenhuma solicitação de {kind === "Exames" ? "exame" : "consulta"} neste grupo.
+      </p>}
+    </section>
+  );
+}
 
-      {billingIssues.map((item) => (
-        <AppointmentCard
-          key={item.id}
-          title={item.patient}
-          subtitle={`Passaporte ${item.passport} · ${item.appointment}`}
-          status={
-            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-700">
-              {item.status}
-            </span>
-          }
-          meta={[
-            ["Motivo", item.reason],
-            ["Cobrança", "Confirmação manual pela equipe/médico"],
-          ]}
-          actions={
-            <>
-              <ActionButton variant="primary">Marcar cobrada</ActionButton>
-              <ActionButton>Confirmar pagamento</ActionButton>
-              <ActionButton>Dispensar</ActionButton>
-            </>
-          }
-        />
-      ))}
-    </div>
+function ClinicalRequestCard({
+  item,
+  onUpdateStatus,
+  isDirection,
+  onDeleteRequest,
+  deletingRequestId,
+}: {
+  item: ClinicalRequestBoardItem;
+  onUpdateStatus: (request: PublicAppointmentRequest, status: string) => void;
+  isDirection: boolean;
+  onDeleteRequest: (request: PublicAppointmentRequest) => void;
+  deletingRequestId: string | null;
+}) {
+  const isExam = item.flowType === "Exames";
+  const created = item.createdAt || item.updatedAt || "";
+  const objective = item.flowDetails || item.reason || (isExam ? "Exame solicitado pelo paciente." : "Solicitação de consulta enviada pelo paciente.");
+
+  return (
+    <article className="relative overflow-hidden rounded-[15px] border border-hpsr-border bg-[#fffdfb] p-3.5 shadow-[0_4px_14px_rgba(89,44,30,0.035)] sm:p-4">
+      <span className={`absolute inset-y-0 left-0 w-1 ${isExam ? "bg-blue-500" : "bg-hpsr-wine"}`} />
+      <div className="pl-1.5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${item.canClaim ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
+                {item.canClaim ? "Disponível para aceite" : "Para acompanhamento"}
+              </span>
+            </div>
+            <h5 className="mt-2 text-base font-black text-hpsr-text">{item.patient}</h5>
+            <p className="mt-1 text-xs font-semibold text-hpsr-muted">Passaporte {item.passport} · {item.specialty || "Sem especialidade"}</p>
+          </div>
+          {created && <span className="shrink-0 text-[11px] font-bold text-hpsr-muted">
+            {new Date(created).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+          </span>}
+        </div>
+        <div className="mt-3 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5">
+          <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{isExam ? "Solicitação do exame" : "Motivo da consulta"}</p>
+          <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-text">{objective}</p>
+        </div>
+        {item.canClaim ? <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" onClick={() => onUpdateStatus(item, "Aceita")}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 py-2.5 text-xs font-black text-white transition hover:bg-hpsr-wineDark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hpsr-wine/30">
+            <CheckCircle2 size={15} />{isExam ? "Receber solicitação" : "Aceitar consulta"}
+          </button>
+          <button type="button" onClick={() => onUpdateStatus(item, "Recusada")}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[13px] border border-rose-200 bg-white px-4 py-2.5 text-xs font-black text-rose-700 transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200">
+            <XCircle size={15} />Recusar
+          </button>
+        </div> : <p className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-bold text-amber-900">
+          {item.availabilityReason || "Esta solicitação não está disponível para aceite no momento."}
+        </p>}
+        {isDirection && (item.source || "patient_portal") === "patient_portal" &&
+          ["Solicitação enviada", "Aguardando análise", "Acompanhamento aguardando confirmação"].includes(item.status) && (
+          <div className="mt-3 flex justify-end border-t border-hpsr-border pt-3">
+            <button type="button" disabled={deletingRequestId !== null} onClick={() => onDeleteRequest(item)}
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[12px] border border-rose-200 bg-white px-3 py-2 text-xs font-bold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50"
+              title="Apenas para solicitações pendentes enviadas por engano">
+              <Trash2 size={15} />{deletingRequestId === item.id ? "Excluindo..." : "Excluir"}
+            </button>
+          </div>
+        )}
+      </div>
+    </article>
   );
 }
 

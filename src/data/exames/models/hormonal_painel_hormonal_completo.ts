@@ -282,6 +282,16 @@ export const hormonal_painel_hormonal_completoModel: IntelligentExamModel = {
   ],
   "variables": [
     {
+      "id": "papel_no_protocolo",
+      "label": "Contexto do painel",
+      "tipo": "select",
+      "options": [
+        "Avaliação geral / fora de FIV",
+        "FIV — doadora de óvulos — estimulação ovariana",
+        "FIV — receptora / gestante — preparo endometrial"
+      ]
+    },
+    {
       "id": "fase_ciclo",
       "label": "Fase do ciclo",
       "tipo": "select",
@@ -291,26 +301,25 @@ export const hormonal_painel_hormonal_completoModel: IntelligentExamModel = {
         "Lútea",
         "Menopausa",
         "Não se aplica"
+      ],
+      "appliesTo": [
+        "Avaliação geral / fora de FIV"
       ]
     },
     {
       "id": "dia_estimulacao",
-      "label": "Dia da estimulação",
-      "tipo": "number"
+      "label": "Dia da estimulação ovariana",
+      "tipo": "number",
+      "appliesTo": [
+        "FIV — doadora de óvulos — estimulação ovariana"
+      ]
     },
     {
-      "id": "contexto",
-      "label": "Contexto clínico",
-      "tipo": "select",
-      "options": [
-        "Rotina",
-        "FIV",
-        "Infertilidade",
-        "SOP",
-        "Menopausa",
-        "Masculino",
-        "Pediátrico",
-        "Personalizado"
+      "id": "dia_preparo_endometrial",
+      "label": "Dia do preparo endometrial",
+      "tipo": "number",
+      "appliesTo": [
+        "FIV — receptora / gestante — preparo endometrial"
       ]
     }
   ],

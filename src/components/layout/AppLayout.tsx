@@ -56,65 +56,24 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }, [collapsed, hydrated]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured()) return;
+    if (!isSupabaseConfigured() || !currentUserProfile.id) {
+      setHasPendingAppointmentRequest(false);
+      return;
+    }
+
     const client = createClient();
     if (!client) return;
     let active = true;
     let pendingRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const pendingMarkers = [
-      "solicit",
-      "acompanhamento aguardando confirmacao",
-      "em analise",
-      "aguardando ajuste",
-      "pendente",
-      "nova proposta do paciente",
-      "reagendamento recusado",
-      "disponibilidade informada",
-      "desistencia solicitada",
-    ];
-
     const refreshPending = async () => {
-      const { data, error } = await client
-        .from("appointments")
-        .select("status,payload")
-        .order("created_at", { ascending: false })
-        .limit(120);
-      if (!active || error) return;
-
-      const isManager =
-        currentUserProfile.accessLevel === "Total" ||
-        ["Diretora", "Vice Diretor", "Vice-Diretor"].includes(currentUserProfile.role);
-      const normalize = (value: unknown) => String(value || "").trim().toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      const capacityEntries = isManager ? [] : await Promise.all((currentUserProfile.specialties || []).map(async (specialty) => {
-        const { data: capacity } = await client.rpc("hpsr_my_clinical_capacity", { p_specialty: String(specialty) });
-        return [normalize(specialty), Number((capacity as { available?: number } | null)?.available || 0)] as const;
-      }));
-      const capacityBySpecialty = Object.fromEntries(capacityEntries);
-
-      const pending = (data || []).some((row: any) => {
-        const payload = (row.payload || {}) as Record<string, unknown>;
-        const normalizedStatus = String(row.status || "")
-          .trim()
-          .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "");
-        if (!pendingMarkers.some((marker) => normalizedStatus.includes(marker))) return false;
-
-        const requestedDoctorId = String(payload.requestedDoctorId || "");
-        const declinedBy = Array.isArray(payload.declinedBy) ? payload.declinedBy.map(String) : [];
-        if (declinedBy.includes(String(currentUserProfile.id))) return false;
-        if (isManager) return true;
-        const specialtyKey = normalize(payload.specialty);
-        const specialtyMatch = (currentUserProfile.specialties || []).some((specialty) => normalize(specialty) === specialtyKey);
-        const isExam = String(payload.flowType || "Consulta comum") === "Exames";
-        const isGeneralClinician = currentUserProfile.role === "Médico Clínico";
-        const hasCapacity = Number(capacityBySpecialty[specialtyKey] || 0) > 0;
-        const examEligible = isExam && (isGeneralClinician || specialtyMatch);
-        const consultationEligible = !isExam && specialtyMatch && hasCapacity;
-        return (examEligible || consultationEligible) && (!requestedDoctorId || requestedDoctorId === currentUserProfile.id);
-      });
-      setHasPendingAppointmentRequest(pending);
+      const { data, error } = await client.rpc("hpsr_my_clinical_request_board", { p_limit: 400 });
+      if (!active) return;
+      if (error) {
+        console.warn("[HPSR] Não foi possível atualizar o indicador de solicitações.", error);
+        return;
+      }
+      setHasPendingAppointmentRequest(Array.isArray(data) && data.some((item: any) => item.own_specialty === true && item.can_claim === true));
     };
 
     const schedulePendingRefresh = () => {
@@ -122,7 +81,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       pendingRefreshTimer = setTimeout(() => {
         pendingRefreshTimer = null;
         void refreshPending();
-      }, 800);
+      }, 600);
     };
 
     void refreshPending();
@@ -136,7 +95,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       if (pendingRefreshTimer) clearTimeout(pendingRefreshTimer);
       void client.removeChannel(channel);
     };
-  }, [currentUserProfile.accessLevel, currentUserProfile.id, currentUserProfile.role, currentUserProfile.specialties]);
+  }, [currentUserProfile.id]);
 
   return (
     <div className="hpsr-dashboard-shell hpsr-compact-type min-h-dvh overflow-x-hidden bg-hpsr-bg text-hpsr-text">

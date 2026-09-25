@@ -4,7 +4,6 @@ import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneDisplay } from "@/lib/phone";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
-import { ApplicationHistoryModal } from "@/components/dashboard/ApplicationHistoryModal";
 import { isStaffApplicationPending } from "@/lib/staff-application-status";
 import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -29,7 +28,6 @@ import {
   Stethoscope,
   UserCog,
   UserRound,
-  UsersRound,
   X,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
@@ -373,7 +371,6 @@ export default function TeamPage() {
   const [selectedId, setSelectedId] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isPendingModalOpen, setIsPendingModalOpen] = useState(false);
-  const [isApplicationHistoryOpen, setIsApplicationHistoryOpen] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<PublicStaffApplication | null>(null);
   const [publicApplications, setPublicApplications] = useState<PublicStaffApplication[]>([]);
   const [registrationRequests, setRegistrationRequests] = useState<StaffRegistrationRequest[]>([]);
@@ -1053,7 +1050,7 @@ export default function TeamPage() {
 
             <div className="flex flex-wrap justify-end gap-2">
               {hasTeamAdminAccess && (<>
-              <button type="button" onClick={() => setIsRegistrationRequestsOpen(true)} className="relative inline-flex min-h-[38px] w-full items-center justify-center gap-2 rounded-[16px] border border-hpsr-border bg-white px-3.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0] md:min-h-[46px] md:w-auto md:px-4 md:text-sm">
+              <button type="button" onClick={() => setIsAddOpen(true)} className="relative inline-flex min-h-[38px] w-full items-center justify-center gap-2 rounded-[16px] border border-hpsr-border bg-white px-3.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0] md:min-h-[46px] md:w-auto md:px-4 md:text-sm">
                 <UserCog size={16}/> Gerenciar médico
                 {registrationRequests.filter((item) => item.status === "Pendente" && !item.hiddenAt && !item.historical).length > 0 && <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-hpsr-wine px-2 py-0.5 text-[11px] font-black text-white">{registrationRequests.filter((item) => item.status === "Pendente" && !item.hiddenAt && !item.historical).length}</span>}
               </button>
@@ -1076,15 +1073,6 @@ export default function TeamPage() {
                 )}
               </button>
 
-
-              <button
-                type="button"
-                onClick={() => setIsApplicationHistoryOpen(true)}
-                className="inline-flex min-h-[38px] w-full items-center justify-center gap-2 rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 text-xs font-black text-white transition md:min-h-[46px] md:w-auto md:rounded-[16px] md:px-5 md:text-sm"
-              >
-                <UsersRound size={16} />
-                Histórico de formulários
-              </button>
               </>)}
             </div>
           </div>
@@ -1212,17 +1200,30 @@ export default function TeamPage() {
 
       </div>
 
-      {hasTeamAdminAccess && isRegistrationRequestsOpen && <RegistrationRequestsModal items={registrationRequests} loading={registrationRequestsLoading} error={registrationRequestError} decisionId={registrationDecisionId} onRefresh={loadRegistrationRequestsFromSupabase} onClose={() => setIsRegistrationRequestsOpen(false)} onDecision={handleRegistrationRequest} onSetHidden={setRegistrationRequestHidden} onOpenEditor={() => { setIsRegistrationRequestsOpen(false); setIsAddOpen(true); }} />}
+      {hasTeamAdminAccess && isRegistrationRequestsOpen && (
+        <RegistrationRequestsModal
+          items={registrationRequests}
+          loading={registrationRequestsLoading}
+          error={registrationRequestError}
+          decisionId={registrationDecisionId}
+          onRefresh={loadRegistrationRequestsFromSupabase}
+          onClose={() => setIsRegistrationRequestsOpen(false)}
+          onDecision={handleRegistrationRequest}
+          onSetHidden={setRegistrationRequestHidden}
+          onOpenEditor={() => {
+            setIsRegistrationRequestsOpen(false);
+            setIsAddOpen(true);
+          }}
+        />
+      )}
       {hasTeamAdminAccess && isPendingModalOpen && (
         <PendingApplicationsModal
-          items={pendingApplications}
+          items={allApplications}
           onClose={() => setIsPendingModalOpen(false)}
           onOpenAnalysis={setSelectedApplication}
           onDelete={deleteRejectedApplication}
-          onOpenHistory={() => { setIsPendingModalOpen(false); setIsApplicationHistoryOpen(true); }}
         />
       )}
-      {hasTeamAdminAccess && isApplicationHistoryOpen && <ApplicationHistoryModal items={allApplications} onClose={() => setIsApplicationHistoryOpen(false)} onOpenAnalysis={(item) => { setIsApplicationHistoryOpen(false); setSelectedApplication(item as PublicStaffApplication); }} />}
       {selectedApplication && (
         <ApplicationAnalysisModal
           item={selectedApplication}
@@ -1231,7 +1232,18 @@ export default function TeamPage() {
           onDelete={deleteRejectedApplication}
         />
       )}
-      {hasTeamAdminAccess && isAddOpen && <ManageMemberModal members={members} onClose={() => setIsAddOpen(false)} onSave={handleManageMember} />}
+      {hasTeamAdminAccess && isAddOpen && (
+        <ManageMemberModal
+          members={members}
+          pendingRequestCount={registrationRequests.filter((item) => item.status === "Pendente" && !item.hiddenAt && !item.historical).length}
+          onOpenRequests={() => {
+            setIsAddOpen(false);
+            setIsRegistrationRequestsOpen(true);
+          }}
+          onClose={() => setIsAddOpen(false)}
+          onSave={handleManageMember}
+        />
+      )}
       {pendingAdministrativeAction && (
         <AdministrativeActionModal
           state={pendingAdministrativeAction}
@@ -1286,11 +1298,11 @@ function RegistrationRequestsModal({
         <div className="flex items-start justify-between gap-3 border-b border-hpsr-border bg-white px-5 py-4">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Acesso da equipe</p>
-            <h2 className="mt-1 text-lg font-black text-hpsr-text">Gerenciar médico</h2>
-            <p className="mt-1 text-sm text-hpsr-muted">Analise os pedidos de acesso enviados pelos profissionais. Cadastros aprovados entram automaticamente na equipe.</p>
+            <h2 className="mt-1 text-lg font-black text-hpsr-text">Solicitações de médicos</h2>
+            <p className="mt-1 text-sm text-hpsr-muted">Analise os pedidos de acesso e consulte o histórico sem sair do fluxo de gerenciamento médico.</p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <button type="button" onClick={onOpenEditor} className="inline-flex min-h-[38px] items-center justify-center gap-2 rounded-xl bg-hpsr-wine px-4 py-2 text-xs font-black text-white"><UserCog size={15} /> Editar médico</button>
+            <button type="button" onClick={onOpenEditor} className="inline-flex min-h-[38px] items-center justify-center gap-2 rounded-xl bg-hpsr-wine px-4 py-2 text-xs font-black text-white"><UserCog size={15} /> Voltar ao gerenciar médico</button>
             <button type="button" onClick={() => setShowHistory((current) => !current)} className="rounded-xl border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">{showHistory ? "Voltar às solicitações" : `Mostrar histórico (${items.filter(isHistoricalItem).length})`}</button>
             <button type="button" onClick={() => void onRefresh()} disabled={loading} className="rounded-xl border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine disabled:opacity-50">
               {loading ? "Atualizando..." : "Atualizar"}
@@ -1435,30 +1447,47 @@ function PendingApplicationsModal({
   onClose,
   onOpenAnalysis,
   onDelete,
-  onOpenHistory,
 }: {
   items: PublicStaffApplication[];
   onClose: () => void;
   onOpenAnalysis: (item: PublicStaffApplication) => void;
   onDelete: (item: PublicStaffApplication) => void;
-  onOpenHistory: () => void;
 }) {
-  const pendingCount = items.length;
+  const [activeView, setActiveView] = useState<"pendentes" | "historico">("pendentes");
+  const [historySearch, setHistorySearch] = useState("");
+  const pendingItems = items.filter(isStaffApplicationPending);
+  const historicalItems = items.filter((item) => !isStaffApplicationPending(item));
+  const visibleHistoricalItems = useMemo(() => {
+    const query = historySearch.trim().toLocaleLowerCase("pt-BR");
+    if (!query) return historicalItems;
+    return historicalItems.filter((item) => [item.name, item.passport, item.desiredRole, item.interestArea, item.status, item.triageDecision, item.interviewStatus, item.interviewResult]
+      .join(" ").toLocaleLowerCase("pt-BR").includes(query));
+  }, [historicalItems, historySearch]);
+  const visibleItems = activeView === "pendentes" ? pendingItems : visibleHistoricalItems;
+
   return (
     <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
       <button type="button" aria-label="Fechar modal" onClick={onClose} className="fixed inset-0 bg-[#1f0805]/62" />
-      <div className="hpsr-modal-motion relative z-10 flex w-full max-w-6xl flex-col overflow-hidden rounded-[16px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
-        <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] px-4 py-3">
-          <div className="flex items-start justify-between gap-3">
-            <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Trabalhe Conosco</p><h2 className="mt-1 text-lg font-black text-hpsr-text">Formulários pendentes</h2><p className="mt-1 text-sm text-hpsr-muted">Somente candidaturas que ainda aguardam uma decisão final.</p></div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-black text-amber-800">{pendingCount} pendente{pendingCount === 1 ? "" : "s"}</span>
-              <button type="button" onClick={onOpenHistory} className="inline-flex h-8 items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]"><History size={14}/>Histórico</button>
-              <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-wine"><X size={18} /></button>
-            </div>
+      <div className="hpsr-modal-motion relative z-10 flex max-h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-[16px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
+        <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] px-4 py-3.5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Trabalhe Conosco</p><h2 className="mt-1 text-lg font-black text-hpsr-text">Formulários</h2><p className="mt-1 text-sm text-hpsr-muted">Pendências e histórico ficam no mesmo fluxo, sem atalhos duplicados na página da Direção.</p></div>
+            <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-wine"><X size={18} /></button>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button type="button" onClick={() => setActiveView("pendentes")} className={`inline-flex min-h-[36px] items-center gap-2 rounded-[12px] px-3.5 text-xs font-black transition ${activeView === "pendentes" ? "bg-hpsr-wine text-white" : "border border-hpsr-border bg-white text-hpsr-wine hover:bg-[#fff8f0]"}`}><FileText size={14} />Pendentes <span className="opacity-75">{pendingItems.length}</span></button>
+            <button type="button" onClick={() => setActiveView("historico")} className={`inline-flex min-h-[36px] items-center gap-2 rounded-[12px] px-3.5 text-xs font-black transition ${activeView === "historico" ? "bg-hpsr-wine text-white" : "border border-hpsr-border bg-white text-hpsr-wine hover:bg-[#fff8f0]"}`}><History size={14} />Histórico <span className="opacity-75">{historicalItems.length}</span></button>
+          </div>
+          {activeView === "historico" && (
+            <label className="mt-3 flex min-h-[40px] items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3"><Search size={15} className="text-hpsr-muted"/><input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} placeholder="Buscar formulário por nome, passaporte, cargo ou status" className="w-full bg-transparent text-xs font-semibold outline-none"/></label>
+          )}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-3.5">
+          <div className="grid gap-3">
+            {visibleItems.map((item) => <ApplicationCard key={item.protocol} item={item} onOpenAnalysis={onOpenAnalysis} onDelete={onDelete} />)}
+            {visibleItems.length === 0 && <div className="rounded-[16px] border border-dashed border-hpsr-border bg-white p-7 text-center"><p className="font-black text-hpsr-text">{activeView === "pendentes" ? "Nenhum formulário pendente." : "Nenhum formulário encontrado no histórico."}</p></div>}
           </div>
         </div>
-        <div className="max-h-[76vh] overflow-y-auto p-3.5"><div className="grid gap-3">{items.map((item) => <ApplicationCard key={item.protocol} item={item} onOpenAnalysis={onOpenAnalysis} onDelete={onDelete} />)}{items.length === 0 && <div className="rounded-[16px] border border-dashed border-hpsr-border bg-white p-6 text-center"><p className="font-black text-hpsr-text">Nenhum formulário pendente.</p></div>}</div></div>
       </div>
     </div>
   );
@@ -2255,10 +2284,14 @@ function TeamMemberPanel({ member }: { member: TeamMember }) {
 
 function ManageMemberModal({
   members,
+  pendingRequestCount,
+  onOpenRequests,
   onClose,
   onSave,
 }: {
   members: TeamMember[];
+  pendingRequestCount: number;
+  onOpenRequests: () => void;
   onClose: () => void;
   onSave: (data: TeamMember) => Promise<void>;
 }) {
@@ -2339,56 +2372,71 @@ function ManageMemberModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3">
-      <button type="button" aria-label="Fechar" onClick={onClose} className="absolute inset-0 bg-[#2a0700]/56" />
-      <form onSubmit={handleSubmit} className="hpsr-modal-motion relative z-10 flex w-full max-w-[1120px] max-h-[92vh] flex-col overflow-hidden rounded-[16px] border border-white/70 bg-[#fffaf4] shadow-[0_30px_90px_rgba(42,7,0,0.28)] md:rounded-[16px]">
-        <div className="bg-[linear-gradient(135deg,#2a0700_0%,#672614_54%,#b18a72_100%)] px-4 py-3 text-white">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em]">
-                <UserCog size={14} />
-                Gestão da equipe
-              </span>
-              <h2 className="mt-3 text-lg font-black tracking-tight">Gerenciar médico</h2>
-              <p className="mt-1 max-w-3xl text-sm leading-relaxed text-white/84">
-                Selecione um médico cadastrado para editar especialidades, tempo e situação do contrato e advertências.
-              </p>
+    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
+      <button type="button" aria-label="Fechar" onClick={onClose} className="fixed inset-0 bg-[#1f0805]/62" />
+      <form onSubmit={handleSubmit} className="hpsr-modal-motion relative z-10 flex w-full max-w-6xl max-h-[92dvh] flex-col overflow-hidden rounded-[18px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
+        <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] px-4 py-3.5 md:px-5 md:py-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-[#efe0d2] text-hpsr-wine">
+                <UserCog size={19} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Gestão da equipe</p>
+                <h2 className="mt-1 text-lg font-black tracking-tight text-hpsr-text">Gerenciar médico</h2>
+                <p className="mt-1 max-w-3xl text-sm leading-relaxed text-hpsr-muted">
+                  Selecione um médico cadastrado para editar especialidades, tempo e situação do contrato e advertências.
+                </p>
+              </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-[14px] border border-white/25 bg-white/10 text-white transition hover:bg-white/20">
+              <button
+                type="button"
+                onClick={onOpenRequests}
+                className="inline-flex min-h-[36px] items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]"
+              >
+                <ClipboardCheck size={14} />
+                Solicitações
+                {pendingRequestCount > 0 && (
+                  <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-hpsr-wine px-1.5 py-0.5 text-[10px] font-black text-white">
+                    {pendingRequestCount}
+                  </span>
+                )}
+              </button>
+              <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-[12px] border border-hpsr-border bg-white text-hpsr-wine transition hover:bg-[#fff8f0]">
                 <X size={18} />
               </button>
             </div>
           </div>
         </div>
 
-        <div className="grid flex-1 overflow-y-auto xl:grid-cols-[320px_minmax(0,1fr)] xl:overflow-hidden">
-          <aside className="border-b border-hpsr-border bg-[linear-gradient(180deg,#fff6ec_0%,#fffaf4_100%)] p-3.5 md:p-5 xl:border-b-0 xl:border-r">
+        <div className="grid min-h-0 flex-1 overflow-y-auto xl:grid-cols-[300px_minmax(0,1fr)] xl:overflow-hidden">
+          <aside className="border-b border-hpsr-border bg-[#fffaf4] p-3.5 md:p-4 xl:border-b-0 xl:border-r">
             <div className="grid gap-3 xl:sticky xl:top-0">
               <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Pré-visualização</p>
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Médico selecionado</p>
                 <div className="mt-3 flex items-start gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[#fff2e4] text-hpsr-wine">
-                    <UserRound size={22} />
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-[#efe0d2] text-hpsr-wine">
+                    <UserRound size={18} />
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-black text-hpsr-text">{form.name || "Nome do médico"}</p>
-                    <p className="mt-1 text-sm font-semibold text-hpsr-muted">{form.crm || "CRM ainda não informado"}</p>
-                    <p className="mt-1 text-xs font-semibold text-hpsr-muted">Passaporte {form.passport || "---"}</p>
+                    <p className="truncate text-sm font-black text-hpsr-text">{form.name || "Selecione um médico"}</p>
+                    <p className="mt-1 text-xs font-semibold text-hpsr-muted">{form.crm || "CRM não informado"}</p>
+                    <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Passaporte {form.passport || "---"}</p>
                   </div>
                 </div>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-                <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
+              <div className="overflow-hidden rounded-[16px] border border-hpsr-border bg-white">
+                <div className="px-3.5 py-3">
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Cargo base</p>
                   <p className="mt-1 text-sm font-black text-hpsr-text">{form.hospitalRole}</p>
                 </div>
-                <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
+                <div className="border-t border-hpsr-border px-3.5 py-3">
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Nível de acesso</p>
                   <p className="mt-1 text-sm font-black text-hpsr-text">{previewAccess}</p>
                 </div>
-                <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
+                <div className="border-t border-hpsr-border px-3.5 py-3">
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Categoria</p>
                   <p className="mt-1 text-sm font-black text-hpsr-text">{previewCategory}</p>
                 </div>
@@ -2405,11 +2453,11 @@ function ManageMemberModal({
             </div>
           </aside>
 
-          <div className="p-4 md:p-5 xl:overflow-y-auto">
+          <div className="min-h-0 bg-[#fcf6ee] p-3.5 md:p-4 xl:overflow-y-auto">
             <div className="grid gap-3">
-              <section className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
+              <section className="rounded-[18px] border border-hpsr-border bg-white p-3.5 md:p-4">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[#fff2e4] text-hpsr-wine">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-[#efe0d2] text-hpsr-wine">
                     <UserCog size={18} />
                   </div>
                   <div>
@@ -2483,9 +2531,9 @@ function ManageMemberModal({
                 </div>
               </section>
 
-              <section className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
+              <section className="rounded-[18px] border border-hpsr-border bg-white p-3.5 md:p-4">
                 <div className="mb-4 flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[#fff2e4] text-hpsr-wine">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-[#efe0d2] text-hpsr-wine">
                     <BriefcaseMedical size={18} />
                   </div>
                   <div>
@@ -2528,7 +2576,7 @@ function ManageMemberModal({
                 </div>
               </section>
 
-              <section className="rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3.5">
+              <section className="rounded-[18px] border border-hpsr-border bg-white p-3.5 md:p-4">
                 <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Conferência antes de salvar</p>
                 <div className="mt-3 grid gap-3 md:grid-cols-3">
                   <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
@@ -2552,11 +2600,11 @@ function ManageMemberModal({
           </div>
         </div>
 
-        <div className="shrink-0 flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white/[0.92] p-3.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="shrink-0 flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between md:px-4">
           <p className="text-xs font-semibold text-hpsr-muted">As alterações serão salvas no perfil do médico e sincronizadas com a equipe cadastrada.</p>
           <div className="flex flex-col-reverse gap-3 sm:flex-row">
-            <button type="button" onClick={onClose} className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-text transition hover:bg-[#fff8f0]">Cancelar</button>
-            <button type="submit" className="rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 py-3 text-sm font-black text-white transition">Salvar alterações</button>
+            <button type="button" onClick={onClose} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-2.5 text-sm font-black text-hpsr-text transition hover:bg-[#fff8f0]">Cancelar</button>
+            <button type="submit" className="rounded-[14px] bg-hpsr-wine px-4 py-2.5 text-sm font-black text-white transition hover:bg-[#551d10]">Salvar alterações</button>
           </div>
         </div>
       </form>
