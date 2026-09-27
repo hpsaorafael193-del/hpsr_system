@@ -49,14 +49,14 @@ const medicamentos: Product[] = [
     descricao: "Kit completo para primeiros socorros.",
     preco: 200000,
     descontoPmValor: 50000,
-    imagem: "Icones/produtos/Kit medico.webp",
+    imagem: "Icones/produtos/Kit medico.png",
   },
   {
     id: "m1",
     nome: "BANDAGEM",
     descricao: "Utilizada para curativos rápidos.",
     preco: 40000,
-    imagem: "Icones/produtos/Bandagem.webp",
+    imagem: "Icones/produtos/Bandagem.png",
   },
   {
     id: "m2",

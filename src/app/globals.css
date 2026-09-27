@@ -944,3 +944,50 @@ button:active {
 .hpsr-documents-page .text-\[11px\] { font-size: 12px; line-height: 1.45; }
 .hpsr-documents-page .text-\[10px\] { font-size: 12px; line-height: 1.4; }
 .hpsr-documents-page .text-\[9px\] { font-size: 11px; line-height: 1.4; }
+
+
+/* v1.0.402 — superfícies institucionais do dashboard.
+   O branco funcional (editores, laudos, campos e documentos) permanece intacto. */
+.hpsr-dashboard-shell {
+  --hpsr-dashboard-cream: #fbf5ed;
+  --hpsr-dashboard-paper: #f8efe4;
+  --hpsr-dashboard-warm: #f1e1d1;
+  --hpsr-dashboard-outline: #e3d1bf;
+}
+
+.hpsr-dashboard-shell :is(.hpsr-panel, .hpsr-card, .hpsr-surface) {
+  background-color: var(--hpsr-dashboard-cream);
+  border-color: var(--hpsr-dashboard-outline);
+}
+
+.hpsr-dashboard-shell .hpsr-panel-muted,
+.hpsr-dashboard-shell .hpsr-surface-soft {
+  background-color: var(--hpsr-dashboard-paper);
+}
+
+/* Apenas os painéis grandes de primeiro nível: não afeta folhas brancas de
+   Documentos/Exames, pré-visualizações nem cards internos de leitura. */
+.hpsr-dashboard-shell .hpsr-page:not(.hpsr-documents-page):not(.hpsr-exams-page)
+  > section[class~="bg-white"] {
+  background-color: var(--hpsr-dashboard-cream);
+  border-color: var(--hpsr-dashboard-outline);
+}
+
+/* Obstetrícia: o painel de trabalho recebe a textura suave, enquanto os campos
+   continuam claros para facilitar a identificação e a digitação. */
+.hpsr-obstetra-page .hpsr-gestational-form {
+  background: linear-gradient(155deg, #fbf0e6 0%, #f5e4d8 58%, #f6eae0 100%);
+  border-color: #ad7665;
+}
+.hpsr-obstetra-page .hpsr-gestational-summary {
+  background: linear-gradient(150deg, #fbf5ec 0%, #f3e8dd 100%);
+  border-color: #dfc9b7;
+}
+.hpsr-obstetra-page .hpsr-gestational-highlight {
+  background: linear-gradient(140deg, #f3e2d5 0%, #f9f0e6 100%);
+  border-color: #dcc1af;
+}
+.hpsr-obstetra-page .hpsr-gestational-history {
+  background: #faf3e9;
+  border-color: #e2cdbb;
+}

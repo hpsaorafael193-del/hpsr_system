@@ -42,7 +42,6 @@ import { notifyPatientRegistryUpdated } from "@/lib/patient-sync";
 import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 import { hpsrSuccess } from "@/components/ui/HpsrToastProvider";
 import { createClient } from "@/lib/supabase";
-import { specialties } from "@/data/mock";
 
 const PatientAccessRecoveryModal = dynamic(
   () => import("@/components/dashboard/PatientAccessRecoveryModal").then((module) => module.PatientAccessRecoveryModal),
@@ -178,7 +177,6 @@ export default function RecordsPage() {
   const [isClinicalRecordOpen, setIsClinicalRecordOpen] = useState(false);
   const [isEditPatientOpen, setIsEditPatientOpen] = useState(false);
   const [isGuardiansOpen, setIsGuardiansOpen] = useState(false);
-  const [isPendingPatientsOpen, setIsPendingPatientsOpen] = useState(false);
   const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
   const [patientFilter, setPatientFilter] = useState<PatientFilter>("all");
   const [isLoadingPatients, setIsLoadingPatients] = useState(true);
@@ -616,8 +614,6 @@ export default function RecordsPage() {
     setIsLoadingPatients(true);
     setRefreshKey((current) => current + 1);
   }
-
-  const pendingPatients = useMemo(() => patients.filter((patient) => patient.triageStatus === "Pendente"), [patients]);
 
   const visiblePatients = useMemo(() => {
     const normalized = searchTerm.trim().toLowerCase();
@@ -1089,7 +1085,7 @@ export default function RecordsPage() {
         description="Histórico clínico por paciente."
       />
 
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-hpsr-border bg-white shadow-[0_14px_34px_rgba(79,42,21,0.06)]">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-hpsr-border bg-[#f9f1e8] shadow-[0_14px_34px_rgba(79,42,21,0.06)]">
         <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffdf9_0%,#f6eadf_100%)] px-4 py-3">
           <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(430px,0.62fr)] xl:items-center">
             <div>
@@ -1105,7 +1101,7 @@ export default function RecordsPage() {
               </p>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
               <label className="flex min-h-[44px] items-center gap-2.5 rounded-[14px] border border-hpsr-border bg-white px-3 shadow-sm focus-within:border-hpsr-wineLight focus-within:ring-2 focus-within:ring-hpsr-wineLight/20">
                 <Search size={18} className="shrink-0 text-hpsr-muted" />
                 <input
@@ -1134,16 +1130,6 @@ export default function RecordsPage() {
                   </button>
                 )}
               </label>
-
-              <button
-                type="button"
-                onClick={() => setIsPendingPatientsOpen(true)}
-                className="relative inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[14px] border border-amber-200 bg-amber-50 px-3.5 text-xs font-black text-amber-800 transition hover:bg-amber-100"
-              >
-                <FileClock size={16} />
-                Pendentes
-                {pendingPatients.length > 0 && <span className="rounded-full bg-amber-700 px-2 py-0.5 text-[9px] text-white">{pendingPatients.length}</span>}
-              </button>
 
               <button
                 type="button"
@@ -1176,8 +1162,8 @@ export default function RecordsPage() {
         </div>
 
         <div className="grid min-h-0 flex-1 gap-3 overflow-hidden p-3 xl:h-full xl:grid-cols-[minmax(330px,0.38fr)_minmax(0,1fr)] xl:items-stretch">
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-[#fffaf5] xl:h-full xl:max-h-full">
-            <div className="shrink-0 border-b border-hpsr-border bg-white/80 px-3.5 py-3">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-[#f6eadf] xl:h-full xl:max-h-full">
+            <div className="shrink-0 border-b border-hpsr-border bg-[#f9efe4] px-3.5 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Pacientes</p>
@@ -1227,7 +1213,6 @@ export default function RecordsPage() {
                           <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-black ${statusClasses(patient.status)}`}>
                             {patient.followUp === "Rotina" ? "Rotineiro" : "Em acompanhamento"}
                           </span>
-                          {patient.triageStatus === "Pendente" && <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[9px] font-black text-amber-800">Pendente</span>}
                         </div>
                         <p className="mt-1 break-words [overflow-wrap:anywhere] text-[11px] font-semibold leading-relaxed text-hpsr-muted">
                           Passaporte {patient.passport} · {patient.age} anos · {patient.bloodType}
@@ -1270,7 +1255,7 @@ export default function RecordsPage() {
           </div>
 
           {selectedPatient ? (
-            <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-white xl:h-full xl:max-h-full">
+            <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-[#fcf6ee] xl:h-full xl:max-h-full">
               <div className="z-20 shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffdf9_0%,#f4e7dc_100%)] px-3.5 py-3 shadow-[0_8px_18px_rgba(79,42,21,0.05)]">
                 <div className="flex flex-col gap-3">
                   <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
@@ -1392,18 +1377,6 @@ export default function RecordsPage() {
       {isEditPatientOpen && selectedPatient && <EditPatientModal patient={selectedPatient} onClose={() => setIsEditPatientOpen(false)} onSave={handleEditPatient} />}
       {isRecoveryOpen && selectedPatient && isInternalLinkManager && <PatientAccessRecoveryModal patient={selectedPatient} onClose={() => setIsRecoveryOpen(false)} />}
       {isGuardiansOpen && selectedPatient && <GuardianManagerModal patient={selectedPatient} patients={patients} onClose={() => setIsGuardiansOpen(false)} />}
-      {isPendingPatientsOpen && (
-        <PendingPatientsModal
-          patients={pendingPatients}
-          doctorName={currentUserProfile.systemName}
-          onClose={() => setIsPendingPatientsOpen(false)}
-          onClassified={() => {
-            setIsPendingPatientsOpen(false);
-            refreshRecords();
-          }}
-        />
-      )}
-
       {isClinicalRecordOpen && selectedPatient && (
         <AddClinicalRecordModal
           patient={selectedPatient}
@@ -1422,122 +1395,6 @@ export default function RecordsPage() {
   );
 }
 
-
-function PendingPatientsModal({
-  patients,
-  doctorName,
-  onClose,
-  onClassified,
-}: {
-  patients: PatientRecord[];
-  doctorName: string;
-  onClose: () => void;
-  onClassified: () => void;
-}) {
-  const [selectedPassport, setSelectedPassport] = useState(patients[0]?.passport || "");
-  const [classification, setClassification] = useState<"rotineiro" | "acompanhamento">("rotineiro");
-  const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
-  const selectedPatient = patients.find((patient) => patient.passport === selectedPassport) || null;
-
-  function toggleSpecialty(specialty: string) {
-    setSelectedSpecialties((current) => current.includes(specialty) ? current.filter((item) => item !== specialty) : [...current, specialty]);
-  }
-
-  async function classify() {
-    if (!selectedPatient) return;
-    if (classification === "acompanhamento" && selectedSpecialties.length === 0) {
-      await hpsrAlert("Selecione ao menos uma especialidade para o acompanhamento.", "Especialidade necessária");
-      return;
-    }
-    const client = createClient();
-    if (!client) return;
-    setSaving(true);
-    const { error } = await client.rpc("classify_patient_portal_access", {
-      target_passport: selectedPatient.passport,
-      target_classification: classification,
-      target_specialties: classification === "acompanhamento" ? selectedSpecialties : [],
-    });
-    setSaving(false);
-    if (error) {
-      await hpsrAlert(error.message, "Não foi possível classificar o paciente");
-      return;
-    }
-    onClassified();
-  }
-
-  return (
-    <div className="fixed inset-0 z-[999] flex items-end justify-center bg-[#2a0700]/45 p-0 sm:items-center sm:p-4">
-      <div className="flex max-h-[94dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-[24px] border border-white/80 bg-[#fffaf4] shadow-2xl sm:rounded-[24px]">
-        <div className="flex items-start justify-between bg-[linear-gradient(135deg,#2a0700,#672614,#9d6b4f)] px-5 py-4 text-white">
-          <div>
-            <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[.14em]"><FileClock size={14} />Pacientes pendentes</span>
-            <h2 className="mt-2 text-xl font-black">Pendências do prontuário</h2>
-            <p className="mt-1 text-sm text-white/75">Classifique o contexto clínico sem criar vínculos médico-paciente automaticamente.</p>
-          </div>
-          <button onClick={onClose} className="rounded-[12px] border border-white/25 bg-white/10 p-2"><X size={18} /></button>
-        </div>
-
-        <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[300px_minmax(0,1fr)]">
-          <div className="min-h-0 overflow-y-auto border-b border-hpsr-border bg-white p-3 lg:border-b-0 lg:border-r">
-            {patients.length === 0 ? (
-              <div className="rounded-[16px] border border-dashed border-hpsr-border bg-[#fffaf4] p-5 text-center text-sm font-semibold text-hpsr-muted">Nenhum novo cadastro aguardando classificação.</div>
-            ) : patients.map((patient) => (
-              <button key={patient.passport} type="button" onClick={() => { setSelectedPassport(patient.passport); setClassification("rotineiro"); setSelectedSpecialties([]); }} className={`mb-2 w-full rounded-[14px] border p-3 text-left transition ${selectedPassport === patient.passport ? "border-hpsr-wine bg-[#fff3e9]" : "border-hpsr-border bg-white hover:bg-[#fffaf4]"}`}>
-                <p className="break-words [overflow-wrap:anywhere] text-sm font-black leading-snug text-hpsr-text">{patient.name}</p>
-                <p className="mt-1 text-xs font-semibold text-hpsr-muted">Passaporte {patient.passport}</p>
-              </button>
-            ))}
-          </div>
-
-          <div className="min-h-0 overflow-y-auto p-4 sm:p-5">
-            {selectedPatient ? (
-              <div>
-                <div className="rounded-[16px] border border-hpsr-border bg-white p-4">
-                  <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Paciente selecionado</p>
-                  <h3 className="mt-1 text-lg font-black text-hpsr-text">{selectedPatient.name}</h3>
-                  <p className="mt-1 text-sm font-semibold text-hpsr-muted">{selectedPatient.age} anos · {selectedPatient.bloodType} · {selectedPatient.passport}</p>
-                </div>
-
-                <div className="mt-4 rounded-[14px] border border-blue-200 bg-blue-50 p-3 text-xs font-semibold leading-relaxed text-blue-900">Esta classificação serve apenas para organizar o prontuário. Vínculos médico-paciente são administrados separadamente em Agendamentos → Meus Pacientes.</div>
-
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <button type="button" onClick={() => { setClassification("rotineiro"); setSelectedSpecialties([]); }} className={`rounded-[16px] border p-4 text-left ${classification === "rotineiro" ? "border-hpsr-wine bg-[#fff3e9] ring-2 ring-hpsr-wine/10" : "border-hpsr-border bg-white"}`}>
-                    <p className="font-black text-hpsr-text">Paciente rotineiro</p>
-                    <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Mantém o cadastro como contexto clínico rotineiro. Nenhum vínculo médico-paciente é criado ou removido.</p>
-                  </button>
-                  <button type="button" onClick={() => setClassification("acompanhamento")} className={`rounded-[16px] border p-4 text-left ${classification === "acompanhamento" ? "border-blue-400 bg-blue-50 ring-2 ring-blue-100" : "border-hpsr-border bg-white"}`}>
-                    <p className="font-black text-hpsr-text">Em acompanhamento</p>
-                    <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Marca o paciente como contexto de acompanhamento clínico. Isso não vincula o paciente a {doctorName} nem altera a agenda.</p>
-                  </button>
-                </div>
-
-                {classification === "acompanhamento" && (
-                  <div className="mt-4 rounded-[16px] border border-hpsr-border bg-white p-4">
-                    <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Especialidades do contexto clínico</p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                      {specialties.map((specialty) => {
-                        const active = selectedSpecialties.includes(specialty);
-                        return <button key={specialty} type="button" onClick={() => toggleSpecialty(specialty)} className={`rounded-[12px] border px-3 py-2.5 text-left text-xs font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-[#fffaf4] text-hpsr-text hover:border-hpsr-wineLight"}`}>{specialty}</button>;
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="rounded-[16px] border border-dashed border-hpsr-border bg-white p-8 text-center text-sm font-semibold text-hpsr-muted">Selecione um paciente para classificar.</div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-3 border-t border-hpsr-border bg-white/95 px-5 py-3.5">
-          <button type="button" onClick={onClose} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-black text-hpsr-text">Fechar</button>
-          <button type="button" disabled={saving || !selectedPatient} onClick={() => void classify()} className="inline-flex min-w-[170px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-5 py-3 text-sm font-black text-white disabled:opacity-50">{saving ? <LoaderCircle size={16} className="animate-spin" /> : <ShieldCheck size={16} />}Salvar classificação</button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function CreatePatientModal({
   onClose,
@@ -1905,7 +1762,7 @@ function EventCard({
   const showStatus = event.status && event.status !== "Concluído";
 
   return (
-    <article className="min-w-0 rounded-[15px] border border-hpsr-border bg-white p-3.5 transition [overflow-wrap:anywhere] hover:border-[#d8bda9] hover:bg-[#fffdf9]">
+    <article className="min-w-0 rounded-[15px] border border-hpsr-border bg-[#fffaf4] p-3.5 transition [overflow-wrap:anywhere] hover:border-[#d8bda9] hover:bg-[#f7ebde]">
       <div className="flex min-w-0 flex-col gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -2004,9 +1861,9 @@ function SavedExamViewer({
 
 function SummaryCard({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
-    <div className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2.5">
+    <div className="rounded-[14px] border border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f3e5d8_100%)] px-3 py-2.5">
       <div className="flex items-center gap-2.5">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#fff3e8] text-hpsr-wine">{icon}</span>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white">{icon}</span>
         <div className="min-w-0 flex-1">
           <p className="text-[9px] font-black uppercase tracking-[0.13em] text-hpsr-wineLight">{label}</p>
         </div>
@@ -2018,13 +1875,13 @@ function SummaryCard({ label, value, icon }: { label: string; value: string; ico
 
 function GeneralMetric({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
   return (
-    <div className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2">
+    <div className="rounded-[14px] border border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f3e5d8_100%)] px-3 py-2">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="break-words [overflow-wrap:anywhere] text-[9px] font-black uppercase leading-snug tracking-[0.12em] text-hpsr-wineLight">{label}</p>
           <p className="mt-0.5 text-base font-black leading-none text-hpsr-text">{value}</p>
         </div>
-        <span className="shrink-0 text-hpsr-wine">{icon}</span>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white">{icon}</span>
       </div>
     </div>
   );
@@ -2051,7 +1908,7 @@ function PatientCardInfo({ label, value }: { label: string; value: string }) {
 
 function InfoPill({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[13px] border border-hpsr-border bg-white px-3 py-2.5">
+    <div className="rounded-[13px] border border-hpsr-border bg-[#fff7ee] px-3 py-2.5">
       <p className="text-[9px] font-black uppercase tracking-[0.13em] text-hpsr-wineLight">{label}</p>
       <p className="mt-0.5 break-words text-sm font-black leading-snug text-hpsr-text [overflow-wrap:anywhere]">{value}</p>
     </div>

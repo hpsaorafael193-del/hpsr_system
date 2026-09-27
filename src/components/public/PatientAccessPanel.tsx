@@ -6,6 +6,7 @@ import {
   AlertCircle, Baby, BellRing, CalendarClock, ClipboardPlus, FileHeart, FlaskConical, HeartPulse, HelpCircle,
   Loader2, LockKeyhole, LogIn, MailX, Plus, ShieldCheck, Trash2, UserPlus, UserRound, X,
 } from "lucide-react";
+import { PatientGestationalPlansPanel } from "@/components/public/PatientGestationalPlansPanel";
 import { PatientRecordsPanel } from "@/components/public/PatientRecordsPanel";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { PatientAppointmentsPanel } from "@/components/public/PatientAppointmentsPanel";
@@ -17,7 +18,7 @@ import { clearAuthContext, clearLoginPersistence, setAuthContext } from "@/lib/a
 import { formatCityPhoneNumber, normalizeDiscordId } from "@/lib/phone";
 
 type Stage = "checking" | "login" | "register" | "portal";
-type PortalSection = "home" | "appointments" | "request" | "followups" | "exam-request" | "records" | "pending" | "profile";
+type PortalSection = "home" | "appointments" | "request" | "followups" | "exam-request" | "records" | "gestation" | "pending" | "profile";
 type PortalPatient = { passport: string; name: string; relationship: string; access_type: string; hasClinicalContact?: boolean; discord?: string; cityPhone?: string; preferredContact?: "discord" | "city_phone" | null };
 type PendingChildLink = { passport: string; name: string; relationship: string; status: string };
 type SessionResponse = { authenticated?: boolean; patientName?: string; accessiblePatients?: PortalPatient[]; pendingChildLinks?: PendingChildLink[] };
@@ -360,6 +361,7 @@ export function PatientAccessPanel() {
       { id: "request" as const, icon: ClipboardPlus, title: "Solicitar consulta", subtitle: "Peça uma nova consulta. O médico combina o horário depois." },
       { id: "followups" as const, icon: CalendarClock, title: "Horários do médico", subtitle: "Veja os horários que seu médico publicou para você e confirme um atendimento." },
       { id: "exam-request" as const, icon: FlaskConical, title: "Solicitar exame", subtitle: "Peça um exame e acompanhe o andamento." },
+      { id: "gestation" as const, icon: Baby, title: "Gestação", subtitle: "Veja os planejamentos liberados pela médica." },
       { id: "records" as const, icon: FileHeart, title: "Meu prontuário", subtitle: "Veja seus exames, documentos e registros liberados." },
       { id: "pending" as const, icon: AlertCircle, title: "Pendências", subtitle: "Veja avisos ou ajustes que ainda estão em andamento." },
     ];
@@ -463,6 +465,7 @@ export function PatientAccessPanel() {
               {portalSection === "request" && <PatientAppointmentsPanel view="request" passport={selectedPassport} hasClinicalContact={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasClinicalContact} onSessionExpired={handleSessionExpired} />}
               {portalSection === "followups" && <PatientFollowupsPanel data={followupData} loading={followupLoading} error={followupError} passport={selectedPassport} onRefresh={() => void loadFollowups(selectedPassport)} />}
               {portalSection === "exam-request" && <PatientExamRequestsPanel passport={selectedPassport} hasClinicalContact={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasClinicalContact} onSessionExpired={handleSessionExpired} />}
+              {portalSection === "gestation" && <PatientGestationalPlansPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
               {portalSection === "records" && <PatientRecordsPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
               {portalSection === "pending" && <PatientAppointmentsPanel view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => openPortalSection("records")} />}
               {portalSection === "profile" && <PatientProfilePanel onSessionExpired={handleSessionExpired} onSaved={async () => { await checkSession(); }} />}

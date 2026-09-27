@@ -33,7 +33,7 @@ type PregnancyPlan = {
 
 const SIMULATION_KEY = "hpsr-clinical-assistant-specialty-simulation";
 const inputClass = "h-11 w-full rounded-[14px] border border-hpsr-border bg-white px-3.5 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wine";
-const cardClass = "rounded-[18px] border border-hpsr-border bg-white";
+const cardClass = "rounded-[18px] border border-hpsr-border bg-[linear-gradient(145deg,#fcf6ee_0%,#f3e5d8_100%)]";
 
 const specialtyLabels: Record<SpecialtyMode, string> = {
   obstetricia: "Obstetrícia",
@@ -492,7 +492,7 @@ function downloadPlanningImage({
 function SectionTitle({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-[#f7e9dc] text-hpsr-wine">{icon}</div>
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white">{icon}</div>
       <div>
         <h2 className="font-black text-hpsr-text">{title}</h2>
         <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">{description}</p>
@@ -527,7 +527,7 @@ function ObstetricsTool() {
   const { selectedPatient } = usePatientSelection();
   const [currentWeek, setCurrentWeek] = useState(1);
   const [durationDays, setDurationDays] = useState(60);
-  const [startDate, setStartDate] = useState(() => brazilDate());
+  const [startDate] = useState(() => brazilDate());
   const [planType, setPlanType] = useState<"short" | "long">("short");
 
   const result = useMemo(() => {
@@ -546,14 +546,11 @@ function ObstetricsTool() {
   return (
     <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
       <section className={`${cardClass} p-4`}>
-        <SectionTitle icon={<Baby size={19} />} title="Calculadora gestacional" description="Converte a idade gestacional para a escala de acompanhamento e gera apenas as etapas restantes." />
+        <SectionTitle icon={<Baby size={17} />} title="Calculadora gestacional" description="Converte a idade gestacional para a escala de acompanhamento e gera apenas as etapas restantes." />
         <div className="mt-5 grid gap-3">
           <PatientField />
           <Field label="Semana gestacional atual" hint="Exibida somente em semanas.">
             <input className={inputClass} type="number" min={1} max={40} value={currentWeek} onChange={(e) => setCurrentWeek(Number(e.target.value))} />
-          </Field>
-          <Field label="Data de referência">
-            <input className={inputClass} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           </Field>
           <Field label="Duração total do acompanhamento">
             <div className="relative"><input className={`${inputClass} pr-14`} type="number" min={1} max={180} value={durationDays} onChange={(e) => setDurationDays(Number(e.target.value))} /><span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-hpsr-muted">dias</span></div>
@@ -592,13 +589,13 @@ function ObstetricsTool() {
             ["Progresso", `${result.progress}%`],
             ["Período restante", `${result.remainingDays} dias`],
             ["Conclusão estimada", formatDate(result.estimatedEnd)],
-          ].map(([label, value]) => <div key={label} className="bg-[#fffaf4] p-3.5"><p className="text-[9px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">{label}</p><p className="mt-1 text-sm font-black text-hpsr-text">{value}</p></div>)}
+          ].map(([label, value]) => <div key={label} className="bg-[#f3e5d8] p-3.5"><p className="text-[9px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">{label}</p><p className="mt-1 text-sm font-black text-hpsr-text">{value}</p></div>)}
         </div>
-        <div className="max-h-[530px] overflow-y-auto p-4">
+        <div className="max-h-[530px] overflow-y-auto bg-[#f8eee3] p-4">
           <div className="grid gap-3">
             {result.remainingPlan.map((item, index) => (
-              <div key={`${item.week}-${item.title}`} className="grid gap-3 rounded-[16px] border border-hpsr-border bg-white p-3.5 md:grid-cols-[90px_minmax(0,1fr)_130px] md:items-center">
-                <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Consulta {index + 1}</p><p className="mt-1 font-black text-hpsr-text">{item.week} semanas</p></div>
+              <div key={`${item.week}-${item.title}`} className="grid gap-3 rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3.5 md:grid-cols-[90px_minmax(0,1fr)_130px] md:items-center">
+                <div className="flex items-center gap-2.5 md:gap-2"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><Baby size={17} /></span><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Consulta {index + 1}</p><p className="mt-1 font-black text-hpsr-text">{item.week} semanas</p></div></div>
                 <div><p className="font-black text-hpsr-text">{item.title}</p><p className="mt-1 text-xs leading-relaxed text-hpsr-muted">{item.description}</p></div>
                 <div className="rounded-[12px] bg-[#fff5ea] px-3 py-2 text-center text-xs font-black text-hpsr-wine">{formatDate(item.date)}</div>
               </div>
@@ -620,7 +617,7 @@ function GynecologyTool() {
   return (
     <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
       <section className={`${cardClass} p-4`}>
-        <SectionTitle icon={<FlaskConical size={19} />} title="Planejamento de fertilização" description="Gera o acompanhamento completo em cinco semanas, com datas editáveis e revisão profissional." />
+        <SectionTitle icon={<FlaskConical size={17} />} title="Planejamento de fertilização" description="Gera o acompanhamento completo em cinco semanas, com datas editáveis e revisão profissional." />
         <div className="mt-5 grid gap-3">
           <PatientField />
           <Field label="Data de início do processo"><input className={inputClass} type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} /></Field>
@@ -691,7 +688,7 @@ function PediatricsTool() {
   return (
     <div className="grid gap-4 xl:grid-cols-[410px_minmax(0,1fr)]">
       <section className={`${cardClass} p-4`}>
-        <SectionTitle icon={<Calculator size={19} />} title="Calculadora de dose pediátrica" description="Calcula a conversão informada pelo pediatra. A ferramenta não escolhe medicamento, indicação ou dose de referência." />
+        <SectionTitle icon={<Calculator size={17} />} title="Calculadora de dose pediátrica" description="Calcula a conversão informada pelo pediatra. A ferramenta não escolhe medicamento, indicação ou dose de referência." />
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2"><PatientField /></div>
           <Field label="Peso atual" hint="Somente em quilogramas."><div className="relative"><input className={`${inputClass} pr-12`} type="number" min="0.1" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} /><span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-hpsr-muted">kg</span></div></Field>
@@ -705,7 +702,7 @@ function PediatricsTool() {
 
       <section className={`${cardClass} p-4`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <SectionTitle icon={<TestTube2 size={19} />} title="Resultado para conferência" description="A memória do cálculo permanece visível para revisão antes de qualquer registro ou prescrição." />
+          <SectionTitle icon={<TestTube2 size={17} />} title="Resultado para conferência" description="A memória do cálculo permanece visível para revisão antes de qualquer registro ou prescrição." />
           <button
             type="button"
             disabled={!calculation || !selectedPatient}
@@ -820,7 +817,7 @@ export default function ClinicalAssistantPage() {
       <section className="rounded-[20px] border border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-4 shadow-sm">
         <div className={`grid gap-3 ${isDeveloper ? "lg:grid-cols-[minmax(0,1fr)_390px]" : ""} lg:items-center`}>
           <div className="flex items-start gap-3">
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-hpsr-wine text-white"><Stethoscope size={20} /></div>
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><Stethoscope size={17} /></div>
             <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Especialidade ativa</p><h2 className="mt-1 text-lg font-black text-hpsr-text">{specialtyLabels[activeSpecialty]}</h2><p className="mt-1 text-xs text-hpsr-muted">Cargo real identificado: {profile.specialty || profile.role}. {simulation ? "Visualização em modo de teste." : "Ferramenta selecionada automaticamente."}</p></div>
           </div>
 
