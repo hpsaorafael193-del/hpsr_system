@@ -2,7 +2,7 @@
 
 
 
-import { Baby, CalendarDays, CheckCircle2, Clock3, HeartPulse, History, Loader2, Sparkles, Stethoscope, Trash2, X } from "lucide-react";
+import { Baby, CalendarDays, CheckCircle2, HeartPulse, History, Loader2, RotateCcw, Sparkles, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { PageHeader } from "@/components/dashboard/PageHeader";
@@ -394,12 +394,12 @@ export default function ObstetricianPage() {
         description="Planejamento gestacional e in vitro com datas informadas pela médica."
       />
 
-      <section className="rounded-[22px] border border-[#e1c9b8] bg-[linear-gradient(120deg,#f8ecdf_0%,#f4e3d7_100%)] p-5 shadow-sm">
+      <section className="hpsr-obstetric-overview rounded-[22px] border border-[#e1c9b8] bg-[linear-gradient(120deg,#f8ecdf_0%,#f4e3d7_100%)] p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[16px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><HeartPulse size={22} /></div>
+            <div className="hpsr-obstetric-icon hpsr-obstetric-icon-hero grid h-12 w-12 shrink-0 place-items-center rounded-[16px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><HeartPulse size={22} /></div>
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Ferramenta principal</p>
+              <p className="hpsr-obstetric-accent-label text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Ferramenta principal</p>
               <h2 className="mt-1 text-2xl font-black leading-tight text-hpsr-text">{isInVitro ? "Contador in vitro" : "Contador gestacional"}</h2>
               <p className="mt-1 max-w-2xl text-sm leading-relaxed text-hpsr-muted">{isInVitro ? "Organize quatro consultas semanais e a entrega do resultado do Beta-hCG na data final." : "Informe as datas inicial e final para montar o planejamento das consultas, encerrando com o parto."}</p>
             </div>
@@ -415,8 +415,8 @@ export default function ObstetricianPage() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(360px,0.75fr)]">
         <section className="hpsr-gestational-form rounded-[24px] border border-[#ad7665] p-5 shadow-[0_14px_34px_rgba(125,35,29,0.08)]">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><Baby size={20} /></div>
-            <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Contador</p><h3 className="text-lg font-black text-hpsr-text">Dados do acompanhamento</h3><p className="text-sm text-hpsr-muted">Preencha as datas do planejamento e as observações da médica.</p></div>
+            <div className="hpsr-obstetric-icon grid h-11 w-11 place-items-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><Baby size={20} /></div>
+            <div><p className="hpsr-obstetric-accent-label text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Contador</p><h3 className="hpsr-obstetric-section-title text-lg font-black text-hpsr-text">Dados do acompanhamento</h3><p className="text-sm text-hpsr-muted">Preencha as datas do planejamento e as observações da médica.</p></div>
           </div>
           <div className="mt-5 grid gap-4">
             <Field label="Selecionar paciente" hint="Selecione uma paciente cadastrada para preencher automaticamente os dados de conferência.">
@@ -450,16 +450,12 @@ export default function ObstetricianPage() {
             <Field label="Observações da médica" hint="Exibidas à paciente somente após a liberação."><textarea className={`${inputClass} min-h-[110px] resize-y py-3`} maxLength={4000} value={planningNotes} onChange={(event) => setPlanningNotes(event.target.value)} placeholder={isInVitro ? "Orientações e observações do planejamento in vitro" : "Orientações e observações do planejamento gestacional"} /></Field>
           </div>
           <div className="mt-5 flex justify-center">
-            <button type="button" disabled={planning || saving || !currentUserProfile.id || consultationPreview.length !== (isInVitro ? 5 : 9) || (manualPatient ? !manualPatientData.name.trim() || !manualPatientData.passport.trim() : !selectedPatient)} onClick={() => void generatePreview()} className="flex min-h-[52px] w-full max-w-[360px] items-center justify-center gap-2 rounded-[17px] bg-hpsr-wine px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(125,35,29,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50">
+            <button type="button" disabled={planning || saving || !currentUserProfile.id || consultationPreview.length !== (isInVitro ? 5 : 9) || (manualPatient ? !manualPatientData.name.trim() || !manualPatientData.passport.trim() : !selectedPatient)} onClick={() => void generatePreview()} className="hpsr-obstetric-primary-action flex min-h-[52px] w-full max-w-[360px] items-center justify-center gap-2 rounded-[17px] bg-hpsr-wine px-5 text-sm font-black text-white shadow-[0_10px_24px_rgba(125,35,29,0.18)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-50">
               {planning ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}{planning ? "Preparando prévia..." : "Gerar plano"}
             </button>
           </div>
           <p className="mt-2 text-center text-xs leading-relaxed text-hpsr-muted">{isInVitro ? "Quatro consultas semanais e a entrega do resultado na quinta etapa. Os horários são reservados separadamente no Agendamento." : "O planejamento organiza oito consultas a partir da data inicial e a previsão de parto independente. Os horários são reservados separadamente no Agendamento."}</p>
           {manualStartDate && manualEndDate && consultationPreview.length === 0 && <p className="mt-3 text-sm font-semibold text-red-700">Informe datas inicial e final válidas.</p>}
-          {consultationPreview.length > 0 && <div className="mt-4 rounded-[16px] border border-[#d9bdaa] bg-[#f7eadf] p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm text-hpsr-text">Datas das etapas</strong><button type="button" className="text-xs font-black text-hpsr-wine underline" onClick={()=>setOverriddenSteps(null)}>Recalcular todas pela data inicial</button></div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">{consultationPreview.map((step,index)=><label key={step.number} className="flex items-center justify-between gap-2 rounded-[10px] bg-[#fff9f2] p-2 text-xs"><span>{step.title} · {planType === "in_vitro" ? `${step.week}ª semana` : `${step.week} semanas`}</span><input type="date" className="max-w-[145px] rounded border border-[#ddc4b3] bg-white p-1" value={step.date} onChange={event=>adjustStage(index,event.target.value)} /></label>)}</div>
-          </div>}
           {readyPreview && !previewModalOpen && <div className="mt-3 flex justify-center">
             <button type="button" onClick={() => setPreviewModalOpen(true)} className="text-sm font-black text-hpsr-wine underline underline-offset-4">Abrir pré-visualização do plano</button>
           </div>}
@@ -467,32 +463,61 @@ export default function ObstetricianPage() {
           {planningError && <p className="mt-3 rounded-[14px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-800">{planningError}</p>}
         </section>
 
-        <section className="hpsr-gestational-summary rounded-[24px] border p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Leitura rápida</p><h3 className="text-lg font-black text-hpsr-text">Resumo do acompanhamento</h3><p className="text-sm text-hpsr-muted">Informações principais do planejamento.</p></div>
-            <div className="rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] p-2.5 text-white"><Stethoscope size={18} /></div>
+        <section className="hpsr-obstetric-stage-preview hpsr-gestational-dates-editor self-start overflow-hidden rounded-[24px] border border-[#e1c5cb] shadow-sm" aria-labelledby="obstetric-stage-dates-title">
+          <div className="flex flex-col gap-3 border-b border-[#e6d0cd] bg-[linear-gradient(115deg,#fbf3eb_0%,#f5e7e1_100%)] px-4 py-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] border border-[#e7c7d2] bg-[#f7e5ec] text-[#944b69]">
+                <CalendarDays size={19} aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[.14em] text-[#a45a76]">Correção manual</p>
+                <h4 id="obstetric-stage-dates-title" className="mt-0.5 text-[15px] font-black text-hpsr-text">Datas das consultas</h4>
+                <p className="mt-0.5 text-xs leading-relaxed text-hpsr-muted">Confira e ajuste cada data antes de gerar o plano.</p>
+              </div>
+            </div>
+            <button type="button" className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-[12px] border border-[#dcb5c2] bg-[#fffaf6] px-3.5 py-2 text-center text-xs font-black text-[#88415b] shadow-sm transition hover:border-[#be8399] hover:bg-[#faedf1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b85e82] disabled:cursor-not-allowed disabled:opacity-50" disabled={!consultationPreview.length || overriddenSteps?.key !== calculationKey} onClick={() => setOverriddenSteps(null)}>
+              <RotateCcw size={15} aria-hidden="true" /> Recalcular todas pela data inicial
+            </button>
           </div>
-          <div className="mt-4 rounded-[18px] border border-[#eddcdd] bg-[linear-gradient(135deg,#f2dfd1_0%,#f9efe5_100%)] p-4">
-            <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Paciente selecionada</p>
-            <p className="mt-1 text-base font-black text-hpsr-text">{manualPatient ? manualPatientData.name || "Nenhuma paciente informada" : selectedPatient?.name || "Nenhuma paciente selecionada"}</p>
-            <p className="mt-1 text-sm font-semibold text-hpsr-muted">{manualPatient ? (manualPatientData.passport ? `Passaporte ${manualPatientData.passport}` : "Informe o documento da paciente.") : selectedPatient ? `Passaporte ${selectedPatient.passport}` : "Escolha uma paciente no contador para começar."}</p>
+          {consultationPreview.length > 0 ? (
+            <>
+            <div className="grid max-h-[520px] grid-cols-1 gap-2.5 overflow-y-auto overscroll-contain p-3 sm:p-4 [scrollbar-gutter:stable]">
+            {consultationPreview.map((step, index) => {
+              const isFinalStep = index === consultationPreview.length - 1;
+              return (
+                <label key={step.number} className={`flex min-w-0 flex-col rounded-[15px] border px-3.5 py-3 shadow-[0_3px_12px_rgba(94,49,43,0.035)] transition-colors hover:border-[#d4a9b9] ${isFinalStep ? "border-[#ddbec9] bg-[#fff8f8]" : "border-[#e6d0c1] bg-[#fffbf7]"}`}>
+                  <span className="flex min-w-0 items-start justify-between gap-2">
+                    <span className="flex min-w-0 items-start gap-2.5">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-[9px] bg-[#f3e0e7] text-[11px] font-black tabular-nums text-[#914962]">{String(step.number).padStart(2, "0")}</span>
+                      <span className="min-w-0 pt-0.5 text-[13px] font-black leading-snug text-hpsr-text">{step.title}</span>
+                    </span>
+                    <span className="shrink-0 rounded-full border border-[#e8d2c7] bg-[#f8eee5] px-2 py-1 text-[10px] font-black text-hpsr-wineLight">{isInVitro ? `${step.week}ª semana` : `${step.week} semanas`}</span>
+                  </span>
+                  <span className="mt-2.5 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{isFinalStep ? "Data de referência" : "Data da consulta"}</span>
+                  <input type="date" aria-label={`Data de ${step.title}`} className="mt-1.5 h-10 w-full min-w-0 rounded-[11px] border border-[#d9bdaa] bg-[#fffdf9] px-3 text-sm font-bold text-hpsr-text outline-none transition focus:border-[#b85e82] focus:ring-2 focus:ring-[#f2d8e2]" value={step.date} onChange={(event) => adjustStage(index, event.target.value)} />
+                  {isFinalStep && <span className="mt-1.5 text-[11px] leading-snug text-[#95566f]">Data independente; não é impressa no PNG.</span>}
+                </label>
+              );
+            })}
           </div>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-[16px] border border-[#e3cdbb] bg-[#faf1e7] p-4"><div className="flex items-center gap-2 text-hpsr-wine"><CalendarDays size={16} /><span className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Data inicial</span></div><p className="mt-2 text-xl font-black text-hpsr-text">{formatDate(manualStartDate)}</p></div>
-            <div className="rounded-[16px] border border-[#e3cdbb] bg-[#faf1e7] p-4"><div className="flex items-center gap-2 text-hpsr-wine"><HeartPulse size={16} /><span className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">{isInVitro ? "Entrega do resultado" : "Parto previsto"}</span></div><p className="mt-2 text-xl font-black text-hpsr-text">{formatDate(manualEndDate)}</p></div>
-            <div className="rounded-[16px] border border-[#e3cdbb] bg-[#faf1e7] p-4"><div className="flex items-center gap-2 text-hpsr-wine"><Clock3 size={16} /><span className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Etapas previstas</span></div><p className="mt-2 text-xl font-black text-hpsr-text">{consultationPreview.length || "—"}</p></div>
-            <div className="rounded-[16px] border border-[#e3cdbb] bg-[#faf1e7] p-4"><div className="flex items-center gap-2 text-hpsr-wine"><Baby size={16} /><span className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Etapa final</span></div><p className="mt-2 text-base font-black leading-snug text-hpsr-text">{isInVitro ? "Beta-hCG · entrega do resultado" : "Parto"}</p></div>
-          </div>
-          <p className="mt-4 rounded-[18px] border border-[#dcc6b5] bg-[#f4e8da] p-4 text-sm leading-relaxed text-hpsr-muted">{isInVitro ? "As quatro consultas semanais e a data independente de entrega do resultado ficam registradas no histórico. O resultado positivo só é registrado após confirmação médica." : "Ao montar o planejamento, as oito consultas e suas orientações ficam registradas no histórico e podem ser liberadas para a paciente."}</p>
+          <p className="border-t border-[#ebd7cf] bg-[#faf1e9] px-4 py-2.5 text-[11px] leading-relaxed text-hpsr-muted">Ao ajustar uma consulta, você poderá manter as demais datas ou recalcular as seguintes. A data final permanece independente.</p>
+            </>
+          ) : (
+            <div className="px-5 py-10 text-center">
+              <CalendarDays size={26} aria-hidden="true" className="mx-auto text-[#b87a91]" />
+              <p className="mt-3 text-sm font-black text-hpsr-text">As datas aparecerão aqui</p>
+              <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">Informe as datas inicial e final no formulário para conferir e ajustar cada consulta.</p>
+            </div>
+          )}
         </section>
       </div>
 
       <section className="hpsr-gestational-history rounded-[24px] border p-5 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="grid h-11 w-11 place-items-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><History size={20} /></div>
+            <div className="hpsr-obstetric-icon grid h-11 w-11 place-items-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><History size={20} /></div>
             <div>
-              <h3 className="text-lg font-black text-hpsr-text">Histórico de planejamentos</h3>
+              <h3 className="hpsr-obstetric-section-title text-lg font-black text-hpsr-text">Histórico de planejamentos</h3>
               <p className="text-sm text-hpsr-muted">Planejamentos gestacionais e in vitro criados pelo médico logado.</p>
             </div>
           </div>
@@ -503,7 +528,7 @@ export default function ObstetricianPage() {
               {releasingPlanId ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
               {releasingPlanId ? "Liberando..." : plans.find((item) => item.id === selectedPlanId)?.portal_released_at && plans.find((item) => item.id === selectedPlanId)?.planning_document_path === plans.find((item) => item.id === selectedPlanId)?.planning_released_document_path ? "Liberado à paciente" : "Liberar para paciente"}
             </button>
-            <span className="shrink-0 rounded-full border border-hpsr-border bg-[#fffaf8] px-3 py-1.5 text-center text-xs font-black text-hpsr-wine">{plans.length} registro{plans.length === 1 ? "" : "s"}</span>
+            <span className="hpsr-obstetric-history-count shrink-0 rounded-full border border-[#e9c9d1] bg-[#fbf0f3] px-3 py-1.5 text-center text-xs font-black text-hpsr-wine">{plans.length} registro{plans.length === 1 ? "" : "s"}</span>
             <button
               type="button"
               onClick={() => void deleteGestationalPlan()}
@@ -538,7 +563,7 @@ export default function ObstetricianPage() {
                       setSelectedPlanId((current) => current === plan.id ? "" : plan.id);
                     }
                   }}
-                  className={`cursor-pointer rounded-[18px] border p-4 transition ${selectedPlanId === plan.id ? "border-hpsr-wine bg-[#fff1ec] ring-2 ring-hpsr-wine/15" : "border-hpsr-border bg-[#f6e9dd] hover:border-[#cfa9a3] hover:bg-[#f2dfd2]"}`}
+                  className={`hpsr-obstetric-history-item cursor-pointer rounded-[18px] border p-4 transition ${selectedPlanId === plan.id ? "border-hpsr-wine bg-[#fff1ec] ring-2 ring-hpsr-wine/15" : "border-hpsr-border bg-[#f6e9dd] hover:border-[#cfa9a3] hover:bg-[#f2dfd2]"}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -547,7 +572,7 @@ export default function ObstetricianPage() {
                       <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Passaporte {plan.patient_passport}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      {selectedPlanId === plan.id && <span className="rounded-full bg-hpsr-wine px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-white">Selecionado</span>}
+                      {selectedPlanId === plan.id && <span className="hpsr-obstetric-selected-badge rounded-full bg-hpsr-wine px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-white">Selecionado</span>}
                       {plan.portal_released_at && <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-black text-emerald-800">Liberado</span>}
                       <span className="rounded-full bg-[#f3dfda]  px-2.5 py-1 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wine">{plan.status}</span>
                     </div>
@@ -583,6 +608,50 @@ export default function ObstetricianPage() {
               <button type="button" autoFocus aria-label="Fechar pré-visualização" disabled={saving} onClick={() => setPreviewModalOpen(false)} className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] border border-[#d3b39d] bg-[#fff9f2] text-hpsr-wine hover:bg-[#f0dfd1] disabled:opacity-50"><X size={19} /></button>
             </header>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-5 [scrollbar-gutter:stable]">
+              <section aria-labelledby="obstetric-preview-summary-title" className="mx-auto mb-4 max-w-[1000px] rounded-[17px] border border-[#e2c6cf] bg-[#fbf2eb] p-3 shadow-sm sm:p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="hpsr-obstetric-accent-label text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Leitura rápida</p>
+                    <h3 id="obstetric-preview-summary-title" className="mt-1 text-base font-black text-hpsr-text">Resumo para conferência</h3>
+                  </div>
+                  <span className="rounded-full border border-[#e5c5d0] bg-[#f8e7ed] px-2.5 py-1 text-[10px] font-black text-[#88415b]">Não integra o PNG</span>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  <div className="min-w-0 rounded-[12px] border border-[#ead4c9] bg-[#fffaf5] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Paciente</p>
+                    <p className="mt-1 break-words text-sm font-black text-hpsr-text">{planningPatient?.name || "—"}</p>
+                    <p className="mt-1 text-xs font-semibold text-hpsr-muted">Passaporte {planningPatient?.passport || "—"}</p>
+                  </div>
+                  <div className="min-w-0 rounded-[12px] border border-[#ead4c9] bg-[#fffaf5] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Médico responsável</p>
+                    <p className="mt-1 break-words text-sm font-black text-hpsr-text">{doctorName || "—"}</p>
+                  </div>
+                  <div className="min-w-0 rounded-[12px] border border-[#ead4c9] bg-[#fffaf5] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Modalidade</p>
+                    <p className="mt-1 text-sm font-black text-hpsr-text">{isInVitro ? "Planejamento in vitro" : "Planejamento gestacional"}</p>
+                  </div>
+                  <div className="min-w-0 rounded-[12px] border border-[#ead4c9] bg-[#fffaf5] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Data inicial</p>
+                    <p className="mt-1 text-sm font-black tabular-nums text-hpsr-text">{formatDate(manualStartDate)}</p>
+                  </div>
+                  <div className="min-w-0 rounded-[12px] border border-[#ead4c9] bg-[#fffaf5] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{isInVitro ? "Entrega do resultado" : "Parto previsto"}</p>
+                    <p className="mt-1 text-sm font-black tabular-nums text-hpsr-text">{formatDate(manualEndDate)}</p>
+                    <p className="mt-1 text-[11px] text-hpsr-muted">Data independente; não impressa no PNG.</p>
+                  </div>
+                  <div className="min-w-0 rounded-[12px] border border-[#ead4c9] bg-[#fffaf5] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Etapas previstas</p>
+                    <p className="mt-1 text-sm font-black text-hpsr-text">{consultationPreview.length || "—"}</p>
+                    <p className="mt-1 text-[11px] text-hpsr-muted">{isInVitro ? "Quatro consultas e entrega do Beta-hCG" : "Oito consultas e previsão de parto"}</p>
+                  </div>
+                </div>
+                {planningNotes.trim() && (
+                  <div className="mt-2 rounded-[12px] border border-[#ead4c9] bg-[#fffaf5] p-3">
+                    <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Observações da médica</p>
+                    <p className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-hpsr-text">{planningNotes}</p>
+                  </div>
+                )}
+              </section>
               <img src={readyPreview.url} alt={`Prévia fiel do planejamento ${isInVitro ? "in vitro" : "gestacional"}`} className="mx-auto h-auto w-full max-w-[1000px] rounded-[10px] border border-[#dec5b2] bg-white shadow-sm" />
             </div>
             <footer className="shrink-0 border-t border-[#d7bba6] bg-[#f8ebdc] px-4 py-3 sm:px-6">
