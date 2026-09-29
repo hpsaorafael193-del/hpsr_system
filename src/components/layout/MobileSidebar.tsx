@@ -6,6 +6,7 @@ import { useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 import { adminNavigation, mainNavigation, toolsNavigation } from "@/data/navigation";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { canAccessObstetra } from "@/lib/obstetra-access";
 
 export function MobileSidebar({ onOpenSystemInfo, hasPendingAppointmentRequest = false }: { onOpenSystemInfo: () => void; hasPendingAppointmentRequest?: boolean }) {
   const { profile: currentUserProfile } = useCurrentUserProfile();
@@ -14,7 +15,10 @@ export function MobileSidebar({ onOpenSystemInfo, hasPendingAppointmentRequest =
     currentUserProfile.systemRole === "Administrador do Sistema" ||
     ["Diretora", "Vice Diretor"].includes(currentUserProfile.role);
   const visibleAdminNavigation = canSeeTeamAdmin ? adminNavigation : [];
-  const visibleToolsNavigation = toolsNavigation.filter((item) => canSeeNavigationItem(item, currentUserProfile.role));
+  const visibleToolsNavigation = toolsNavigation.filter((item) =>
+    canSeeNavigationItem(item, currentUserProfile.role) &&
+    (item.href !== "/dashboard/obstetra" || canAccessObstetra(currentUserProfile.role, currentUserProfile.specialty))
+  );
   const groups = [
     { title: "Principal", items: mainNavigation },
     { title: "Ferramentas", items: visibleToolsNavigation },

@@ -153,6 +153,7 @@ const roleDescriptions = [
   { title: "Vice Diretor", description: "Gestão operacional ampla, procedimentos, convênios, equipe e prontuários. Pode remover membros, mas não promover nem ajustar permissões.", group: "Direção" },
   { title: "Diretor Clínico", description: "Monitoramento do histórico assistencial da equipe para revisão de exames, documentos, convênios, consultas e procedimentos, com finalidade de orientação clínica.", group: "Direção" },
   { title: "Médico Cirurgião", description: "Atendimento e condutas cirúrgicas conforme liberação e protocolo do hospital.", group: "Corpo Médico" },
+  { title: "Médico Plantonista", description: "Atendimentos, exames, documentos e agenda clínica nas especialidades atribuídas, sem acesso administrativo a convênios.", group: "Corpo Médico" },
   { title: "Médico Especialista", description: "Atendimento por especialidade, prontuários e acompanhamentos vinculados à área.", group: "Corpo Médico" },
   { title: "Médico Clínico", description: "Atendimento clínico geral, consultas, retornos e registros médicos.", group: "Corpo Médico" },
   { title: "Residente", description: "Atuação supervisionada, com acesso reduzido e acompanhamento de médico responsável.", group: "Formação" },
@@ -169,10 +170,11 @@ const roleHierarchy: Record<string, number> = {
   "Vice Diretor": 2,
   "Diretor Clínico": 3,
   "Médico Cirurgião": 4,
-  "Médico Especialista": 5,
-  "Médico Clínico": 6,
-  "Residente": 7,
-  "Estagiário de Enfermagem": 8,
+  "Médico Plantonista": 5,
+  "Médico Especialista": 6,
+  "Médico Clínico": 7,
+  "Residente": 8,
+  "Estagiário de Enfermagem": 9,
 };
 
 
@@ -244,7 +246,7 @@ function getContractInfo(member: TeamMember) {
     };
   }
 
-  if (["Residente", "Médico Clínico", "Médico Especialista", "Médico Cirurgião"].includes(member.hospitalRole)) {
+  if (["Residente", "Médico Clínico", "Médico Especialista", "Médico Plantonista", "Médico Cirurgião"].includes(member.hospitalRole)) {
     const limit = 15;
     const remaining = limit - workedDays;
 
@@ -658,7 +660,8 @@ export default function TeamPage() {
     else if (action.includes("Promover") || action.toLowerCase().includes("clínico")) {
       if (member.hospitalRole === "Estagiário de Enfermagem") hospitalRole = "Residente";
       else if (member.hospitalRole === "Residente") hospitalRole = "Médico Clínico";
-      else hospitalRole = "Médico Especialista";
+      else if (member.hospitalRole === "Médico Clínico") hospitalRole = "Médico Especialista";
+      else if (member.hospitalRole === "Médico Especialista") hospitalRole = "Médico Plantonista";
     }
 
     if (hospitalRole === member.hospitalRole) return;
@@ -693,7 +696,15 @@ export default function TeamPage() {
 
   function handleAdministrativeAction(member: TeamMember, action: string) {
     if (!["Editar cargo", "Promover", "Ajustar permissões", "Registrar conduta", "Aplicar advertência", "Desligar"].includes(action)) return;
-    const suggested = member.hospitalRole === "Estagiário de Enfermagem" ? "Residente" : member.hospitalRole === "Residente" ? "Médico Clínico" : "Médico Especialista";
+    const suggested = member.hospitalRole === "Estagiário de Enfermagem"
+      ? "Residente"
+      : member.hospitalRole === "Residente"
+        ? "Médico Clínico"
+        : member.hospitalRole === "Médico Clínico"
+          ? "Médico Especialista"
+          : member.hospitalRole === "Médico Especialista"
+            ? "Médico Plantonista"
+            : member.hospitalRole;
     const initialValue = action === "Promover" ? suggested : action === "Editar cargo" ? member.hospitalRole : action === "Ajustar permissões" ? member.permissions.join("; ") : "";
     setPendingAdministrativeAction({ member, action: action as PendingAdministrativeAction["action"], value: initialValue });
   }
@@ -2615,7 +2626,7 @@ function ManageMemberModal({
 function getAccessLevel(hospitalRole: string, systemRole?: string): TeamMember["accessLevel"] {
   if (systemRole?.includes("Dev")) return "Total";
   if (hospitalRole === "Diretora" || hospitalRole === "Vice Diretor") return "Direção";
-  if (hospitalRole === "Diretor Clínico") return "Clínico avançado";
+  if (hospitalRole === "Diretor Clínico" || hospitalRole === "Médico Plantonista") return "Clínico avançado";
   if (hospitalRole.includes("Médico")) return "Clínico";
   if (hospitalRole === "Residente") return "Supervisionado";
   return "Restrito";
@@ -2637,6 +2648,9 @@ function getDefaultPermissions(hospitalRole: string, systemRole?: string) {
   }
   if (hospitalRole === "Diretor Clínico") {
     return ["Histórico assistencial", "Indicadores de produção clínica", "Revisão de exames e documentos", "Orientação da equipe médica"];
+  }
+  if (hospitalRole === "Médico Plantonista") {
+    return ["Atendimento clínico", "Prontuários", "Exames", "Documentos", "Consultas", "Agendamentos por especialidade"];
   }
   if (hospitalRole.includes("Médico")) return ["Atendimento clínico", "Prontuários", "Prescrições", "Consultas"];
   if (hospitalRole === "Residente") return ["Atendimento supervisionado", "Visualização clínica limitada"];

@@ -13,6 +13,8 @@ import { StyledSelect } from "@/components/ui/StyledSelect";
 import { addPlanningDays, calculatePlanningSteps, validatePlanningSteps, type PlanningStep } from "@/lib/obstetric-planning";
 import { obstetricDraftKey, parseObstetricDraft, type ObstetricPlanningDraft } from "@/lib/obstetric-planning-draft";
 import { renderOfficialPlanning } from "@/lib/obstetric-document";
+import { canAccessObstetra } from "@/lib/obstetra-access";
+import Link from "next/link";
 
 const inputClass = "h-11 w-full rounded-[14px] border border-hpsr-border bg-white px-3.5 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wine";
 
@@ -52,7 +54,27 @@ function Field({ label, children, hint }: { label: string; children: React.React
   );
 }
 
+// A área interna só é montada após conferir o perfil; usuários sem acesso
+// não iniciam a carga de pacientes, histórico, documentos ou rascunhos.
 export default function ObstetricianPage() {
+  const { profile, loading } = useCurrentUserProfile();
+  if (loading) return <div className="hpsr-page p-5 text-sm text-hpsr-muted">Verificando acesso à especialidade...</div>;
+  if (!canAccessObstetra(profile.role, profile.specialty)) {
+    return (
+      <div className="hpsr-page gap-3">
+        <PageHeader eyebrow="Especialidade médica" title="Obstetra" description="Acesso restrito a Obstetrícia e Ginecologia." />
+        <section className="rounded-[18px] border border-[#dcb6bd] bg-[#fff8f4] p-5">
+          <p className="font-bold text-hpsr-text">Acesso restrito à especialidade.</p>
+          <p className="mt-2 text-sm text-hpsr-muted">Somente profissionais médicos com Obstetrícia ou Ginecologia no perfil e membros da Direção podem acessar esta aba.</p>
+          <Link href="/dashboard" className="mt-4 inline-flex rounded-[12px] bg-hpsr-wine px-4 py-2 text-sm font-bold text-white">Voltar ao painel</Link>
+        </section>
+      </div>
+    );
+  }
+  return <ObstetricianWorkspace />;
+}
+
+function ObstetricianWorkspace() {
   const { patients, selectedPassport, selectedPatient, selectPatient, loading } = usePatientSelection();
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const [manualStartDate, setManualStartDate] = useState("");

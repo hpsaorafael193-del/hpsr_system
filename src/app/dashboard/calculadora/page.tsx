@@ -109,7 +109,7 @@ const procedimentos: Product[] = [
     id: "p0",
     nome: "TRATAMENTO",
     descricao: "Tratamento médico.",
-    preco: 200000,
+    preco: 150000,
     imagem: "Icones/procedimentos/Tratamento.webp",
   },
   {
@@ -144,7 +144,7 @@ const procedimentos: Product[] = [
     id: "p4",
     nome: "EXAMES",
     descricao: "Exames clínicos e laboratoriais.",
-    preco: 300000,
+    preco: 350000,
     imagem: "Icones/procedimentos/Exames_basicos.webp",
   },
   {

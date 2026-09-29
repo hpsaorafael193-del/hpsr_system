@@ -116,13 +116,13 @@ export function UserMenu() {
       const combined: MedicalNotification[] = [];
       const userId = String(currentUserProfile.id);
 
-      if (canUseMedicalNotifications) {
+      if (canUseMedicalNotifications || canUseDirectorNotifications) {
         const { data: inboxRows, error: inboxError } = await client.rpc("hpsr_my_clinical_request_board", { p_limit: 400 });
         if (inboxError) throw inboxError;
 
-        // O sino anuncia apenas pedidos que o próprio profissional pode assumir;
-        // a Direção acompanha os demais na Central de Agendamentos.
-        const mapped = (inboxRows || []).filter((row: any) => row.own_specialty === true && row.can_claim === true).map((row: any): MedicalNotification => {
+        // O sino anuncia todos os pedidos que o profissional pode assumir,
+        // inclusive outras especialidades quando o perfil é da Direção.
+        const mapped = (inboxRows || []).filter((row: any) => row.can_claim === true).map((row: any): MedicalNotification => {
           const payload = (row.payload || {}) as Record<string, unknown>;
           const readBy = Array.isArray(payload.notificationReadBy) ? payload.notificationReadBy.map(String) : [];
           const flowType = String(payload.flowType || "Consulta comum");
@@ -200,7 +200,7 @@ export function UserMenu() {
       }, 900);
     };
     let channel = client.channel(`user-notifications-${currentUserProfile.id}`);
-    if (canUseMedicalNotifications) {
+    if (canUseMedicalNotifications || canUseDirectorNotifications) {
       channel = channel.on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, scheduleRefresh);
     }
     if (canUseDirectorNotifications) {

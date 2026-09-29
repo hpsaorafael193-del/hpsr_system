@@ -853,7 +853,7 @@ function RequestsCenterModal({
               <h2 className="mt-1.5 text-xl font-black tracking-tight text-hpsr-text sm:text-2xl">Solicitações</h2>
               <p className="mt-1 max-w-3xl text-xs font-semibold leading-relaxed text-hpsr-muted sm:text-sm">
                 {isDirection
-                  ? "Suas especialidades primeiro; as demais ficam disponíveis para acompanhamento. Aceites respeitam a elegibilidade clínica."
+                  ? "Suas especialidades primeiro. A Direção também pode aceitar solicitações de outras especialidades quando disponíveis."
                   : "Consultas e exames das suas especialidades, separados das solicitações que você já assumiu."}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -1059,7 +1059,7 @@ function UnifiedRequestsQueue({
   const segments = isDirection
     ? [
         { title: "Suas especialidades", description: "Solicitações relacionadas às especialidades do seu perfil.", items: requests.filter((item) => item.ownSpecialty) },
-        { title: "Demais especialidades", description: "Visão da Direção. Solicitações fora da sua atuação clínica permanecem apenas para acompanhamento.", items: requests.filter((item) => !item.ownSpecialty) },
+        { title: "Demais especialidades", description: "A Direção também pode aceitar solicitações elegíveis dessas especialidades; as demais ficam para acompanhamento.", items: requests.filter((item) => !item.ownSpecialty) },
       ]
     : [{ title: "Suas especialidades", description: "Solicitações das especialidades do seu perfil.", items: requests }];
 
@@ -1199,10 +1199,10 @@ function ClinicalRequestCard({
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 py-2.5 text-xs font-black text-white transition hover:bg-hpsr-wineDark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hpsr-wine/30">
             <CheckCircle2 size={15} />{isExam ? "Receber solicitação" : "Aceitar consulta"}
           </button>
-          <button type="button" onClick={() => onUpdateStatus(item, "Recusada")}
+          {item.ownSpecialty && <button type="button" onClick={() => onUpdateStatus(item, "Recusada")}
             className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[13px] border border-rose-200 bg-white px-4 py-2.5 text-xs font-black text-rose-700 transition hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200">
             <XCircle size={15} />Recusar
-          </button>
+          </button>}
         </div> : <p className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-bold text-amber-900">
           {item.availabilityReason || "Esta solicitação não está disponível para aceite no momento."}
         </p>}

@@ -154,8 +154,8 @@ const inputClass =
 
 const labelClass = "text-[11px] font-semibold uppercase tracking-[0.15em] text-hpsr-wineLight";
 
-const directorRoles = ["Diretora", "Vice Diretor", "Diretor Clínico"];
-const registerRoles = ["Diretora", "Vice Diretor", "Médico Cirurgião", "Médico Especialista", "Médico Clínico"];
+// Cadastro e alteração de convênios são exclusivos da Direção e da identidade do sistema.
+const insuranceAdminRoles = ["Diretora", "Vice Diretor", "Vice Diretor / Dev"];
 
 
 function normalizePassport(value: string) {
@@ -353,9 +353,10 @@ export default function InsurancePage() {
   const [plansLoadError, setPlansLoadError] = useState("");
   const [registerDraft, setRegisterDraft] = useState<RegisterDraft>(() => initialRegisterDraft());
 
-  const isSystemDeveloper = currentUserProfile.systemRole === "Administrador do Sistema";
-  const canRegisterPlan = isSystemDeveloper || registerRoles.includes(currentUserProfile.role);
-  const canManagePlans = isSystemDeveloper || directorRoles.includes(currentUserProfile.role);
+  const isSystemDeveloper = currentUserProfile.systemRole === "Administrador do Sistema"
+    && currentUserProfile.role === "Vice Diretor / Dev";
+  const canRegisterPlan = isSystemDeveloper || insuranceAdminRoles.includes(currentUserProfile.role);
+  const canManagePlans = canRegisterPlan;
 
   useEffect(() => {
     let cancelled = false;
@@ -419,6 +420,10 @@ export default function InsurancePage() {
   }, []);
 
   async function persistInsurancePlan(plan: Patient, registeredBy = currentUserProfile.systemName): Promise<boolean> {
+    if (!canManagePlans) {
+      await hpsrAlert("Somente a Diretora, Vice Diretores e a administração do sistema podem alterar convênios.", "Acesso restrito");
+      return false;
+    }
     const selectedPlan = plans.find((item) => item.name === plan.plan);
     const entryId = plan.financialEntryId || plan.id;
     const createdAt = plan.financialCreatedAt || brazilIso();
@@ -484,6 +489,7 @@ export default function InsurancePage() {
   }
 
   function handleOpenRegisterFromClosedPlan(plan: Patient) {
+    if (!canRegisterPlan) return;
     const selectedPlan = plans.find((item) => item.name === plan.plan)?.id ?? "combo";
 
     setRegisterDraft({
@@ -497,6 +503,10 @@ export default function InsurancePage() {
   }
 
   async function handleSavePlan(draft: RegisterDraft) {
+    if (!canRegisterPlan) {
+      await hpsrAlert("Seu perfil não tem permissão para cadastrar convênios.", "Acesso restrito");
+      return;
+    }
     const selectedPlan = plans.find((plan) => plan.id === draft.selectedPlan) ?? plans[1];
     const duplicatedPassports = [draft.passport, ...draft.dependents.map((dependent) => dependent.passport)]
       .filter(Boolean)
@@ -742,7 +752,7 @@ export default function InsurancePage() {
         </div>
         {!canManagePlans && (
           <p className="mt-2 text-xs font-medium text-hpsr-muted">
-            Gerenciamento de planos é restrito à Diretora, Vice Diretor e Desenvolvedor do Sistema. Seu cargo atual: {currentUserProfile.role}.
+            Cadastro e gerenciamento de planos são restritos à Diretora, Vice Diretores e administração do sistema. Seu cargo atual: {currentUserProfile.role}.
           </p>
         )}
       </section>
@@ -755,13 +765,13 @@ export default function InsurancePage() {
 
         <div className="mt-3 grid min-h-0 flex-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => (
-            <PlanCard key={plan.id} plan={plan} onSelect={() => canRegisterPlan && setModal({ mode: "register" })} />
+            <PlanCard key={plan.id} plan={plan} canRegister={canRegisterPlan} onSelect={() => canRegisterPlan && setModal({ mode: "register" })} />
           ))}
         </div>
       </section>
 
       <InsuranceModal
-        modal={modal}
+        modal={((modal?.mode === "register" && !canRegisterPlan) || (modal?.mode === "manage" && !canManagePlans)) ? null : modal}
         onClose={() => setModal(null)}
         registerDraft={registerDraft}
         setRegisterDraft={setRegisterDraft}
@@ -807,7 +817,7 @@ function InfoCard({
   );
 }
 
-function PlanCard({ plan, onSelect }: { plan: Plan; onSelect: () => void }) {
+function PlanCard({ plan, onSelect, canRegister }: { plan: Plan; onSelect: () => void; canRegister: boolean }) {
   const Icon = plan.icon;
 
   return (
@@ -838,7 +848,8 @@ function PlanCard({ plan, onSelect }: { plan: Plan; onSelect: () => void }) {
         <button
           type="button"
           onClick={onSelect}
-          className="mt-auto flex items-center justify-between rounded-[14px] bg-[linear-gradient(135deg,#74321e,#9b5f43_52%,#b18a6e)] px-3 py-2.5 text-white"
+          disabled={!canRegister}
+          className={`mt-auto flex items-center justify-between rounded-[14px] px-3 py-2.5 text-white ${canRegister ? "bg-[linear-gradient(135deg,#74321e,#9b5f43_52%,#b18a6e)]" : "cursor-not-allowed bg-[#a78e80]"}`}
         >
           <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">Valor</span>
           <span className="text-lg font-bold">{plan.price}</span>

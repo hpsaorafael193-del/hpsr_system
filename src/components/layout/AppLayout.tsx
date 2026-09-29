@@ -73,7 +73,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         console.warn("[HPSR] Não foi possível atualizar o indicador de solicitações.", error);
         return;
       }
-      setHasPendingAppointmentRequest(Array.isArray(data) && data.some((item: any) => item.own_specialty === true && item.can_claim === true));
+      setHasPendingAppointmentRequest(Array.isArray(data) && data.some((item: any) => item.can_claim === true));
     };
 
     const schedulePendingRefresh = () => {
