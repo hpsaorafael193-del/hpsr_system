@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
     const { data: access } = await supabase
       .from("patient_portal_access")
-      .select("patient_passport,email,access_enabled")
+      .select("user_id,patient_passport,email,access_enabled")
       .eq("id", session.portal_access_id)
       .maybeSingle();
     if (!access?.access_enabled) {
@@ -35,23 +35,40 @@ export async function GET(request: NextRequest) {
       await supabase.from("patient_portal_sessions").update({ last_seen_at: brazilIso() }).eq("id", session.id);
     }
     const passport = String(access.patient_passport || "");
-    const { data: patient } = await supabase.from("patient_registry").select("name").eq("passport", passport).maybeSingle();
-    const [{ data: accessiblePatients }, { data: pendingLinks }] = await Promise.all([
-      supabase.rpc("patient_portal_accessible_patients", { target_passport: passport }),
-      supabase
-        .from("patient_guardian_links")
-        .select("child_passport,relationship,access_status,patient_registry!patient_guardian_links_child_passport_fkey(name)")
-        .eq("guardian_passport", passport)
-        .eq("access_status", "pending")
-        .eq("portal_access", false),
+    const { data: patient } = passport
+      ? await supabase.from("patient_registry").select("name").eq("passport",passport).maybeSingle()
+      : {data:null};
+    const {data:guardianAccount} = !patient && access.user_id ? await supabase.from("patient_accounts")
+      .select("display_name").eq("user_id",access.user_id).maybeSingle() : {data:null};
+    const [{ data: legacyRows, error: legacyError }, {data: directRows,error:directError}] = await Promise.all([
+      passport ? supabase.rpc("patient_portal_accessible_patients", {target_passport:passport})
+        : Promise.resolve({data:[],error:null}),
+      access.user_id ? supabase.from("patient_guardian_links")
+        .select("child_passport,relationship,access_status,portal_access,patient_registry!patient_guardian_links_child_passport_fkey(name)")
+        .eq("guardian_user_id",access.user_id) : Promise.resolve({data:[],error:null}),
     ]);
-    const pendingChildLinks = (pendingLinks || []).map((link: any) => ({
-      passport: String(link.child_passport || ""),
-      name: String(link.patient_registry?.name || "Paciente infantil"),
-      relationship: String(link.relationship || "Responsável legal"),
-      status: "pending",
-    }));
-    const accessibleList = (accessiblePatients || []) as any[];
+    if(legacyError) throw legacyError;
+    if(directError) throw directError;
+    const accessibleList = [...((legacyRows || []) as any[])];
+    const seen = new Set(accessibleList.map(row=>String(row.passport)));
+    for(const link of (directRows || []) as any[]) {
+      if(link.access_status !== "authorized" || !link.portal_access || seen.has(link.child_passport)) continue;
+      accessibleList.push({passport:link.child_passport,name:link.patient_registry?.name || "Paciente infantil",
+        relationship:link.relationship,access_type:"guardian"});
+      seen.add(link.child_passport);
+    }
+    const pendingLegacy = passport ? await supabase.from("patient_guardian_links")
+      .select("child_passport,relationship,patient_registry!patient_guardian_links_child_passport_fkey(name)")
+      .eq("guardian_passport",passport).eq("access_status","pending").eq("portal_access",false)
+      : {data:[],error:null};
+    if (pendingLegacy.error) throw pendingLegacy.error;
+    const pendingMap = new Map<string,any>();
+    for(const link of [...(pendingLegacy.data || []),...(directRows || [])] as any[]) {
+      if("access_status" in link && link.access_status !== "pending") continue;
+      pendingMap.set(link.child_passport,{passport:link.child_passport,
+        name:link.patient_registry?.name || "Paciente infantil",relationship:link.relationship,status:"pending"});
+    }
+    const pendingChildLinks = [...pendingMap.values()];
     const accessiblePassports = accessibleList.map((item) => String(item.passport || "")).filter(Boolean);
     const { data: patientContacts } = accessiblePassports.length
       ? await supabase.from("patient_registry").select("passport,city_phone,discord").in("passport", accessiblePassports)
@@ -63,7 +80,7 @@ export async function GET(request: NextRequest) {
       return { ...item, hasClinicalContact: Boolean(contact.discord || contact.cityPhone), discord: contact.discord, cityPhone: contact.cityPhone, preferredContact: contact.discord ? "discord" : contact.cityPhone ? "city_phone" : null };
     });
     const passportHint = passport.length > 4 ? `${passport.slice(0, 2)}•••${passport.slice(-2)}` : "••••";
-    return NextResponse.json({ authenticated: true, expiresAt: session.expires_at, passportHint, patientName: patient?.name || "Paciente", accessiblePatients: accessibleWithContact, pendingChildLinks });
+    return NextResponse.json({ authenticated: true, accountId: access.user_id || passport, expiresAt: session.expires_at, passportHint, patientName: patient?.name || guardianAccount?.display_name || "Responsável", hasOwnProfile: Boolean(patient), accessiblePatients: accessibleWithContact, pendingChildLinks });
   } catch (error) {
     console.error("[patient-portal] session", error);
     return NextResponse.json({ authenticated: false });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Download, Loader2, Minus, Plus, RefreshCw, Search, ShieldCheck, Syringe, Trash2, UserRound } from "lucide-react";
+import { Check, Download, Eye, Loader2, Minus, Plus, RefreshCw, Search, ShieldCheck, Syringe, Trash2, UserRound } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
@@ -12,12 +12,10 @@ import { createClient } from "@/lib/supabase";
 import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 import {
   assignApplicationsToSlots,
-  commonVaccines,
-  doseOptions,
+  cardVaccineOptions,
+  findVaccinationSlot,
   generateVaccinationLot,
-  getPregnantDoseOptions,
   getVaccinationCardDefinition,
-  pregnantVaccines,
   suggestVaccinationGroup,
   type AdultCardVariant,
   type VaccinationApplication,
@@ -25,7 +23,7 @@ import {
   type VaccinationIdentityField,
 } from "@/lib/vaccination";
 
-const inputClass = "min-h-[44px] w-full rounded-[13px] border border-hpsr-border bg-white px-3 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wine/50 focus:ring-2 focus:ring-hpsr-wine/10";
+const inputClass = "hpsr-vaccination-input min-h-[44px] w-full rounded-[13px] border border-hpsr-border bg-[#fffcf8] px-3 text-sm font-semibold text-hpsr-text outline-none transition focus:border-[#83cfc1] focus:ring-2 focus:ring-[#83cfc1]/20";
 
 
 type DoctorOption = {
@@ -39,20 +37,6 @@ function formatDate(value: string) {
   if (!value) return "—";
   const [y, m, d] = value.split("-");
   return y && m && d ? `${d}/${m}/${y}` : value;
-}
-
-function ageFromBirthDate(value?: string) {
-  if (!value) return "";
-  const [birthYear, birthMonth, birthDay] = value.split("-").map(Number);
-  const [todayYear, todayMonth, todayDay] = brazilDate().split("-").map(Number);
-  if (!birthYear || !birthMonth || !birthDay || !todayYear || !todayMonth || !todayDay) return "";
-  let age = todayYear - birthYear;
-  if (todayMonth < birthMonth || (todayMonth === birthMonth && todayDay < birthDay)) age -= 1;
-  return age >= 0 ? String(age) : "";
-}
-
-function resolveRegisteredPatientGroup(patient: { age?: string; birthDate?: string }) {
-  return suggestVaccinationGroup(patient.age?.trim() || ageFromBirthDate(patient.birthDate));
 }
 
 function parseVaccineRow(row: any): VaccinationApplication | null {
@@ -76,6 +60,32 @@ function parseVaccineRow(row: any): VaccinationApplication | null {
     signatureImage: doctor.signatureImage || null,
     createdAt: String(row.created_at || ""),
     createdBy: String(row.created_by || ""),
+  slotId: String(vaccine.slotId || ""),
+  observations: String(payload.observations || ""),
+  };
+}
+
+type SavedVaccinationCard = {
+  id: string;
+  card_model: string;
+  observations: string;
+  published_path: string | null;
+  draft_path: string | null;
+  version: number;
+  updated_at: string;
+  payload: Record<string, any>;
+};
+
+function parseSavedCard(row: any): SavedVaccinationCard | null {
+  const payload = row?.payload || {};
+  if (!payload.cardModel) return null;
+  return {
+    id: String(row.id), card_model: String(payload.cardModel),
+    observations: String(payload.observations || ''),
+    published_path: payload.publishedPath || null,
+    draft_path: payload.draftPath || null,
+    version: Number(payload.version) || 1,
+    updated_at: String(row.updated_at || ''), payload,
   };
 }
 
@@ -87,7 +97,8 @@ type VaccinationCardRenderArgs = {
   patientName: string;
   passport: string;
   birthDate: string;
-  guardians: string;
+  doctorName: string;
+  observations: string;
   page: number;
 };
 
@@ -118,11 +129,12 @@ async function renderVaccinationCard({
   patientName,
   passport,
   birthDate,
-  guardians,
+  doctorName,
+  observations,
   page,
 }: VaccinationCardRenderArgs) {
   const definition = getVaccinationCardDefinition(group, adultVariant);
-  const pageApps = applications.slice(page * definition.slots.length, (page + 1) * definition.slots.length);
+  const pageApps = definition.official ? applications : applications.slice(page * definition.slots.length, (page + 1) * definition.slots.length);
   const assigned = assignApplicationsToSlots(pageApps, definition);
   const template = await loadCanvasImage(definition.template);
 
@@ -133,26 +145,6 @@ async function renderVaccinationCard({
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(template, 0, 0, canvas.width, canvas.height);
-  if (group === "crianca") {
-    // A caderneta infantil usa uma identidade mais viva e amigável.
-    // O template mantém toda a informação documental, enquanto o canvas acrescenta
-    // pequenos acentos de cor para reforçar a leitura sem poluir o cartão.
-    ctx.save();
-    const topGradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
-    topGradient.addColorStop(0, "rgba(34,211,238,.12)");
-    topGradient.addColorStop(.5, "rgba(168,85,247,.10)");
-    topGradient.addColorStop(1, "rgba(244,114,182,.11)");
-    ctx.fillStyle = topGradient;
-    ctx.fillRect(0, 0, canvas.width, Math.max(8, canvas.height * 0.024));
-    const bottomGradient = ctx.createLinearGradient(0, canvas.height, canvas.width, canvas.height);
-    bottomGradient.addColorStop(0, "rgba(34,197,94,.12)");
-    bottomGradient.addColorStop(.5, "rgba(250,204,21,.10)");
-    bottomGradient.addColorStop(1, "rgba(59,130,246,.12)");
-    ctx.fillStyle = bottomGradient;
-    ctx.fillRect(0, canvas.height - Math.max(8, canvas.height * 0.018), canvas.width, Math.max(8, canvas.height * 0.018));
-    ctx.restore();
-  }
-
   const brown = "#5a260f";
   const blue = "#1d58a7";
   const px = (percent: number, axis: "x" | "y") => percent / 100 * (axis === "x" ? canvas.width : canvas.height);
@@ -164,11 +156,11 @@ async function renderVaccinationCard({
     ctx.textBaseline = "top";
     ctx.fillStyle = color;
     while (size > minimumSize) {
-      ctx.font = `${weight} ${size}px Arial, sans-serif`;
+      ctx.font = `${weight} ${size}px ${definition.official ? "Georgia, serif" : "Arial, sans-serif"}`;
       if (ctx.measureText(content).width <= maxWidth) break;
       size -= 1;
     }
-    ctx.font = `${weight} ${size}px Arial, sans-serif`;
+    ctx.font = `${weight} ${size}px ${definition.official ? "Georgia, serif" : "Arial, sans-serif"}`;
     let rendered = content;
     if (ctx.measureText(rendered).width > maxWidth) {
       while (rendered.length > 1 && ctx.measureText(`${rendered}…`).width > maxWidth) rendered = rendered.slice(0, -1);
@@ -184,11 +176,11 @@ async function renderVaccinationCard({
     ctx.textBaseline = "middle";
     ctx.fillStyle = color;
     while (size > minimumSize) {
-      ctx.font = `${weight} ${size}px Arial, sans-serif`;
+      ctx.font = `${weight} ${size}px ${definition.official ? "Georgia, serif" : "Arial, sans-serif"}`;
       if (ctx.measureText(content).width <= maxWidth) break;
       size -= 1;
     }
-    ctx.font = `${weight} ${size}px Arial, sans-serif`;
+    ctx.font = `${weight} ${size}px ${definition.official ? "Georgia, serif" : "Arial, sans-serif"}`;
     let rendered = content;
     if (ctx.measureText(rendered).width > maxWidth) {
       while (rendered.length > 1 && ctx.measureText(`${rendered}…`).width > maxWidth) rendered = rendered.slice(0, -1);
@@ -211,11 +203,11 @@ async function renderVaccinationCard({
     ctx.textAlign = "left";
     ctx.fillStyle = color;
     while (size > minimum) {
-      ctx.font = `${weight} ${size}px Arial, sans-serif`;
+      ctx.font = `${weight} ${size}px ${definition.official ? "Georgia, serif" : "Arial, sans-serif"}`;
       if (ctx.measureText(content).width <= availableWidth) break;
       size -= 1;
     }
-    ctx.font = `${weight} ${size}px Arial, sans-serif`;
+    ctx.font = `${weight} ${size}px ${definition.official ? "Georgia, serif" : "Arial, sans-serif"}`;
     let rendered = content;
     if (ctx.measureText(rendered).width > availableWidth) {
       while (rendered.length > 1 && ctx.measureText(`${rendered}…`).width > availableWidth) rendered = rendered.slice(0, -1);
@@ -237,8 +229,8 @@ async function renderVaccinationCard({
 
   writeIdentityField(patientName, definition.identity.name);
   writeIdentityField(passport, definition.identity.passport);
+  if (definition.identity.doctor) writeIdentityField(doctorName, definition.identity.doctor);
   if (definition.identity.birthDate) writeIdentityField(formatDate(birthDate), definition.identity.birthDate);
-  if (definition.identity.guardians) writeIdentityField(guardians, definition.identity.guardians);
 
   const logo = await loadCanvasImage("/logo-hpsr.png").catch(() => null);
   for (const slot of definition.slots) {
@@ -248,6 +240,60 @@ async function renderVaccinationCard({
     const y = px(slot.top, "y");
     const w = px(slot.width, "x");
     const h = px(slot.height, "y");
+
+    // Carimbo retangular amplo, centralizado no espaço branco impresso.
+    // Coordenadas oficiais não dependem da ordem do histórico.
+    if (definition.official) {
+      // Aproveita quase toda a caixa impressa, com pequena margem de segurança.
+      const stampW = Math.max(1, w - Math.max(5, w * .05));
+      const stampH = Math.max(1, h - Math.max(4, h * .08));
+      const stampX = x + (w - stampW) / 2;
+      const stampY = y + (h - stampH) / 2;
+      ctx.save();
+      ctx.fillStyle = "rgba(239,246,251,.56)";
+      ctx.strokeStyle = "#285884";
+      ctx.lineWidth = Math.max(1, Math.min(2.4, stampH * .032));
+      ctx.beginPath();
+      ctx.roundRect(stampX + 1, stampY + 1, Math.max(1, stampW - 2), Math.max(1, stampH - 2), Math.min(6, stampH * .09));
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "#224c77";
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "center";
+      const centerX = stampX + stampW / 2;
+      const usableWidth = stampW * .92;
+      const compact = stampH < 65;
+      // Quatro linhas apenas: hospital, data, médico e CRM.
+      // Distribuição relativa mantém todas as letras dentro das caixas menores.
+      const stampRows = [
+        { label: "HOSPITAL SÃO RAFAEL", size: Math.min(16, Math.max(8, stampH * .18)), pos: .15 },
+        { label: formatDate(app.date), size: Math.min(24, Math.max(12, stampH * .28)), pos: .38 },
+        { label: app.doctorName, size: Math.min(19, Math.max(9, stampH * .21)), pos: .63 },
+        { label: `CRM ${app.doctorCrm}`, size: Math.min(17, Math.max(9, stampH * .19)), pos: .86 },
+      ];
+      // Mantém as letras proporcionais: nomes longos são ajustados/truncados,
+      // nunca comprimidos horizontalmente pelo parâmetro maxWidth do Canvas.
+      ctx.beginPath();
+      ctx.rect(stampX + 3, stampY + 2, Math.max(1, stampW - 6), Math.max(1, stampH - 4));
+      ctx.clip();
+      for (const row of stampRows) {
+        const smallest = compact ? 7 : 9;
+        let fontSize = row.size;
+        ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+        while (fontSize > smallest && ctx.measureText(row.label).width > usableWidth) {
+          fontSize = Math.max(smallest, fontSize - 1);
+          ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+        }
+        let label = row.label;
+        if (ctx.measureText(label).width > usableWidth) {
+          while (label.length > 1 && ctx.measureText(`${label}…`).width > usableWidth) label = label.slice(0, -1);
+          label += "…";
+        }
+        ctx.fillText(label, centerX, stampY + stampH * row.pos);
+      }
+      ctx.restore();
+      continue;
+    }
 
     if (group === "adulto" || group === "idoso") {
       const vx = x + w * .21;
@@ -329,6 +375,29 @@ async function renderVaccinationCard({
     }
     ctx.restore();
   }
+  if (definition.notes && observations.trim()) {
+    const notes = definition.notes;
+    const words = observations.replace(/\s+/g, " ").trim().split(" ");
+    ctx.save();
+    ctx.fillStyle = brown;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.font = `500 ${notes.fontSize}px Georgia, serif`;
+    const lines: string[] = [];
+    for (const word of words) {
+      const current = lines[lines.length - 1] || "";
+      if (current && ctx.measureText(`${current} ${word}`).width <= notes.width) lines[lines.length - 1] = `${current} ${word}`;
+      else if (lines.length < notes.maxLines) lines.push(word);
+      else {
+        let last = lines[lines.length - 1];
+        while (last && ctx.measureText(`${last}…`).width > notes.width) last = last.slice(0, -1);
+        lines[lines.length - 1] = `${last}…`;
+        break;
+      }
+    }
+    lines.forEach((line, index) => ctx.fillText(line, notes.x, notes.y + index * notes.lineHeight, notes.width));
+    ctx.restore();
+  }
 }
 
 function getPreviewMetrics(
@@ -361,7 +430,8 @@ function CardPreview({
   patientName,
   passport,
   birthDate,
-  guardians,
+  doctorName,
+  observations,
   page,
   zoom,
   viewport,
@@ -372,7 +442,8 @@ function CardPreview({
   patientName: string;
   passport: string;
   birthDate: string;
-  guardians: string;
+  doctorName: string;
+  observations: string;
   page: number;
   zoom: number;
   viewport?: { width: number; height: number };
@@ -386,7 +457,7 @@ function CardPreview({
     if (!canvas) return;
     const renderVersion = ++renderVersionRef.current;
     const offscreen = document.createElement("canvas");
-    void renderVaccinationCard({ canvas: offscreen, group, adultVariant, applications, patientName, passport, birthDate, guardians, page })
+    void renderVaccinationCard({ canvas: offscreen, group, adultVariant, applications, patientName, passport, birthDate, doctorName, observations, page })
       .then(() => {
         if (renderVersionRef.current !== renderVersion) return;
         canvas.width = offscreen.width;
@@ -399,7 +470,7 @@ function CardPreview({
       .catch(() => {
         // A falha de prévia não deve quebrar a página; o export mantém tratamento próprio.
       });
-  }, [group, adultVariant, applications, patientName, passport, birthDate, guardians, page]);
+  }, [group, adultVariant, applications, patientName, passport, birthDate, doctorName, observations, page]);
 
   return (
     <canvas
@@ -427,13 +498,17 @@ export default function VaccinationPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [birthDate, setBirthDate] = useState("");
-  const [guardians, setGuardians] = useState("");
   const [page, setPage] = useState(0);
   const [previewZoom, setPreviewZoom] = useState(100);
   const previewViewportRef = useRef<HTMLDivElement>(null);
   const [previewViewport, setPreviewViewport] = useState({ width: 0, height: 0 });
   const [availableDoctors, setAvailableDoctors] = useState<DoctorOption[]>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
+  const [observations, setObservations] = useState("");
+  const [cardRecords, setCardRecords] = useState<SavedVaccinationCard[]>([]);
+  const upsertLocalCard = (card: SavedVaccinationCard) => setCardRecords((current) => [card, ...current.filter((item) => item.id !== card.id)]);
+  const [publishing, setPublishing] = useState(false);
+  const [previewExpanded, setPreviewExpanded] = useState(false);
 
   useEffect(() => {
     if (!selectedPatient) return;
@@ -447,29 +522,17 @@ export default function VaccinationPage() {
   }, [group]);
 
   useEffect(() => {
-    if (group !== "gestante") return;
-    const firstVaccine = pregnantVaccines[0];
-    const configured = pregnantVaccines.find((item) => item.name === vaccine);
-    if (!configured) {
-      setVaccine(firstVaccine.name);
-      setDose(firstVaccine.doses[0]);
-      return;
-    }
-    if (!(configured.doses as readonly string[]).includes(dose)) setDose(configured.doses[0]);
-  }, [group, vaccine, dose]);
-
-  useEffect(() => {
     const currentDoctor: DoctorOption = {
       id: profile.id || "current-user",
       name: profile.characterName || profile.signatureName || "Médico",
       crm: profile.crm || "—",
       signatureImage: profile.signatureImage || null,
     };
-    setSelectedDoctorId((current) => current || currentDoctor.id);
+    setSelectedDoctorId((current) => !current || current === "current-user" ? currentDoctor.id : current);
     const client = createClient();
     if (!client) { setAvailableDoctors([currentDoctor]); return; }
-    void client.from("profiles").select("id,name,crm,signature_path").eq("access_status", "Aprovado").order("name").then(({ data }) => {
-      const options: DoctorOption[] = (data || []).map((row: any) => {
+    void client.from("profiles").select("id,name,crm,signature_path,role").eq("access_status", "Aprovado").order("name").then(({ data }) => {
+      const options: DoctorOption[] = (data || []).filter((row: any) => /médic|medic|cirurg|diretor|diretora/i.test(String(row.role || ""))).map((row: any) => {
         const signaturePath = String(row.signature_path || "").trim();
         let signatureImage: string | null = signaturePath || null;
         if (signaturePath && !signaturePath.startsWith("data:") && !/^https?:\/\//i.test(signaturePath)) {
@@ -513,8 +576,9 @@ export default function VaccinationPage() {
       selectPatient(null);
       setPatientPassport("");
       setBirthDate("");
-      setGuardians("");
       setHistory([]);
+      setCardRecords([]);
+      setObservations("");
     }
   }
 
@@ -530,8 +594,9 @@ export default function VaccinationPage() {
     if (selectedPatient && normalized !== selectedPatient.passport) {
       selectPatient(null);
       setBirthDate("");
-      setGuardians("");
       setHistory([]);
+      setCardRecords([]);
+      setObservations("");
     }
   }
 
@@ -540,50 +605,80 @@ export default function VaccinationPage() {
     const client = createClient();
     if (!client) return;
     setLoading(true);
-    const [recordsResult, registryResult, guardianResult] = await Promise.all([
+    try {
+    const [recordsResult, registryResult, cardsResult] = await Promise.all([
       client.from("clinical_records").select("id,patient_passport,payload,created_at,created_by").eq("patient_passport", passport).eq("record_type", "Vacina").order("created_at", { ascending: true }),
       client.from("patient_registry").select("age,birth_date,sex").eq("passport", passport).maybeSingle(),
-      client.from("patient_guardian_links").select("guardian_passport,relationship").eq("child_passport", passport).eq("access_status", "authorized"),
+      client.from("clinical_records").select("id,payload,updated_at").eq("patient_passport", passport).eq("record_type", "CadernetaVacinal").order("updated_at", { ascending: false }),
     ]);
     if (recordsResult.error) await hpsrAlert(recordsResult.error.message, "Não foi possível carregar o histórico vacinal");
     const parsedHistory = (recordsResult.data || []).map(parseVaccineRow).filter(Boolean) as VaccinationApplication[];
     setHistory(parsedHistory);
+    if (cardsResult.error) throw new Error(`Falha ao consultar a caderneta: ${cardsResult.error.message}`);
+    const savedCards = (cardsResult.data || []).map(parseSavedCard).filter(Boolean) as SavedVaccinationCard[];
+    const existingCard = savedCards[0] || null;
+    setCardRecords(savedCards);
+    setObservations(existingCard?.observations || "");
     const registryPatient = registryResult.data as any;
     const registryBirthDate = String(registryPatient?.birth_date || "");
     setBirthDate(registryBirthDate);
 
-    // A caderneta exibida segue a última aplicação real do paciente.
-    // Sem histórico vacinal, usa apenas o fallback neutro definido para a tela.
+    // A escolha persistida na caderneta prevalece sobre o último atendimento.
     const latestApplication = parsedHistory.length ? parsedHistory[parsedHistory.length - 1] : null;
-    if (latestApplication) {
+    if (existingCard) {
+      if (existingCard.card_model.startsWith("adulto-")) {
+        setGroup("adulto");
+        setAdultVariant(existingCard.card_model === "adulto-feminino" ? "feminino" : "masculino");
+      } else setGroup(existingCard.card_model as VaccinationGroup);
+    } else if (latestApplication) {
       setGroup(latestApplication.group);
-      if (latestApplication.group === "adulto") {
-        setAdultVariant(latestApplication.adultVariant || "masculino");
-      }
+      if (latestApplication.group === "adulto") setAdultVariant(latestApplication.adultVariant || "masculino");
     } else {
-      setGroup("adulto");
-      setAdultVariant("masculino");
+      const inferredBirthYear = Number(registryBirthDate.slice(0, 4));
+      const birthMonth = Number(registryBirthDate.slice(5, 7));
+      const currentDate = brazilDate();
+      const ageFromDate = inferredBirthYear ? Number(currentDate.slice(0, 4)) - inferredBirthYear
+        - (Number(currentDate.slice(5, 7)) < birthMonth || (Number(currentDate.slice(5, 7)) === birthMonth && currentDate.slice(8, 10) < registryBirthDate.slice(8, 10)) ? 1 : 0) : NaN;
+      const registeredAge = String(registryPatient?.age || (Number.isFinite(ageFromDate) ? ageFromDate : ""));
+      setGroup(registeredAge ? suggestVaccinationGroup(registeredAge) : "adulto");
+      setAdultVariant(/^(f|feminino|mulher)$/i.test(String(registryPatient?.sex || "").trim()) ? "feminino" : "masculino");
     }
-    const linked = (guardianResult.data || []) as any[];
-    if (linked.length) {
-      const passports = linked.map((row) => String(row.guardian_passport || "")).filter(Boolean);
-      const { data: names } = await client.from("patient_registry").select("passport,name").in("passport", passports);
-      const map = new Map((names || []).map((row: any) => [String(row.passport), String(row.name || row.passport)]));
-      setGuardians(linked.map((row) => `${map.get(String(row.guardian_passport)) || row.guardian_passport} (${row.relationship})`).join(", "));
-    } else {
-      const latestManualGuardian = [...(recordsResult.data || [])].reverse().map((row: any) => String(row?.payload?.patient?.guardian || row?.payload?.guardianName || "").trim()).find(Boolean) || "";
-      setGuardians(latestManualGuardian);
-    }
-    setLoading(false);
+    } catch (error) {
+      await hpsrAlert(error instanceof Error ? error.message : "Falha de conexão ao consultar a vacinação.", "Histórico indisponível");
+    } finally { setLoading(false); }
   }
 
   useEffect(() => { void loadHistory(); }, [selectedPassport]);
 
-  const groupHistory = useMemo(() => history.filter((item) => item.group === group), [history, group]);
-  const pregnantDoseOptions = useMemo(() => getPregnantDoseOptions(vaccine), [vaccine]);
+  const groupHistory = useMemo(() => history.filter((item) => item.group === group && (
+    group !== "adulto" || !item.adultVariant || item.adultVariant === adultVariant
+  )), [history, group, adultVariant]);
   const def = getVaccinationCardDefinition(group, adultVariant);
-  const pageCount = Math.max(1, Math.ceil(groupHistory.length / def.slots.length));
-  useEffect(() => setPage(Math.max(0, pageCount - 1)), [group, selectedPassport, pageCount]);
+  const vaccineOptions = useMemo(() => cardVaccineOptions(group, adultVariant), [group, adultVariant]);
+  const activeAssignments = useMemo(() => assignApplicationsToSlots(groupHistory, def), [groupHistory, group, adultVariant]);
+  const selectedVaccine = vaccineOptions.find((option) => option.name === vaccine);
+  const modelKey = group === "adulto" ? `adulto-${adultVariant}` : group;
+  const displayedCard = cardRecords.find((card) => card.card_model === modelKey) || null;
+  const nextDose = (name: string) => {
+    const option = vaccineOptions.find((item) => item.name === name);
+    return option?.doses.find((candidate) => {
+      const slot = findVaccinationSlot(def, name, candidate);
+      return slot && !activeAssignments.has(slot.id);
+    }) || option?.doses[0] || "1ª dose";
+  };
+  useEffect(() => {
+    if (!vaccineOptions.some((option) => option.name === vaccine)) {
+      setVaccine(vaccineOptions[0]?.name || "");
+      return;
+    }
+    const slot = findVaccinationSlot(def, vaccine, dose);
+    const suggested = nextDose(vaccine);
+    if ((!selectedVaccine?.doses.includes(dose) || (slot && activeAssignments.has(slot.id))) && dose !== suggested) {
+      setDose(suggested);
+    }
+  }, [group, adultVariant, vaccine, dose, vaccineOptions, activeAssignments]);
+  const pageCount = group === "gestante" ? Math.max(1, Math.ceil(groupHistory.length / def.slots.length)) : 1;
+  useEffect(() => setPage(0), [group, adultVariant, selectedPassport]);
 
   useEffect(() => {
     const node = previewViewportRef.current;
@@ -607,6 +702,127 @@ export default function VaccinationPage() {
 
   const previewMetrics = getPreviewMetrics(group, adultVariant, previewZoom, previewViewport);
 
+  // A mesma tabela do prontuário armazena doses (Vacina) e documento (CadernetaVacinal).
+  // A caderneta tem liberação independente; editar o rascunho nunca publica dados novos.
+  async function saveCardMetadata(passport: string, doctor: DoctorOption) {
+    const client = createClient();
+    if (!client || !profile.id) throw new Error("É preciso acessar com um perfil médico autenticado.");
+    if (!patients.some((item) => item.passport === passport)) {
+      const saved = await upsertPatient({ name: patientName.trim(), passport,
+        age: "", bloodType: "", cityPhone: "", email: "" });
+      if (!saved) throw new Error("Não foi possível cadastrar o paciente antes de criar a caderneta.");
+    }
+    const now = brazilIso();
+    let previous = displayedCard;
+    if (!previous) {
+      // Outra sessão pode ter criado o documento; não inserir uma segunda caderneta.
+      const { data: existing, error } = await client.from("clinical_records")
+        .select("id,payload,updated_at").eq("record_type", "CadernetaVacinal")
+        .eq("patient_passport", passport).eq("payload->>cardModel", modelKey).maybeSingle();
+      if (error) throw new Error(error.message);
+      previous = parseSavedCard(existing);
+    }
+    const payload = {
+      ...(previous?.payload || {}),
+      title: `Caderneta de vacinação · ${modelKey}`,
+      cardModel: modelKey,
+      patient: { name: patientName.trim(), passport },
+      doctor: { id: doctor.id, name: doctor.name, crm: doctor.crm },
+      doctorName: doctor.name,
+      observations: observations.trim(),
+      version: previous ? previous.version + 1 : 1,
+    };
+    const request = previous
+      ? client.from("clinical_records").update({ payload, updated_at: now })
+        .eq("id", previous.id).eq("record_type", "CadernetaVacinal")
+        .eq("patient_passport", passport).eq("payload->>version", String(previous.version))
+        .select("id,payload,updated_at").maybeSingle()
+      : client.from("clinical_records").insert({ id: crypto.randomUUID(), patient_passport: passport,
+          record_type: "CadernetaVacinal", payload, created_by: profile.id,
+          is_confidential: true, released_at: null, created_at: now, updated_at: now })
+        .select("id,payload,updated_at").single();
+    const { data, error } = await request;
+    if (error || !data) throw new Error(error?.code === "23505" || (!error && !data)
+      ? "A caderneta foi atualizada em outra sessão. Recarregue o histórico e tente novamente."
+      : (error?.message || "Não foi possível salvar a caderneta."));
+    const card = parseSavedCard(data);
+    if (!card) throw new Error("Formato de caderneta inválido no prontuário.");
+    upsertLocalCard(card);
+    return card;
+  }
+
+  async function updateCardFields(card: SavedVaccinationCard, patch: Record<string, unknown>, published?: boolean) {
+    const client = createClient();
+    if (!client || !profile.id) throw new Error("Supabase indisponível.");
+    const now = brazilIso();
+    const payload = { ...card.payload, ...patch, version: card.version + 1 };
+    const update: Record<string, unknown> = { payload, updated_at: now };
+    if (published === true) Object.assign(update, { is_confidential: false, released_at: now, released_by: profile.id });
+    if (published === false) Object.assign(update, { is_confidential: true, released_at: null, released_by: null });
+    const { data, error } = await client.from("clinical_records").update(update)
+      .eq("id", card.id).eq("record_type", "CadernetaVacinal")
+      .eq("payload->>version", String(card.version))
+      .select("id,payload,updated_at").maybeSingle();
+    if (error || !data) throw new Error(error?.message || "Esta caderneta mudou em outra sessão. Recarregue o histórico e tente novamente.");
+    const saved = parseSavedCard(data);
+    if (!saved) throw new Error("Formato de caderneta inválido.");
+    upsertLocalCard(saved);
+    return saved;
+  }
+
+  async function storeCardImage(cardId: string, applications: VaccinationApplication[], purpose: "draft" | "publish", doctor: DoctorOption) {
+    const client = createClient();
+    if (!client) throw new Error("Supabase indisponível.");
+    const canvas = document.createElement("canvas");
+    await renderVaccinationCard({ canvas, group, adultVariant, applications, patientName: patientName.trim(),
+      passport: patientPassport.trim().toUpperCase(), birthDate, doctorName: doctor.name,
+      observations, page: 0 });
+    const image = await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Falha ao gerar a caderneta.")), "image/png"));
+    const path = `${cardId}/${purpose}-${crypto.randomUUID()}.png`;
+    const { error } = await client.storage.from("vaccination-cards").upload(path, image, { contentType: "image/png", upsert: false });
+    if (error) throw new Error(error.message);
+    return path;
+  }
+
+  async function updateObservations() {
+    if (!patientName.trim() || !patientPassport.trim() || !selectedDoctor) return void hpsrAlert("Informe nome, passaporte e médico.", "Caderneta incompleta");
+    setPublishing(true);
+    try {
+      const card = await saveCardMetadata(patientPassport.trim().toUpperCase(), selectedDoctor);
+      const path = await storeCardImage(card.id, groupHistory, "draft", selectedDoctor);
+      await updateCardFields(card, { draftPath: path });
+      hpsrSuccess("Observações e caderneta atualizadas. A versão do paciente não foi alterada.", "Rascunho salvo");
+    } catch (error) {
+      await hpsrAlert(error instanceof Error ? error.message : "Falha ao salvar.", "Caderneta não atualizada");
+    } finally { setPublishing(false); }
+  }
+
+  async function publishCard() {
+    if (!patientPassport.trim() || !selectedDoctor || !groupHistory.length) return void hpsrAlert("Selecione um paciente com doses registradas.", "Caderneta incompleta");
+    const confirmed = await hpsrConfirm("Liberar a versão atual desta caderneta para visualização do paciente ou responsável autorizado?", "Liberar caderneta");
+    if (!confirmed) return;
+    setPublishing(true);
+    try {
+      const card = await saveCardMetadata(patientPassport.trim().toUpperCase(), selectedDoctor);
+      const path = await storeCardImage(card.id, groupHistory, "publish", selectedDoctor);
+      await updateCardFields(card, { publishedPath: path }, true);
+      hpsrSuccess("Caderneta liberada no Portal do Paciente.", "Liberação concluída");
+    } catch (error) {
+      await hpsrAlert(error instanceof Error ? error.message : "Não foi possível liberar a caderneta.", "Liberação não concluída");
+    } finally { setPublishing(false); }
+  }
+
+  async function revokeCard() {
+    if (!displayedCard?.published_path) return;
+    if (!await hpsrConfirm("Recolher a visualização desta caderneta no Portal do Paciente?", "Recolher caderneta")) return;
+    try {
+      await updateCardFields(displayedCard, { publishedPath: null }, false);
+      hpsrSuccess("A caderneta não está mais visível no Portal do Paciente.", "Caderneta recolhida");
+    } catch (error) {
+      await hpsrAlert(error instanceof Error ? error.message : "Não foi possível recolher.", "Não foi possível recolher");
+    }
+  }
+
   async function saveApplication() {
     const normalizedName = patientName.trim();
     const normalizedPassport = patientPassport.trim().toUpperCase();
@@ -615,19 +831,15 @@ export default function VaccinationPage() {
     if (!vaccine.trim() || !dose || !date) return void hpsrAlert("Informe vacina, dose e data da aplicação.", "Preenchimento incompleto");
     if (!selectedDoctor) return void hpsrAlert("Selecione o médico responsável pela aplicação.", "Médico obrigatório");
     if (!selectedDoctor.crm || selectedDoctor.crm === "—") return void hpsrAlert("O médico responsável precisa ter CRM cadastrado para gerar o carimbo.", "CRM obrigatório");
-    if (!selectedDoctor.signatureImage) return void hpsrAlert("O médico responsável precisa ter uma assinatura cadastrada para compor o carimbo.", "Assinatura obrigatória");
-    const duplicate = history.some((item) => item.vaccine.trim().toLowerCase() === vaccine.trim().toLowerCase() && item.dose === dose && item.date === date);
-    if (duplicate) return void hpsrAlert("Já existe uma aplicação desta vacina, nesta dose e nesta data para o paciente.", "Aplicação duplicada");
-    if (group === "gestante") {
-      const sameGestationalSlot = history.some((item) => item.group === "gestante" && item.vaccine.trim().toLowerCase() === vaccine.trim().toLowerCase() && item.dose === dose);
-      if (sameGestationalSlot) return void hpsrAlert("Este espaço da caderneta gestante já possui uma aplicação registrada.", "Dose já registrada");
-    }
+    const targetSlot = findVaccinationSlot(def, vaccine, dose);
+    if (!targetSlot) return void hpsrAlert("Escolha uma vacina e dose disponíveis no modelo selecionado.", "Espaço não encontrado");
+    if (activeAssignments.has(targetSlot.id)) return void hpsrAlert("Esta dose já está registrada nesta caderneta. Selecione a próxima dose disponível.", "Dose já registrada");
 
     const resolvedLot = lot.trim() || generateVaccinationLot();
     const client = createClient();
     if (!client) return;
     setSaving(true);
-
+    try {
     const registrySaved = await upsertPatient({
       name: normalizedName,
       passport: normalizedPassport,
@@ -648,21 +860,23 @@ export default function VaccinationPage() {
       }
     }
 
+    // Aplicação é o dado clínico principal. Um problema com o PNG não pode perder a dose.
     const id = crypto.randomUUID();
     const now = brazilIso();
     const payload = {
       title: `Vacinação · ${vaccine.trim()} · ${dose}`,
       summary: `${vaccine.trim()} · ${dose} · ${formatDate(date)}`,
-      patient: { name: normalizedName, passport: normalizedPassport, birthDate, guardian: group === "crianca" ? guardians.trim() : undefined },
+      patient: { name: normalizedName, passport: normalizedPassport, birthDate },
       patientName: normalizedName,
       patientPassport: normalizedPassport,
-      guardianName: group === "crianca" ? guardians.trim() : undefined,
-      vaccine: { name: vaccine.trim(), dose, date, lot: resolvedLot, group, adultVariant: group === "adulto" ? adultVariant : undefined },
+      vaccine: { name: vaccine.trim(), dose, date, lot: resolvedLot, slotId: targetSlot.id, group, adultVariant: group === "adulto" ? adultVariant : undefined },
+      vaccinationCardId: displayedCard?.id || null,
+      observations: observations.trim(),
       doctor: { name: selectedDoctor.name, crm: selectedDoctor.crm, signatureImage: selectedDoctor.signatureImage },
       doctorName: selectedDoctor.name,
       doctorCrm: selectedDoctor.crm,
       cardModel: group === "adulto" ? `adulto-${adultVariant}` : group,
-      releasedToPatient: true,
+      releasedToPatient: false,
     };
     const { error } = await client.from("clinical_records").insert({
       id,
@@ -670,17 +884,42 @@ export default function VaccinationPage() {
       record_type: "Vacina",
       payload,
       created_by: profile.id || null,
-      is_confidential: false,
-      released_at: now,
+      is_confidential: true,
+      released_at: null,
       created_at: now,
       updated_at: now,
     });
-    setSaving(false);
-    if (error) return void hpsrAlert(error.message, "Não foi possível registrar a vacina");
-    setVaccine(""); setLot(generateVaccinationLot());
+    if (error) {
+      setSaving(false);
+      return void hpsrAlert(error.code === "23505" ? "Esta dose já foi registrada para esta caderneta." : error.message, "Não foi possível registrar a vacina");
+    }
+    setLot(generateVaccinationLot());
     selectPatient(normalizedPassport);
+    const updatedApplications = [...groupHistory, {
+      id, patientPassport: normalizedPassport, patientName: normalizedName, group,
+      adultVariant, vaccine: vaccine.trim(), dose, date, lot: resolvedLot,
+      doctorName: selectedDoctor.name, doctorCrm: selectedDoctor.crm,
+      signatureImage: selectedDoctor.signatureImage, createdAt: now, createdBy: profile.id, slotId: targetSlot.id,
+    } as VaccinationApplication];
+    try {
+      const savedCard = await saveCardMetadata(normalizedPassport, selectedDoctor);
+      const path = await storeCardImage(savedCard.id, updatedApplications, "draft", selectedDoctor);
+      await updateCardFields(savedCard, { draftPath: path });
+    } catch (imageError) {
+      await hpsrAlert(`A dose foi salva no histórico. A caderneta continua disponível na prévia; para persistir o PNG, use “Criar / atualizar caderneta”: ${imageError instanceof Error ? imageError.message : "erro desconhecido"}`, "Dose registrada; PNG pendente");
+    }
+    const updatedAssigned = assignApplicationsToSlots(updatedApplications, def);
+    const available = vaccineOptions.find((option) => option.name === vaccine)?.doses.find((candidate) => {
+      const slot = findVaccinationSlot(def, vaccine, candidate);
+      return slot && !updatedAssigned.has(slot.id);
+    });
     await loadHistory(normalizedPassport);
-    hpsrSuccess(`${vaccine.trim()} (${dose}) foi registrada para ${normalizedName}.`, "Vacina registrada");
+    if (available) setDose(available);
+    setSaving(false);
+    hpsrSuccess(`${vaccine.trim()} (${dose}) foi registrada para ${normalizedName}. A liberação ao paciente é independente.`, "Vacina registrada");
+    } catch (unexpectedError) {
+      await hpsrAlert(unexpectedError instanceof Error ? unexpectedError.message : "Falha de conexão ao registrar a vacina.", "Registro não concluído");
+    } finally { setSaving(false); }
   }
 
   async function removeApplication(item: VaccinationApplication) {
@@ -708,7 +947,8 @@ export default function VaccinationPage() {
         patientName: normalizedName,
         passport: normalizedPassport,
         birthDate,
-        guardians,
+              doctorName: selectedDoctor?.name || "",
+        observations,
         page,
       });
       const anchor = document.createElement("a");
@@ -722,14 +962,15 @@ export default function VaccinationPage() {
   }
 
   return (
-    <div className="hpsr-page gap-3">
+    <div className="hpsr-page hpsr-vaccination-page gap-3" data-vaccine-group={group}>
       <PageHeader eyebrow="Vacinação" title="Vacinação" description="Registro de aplicações, histórico e caderneta automática por paciente." />
 
       <div className="grid items-stretch gap-3 2xl:grid-cols-[470px_minmax(0,1fr)]">
         <aside className="space-y-3 2xl:h-full">
-          <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-soft">
-            <div className="flex items-center gap-2"><Syringe size={18} className="text-hpsr-wine"/><h2 className="font-black text-hpsr-text">Registrar vacina</h2></div>
+          <section className="hpsr-vaccination-panel rounded-[18px] border border-[#d8c8b6] bg-[#f1e9df] p-4 shadow-soft">
+            <div className="hpsr-vaccination-section-title flex items-center gap-2"><Syringe size={18} className="text-hpsr-wine"/><h2 className="font-black text-hpsr-text">Registrar vacina</h2></div>
             <div className="mt-4 space-y-3">
+              <h3 className="hpsr-vaccination-field-heading">Paciente e modelo</h3>
               <div className="relative">
                 <label className="block text-xs font-black text-hpsr-muted">Paciente</label>
                 <div className="relative mt-1">
@@ -748,7 +989,7 @@ export default function VaccinationPage() {
                   )}
                 </div>
                 {patientPickerOpen && !patientsLoading && (
-                  <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-[15px] border border-hpsr-border bg-white shadow-[0_18px_45px_rgba(84,42,25,.16)]">
+                  <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden hpsr-vaccination-picker rounded-[15px] border border-hpsr-border bg-white shadow-[0_18px_45px_rgba(84,42,25,.16)]">
                     <div className="flex items-center justify-between gap-3 border-b border-hpsr-border/70 bg-[#fffaf5] px-3 py-2">
                       <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wine">Pacientes do prontuário</p>
                       <span className="rounded-full border border-hpsr-border bg-white px-2 py-0.5 text-[9px] font-black text-hpsr-muted">{filteredPatients.length}/{patients.length}</span>
@@ -762,7 +1003,8 @@ export default function VaccinationPage() {
                             type="button"
                             onMouseDown={(event) => event.preventDefault()}
                             onClick={() => choosePatient(patient)}
-                            className={`flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left transition ${active ? "bg-[#f7ebe3] text-hpsr-wine" : "text-hpsr-text hover:bg-[#fff8f3]"}`}
+                            data-vaccine-active={active}
+                            className={`hpsr-vaccination-patient-choice flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left transition ${active ? "bg-[#f7ebe3] text-hpsr-wine" : "text-hpsr-text hover:bg-[#fff8f3]"}`}
                           >
                             <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[11px] ${active ? "bg-hpsr-wine text-white" : "bg-[#f5eee7] text-hpsr-wine"}`}><UserRound size={16}/></span>
                             <span className="min-w-0 flex-1">
@@ -787,70 +1029,65 @@ export default function VaccinationPage() {
                 <label className="block text-xs font-black text-hpsr-muted">Passaporte
                   <input value={patientPassport} onChange={(e) => handlePassportEntry(e.target.value)} className={`${inputClass} mt-1`} placeholder="Digite o passaporte" />
                 </label>
-                {def.identity.birthDate && <label className="block text-xs font-black text-hpsr-muted">Data de nascimento
+                {(group === "crianca" || def.identity.birthDate) && <label className="block text-xs font-black text-hpsr-muted">Data de nascimento
                   <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} className={`${inputClass} mt-1`} />
                 </label>}
               </div>
-              <p className="rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-[10px] font-semibold leading-relaxed text-hpsr-muted">Se o passaporte ainda não existir no prontuário, o cadastro mínimo do paciente será criado automaticamente quando a vacina for registrada.</p>
+              <p className="hpsr-vaccination-tip rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-[10px] font-semibold leading-relaxed text-hpsr-muted">Se o passaporte ainda não existir no prontuário, o cadastro mínimo do paciente será criado automaticamente quando a vacina for registrada.</p>
               <div className={`grid gap-2 ${group === "adulto" ? "sm:grid-cols-2" : "grid-cols-1"}`}>
                 <label className="block text-xs font-black text-hpsr-muted">Grupo da caderneta
-                  <StyledSelect value={group} onChange={(e) => setGroup(e.target.value as VaccinationGroup)} className={`${inputClass} mt-1`}>
+                  <StyledSelect value={group} onChange={(e) => { const next = e.target.value as VaccinationGroup; setGroup(next); const nextKey = next === "adulto" ? `adulto-${adultVariant}` : next; setObservations(cardRecords.find((card) => card.card_model === nextKey)?.observations || ""); }} className={`${inputClass} mt-1`}>
                     <option value="adulto">Adulto</option><option value="crianca">Criança</option><option value="gestante">Gestante</option><option value="idoso">Idoso</option>
                   </StyledSelect>
                 </label>
                 {group === "adulto" && <label className="block text-xs font-black text-hpsr-muted">Modelo adulto
-                  <StyledSelect value={adultVariant} onChange={(e) => setAdultVariant(e.target.value as AdultCardVariant)} className={`${inputClass} mt-1`}><option value="masculino">Masculino</option><option value="feminino">Feminino</option></StyledSelect>
+                  <StyledSelect value={adultVariant} onChange={(e) => { const next = e.target.value as AdultCardVariant; setAdultVariant(next); setObservations(cardRecords.find((card) => card.card_model === `adulto-${next}`)?.observations || ""); }} className={`${inputClass} mt-1`}><option value="masculino">Masculino</option><option value="feminino">Feminino</option></StyledSelect>
                 </label>}
               </div>
-              {group === "crianca" && <label className="block text-xs font-black text-hpsr-muted">Responsável
-                <input value={guardians} onChange={(e) => setGuardians(e.target.value)} className={`${inputClass} mt-1`} placeholder="Digite o nome do responsável" />
-                <span className="mt-1 block text-[10px] font-semibold leading-relaxed text-hpsr-muted">Quando houver responsável autorizado no prontuário, o sistema preenche automaticamente. O nome pode ser ajustado ou digitado manualmente para esta caderneta.</span>
-              </label>}
+              <h3 className="hpsr-vaccination-field-heading">Aplicação</h3>
               <div className="grid gap-2 sm:grid-cols-2">
                 <label className="block text-xs font-black text-hpsr-muted">Vacina
-                  {group === "gestante" ? (
-                    <StyledSelect value={vaccine} onChange={(e) => { const next = e.target.value; setVaccine(next); const doses = getPregnantDoseOptions(next); if (doses.length) setDose(doses[0]); }} className={`${inputClass} mt-1`}>
-                      {pregnantVaccines.map((item) => <option key={item.name} value={item.name}>{item.name}</option>)}
-                    </StyledSelect>
-                  ) : (
-                    <>
-                      <input list="vaccines" value={vaccine} onChange={(e) => setVaccine(e.target.value)} className={`${inputClass} mt-1`} placeholder="Digite ou selecione" />
-                      <datalist id="vaccines">{commonVaccines.map((item) => <option key={item} value={item}/>)}</datalist>
-                    </>
-                  )}
+                  <StyledSelect value={vaccine} onChange={(e) => { setVaccine(e.target.value); setDose(nextDose(e.target.value)); }} className={`${inputClass} mt-1`}>
+                    {vaccineOptions.map((option) => <option key={option.name} value={option.name}>{option.name}</option>)}
+                  </StyledSelect>
                 </label>
                 <label className="block text-xs font-black text-hpsr-muted">Dose
                   <StyledSelect value={dose} onChange={(e) => setDose(e.target.value)} className={`${inputClass} mt-1`}>
-                    {(group === "gestante" ? pregnantDoseOptions : doseOptions).map((item) => <option key={item}>{item}</option>)}
+                    {(selectedVaccine?.doses || []).map((item) => {
+                      const slot = findVaccinationSlot(def, vaccine, item);
+                      const occupied = Boolean(slot && activeAssignments.has(slot.id));
+                      return <option key={item} value={item} disabled={occupied}>{item}{occupied ? " — já aplicada" : ""}</option>;
+                    })}
                   </StyledSelect>
-                  {group === "gestante" && <span className="mt-1 block text-[10px] font-semibold leading-relaxed text-hpsr-muted">A aplicação será posicionada automaticamente no espaço correspondente desta vacina e dose no modelo gestante.</span>}
+                  <span className="mt-1 block text-[10px] font-semibold leading-relaxed text-hpsr-muted">As doses já registradas ficam indisponíveis. O sistema sugere o próximo espaço livre da vacina.</span>
                 </label>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="block text-xs font-black text-hpsr-muted">Data<input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputClass} mt-1`} /></label>
-                <label className="block text-xs font-black text-hpsr-muted">Lote
-                  <div className="mt-1 flex gap-2">
-                    <input value={lot} readOnly className={`${inputClass} flex-1 bg-[#faf5ef] text-hpsr-text/90`} placeholder="Gerado automaticamente" />
-                    <button type="button" onClick={() => setLot(generateVaccinationLot())} className="inline-flex min-h-[44px] items-center justify-center rounded-[13px] border border-hpsr-border bg-[#fffaf4] px-3 text-hpsr-wine transition hover:border-hpsr-wine/35 hover:bg-white" title="Gerar outro lote" aria-label="Gerar outro lote"><RefreshCw size={15} /></button>
-                  </div>
-                  <span className="mt-1 block text-[10px] font-semibold leading-relaxed text-hpsr-muted">O lote é criado automaticamente pelo sistema e pode ser regenerado se você quiser outro código.</span>
-                </label>
+              <div className="grid items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <label className="block text-xs font-black text-hpsr-muted">Data da aplicação<input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputClass} mt-1`} /></label>
+                <p className="hpsr-vaccination-lot-notice flex min-h-[44px] items-center gap-2 rounded-[12px] border px-3 py-2 text-[11px] font-semibold leading-snug"><Check size={15} className="shrink-0"/>Lote gerado automaticamente e registrado no histórico.</p>
               </div>
-              <label className="block text-xs font-black text-hpsr-muted">Médico responsável
+              <label className="block text-xs font-black text-hpsr-muted">Médico responsável <span className="font-medium text-hpsr-muted">(perfil logado por padrão)</span>
                 <StyledSelect value={selectedDoctorId} onChange={(e) => setSelectedDoctorId(e.target.value)} className={`${inputClass} mt-1`}>
-                  {availableDoctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name} · CRM {doctor.crm}</option>)}
+                  {availableDoctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name}</option>)}
                 </StyledSelect>
               </label>
-              <div className="rounded-[14px] border border-blue-200 bg-blue-50 p-3 text-xs font-semibold text-blue-900"><ShieldCheck size={15} className="mb-1"/>O carimbo é gerado automaticamente com logo HP, assinatura, nome e CRM de <strong>{selectedDoctor?.name || "médico selecionado"}</strong>.</div>
-              <button type="button" onClick={() => void saveApplication()} disabled={saving || !patientName.trim() || !patientPassport.trim()} className="flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">{saving ? <Loader2 size={16} className="animate-spin"/> : <Syringe size={16}/>}Registrar e aplicar na caderneta</button>
+              <h3 className="hpsr-vaccination-field-heading">Documento e observações</h3>
+              <label className="block text-xs font-black text-hpsr-muted">Observações da caderneta
+                <textarea value={observations} onChange={(e) => setObservations(e.target.value.slice(0, 1200))} rows={3}
+                  placeholder="Anotações clínicas pertinentes (opcional)" className={`${inputClass} mt-1 min-h-[82px] resize-y py-2`} />
+                <span className="mt-1 block text-[10px] font-semibold text-hpsr-muted">Registradas somente por médico; aparecem no campo do modelo conforme o espaço disponível.</span>
+              </label>
+              <button type="button" onClick={() => void updateObservations()} disabled={publishing || saving || !patientPassport.trim()} className="hpsr-vaccination-outline-action w-full rounded-[12px] border px-3 py-2 text-xs font-black disabled:opacity-50">Criar / atualizar caderneta</button>
+              <div className="hpsr-vaccination-stamp-note flex items-start gap-2 rounded-[12px] border border-[#b7d9d3] bg-[#f3f2eb] p-3 text-xs font-semibold leading-relaxed text-[#42685f]"><ShieldCheck size={17} className="mt-0.5 shrink-0"/><span>O carimbo é preenchido automaticamente com os dados do perfil de <strong>{selectedDoctor?.name || "médico selecionado"}</strong> e aplicado no espaço correto da dose.</span></div>
+              <button type="button" onClick={() => void saveApplication()} disabled={saving || publishing || !patientName.trim() || !patientPassport.trim() || Boolean(findVaccinationSlot(def, vaccine, dose) && activeAssignments.has(findVaccinationSlot(def, vaccine, dose)!.id))} className="flex min-h-[46px] w-full items-center justify-center gap-2 hpsr-vaccination-primary-action rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">{saving ? <Loader2 size={16} className="animate-spin"/> : <Syringe size={16}/>}Registrar e aplicar na caderneta</button>
             </div>
           </section>
         </aside>
 
         <main className="min-w-0 space-y-3 2xl:flex 2xl:h-full 2xl:min-h-0 2xl:flex-col 2xl:space-y-0 2xl:gap-3">
-          <section className="rounded-[20px] border border-hpsr-border bg-white p-4 shadow-soft print:border-0 print:p-0 print:shadow-none 2xl:flex 2xl:min-h-0 2xl:flex-1 2xl:flex-col">
+          <section className="hpsr-vaccination-panel rounded-[20px] border border-[#d8c8b6] bg-[#f1e9df] p-4 shadow-soft print:border-0 print:p-0 print:shadow-none 2xl:flex 2xl:min-h-0 2xl:flex-1 2xl:flex-col">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 print:hidden">
-              <div><h2 className="font-black text-hpsr-text">Caderneta gerada</h2><p className="text-xs font-semibold text-hpsr-muted">O histórico é a fonte de verdade; a caderneta é montada automaticamente.</p></div>
+              <div className="hpsr-vaccination-section-title"><h2 className="font-black text-hpsr-text">Caderneta gerada</h2><p className="text-xs font-semibold text-hpsr-muted">O histórico é a fonte de verdade; a caderneta é montada automaticamente.</p></div>
               <div className="flex flex-wrap items-center gap-2">
                 {pageCount > 1 && <span className="text-xs font-black text-hpsr-muted">Página {page + 1}/{pageCount}</span>}
                 <div className="inline-flex items-center rounded-[12px] border border-hpsr-border bg-[#fffaf4] p-1" aria-label="Zoom da pré-visualização">
@@ -859,38 +1096,52 @@ export default function VaccinationPage() {
                   <button type="button" onClick={() => setPreviewZoom((value) => Math.min(140, value + 8))} className="grid h-7 w-7 place-items-center rounded-[8px] text-hpsr-wine hover:bg-white" title="Aumentar prévia"><Plus size={14}/></button>
                 </div>
                 <button onClick={() => void loadHistory()} className="rounded-[12px] border border-hpsr-border bg-white p-2 text-hpsr-wine"><RefreshCw size={16}/></button>
-                <button onClick={exportCard} disabled={!patientName.trim() || !patientPassport.trim()} className="inline-flex items-center gap-2 rounded-[12px] bg-hpsr-wine px-3 py-2 text-xs font-black text-white disabled:opacity-50"><Download size={15}/>Baixar PNG</button>
+                <button type="button" onClick={() => setPreviewExpanded(true)} className="hpsr-vaccination-outline-action inline-flex items-center gap-1.5 rounded-[12px] border px-3 py-2 text-xs font-black"><Eye size={15}/>Ampliar</button>
+                <button type="button" onClick={() => void publishCard()} disabled={publishing || saving || !groupHistory.length} className="hpsr-vaccination-outline-action inline-flex items-center gap-1.5 rounded-[12px] border px-3 py-2 text-xs font-black disabled:opacity-50"><ShieldCheck size={15}/>Liberar ao paciente</button>
+                {displayedCard?.published_path && <button type="button" onClick={() => void revokeCard()} disabled={publishing || saving} className="rounded-[12px] border border-[#dec6b8] bg-[#faf4ed] px-3 py-2 text-xs font-black text-[#7b4a37]">Recolher</button>}
+                <button onClick={exportCard} disabled={!patientName.trim() || !patientPassport.trim()} className="inline-flex items-center gap-2 hpsr-vaccination-primary-action rounded-[12px] bg-hpsr-wine px-3 py-2 text-xs font-black text-white disabled:opacity-50"><Download size={15}/>Baixar PNG</button>
               </div>
             </div>
+            <p className="mb-2 text-[11px] font-semibold text-hpsr-muted print:hidden">{displayedCard?.published_path ? "Há uma versão liberada no Portal do Paciente. Novas aplicações e observações ficam em rascunho até uma nova liberação." : "Caderneta interna: o paciente verá somente após liberação médica."}</p>
             <div className="flex min-h-0 flex-1 items-center justify-center">
               {patientName.trim() && patientPassport.trim() ? (
                 <div
                   ref={previewViewportRef}
-                  className={`w-full overflow-auto rounded-[17px] border border-hpsr-border/70 bg-gradient-to-b from-[#fbf8f4] to-[#f5eee7] p-3 ${group === "crianca" ? "h-[390px] 2xl:h-full" : "h-[340px] 2xl:h-full"}`}
+                  className={`w-full overflow-auto hpsr-vaccination-preview rounded-[17px] border border-hpsr-border/70 bg-gradient-to-b from-[#fbf8f4] to-[#f5eee7] p-3 ${group === "crianca" ? "h-[390px] 2xl:h-full" : "h-[340px] 2xl:h-full"}`}
                 >
                   <div className="grid min-h-full place-items-center justify-items-center">
-                    <CardPreview group={group} adultVariant={adultVariant} applications={groupHistory} patientName={patientName.trim()} passport={patientPassport.trim().toUpperCase()} birthDate={birthDate} guardians={guardians} page={page} zoom={previewZoom} viewport={previewViewport} />
+                    <CardPreview group={group} adultVariant={adultVariant} applications={groupHistory} patientName={patientName.trim()} passport={patientPassport.trim().toUpperCase()} birthDate={birthDate} doctorName={selectedDoctor?.name || ""} observations={observations} page={page} zoom={previewZoom} viewport={previewViewport} />
                   </div>
                 </div>
-              ) : <div ref={previewViewportRef} className={`grid w-full place-items-center rounded-[17px] border border-dashed border-hpsr-border bg-gradient-to-b from-[#fffaf5] to-[#f8f1ea] px-6 text-center text-sm font-bold text-hpsr-muted ${group === "crianca" ? "h-[390px] 2xl:h-full" : "h-[340px] 2xl:h-full"}`}>Informe nome e passaporte para gerar a caderneta.</div>}
+              ) : <div ref={previewViewportRef} className={`grid w-full place-items-center hpsr-vaccination-preview rounded-[17px] border border-dashed border-hpsr-border bg-gradient-to-b from-[#fffaf5] to-[#f8f1ea] px-6 text-center text-sm font-bold text-hpsr-muted ${group === "crianca" ? "h-[390px] 2xl:h-full" : "h-[340px] 2xl:h-full"}`}>Informe nome e passaporte para gerar a caderneta.</div>}
             </div>
             {pageCount > 1 && <div className="mt-3 flex justify-center gap-2 print:hidden"><button disabled={page===0} onClick={()=>setPage(p=>Math.max(0,p-1))} className="rounded-[10px] border border-hpsr-border px-3 py-2 text-xs font-black disabled:opacity-40">Anterior</button><button disabled={page>=pageCount-1} onClick={()=>setPage(p=>Math.min(pageCount-1,p+1))} className="rounded-[10px] border border-hpsr-border px-3 py-2 text-xs font-black disabled:opacity-40">Próxima</button></div>}
           </section>
 
-          <section className="flex h-[190px] flex-col rounded-[20px] border border-hpsr-border bg-white p-4 shadow-soft print:hidden 2xl:shrink-0">
+          <section className="hpsr-vaccination-panel flex h-[190px] flex-col rounded-[20px] border border-[#d8c8b6] bg-[#f1e9df] p-4 shadow-soft print:hidden 2xl:shrink-0">
             <div className="flex shrink-0 items-center justify-between gap-3">
-              <div><h2 className="font-black text-hpsr-text">Histórico de vacinação</h2><p className="mt-0.5 text-[10px] font-semibold text-hpsr-muted">Registros do paciente selecionado</p></div>
-              <span className="rounded-full border border-hpsr-border bg-[#fff8f3] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{history.length} {history.length === 1 ? "registro" : "registros"}</span>
+              <div className="hpsr-vaccination-section-title"><h2 className="font-black text-hpsr-text">Histórico de vacinação</h2><p className="mt-0.5 text-[10px] font-semibold text-hpsr-muted">Registros do paciente selecionado</p></div>
+              <span className="hpsr-vaccination-history-count rounded-full border border-hpsr-border bg-[#fff8f3] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{history.length} {history.length === 1 ? "registro" : "registros"}</span>
             </div>
             <div className="mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
               {loading ? <div className="grid place-items-center py-8"><Loader2 className="animate-spin text-hpsr-wine"/></div> : history.length ? history.slice().reverse().map((item) => {
-                const canDelete = !item.createdBy || item.createdBy === profile.id || profile.accessLevel === "Total";
-                return <article key={item.id} className="flex flex-col gap-2 rounded-[13px] border border-hpsr-border/80 bg-[#fffaf6] px-3 py-2.5 transition hover:border-hpsr-wine/20 hover:bg-white sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="truncate text-sm font-black text-hpsr-text">{item.vaccine} · {item.dose}</p><p className="mt-0.5 break-words text-[11px] font-semibold text-hpsr-muted">{formatDate(item.date)}{item.lot ? ` · Lote ${item.lot}` : ""} · {item.doctorName} · CRM {item.doctorCrm}</p></div>{canDelete && <button onClick={() => void removeApplication(item)} className="inline-flex shrink-0 items-center justify-center gap-1 rounded-[10px] border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11px] font-black text-rose-700 transition hover:bg-rose-100"><Trash2 size={13}/>Excluir</button>}</article>;
-              }) : <p className="rounded-[14px] border border-dashed border-hpsr-border p-4 text-center text-sm font-semibold text-hpsr-muted">Nenhuma vacina registrada para este paciente.</p>}
+                const canDelete = profile.accessLevel === "Total";
+                return <article key={item.id} className="flex flex-col gap-2 hpsr-vaccination-history-item rounded-[13px] border border-[#d8c4b0] bg-[#f3e7da] px-3 py-2.5 transition hover:border-hpsr-wine/20 hover:bg-[#f8efe5] sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="truncate text-sm font-black text-hpsr-text">{item.vaccine} · {item.dose}</p><p className="mt-0.5 break-words text-[11px] font-semibold text-hpsr-muted">{formatDate(item.date)}{item.lot ? ` · Lote ${item.lot}` : ""} · {item.doctorName} · CRM {item.doctorCrm}</p></div>{canDelete && <button onClick={() => void removeApplication(item)} className="inline-flex shrink-0 items-center justify-center gap-1 rounded-[10px] border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11px] font-black text-rose-700 transition hover:bg-rose-100"><Trash2 size={13}/>Excluir</button>}</article>;
+              }) : <p className="rounded-[14px] border border-dashed border-[#d6c0a9] bg-[#eee0d0] p-4 text-center text-sm font-semibold text-hpsr-muted">Nenhuma vacina registrada para este paciente.</p>}
             </div>
           </section>
         </main>
       </div>
+      {previewExpanded && (
+        <div className="hpsr-modal-tone fixed inset-0 z-[120] flex items-center justify-center bg-[#251a18]/80 p-3" role="dialog" aria-modal="true" aria-label="Caderneta ampliada" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewExpanded(false); }}>
+          <div className="flex max-h-[96dvh] w-full max-w-[1500px] flex-col rounded-[18px] border border-[#d7c7b5] bg-[#f2e9df] p-3 shadow-2xl">
+            <div className="mb-2 flex items-center justify-between"><h3 className="font-black text-hpsr-text">Caderneta de vacinação · Prévia ampliada</h3><button type="button" onClick={() => setPreviewExpanded(false)} className="rounded-[9px] border border-[#b6d9d1] bg-[#fffcf8] px-3 py-2 text-xs font-black text-[#42685f]">Fechar</button></div>
+            <div className="min-h-0 flex-1 overflow-auto rounded-[12px] bg-[#e9e0d6] p-3">
+              <CardPreview group={group} adultVariant={adultVariant} applications={groupHistory} patientName={patientName.trim()} passport={patientPassport.trim().toUpperCase()} birthDate={birthDate} doctorName={selectedDoctor?.name || ""} observations={observations} page={page} zoom={135} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

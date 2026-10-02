@@ -479,11 +479,11 @@ export default function MyPatientsPage() {
   }
 
   return (
-    <div className="hpsr-page hpsr-patients-page gap-3">
-      <PageHeader eyebrow="Agendamentos" title="Meus Pacientes" description="Carteira de vínculos médico-paciente organizada por especialidade." />
+    <div className="hpsr-page hpsr-schedule-page hpsr-patients-page gap-3">
+      <PageHeader schedule eyebrow="Agendamentos" title="Meus Pacientes" description="Carteira de vínculos médico-paciente organizada por especialidade." />
 
       <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-[0_12px_34px_rgba(74,38,24,0.06)]">
-        <div className="border-b border-hpsr-border bg-[linear-gradient(180deg,#fffdfb_0%,#fff9f5_100%)] px-3 py-3.5 sm:px-4">
+        <div className="hpsr-patient-schedule-header border-b border-[#a77864]/50 bg-[linear-gradient(110deg,#42201c,#64352d_65%,#744238)] px-3 py-3.5 sm:px-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="inline-flex w-full rounded-[13px] border border-[#eadbd5] bg-white p-1 sm:w-auto">
               <button
@@ -848,7 +848,7 @@ function PatientLinkCard({
 function HistoryLinkCard({ row, patient, doctor }: { row: HistoryRow; patient?: SharedPatient; doctor?: Doctor }) {
   const name = patient?.name || `Paciente ${row.patient_passport}`;
   return (
-    <article className="rounded-[15px] border border-hpsr-border bg-white px-4 py-3.5 shadow-[0_3px_12px_rgba(74,38,24,0.025)]">
+    <article className="rounded-[15px] border border-[#dac3ad] bg-[#f2e6d9] px-4 py-3.5 shadow-[0_3px_12px_rgba(74,38,24,0.025)]">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -917,7 +917,7 @@ function EndLinkModal({
   onConfirm: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[999] flex items-end justify-center bg-[#2a0700]/35 p-0 sm:items-center sm:p-4">
+    <div className="hpsr-modal-tone fixed inset-0 z-[999] flex items-end justify-center bg-[#2a0700]/35 p-0 sm:items-center sm:p-4">
       <div className="w-full max-w-lg overflow-hidden rounded-t-[24px] border border-hpsr-border bg-white shadow-2xl sm:rounded-[22px]">
         <div className="flex items-start justify-between gap-4 border-b border-hpsr-border px-5 py-4">
           <div className="flex min-w-0 items-start gap-3">
@@ -985,7 +985,7 @@ function LinkModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-end justify-center bg-[#2a0700]/35 p-0 sm:items-center sm:p-4">
+    <div className="hpsr-modal-tone fixed inset-0 z-[999] flex items-end justify-center bg-[#2a0700]/35 p-0 sm:items-center sm:p-4">
       <div className="w-full max-w-2xl overflow-hidden rounded-t-[24px] border border-hpsr-border bg-white shadow-2xl sm:rounded-[22px]">
         <div className="flex items-start justify-between gap-4 border-b border-hpsr-border px-5 py-4 sm:px-6">
           <div className="flex min-w-0 items-start gap-3">

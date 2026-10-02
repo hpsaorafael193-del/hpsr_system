@@ -586,7 +586,7 @@ function PatientQuickRegisterModal({
   onSave: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[#1f0805]/55 p-4">
+    <div className="hpsr-modal-tone fixed inset-0 z-[70] flex items-center justify-center bg-[#1f0805]/55 p-4">
       <div className="w-full max-w-[520px] overflow-hidden rounded-[22px] border border-[#d7bfa8] bg-[#fffaf4] shadow-[0_24px_70px_rgba(42,7,0,0.28)]">
         <div className="flex items-center justify-between gap-3 border-b border-[#e1cbb8] bg-white px-5 py-4">
           <div className="flex items-center gap-3">
@@ -678,7 +678,7 @@ function AppDialog({
         ? "border-amber-200 bg-amber-50 text-amber-700"
         : "border-[#e1cbb8] bg-[#fff8f2] text-hpsr-wine";
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#1f0805]/55 p-4">
+    <div className="hpsr-modal-tone fixed inset-0 z-[80] flex items-center justify-center bg-[#1f0805]/55 p-4">
       <div className="w-full max-w-[500px] overflow-hidden rounded-[22px] border border-[#d7bfa8] bg-[#fffaf4] shadow-[0_24px_70px_rgba(42,7,0,0.28)]">
         <div className="flex items-start justify-between gap-3 border-b border-[#e1cbb8] bg-white px-5 py-4">
           <div className="flex items-start gap-3">
@@ -3193,7 +3193,7 @@ export default function ExamesPage() {
       <ClinicalHistoryPanel recordType="Exame" comfortable />
 
       {preview.open && preview.document && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#1f0805]/60 p-4">
+        <div className="hpsr-modal-tone fixed inset-0 z-50 flex items-center justify-center bg-[#1f0805]/60 p-4">
           <div className="flex h-[min(94dvh,980px)] w-full max-w-[1180px] flex-col overflow-hidden rounded-[22px] border border-[#dfd4cc] bg-[#faf7f4] shadow-[0_24px_70px_rgba(42,7,0,0.26)]">
             <div className="flex items-center justify-between gap-3 border-b border-hpsr-border bg-white px-4 py-3">
               <div>

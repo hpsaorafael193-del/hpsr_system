@@ -278,11 +278,11 @@ export default function DirectionPage() {
     }
   }
 
-  return <div className="hpsr-page gap-3 lg:h-[calc(100dvh-2.4rem)] lg:min-h-0 lg:overflow-hidden">
+  return <div className="hpsr-page hpsr-warm-page hpsr-direction-page gap-3 lg:h-[calc(100dvh-2.4rem)] lg:min-h-0 lg:overflow-hidden">
     <PageHeader eyebrow="Administração" title="Relatórios" description="Acompanhe os principais indicadores por área, sem misturar todas as informações na mesma visão." />
 
-    <section className="!flex-none shrink-0 overflow-hidden rounded-[20px] border border-white/80 bg-[linear-gradient(135deg,#ffffff_0%,#fff8f1_100%)] shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
-      <div className="flex flex-col gap-3 border-b border-hpsr-border/70 px-4 py-3.5 xl:flex-row xl:items-center xl:justify-between">
+    <section className="!flex-none shrink-0 overflow-hidden rounded-[20px] border border-[#d7bfab] bg-[linear-gradient(135deg,#f4ebdf_0%,#ebdfd1_100%)] shadow-[0_10px_26px_rgba(79,42,21,0.055)]">
+      <div className="hpsr-dark-section-header hpsr-direction-primary-header flex flex-col gap-3 border-b border-[#a6786b]/50 bg-[linear-gradient(110deg,#3f1d1b,#613128_64%,#744239)] px-4 py-3.5 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Database size={18}/></span>
           <div className="min-w-0"><h2 className="text-sm font-black text-hpsr-text">Central de relatórios</h2><p className="text-xs text-hpsr-muted">{periodLabel} · {periodActivities.length} atividades analisadas</p></div>
@@ -292,7 +292,7 @@ export default function DirectionPage() {
           <button type="button" onClick={handleExportReport} disabled={exportingReport} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 text-xs font-black text-white transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60"><Download size={15}/> {exportingReport ? "Gerando..." : "Exportar relatório"}</button>
         </div>
       </div>
-      <div className="grid gap-2 bg-[#fbf5ee] p-2 sm:grid-cols-3">
+      <div className="grid gap-2 bg-[#eee0d0] p-2 sm:grid-cols-3">
         <ReportNavButton active={reportSection === "overview"} onClick={()=>setReportSection("overview")} icon={<PieChart size={16}/>} title="Visão geral" description="Indicadores e distribuição" />
         <ReportNavButton active={reportSection === "activities"} onClick={()=>setReportSection("activities")} icon={<Activity size={16}/>} title="Atividades" description="Linha do tempo e solicitações" />
         <ReportNavButton active={reportSection === "time"} onClick={()=>setReportSection("time")} icon={<CalendarDays size={16}/>} title="Ponto" description="Jornada e fechamentos" />
@@ -311,15 +311,15 @@ export default function DirectionPage() {
         {reportSection === "overview" && <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
           <ActivityPiePanel filter={activityChartFilter} onFilterChange={setActivityChartFilter} datasets={{ modules: analytics.moduleRanking, plans: analytics.planRanking, exams: analytics.examRanking, services: analytics.serviceRanking }} />
           <aside className="grid content-start gap-3">
-            <div className="rounded-[18px] border border-white/80 bg-white p-4 shadow-[0_10px_26px_rgba(79,42,21,0.05)]"><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Estrutura</p><div className="mt-3 grid gap-2"><MiniMetric label="Equipe cadastrada" value={String(teamMembers.length)} icon={<Users size={15}/>} /><MiniMetric label="Candidaturas em fluxo" value={String(pendingApplications)} icon={<ClipboardCheck size={15}/>} /><MiniMetric label="Recibos registrados" value={String(receiptCount)} icon={<WalletCards size={15}/>} /></div></div>
+            <div className="rounded-[18px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] p-4 shadow-[0_10px_26px_rgba(79,42,21,0.05)]"><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Estrutura</p><div className="mt-3 grid gap-2"><MiniMetric label="Equipe cadastrada" value={String(teamMembers.length)} icon={<Users size={15}/>} /><MiniMetric label="Candidaturas em fluxo" value={String(pendingApplications)} icon={<ClipboardCheck size={15}/>} /><MiniMetric label="Recibos registrados" value={String(receiptCount)} icon={<WalletCards size={15}/>} /></div></div>
             <Summary title="Governança" icon={<ShieldCheck size={17}/>} items={["Histórico centralizado no Supabase", "Solicitações públicas consolidadas", "Recibos vinculados ao Financeiro", "Registros compartilhados entre usuários autorizados"]}/>
           </aside>
         </div>}
 
         {reportSection === "activities" && <section className="grid min-h-[560px] gap-3 xl:grid-cols-[minmax(0,1fr)_350px]">
-          <div className="flex min-h-[560px] flex-col overflow-hidden rounded-[20px] border border-white/80 bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
+          <div className="flex min-h-[560px] flex-col overflow-hidden rounded-[20px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] p-4 shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hpsr-border pb-3"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Activity size={19}/></span><div><h2 className="font-black text-hpsr-text">Atividades do sistema</h2><p className="text-xs text-hpsr-muted">Linha do tempo consolidada · até 150 registros</p></div></div><label className="flex min-h-[40px] w-full min-w-0 items-center gap-2 rounded-[13px] border border-hpsr-border bg-[#fffaf4] px-3 sm:w-auto sm:min-w-[270px]"><Search size={16} className="text-hpsr-muted"/><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar atividade" className="w-full bg-transparent text-xs font-semibold outline-none"/></label></div>
-            <div className="mt-3 grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-contain pr-2">{unified.slice(0,150).map((item)=><ActivityRow key={item.id} item={item}/>)}{!unified.length&&<div className="rounded-[15px] border border-dashed border-hpsr-border p-8 text-center text-sm text-hpsr-muted">Nenhuma atividade registrada.</div>}</div>
+            <div className="mt-3 grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-contain rounded-[12px] bg-[#ecdfd0] pr-2">{unified.slice(0,150).map((item)=><ActivityRow key={item.id} item={item}/>)}{!unified.length&&<div className="rounded-[15px] border border-dashed border-hpsr-border p-8 text-center text-sm text-hpsr-muted">Nenhuma atividade registrada.</div>}</div>
           </div>
           <aside className="grid content-start gap-3"><Summary title="Solicitações de cadastro" icon={<UserPlus size={17}/>} items={staffRequests.map((item)=>`${item.name || "Profissional"} — ${item.status || "Pendente"}`)}/><Summary title="Candidaturas" icon={<ClipboardCheck size={17}/>} items={applications.slice(0, 5).map((item)=>`${item.name || "Candidato"} · Passaporte: ${item.passport || "Não informado"} — ${item.status || "Em análise"}`)} actionLabel="Ver histórico" onAction={() => setApplicationHistoryOpen(true)} totalCount={applications.length}/></aside>
         </section>}
@@ -358,7 +358,7 @@ function formatMoney(value: number) {
 }
 
 function Stat({icon,label,value}:{icon:React.ReactNode;label:string;value:string}) {
-  return <div className="min-h-[74px] self-start rounded-[17px] border border-white/80 bg-white px-3.5 py-3 shadow-[0_8px_22px_rgba(79,42,21,0.05)]">
+  return <div className="min-h-[74px] self-start rounded-[17px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] px-3.5 py-3 shadow-[0_8px_22px_rgba(79,42,21,0.05)]">
     <div className="flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-2.5"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] bg-[#fff1e5] text-hpsr-wine">{icon}</span><p className="truncate text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{label}</p></div>
       <span className="shrink-0 truncate text-lg font-black text-hpsr-text xl:text-xl">{value}</span>
@@ -399,7 +399,7 @@ function ActivityPiePanel({
     : "conic-gradient(#ead7c7 0 100%)";
   const selected = filterMeta[filter];
 
-  return <section className="shrink-0 overflow-hidden rounded-[22px] border border-white/80 bg-white shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
+  return <section className="shrink-0 overflow-hidden rounded-[22px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
     <div className="flex flex-col gap-3 border-b border-hpsr-border px-4 py-4 xl:flex-row xl:items-center xl:justify-between">
       <div className="flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><PieChart size={19}/></span>
@@ -452,7 +452,7 @@ function ActivityRow({ item }: { item: SystemActivity }) {
 }
 
 function Summary({title,icon,items,actionLabel,onAction,totalCount}:{title:string;icon:React.ReactNode;items:string[];actionLabel?:string;onAction?:()=>void;totalCount?:number}) {
-  return <section className="rounded-[18px] border border-white/80 bg-white p-3.5 shadow-[0_10px_26px_rgba(79,42,21,0.05)]">
+  return <section className="rounded-[18px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] p-3.5 shadow-[0_10px_26px_rgba(79,42,21,0.05)]">
     <div className="flex items-center justify-between gap-2 border-b border-hpsr-border pb-2.5"><div className="flex min-w-0 items-center gap-2 text-hpsr-wine">{icon}<h3 className="truncate text-sm font-black text-hpsr-text">{title}</h3></div><div className="flex items-center gap-2">{actionLabel && onAction && <button type="button" onClick={onAction} className="rounded-[10px] border border-hpsr-border bg-white px-2 py-1 text-[9px] font-black text-hpsr-wine">{actionLabel}</button>}<span className="shrink-0 rounded-full bg-[#fff1e5] px-2 py-0.5 text-[9px] font-black text-hpsr-wine">{totalCount ?? items.length}</span></div></div>
     <div className="mt-2.5 grid content-start gap-1.5">{items.map((item,index)=><div key={`${item}-${index}`} className="min-h-[34px] rounded-[11px] border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-[11px] font-semibold leading-[1.35] text-hpsr-muted" title={item}>{item}</div>)}{!items.length&&<p className="py-4 text-center text-xs text-hpsr-muted">Nenhum registro disponível.</p>}</div>
   </section>;

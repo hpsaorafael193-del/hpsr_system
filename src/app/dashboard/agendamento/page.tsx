@@ -502,20 +502,21 @@ export default function AppointmentsPage() {
   }, [pendingRequests, searchTerm]);
 
   return (
-    <div className="hpsr-page gap-3">
+    <div className="hpsr-page hpsr-schedule-page gap-3">
       <PageHeader
+        schedule
         eyebrow="Agendamentos"
         title="Central de agendamentos"
         description="Painel geral para solicitações, consultas, acompanhamentos, reagendamentos e pendências de cobrança."
       />
 
-      <section className="shrink-0 rounded-[18px] border border-hpsr-border bg-white p-3 shadow-sm sm:p-4">
+      <section className="hpsr-quick-access-panel shrink-0 rounded-[18px] border border-[#854e40] bg-[linear-gradient(112deg,#3e211e_0%,#60332d_60%,#75463b_100%)] p-3 shadow-[0_8px_24px_rgba(59,27,21,.13)] sm:p-4">
         <div className="mb-3 flex items-center justify-between gap-3 px-1">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Acessos rápidos</p>
-            <p className="mt-0.5 text-sm font-semibold text-hpsr-muted">Escolha a área que deseja gerenciar.</p>
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#efc9ae]">Acessos rápidos</p>
+            <p className="mt-0.5 text-sm font-semibold text-[#f1e2d5]">Escolha a área que deseja gerenciar.</p>
           </div>
-          <div className="hidden h-9 w-9 items-center justify-center rounded-[12px] bg-[#f7e9e3] text-hpsr-wine sm:flex">
+          <div className="hidden h-9 w-9 items-center justify-center rounded-[12px] border border-white/20 bg-white/10 text-[#ffead9] sm:flex">
             <CalendarClock size={18} />
           </div>
         </div>
@@ -538,7 +539,7 @@ export default function AppointmentsPage() {
           <button
             type="button"
             onClick={() => { setSearchTerm(""); setRequestsModalOpen(true); }}
-            className="group rounded-[17px] border border-hpsr-border bg-[#fffdfb] p-3.5 text-left transition hover:border-hpsr-wineLight/50 hover:bg-[#fff8f3] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hpsr-wine/30"
+            className="group rounded-[17px] border border-[#d8beaa] bg-[#f4e9de] p-3.5 text-left transition hover:border-hpsr-wineLight/50 hover:bg-[#eee0d1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hpsr-wine/30"
           >
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white shadow-sm">
@@ -666,8 +667,8 @@ function ConsultationOverview({ appointments, prioritySpecialties }: { appointme
 
   return (
     <>
-      <section className="flex min-h-0 flex-col overflow-hidden rounded-[20px] border border-hpsr-border bg-white shadow-sm xl:max-h-[calc(100dvh-250px)]">
-        <div className="flex shrink-0 flex-col gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf7_0%,#f7e9e2_100%)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+      <section className="flex min-h-0 flex-col overflow-hidden rounded-[20px] border border-[#d6bda9] bg-[#eee3d7] shadow-[0_8px_26px_rgba(92,56,38,.06)] xl:max-h-[calc(100dvh-250px)]">
+        <div className="hpsr-schedule-section-header flex shrink-0 flex-col gap-3 border-b border-[#a77864]/50 bg-[linear-gradient(110deg,#42201c_0%,#64352d_62%,#744238_100%)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Visão geral</p>
             <h2 className="mt-0.5 text-lg font-black text-hpsr-text">Agendamento geral</h2>
@@ -679,13 +680,13 @@ function ConsultationOverview({ appointments, prioritySpecialties }: { appointme
           </div>
         </div>
 
-        <div className="grid min-h-0 content-start gap-3 overflow-visible p-3 sm:p-4 xl:flex-1 xl:overflow-y-auto xl:overscroll-y-auto xl:pr-3 [scrollbar-gutter:stable]">
+        <div className="grid min-h-0 content-start gap-3 overflow-visible bg-[#f0e5d9] p-3 sm:p-4 xl:flex-1 xl:overflow-y-auto xl:overscroll-y-auto xl:pr-3 [scrollbar-gutter:stable]">
           {sortedAppointments.length ? sortedAppointments.map((item) => (
             <button
               type="button"
               key={item.id}
               onClick={() => setSelectedAppointment(item)}
-              className={`group relative grid min-h-[118px] w-full gap-5 overflow-hidden rounded-[20px] border bg-white p-5 text-left shadow-[0_6px_22px_rgba(89,44,30,0.05)] transition duration-200 hover:border-hpsr-wineLight/60 hover:bg-[#fffdfb] hover:shadow-[0_12px_32px_rgba(89,44,30,0.09)] 2xl:grid-cols-[minmax(0,1.35fr)_minmax(210px,0.8fr)_minmax(180px,0.6fr)_180px] 2xl:items-center ${item.status === "Aceita" ? "border-amber-200/90" : "border-hpsr-border"}`}
+              className={`group relative grid min-h-[118px] w-full gap-5 overflow-hidden rounded-[20px] border bg-[#f8f1e9] p-5 text-left shadow-[0_6px_22px_rgba(89,44,30,0.05)] transition duration-200 hover:border-hpsr-wineLight/60 hover:bg-[#f4e8dc] hover:shadow-[0_12px_32px_rgba(89,44,30,0.09)] 2xl:grid-cols-[minmax(0,1.35fr)_minmax(210px,0.8fr)_minmax(180px,0.6fr)_180px] 2xl:items-center ${item.status === "Aceita" ? "border-amber-200/90" : "border-hpsr-border"}`}
             >
               <span className={`absolute inset-y-0 left-0 w-1.5 ${item.status === "Aceita" ? "bg-amber-400" : item.status === "Agendada" || item.status === "Confirmada" ? "bg-emerald-500" : "bg-hpsr-wine/60"}`} />
 
@@ -720,7 +721,7 @@ function ConsultationOverview({ appointments, prioritySpecialties }: { appointme
       </section>
 
       {selectedAppointment && (
-        <div className="fixed inset-0 z-[100000] grid place-items-center px-4 py-6">
+        <div className="hpsr-modal-tone fixed inset-0 z-[100000] grid place-items-center px-4 py-6">
           <button type="button" aria-label="Fechar detalhes" onClick={() => setSelectedAppointment(null)} className="fixed inset-0 bg-[#1f0805]/65" />
           <section className="hpsr-modal-motion relative z-10 w-full max-w-xl overflow-hidden rounded-[20px] border border-hpsr-border bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-4">
@@ -833,7 +834,7 @@ function RequestsCenterModal({
   const acceptedForContact = myAcceptedRequests.filter((item) => item.status === "Aceita" && !item.syncedScheduleId).length;
 
   return (
-    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden p-0 sm:px-5 sm:py-5">
+    <div className="hpsr-modal-tone fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden p-0 sm:px-5 sm:py-5">
       <button
         type="button"
         aria-label="Fechar solicitações"
@@ -841,8 +842,8 @@ function RequestsCenterModal({
         className="fixed inset-0 bg-[#1f0805]/70 backdrop-blur-[2px]"
       />
 
-      <section className="hpsr-modal-motion relative z-10 flex h-dvh w-full flex-col overflow-hidden bg-white shadow-[0_22px_60px_rgba(42,14,7,0.22)] sm:max-h-[calc(100dvh-2rem)] sm:max-w-6xl sm:rounded-[22px] sm:border sm:border-[#eadfd8]">
-        <header className="shrink-0 border-b border-hpsr-border bg-[#fffaf7] px-4 py-4 sm:px-6">
+      <section className="hpsr-modal-motion relative z-10 flex h-dvh w-full flex-col overflow-hidden bg-[#eee3d7] shadow-[0_22px_60px_rgba(42,14,7,0.22)] sm:max-h-[calc(100dvh-2rem)] sm:max-w-6xl sm:rounded-[22px] sm:border sm:border-[#eadfd8]">
+        <header className="shrink-0 border-b border-[#d4b9a3] bg-[#e9d8c8] px-4 py-4 sm:px-6">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 text-hpsr-wineLight">
@@ -882,7 +883,7 @@ function RequestsCenterModal({
           </div>
         </header>
 
-        <div className="shrink-0 border-b border-hpsr-border bg-white px-4 py-3 sm:px-6">
+        <div className="shrink-0 border-b border-[#d9c4b0] bg-[#f1e5d9] px-4 py-3 sm:px-6">
           <div className="relative">
             <Search size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-hpsr-wineLight" />
             <input
@@ -894,7 +895,7 @@ function RequestsCenterModal({
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto bg-[#fffdfb] p-3 sm:p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-[#efe3d7] p-3 sm:p-5">
           <div className="grid gap-7">
             <UnifiedRequestsQueue requests={requests} isDirection={isDirection} prioritySpecialties={prioritySpecialties} onUpdateStatus={onUpdateStatus} onDeleteRequest={onDeleteRequest} deletingRequestId={deletingRequestId} />
             <div className="border-t border-hpsr-border pt-6">
@@ -1025,8 +1026,8 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
           <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Solicitações que você aceitou e que já foram encaminhadas, agendadas ou finalizadas, mantendo a organização por especialidade.</p>
         </div>
         {forwarded.length ? <div className="grid gap-4">{groupBySpecialty(forwarded).map(([specialty, items]) => (
-          <div key={`history-${specialty}`} className="overflow-hidden rounded-[20px] border border-hpsr-border bg-[#fffdfb] shadow-[0_5px_18px_rgba(89,44,30,0.05)]">
-            <div className="flex items-center justify-between gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fff7f1_0%,#fffdf9_100%)] px-5 py-4">
+          <div key={`history-${specialty}`} className="overflow-hidden rounded-[20px] border border-[#d7bda5] bg-[#eee0d0] shadow-[0_5px_18px_rgba(89,44,30,0.05)]">
+            <div className="flex items-center justify-between gap-3 border-b border-[#d7bda5] bg-[linear-gradient(135deg,#ebd8c5_0%,#f2e5d8_100%)] px-5 py-4">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Especialidade</p>
                 <h4 className="mt-0.5 text-sm font-black text-hpsr-text">{specialty}</h4>
@@ -1138,7 +1139,7 @@ function RequestTypeSection({
       </div>
       {grouped.length ? <div className="grid gap-3">
         {grouped.map(({ specialty, items }) => (
-          <div key={normalizeSpecialty(specialty)} className="overflow-hidden rounded-[16px] border border-hpsr-border bg-white">
+          <div key={normalizeSpecialty(specialty)} className="overflow-hidden rounded-[16px] border border-[#d9bfaa] bg-[#f5ebe0]">
             <div className="flex items-center justify-between gap-2 border-b border-hpsr-border bg-[#fff9f5] px-4 py-2.5">
               <h5 className="text-sm font-black text-hpsr-text">{specialty}</h5>
               <span className="text-xs font-bold text-hpsr-muted">{items.length}</span>
@@ -1173,7 +1174,7 @@ function ClinicalRequestCard({
   const objective = item.flowDetails || item.reason || (isExam ? "Exame solicitado pelo paciente." : "Solicitação de consulta enviada pelo paciente.");
 
   return (
-    <article className="relative overflow-hidden rounded-[15px] border border-hpsr-border bg-[#fffdfb] p-3.5 shadow-[0_4px_14px_rgba(89,44,30,0.035)] sm:p-4">
+    <article className="relative overflow-hidden rounded-[15px] border border-[#e1ccba] bg-[#fbf5ed] p-3.5 shadow-[0_4px_14px_rgba(89,44,30,0.035)] sm:p-4">
       <span className={`absolute inset-y-0 left-0 w-1 ${isExam ? "bg-blue-500" : "bg-hpsr-wine"}`} />
       <div className="pl-1.5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
@@ -1235,7 +1236,7 @@ function ScheduleCard({
   return (
     <Link
       href={href}
-      className="group rounded-[17px] border border-hpsr-border bg-[#fffdfb] p-3.5 transition hover:border-hpsr-wineLight/50 hover:bg-[#fff8f3]"
+      className="group rounded-[17px] border border-[#d8beaa] bg-[#f4e9de] p-3.5 transition hover:border-hpsr-wineLight/50 hover:bg-[#eee0d1]"
     >
       <div className="flex items-start gap-3">
         <div className="flex min-w-0 gap-3">

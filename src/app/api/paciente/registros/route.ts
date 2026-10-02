@@ -54,6 +54,31 @@ export async function GET(request: NextRequest) {
     if (!targetPassport) return NextResponse.json({ error: "Acesso não autorizado para este paciente." }, { status: 403 });
 
     const recordId = request.nextUrl.searchParams.get("id");
+    if (recordId?.startsWith("vaccination-card:")) {
+      const cardId = recordId.slice("vaccination-card:".length);
+      if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(cardId)) return NextResponse.json({ error: "Caderneta inválida." }, { status: 400 });
+      const { data: card, error: cardError } = await patientSession.supabase
+        .from("clinical_records")
+        .select("id,patient_passport,payload,released_at,updated_at")
+        .eq("record_type", "CadernetaVacinal")
+        .eq("id", cardId).eq("patient_passport", targetPassport)
+        .eq("is_confidential", false).not("released_at", "is", null).maybeSingle();
+      if (cardError) throw cardError;
+      // A busca pode não encontrar a caderneta (ou ela deixar de estar
+      // liberada). Garanta a existência do registro antes de acessar seus dados.
+      if (!card) return NextResponse.json({ error: "Caderneta não liberada." }, { status: 404 });
+      const publishedPath = typeof card?.payload?.publishedPath === "string" ? card.payload.publishedPath : "";
+      if (!publishedPath || !publishedPath.startsWith(`${cardId}/publish-`))
+        return NextResponse.json({ error: "Caderneta não liberada." }, { status: 404 });
+      const { data: signed, error: signError } = await patientSession.supabase.storage
+        .from("vaccination-cards").createSignedUrl(publishedPath, 600);
+      if (signError || !signed?.signedUrl) throw signError || new Error("Falha ao disponibilizar caderneta.");
+      return NextResponse.json({ ok: true, record: {
+        id: recordId, type: "Vacina", title: "Caderneta de vacinação", doctor: String(card.payload?.doctorName || "Equipe médica"),
+        createdAt: card.released_at, updatedAt: card.updated_at, protocol: null,
+        previewImage: signed.signedUrl, previewImages: [signed.signedUrl], isConfidential: false,
+      } });
+    }
     if (recordId) {
       const { data: record, error } = await patientSession.supabase
         .from("clinical_records")
@@ -90,7 +115,23 @@ export async function GET(request: NextRequest) {
       protocol: record.protocol || null,
       isConfidential: Boolean(record.is_confidential),
     }));
-    return NextResponse.json({ ok: true, records });
+    // Só a versão formalmente publicada aparece aqui. O rascunho e as
+    // observações internas nunca são retornados ao portal do paciente.
+    const { data: cards, error: cardError } = await patientSession.supabase
+      .from("clinical_records")
+      .select("id,payload,released_at,updated_at")
+      .eq("patient_passport", targetPassport).eq("record_type", "CadernetaVacinal")
+      .eq("is_confidential", false).not("released_at", "is", null)
+      .order("released_at", { ascending: false });
+    if (cardError) throw cardError;
+    const publishedCards = (cards || [])
+      .filter((card: any) => typeof card.payload?.publishedPath === "string" && card.payload.publishedPath.startsWith(`${card.id}/publish-`))
+      .map((card: any) => ({
+      id: `vaccination-card:${card.id}`,
+      type: "Vacina", title: "Caderneta de vacinação", doctor: String(card.payload?.doctorName || "Equipe médica"),
+      createdAt: card.released_at, updatedAt: card.updated_at, protocol: null, isConfidential: false,
+    }));
+    return NextResponse.json({ ok: true, records: [...publishedCards, ...records] });
   } catch (error) {
     console.error("[patient-portal] records", error);
     return NextResponse.json({ error: "Não foi possível carregar os registros liberados." }, { status: 500 });

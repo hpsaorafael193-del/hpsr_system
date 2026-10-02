@@ -1,111 +1,38 @@
-import { brazilIso } from "@/lib/brazil-datetime";
 import { NextRequest, NextResponse } from "next/server";
 import { getValidPatientSession, normalizePassport } from "@/lib/patient-portal/server";
 
 export const runtime = "nodejs";
-
-function normalizeName(value: unknown) {
-  return String(value || "").trim().replace(/\s+/g, " ");
-}
-
 export async function POST(request: NextRequest) {
   try {
     const valid = await getValidPatientSession(request);
     if (!valid) return NextResponse.json({ ok: false, error: "Sessão expirada." }, { status: 401 });
-
     const body = await request.json();
-    const name = normalizeName(body.name);
+    const name = String(body.name || "").trim().replace(/\s+/g," ");
     const passport = normalizePassport(body.passport);
-    const age = String(body.age || "").replace(/\D/g, "").trim();
-    const birthDate = String(body.birthDate || "").trim() || null;
-    const bloodType = String(body.bloodType || "").trim();
-    const relationship = normalizeName(body.relationship || "Responsável legal");
-    const guardianPassport = normalizePassport(valid.access.patient_passport);
-    const numericAge = Number.parseInt(age, 10);
-
-    if (!name || !passport || !age) {
-      return NextResponse.json({ ok: false, error: "Informe nome, passaporte e idade da criança." }, { status: 400 });
+    const age = String(body.age || "").trim().toLowerCase().replace(/\s+/g," ");
+    const relationship = String(body.relationship || "Responsável legal").trim();
+    const additionalGuardianName = String(body.additionalGuardianName || "").trim().replace(/\s+/g," ").slice(0,160);
+    if (name.length < 2 || name.length > 160 || !passport || passport.length > 80
+      || !/^\d{1,3} (mes|meses|ano|anos)$/.test(age) || relationship.length < 2 || relationship.length > 80) {
+      return NextResponse.json({ ok:false,error:"Informe nome, passaporte e idade em meses ou anos." },{ status:400 });
     }
-    if (!Number.isFinite(numericAge) || numericAge < 0 || numericAge >= 18) {
-      return NextResponse.json({ ok: false, error: "Este fluxo é exclusivo para pacientes menores de 18 anos." }, { status: 400 });
-    }
-    if (bloodType && !["A+", "A-", "B+", "B-"].includes(bloodType)) {
-      return NextResponse.json({ ok: false, error: "Selecione um tipo sanguíneo válido: A+, A-, B+ ou B-." }, { status: 400 });
-    }
-    if (passport === guardianPassport) {
-      return NextResponse.json({ ok: false, error: "A criança não pode usar o mesmo passaporte do responsável." }, { status: 400 });
-    }
-
-    const { data: existing, error: lookupError } = await valid.supabase
-      .from("patient_registry")
-      .select("passport,name,age,birth_date,blood_type")
-      .eq("passport", passport)
-      .maybeSingle();
-    if (lookupError) throw lookupError;
-
-    const normalizedExistingName = normalizeName(existing?.name).toLocaleLowerCase("pt-BR");
-    const exactMatch = Boolean(existing && normalizedExistingName === name.toLocaleLowerCase("pt-BR"));
-    if (existing && !exactMatch) {
-      return NextResponse.json({
-        ok: false,
-        error: `O passaporte ${passport} já está vinculado a outro nome no Prontuário. Solicite a correção diretamente à equipe médica.`,
-      }, { status: 409 });
-    }
-
-    const now = brazilIso();
-    if (!existing) {
-      const { error: patientError } = await valid.supabase.from("patient_registry").insert({
-        passport,
-        name,
-        age,
-        birth_date: birthDate,
-        blood_type: bloodType,
-        created_at: now,
-        updated_at: now,
-      });
-      if (patientError) throw patientError;
-    }
-
-    const { data: currentLink, error: currentLinkError } = await valid.supabase
-      .from("patient_guardian_links")
-      .select("id,access_status")
-      .eq("child_passport", passport)
-      .eq("guardian_passport", guardianPassport)
-      .maybeSingle();
-    if (currentLinkError) throw currentLinkError;
-
-    if (currentLink?.access_status === "authorized") {
-      return NextResponse.json({
-        ok: true,
-        patient: { passport, name, relationship, access_type: "guardian" },
-        message: "Este vínculo já está confirmado e disponível no portal.",
-      });
-    }
-
-    const linkPayload = {
-      child_passport: passport,
-      guardian_passport: guardianPassport,
-      relationship,
-      access_status: "pending",
-      portal_access: false,
-      updated_at: now,
-    };
-
-    const { error: linkError } = currentLink
-      ? await valid.supabase.from("patient_guardian_links").update(linkPayload).eq("id", currentLink.id)
-      : await valid.supabase.from("patient_guardian_links").insert({ ...linkPayload, created_at: now });
-    if (linkError) throw linkError;
-
-    return NextResponse.json({
-      ok: true,
-      patient: { passport, name, relationship, access_type: "pending_guardian" },
-      matchedExistingRecord: exactMatch,
-      message: exactMatch
-        ? "Prontuário localizado. O vínculo aguarda uma confirmação médica simples."
-        : "Prontuário infantil preparado. O vínculo e os dados aguardam validação médica.",
+    const { data: account, error: accountError } = await valid.supabase.from("patient_accounts")
+      .select("user_id,patient_passport").eq("user_id",valid.access.user_id).maybeSingle();
+    if (accountError) throw accountError;
+    if (!account) return NextResponse.json({ ok:false,error:"Conta de responsável não encontrada." },{ status:403 });
+    const { data, error } = await valid.supabase.rpc("hpsr_register_child_by_guardian",{
+      p_guardian_user_id:account.user_id,p_child_passport:passport,p_child_name:name,p_age:age,
+      p_relationship:relationship,p_additional_guardian_name:additionalGuardianName || null,
     });
-  } catch (error) {
-    console.error("[patient-portal] request dependent link", error);
-    return NextResponse.json({ ok: false, error: "Não foi possível enviar a solicitação pediátrica." }, { status: 500 });
+    if (error) {
+      if (error.code === "23505") return NextResponse.json({ ok:false,error:"Este passaporte já existe com outro nome. Solicite a conferência pela Direção." },{status:409});
+      if (error.code === "42501") return NextResponse.json({ ok:false,error:"O vínculo precisa de conferência pela Direção." },{status:403});
+      throw error;
+    }
+    return NextResponse.json({ ok:true,patient:{passport,name,relationship,access_type:data.status === "authorized" ? "guardian":"pending_guardian"},
+      message:data.status === "authorized" ? "Vínculo já autorizado." : "Cadastro registrado. Aguarde a validação pela Direção do hospital." });
+  } catch(error) {
+    console.error("[patient-portal] dependent registration",error);
+    return NextResponse.json({ok:false,error:"Não foi possível registrar a criança. Tente novamente."},{status:500});
   }
 }

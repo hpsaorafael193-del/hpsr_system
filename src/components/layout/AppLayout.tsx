@@ -8,6 +8,7 @@ import { MobileSidebar } from "./MobileSidebar";
 import { cn } from "@/lib/utils";
 import { UserMenu } from "./UserMenu";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase";
+import { CLINICAL_BOARD_CHANGED_EVENT, invalidateClinicalBoard, loadSharedClinicalBoard } from "@/lib/clinical-board-cache";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 
 const SIDEBAR_COLLAPSED_KEY = "hpsr-sidebar-collapsed";
@@ -21,6 +22,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const isTraumatologyFixedPage = pathname === "/dashboard/traumatologia";
+  const refreshVisual = ["/dashboard/direcao", "/dashboard/interno", "/dashboard/financeiro", "/dashboard/calculadora", "/dashboard/traumatologia", "/dashboard/banco-de-sangue"].includes(pathname);
+  const routesWithOwnTopbar = ["/dashboard", "/dashboard/prontuarios", "/dashboard/direcao", "/dashboard/interno", "/dashboard/financeiro", "/dashboard/calculadora", "/dashboard/traumatologia", "/dashboard/banco-de-sangue", "/dashboard/documentos", "/dashboard/exames", "/dashboard/convenios", "/dashboard/perfil", "/dashboard/gestao-de-leitos", "/dashboard/obstetra", "/dashboard/obstetricia", "/dashboard/vacinacao", "/dashboard/assistente-clinico", "/dashboard/parcerias", "/dashboard/agendamento", "/dashboard/equipe", "/dashboard/agendamento/pacientes", "/dashboard/agendamento/clinica" ];
+  const hasPageTopbar = routesWithOwnTopbar.includes(pathname);
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [hasPendingAppointmentRequest, setHasPendingAppointmentRequest] = useState(false);
@@ -67,38 +71,54 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     let pendingRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
     const refreshPending = async () => {
-      const { data, error } = await client.rpc("hpsr_my_clinical_request_board", { p_limit: 400 });
-      if (!active) return;
-      if (error) {
-        console.warn("[HPSR] Não foi possível atualizar o indicador de solicitações.", error);
-        return;
+      try {
+        const data = await loadSharedClinicalBoard(String(currentUserProfile.id));
+        if (active) setHasPendingAppointmentRequest(data.some((item) => item.can_claim === true));
+      } catch (error) {
+        if (active) console.warn("[HPSR] Não foi possível atualizar o indicador de solicitações.", error);
       }
-      setHasPendingAppointmentRequest(Array.isArray(data) && data.some((item: any) => item.can_claim === true));
     };
 
+    let dirtyWhileHidden = false;
     const schedulePendingRefresh = () => {
+      invalidateClinicalBoard();
+      if (document.visibilityState !== "visible") {
+        dirtyWhileHidden = true;
+        return;
+      }
+      window.dispatchEvent(new Event(CLINICAL_BOARD_CHANGED_EVENT));
       if (pendingRefreshTimer) clearTimeout(pendingRefreshTimer);
       pendingRefreshTimer = setTimeout(() => {
         pendingRefreshTimer = null;
         void refreshPending();
-      }, 600);
+      }, 900);
+    };
+    const refreshOnVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (dirtyWhileHidden) {
+        dirtyWhileHidden = false;
+        schedulePendingRefresh();
+      }
     };
 
     void refreshPending();
+    // Um único canal de appointments serve o indicador lateral e o sino.
     const channel = client
-      .channel("sidebar-appointment-request-indicator")
+      .channel("dashboard-appointment-request-sync")
       .on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, schedulePendingRefresh)
       .subscribe();
+    document.addEventListener("visibilitychange", refreshOnVisible);
 
     return () => {
       active = false;
+      document.removeEventListener("visibilitychange", refreshOnVisible);
       if (pendingRefreshTimer) clearTimeout(pendingRefreshTimer);
       void client.removeChannel(channel);
     };
   }, [currentUserProfile.id]);
 
   return (
-    <div className="hpsr-dashboard-shell hpsr-compact-type min-h-dvh overflow-x-hidden bg-hpsr-bg text-hpsr-text">
+    <div className={cn("hpsr-dashboard-shell hpsr-compact-type min-h-dvh overflow-x-hidden bg-hpsr-bg text-hpsr-text", refreshVisual && "hpsr-refreshed-panel", pathname === "/dashboard" && "hpsr-dashboard-landing")}>
       <Sidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed((v) => !v)}
@@ -128,6 +148,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             isTraumatologyFixedPage && "xl:h-dvh xl:min-h-0 xl:overflow-hidden"
           )}
         >
+          {!hasPageTopbar && <div className="hpsr-topbar" aria-hidden="true" />}
           {children}
         </div>
       </main>

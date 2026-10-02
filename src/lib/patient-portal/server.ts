@@ -121,7 +121,7 @@ export async function getValidPatientSession(request: Request) {
 
   const { data: access } = await supabase
     .from("patient_portal_access")
-    .select("id,patient_passport,email,access_enabled")
+    .select("id,user_id,patient_passport,email,access_enabled")
     .eq("id", session.portal_access_id)
     .maybeSingle();
   if (!access?.access_enabled) return null;
@@ -136,10 +136,18 @@ export async function getValidPatientSession(request: Request) {
 export async function resolvePortalPatientPassport(request: Request, patientSession: Awaited<ReturnType<typeof getValidPatientSession>>) {
   if (!patientSession) return null;
   const requested = normalizePassport(new URL(request.url).searchParams.get("passport") || patientSession.access.patient_passport);
-  const { data, error } = await patientSession.supabase.rpc("patient_portal_accessible_patients", {
-    target_passport: patientSession.access.patient_passport,
-  });
-  if (error) throw error;
-  const allowed = (data || []).some((row: any) => normalizePassport(row.passport) === requested);
+  // Nunca confia no passaporte fornecido pelo navegador: identifica a conta da sessão.
+  const ownPassport = normalizePassport(patientSession.access.patient_passport);
+  const accountUserId = patientSession.access.user_id;
+  const [legacy, direct] = await Promise.all([
+    ownPassport ? patientSession.supabase.rpc("patient_portal_accessible_patients", { target_passport: ownPassport }) : Promise.resolve({data:[],error:null}),
+    accountUserId ? patientSession.supabase.from("patient_guardian_links").select("child_passport")
+      .eq("guardian_user_id",accountUserId).eq("access_status","authorized").eq("portal_access",true)
+      : Promise.resolve({data:[],error:null}),
+  ]);
+  if (legacy.error) throw legacy.error;
+  if (direct.error) throw direct.error;
+  const allowed = (legacy.data || []).some((row: any) => normalizePassport(row.passport) === requested)
+    || (direct.data || []).some((row: any) => normalizePassport(row.child_passport) === requested);
   return allowed ? requested : null;
 }

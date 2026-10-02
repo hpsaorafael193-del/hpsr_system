@@ -259,10 +259,10 @@ export default function BedsPage() {
   }
 
   return (
-    <div className="hpsr-page gap-3">
+    <div className="hpsr-page hpsr-beds-page gap-3">
       <div className="hpsr-topbar" />
-      <section className="overflow-hidden rounded-[18px] border border-hpsr-border bg-white/[0.88] shadow-[0_14px_34px_rgba(42,7,0,0.06)]">
-        <div className="grid gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f6eadc_100%)] px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+      <section className="overflow-hidden rounded-[18px] border border-[#d5bea8] bg-[#ecdfd1] shadow-[0_14px_34px_rgba(42,7,0,0.06)]">
+        <div className="grid gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#e9d8c8_0%,#e5d0bd_100%)] px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[16px] bg-[#efe0d2] text-hpsr-wine">
               <BedDouble size={24} />
@@ -310,7 +310,7 @@ export default function BedsPage() {
         </div>
       </section>
 
-      <section className="min-h-0 flex-1 overflow-hidden rounded-[18px] border border-hpsr-border bg-white/[0.86] p-3">
+      <section className="min-h-0 flex-1 overflow-hidden rounded-[18px] border border-[#d3bba5] bg-[#e9dbc9] p-3">
         <div className="grid h-full auto-rows-fr gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-6">
           {beds.map((bed, index) => {
             const occupied = bed.status === "ocupado";
@@ -326,8 +326,8 @@ export default function BedsPage() {
                   index === beds.length - 1 ? "sm:col-span-2 xl:col-span-2" : "sm:col-span-1"
                 } ${
                   occupied
-                    ? "border-rose-200 bg-[linear-gradient(180deg,#fff3f0_0%,#fffafa_100%)]"
-                    : "cursor-pointer border-emerald-200 bg-[linear-gradient(180deg,#f1fff6_0%,#fbfffd_100%)] hover:border-emerald-300 hover:shadow-[0_14px_34px_rgba(24,120,70,0.10)]"
+                    ? "border-rose-300/75 bg-[linear-gradient(180deg,#f5e5dd_0%,#f1e6dc_100%)]"
+                    : "cursor-pointer border-emerald-300/75 bg-[linear-gradient(180deg,#e5eddf_0%,#e9e9da_100%)] hover:border-emerald-300 hover:shadow-[0_14px_34px_rgba(24,120,70,0.10)]"
                 } shadow-[0_10px_26px_rgba(42,7,0,0.045)]`}
               >
                 <div className="absolute right-3 top-3 z-20" onClick={(event) => event.stopPropagation()}>
@@ -440,8 +440,8 @@ export default function BedsPage() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-[18px] border border-hpsr-border bg-white/[0.88] shadow-[0_12px_30px_rgba(42,7,0,0.05)]">
-        <div className="flex items-center justify-between gap-3 border-b border-hpsr-border bg-[#fffaf4] px-4 py-3">
+      <section className="overflow-hidden rounded-[18px] border border-[#d5bea8] bg-[#ecdfd1] shadow-[0_12px_30px_rgba(42,7,0,0.05)]">
+        <div className="flex items-center justify-between gap-3 border-b border-[#d5bea8] bg-[#e5d1bf] px-4 py-3">
           <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Histórico de leitos</p><h2 className="mt-1 text-lg font-black text-hpsr-text">Internações, altas, atualizações e visitas</h2></div>
           <History size={20} className="text-hpsr-wine" />
         </div>
@@ -454,12 +454,12 @@ export default function BedsPage() {
                 {(item.visitor_passport || item.visitor_age || item.notes) && <p className="mt-1 text-xs text-hpsr-muted">{[item.visitor_passport, item.visitor_age ? `${item.visitor_age} anos` : "", item.notes].filter(Boolean).join(" · ")}</p>}
               </article>
             ) : (
-              <article key={`event-${item.id}`} className="rounded-[16px] border border-hpsr-border bg-white p-3">
+              <article key={`event-${item.id}`} className="rounded-[16px] border border-[#d9c3ae] bg-[#f5ebe1] p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm font-black text-hpsr-text">{eventLabel(item.event_type)} · {bedLabelById(beds, item.bed_id)}</p><span className="text-xs font-bold text-hpsr-muted">{formatDateTime(item.created_at)}</span></div>
                 <p className="mt-1 text-xs font-semibold text-hpsr-muted">{item.patient_name || "Leito sem paciente"}{item.doctor_name ? ` · ${item.doctor_name}` : ""}</p>
               </article>
             ))}
-            {!bedHistory.length && <p className="rounded-[16px] border border-dashed border-hpsr-border p-5 text-center text-sm font-semibold text-hpsr-muted">Nenhuma atividade registrada ainda.</p>}
+            {!bedHistory.length && <p className="rounded-[16px] border border-dashed border-[#d9c0a8] bg-[#f3e6d8] p-5 text-center text-sm font-semibold text-hpsr-muted">Nenhuma atividade registrada ainda.</p>}
           </div>
         </div>
       </section>
@@ -562,7 +562,7 @@ function AdmissionModal({
     await onSave(record);
   }
   return (
-    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
+    <div className="hpsr-modal-tone fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
       <button
         type="button"
         aria-label="Fechar ficha de internação"
@@ -769,7 +769,7 @@ function DischargeConfirmModal({
   onConfirm: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center px-4 py-3">
+    <div className="hpsr-modal-tone fixed inset-0 z-[99999] grid min-h-dvh place-items-center px-4 py-3">
       <button
         type="button"
         aria-label="Cancelar alta hospitalar"
@@ -857,7 +857,7 @@ function BedMetric({ label, value, tone }: { label: string; value: string; tone:
         ? "border-emerald-200 bg-emerald-50 text-emerald-700"
         : tone === "pending"
           ? "border-amber-200 bg-amber-50 text-amber-800"
-          : "border-hpsr-border bg-white text-hpsr-text";
+          : "border-[#d3b9a2] bg-[#f0e2d4] text-hpsr-text";
 
   return (
     <div className={`rounded-[16px] border px-4 py-3 ${toneClass}`}>

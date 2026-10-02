@@ -15,7 +15,7 @@ export function Sidebar({ collapsed, onToggle, onOpenSystemInfo, hasPendingAppoi
   const canSeeTeamAdmin =
     currentUserProfile.systemRole === "Administrador do Sistema" ||
     ["Diretora", "Vice Diretor"].includes(currentUserProfile.role);
-  const visibleAdminNavigation = canSeeTeamAdmin ? adminNavigation : [];
+  const visibleAdminNavigation = canSeeTeamAdmin ? adminNavigation.filter((item) => !item.internalOnly || ["Diretora", "Vice Diretor / Dev"].includes(currentUserProfile.role)) : [];
   const visibleToolsNavigation = toolsNavigation.filter((item) =>
     canSeeNavigationItem(item, currentUserProfile.role) &&
     (item.href !== "/dashboard/obstetra" || canAccessObstetra(currentUserProfile.role, currentUserProfile.specialty))
@@ -28,7 +28,7 @@ export function Sidebar({ collapsed, onToggle, onOpenSystemInfo, hasPendingAppoi
         collapsed ? "w-[92px]" : "w-[292px]"
       )}
     >
-      <div className={cn("flex items-center px-3", collapsed ? "h-24 justify-center" : "h-[96px] justify-between gap-3")}>
+      <div className={cn("flex items-center border-b border-white/15 px-3", collapsed ? "h-24 justify-center" : "h-[96px] justify-between gap-3")}>
         <Link href="/dashboard" className={cn("flex min-w-0 items-center", collapsed ? "justify-center" : "flex-1")}>
           {collapsed ? (
             <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-[16px] bg-[#fffaf4] p-0.5 shadow-[0_10px_24px_rgba(0,0,0,0.12)]">
@@ -92,7 +92,7 @@ function SidebarGroup({
   hasPendingAppointmentRequest?: boolean;
 }) {
   return (
-    <div>
+    <div className={cn("border-b border-white/10 pb-4 last:border-b-0", collapsed && "border-b-0 pb-2")}>
       {!collapsed && (
         <p className="mb-3 px-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-100/60">
           {title}
@@ -111,12 +111,13 @@ function SidebarGroup({
             <div key={item.href}>
               <Link
                 href={item.href}
+                aria-current={active ? "page" : undefined}
                 title={collapsed ? item.label : undefined}
                 className={cn(
-                  "flex items-center gap-3 rounded-[16px] px-4 py-3 text-sm font-semibold transition",
+                  "flex items-center gap-3 rounded-[16px] border px-4 py-3 text-sm font-semibold transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[#f0c9a8]",
                   active
-                    ? "bg-[#fffaf4] text-hpsr-wine"
-                    : "text-orange-50/90 hover:bg-white/10 hover:text-white",
+                    ? "border-[#e8d7c8] bg-[#fffaf4] text-hpsr-wine shadow-[inset_4px_0_0_#98523b,0_3px_12px_rgba(0,0,0,0.08)]"
+                    : "border-transparent text-orange-50/90 hover:border-[#e8d7c8]/30 hover:bg-white/[0.10] hover:text-white",
                   collapsed && "justify-center",
                   notifyPending && !active && "border border-red-300/35 bg-red-500/10 shadow-[0_0_18px_rgba(239,68,68,0.22)] animate-[pulse_2.4s_ease-in-out_infinite]"
                 )}
@@ -138,9 +139,10 @@ function SidebarGroup({
                       <Link
                         key={child.href}
                         href={child.href}
+                        aria-current={childActive ? "page" : undefined}
                         className={cn(
                           "flex items-center gap-2 rounded-[10px] px-3 py-2 text-sm transition",
-                          childActive ? "bg-white/20 text-white" : "text-orange-50/70 hover:bg-white/10 hover:text-white"
+                          childActive ? "bg-white/20 font-bold text-white ring-1 ring-white/25" : "text-orange-50/80 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f0c9a8]"
                         )}
                       >
                         <span className={cn("h-1.5 w-1.5 rounded-full", childActive ? "bg-white" : "bg-orange-50/40")} />

@@ -219,7 +219,7 @@ const categoryGroups = [
     icon: FlaskConical,
     tint: "bg-[#f8f2f7]",
     soft: "bg-[#fcf8fb]",
-    border: "border-[#eadfe8]",
+    border: "border-[#cda8c5]",
     iconTint: "bg-[#f3e9f1]",
   },
   {
@@ -229,7 +229,7 @@ const categoryGroups = [
     icon: Zap,
     tint: "bg-[#fff7f5]",
     soft: "bg-[#fffafa]",
-    border: "border-[#eeded9]",
+    border: "border-[#d8aea4]",
     iconTint: "bg-[#f7ebe8]",
   },
   {
@@ -239,7 +239,7 @@ const categoryGroups = [
     icon: Stethoscope,
     tint: "bg-[#f8f6ef]",
     soft: "bg-[#fcf6ee]",
-    border: "border-[#ece4d6]",
+    border: "border-[#d1bf98]",
     iconTint: "bg-[#f2ede2]",
   },
   {
@@ -249,7 +249,7 @@ const categoryGroups = [
     icon: Waves,
     tint: "bg-[#f3f8f8]",
     soft: "bg-[#f9fdfd]",
-    border: "border-[#dfeaea]",
+    border: "border-[#a8c8c6]",
     iconTint: "bg-[#e8f2f2]",
   },
   {
@@ -259,7 +259,7 @@ const categoryGroups = [
     icon: Pill,
     tint: "bg-[#f5f7fb]",
     soft: "bg-[#fbfcff]",
-    border: "border-[#e1e6ef]",
+    border: "border-[#aebfd7]",
     iconTint: "bg-[#eaedf5]",
   },
   {
@@ -269,7 +269,7 @@ const categoryGroups = [
     icon: Syringe,
     tint: "bg-[#f4f8f2]",
     soft: "bg-[#fbfef9]",
-    border: "border-[#dfeada]",
+    border: "border-[#b2caa9]",
     iconTint: "bg-[#eaf3e7]",
   },
   {
@@ -279,7 +279,7 @@ const categoryGroups = [
     icon: Bone,
     tint: "bg-[#f8f5f2]",
     soft: "bg-[#fffdfb]",
-    border: "border-[#ebe1d8]",
+    border: "border-[#d1b8a6]",
     iconTint: "bg-[#f2ebe5]",
   },
   {
@@ -289,7 +289,7 @@ const categoryGroups = [
     icon: Leaf,
     tint: "bg-[#f8f7ef]",
     soft: "bg-[#fffef9]",
-    border: "border-[#e9e5d8]",
+    border: "border-[#c9bf9d]",
     iconTint: "bg-[#f1eee2]",
   },
   {
@@ -299,7 +299,7 @@ const categoryGroups = [
     icon: Sparkles,
     tint: "bg-[#f6f4f8]",
     soft: "bg-[#fcfbfe]",
-    border: "border-[#e5e0eb]",
+    border: "border-[#b9aed0]",
     iconTint: "bg-[#eee9f3]",
   },
 ];
@@ -420,8 +420,8 @@ export function PharmaGuideClient() {
   }
 
   return (
-    <div className="hpsr-page flex h-[calc(100dvh-2.4rem)] min-h-0 flex-col gap-3 overflow-hidden">
-      <section className="shrink-0 rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-4 py-3">
+    <div className="hpsr-page hpsr-pharma-page flex h-[calc(100dvh-2.4rem)] min-h-0 flex-col gap-3 overflow-hidden">
+      <section className="hpsr-pharma-header shrink-0 rounded-[16px] border border-[#885548] bg-[linear-gradient(110deg,#42201c_0%,#64352d_62%,#744238_100%)] px-4 py-3 shadow-[0_5px_14px_rgba(63,29,22,0.10)]">
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border border-hpsr-border bg-white px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wine">
             <Pill size={15} />
@@ -438,7 +438,7 @@ export function PharmaGuideClient() {
         </div>
       </section>
 
-      <section className="shrink-0 rounded-[16px] border border-hpsr-border bg-white px-4 py-3">
+      <section className="shrink-0 rounded-[16px] border border-[#d5bca7] bg-[#efe1d2] px-4 py-3">
         <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(240px,300px)_auto] xl:items-center">
           <label className="flex min-h-[38px] items-center gap-3 rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-4 focus-within:border-hpsr-wineLight focus-within:ring-2 focus-within:ring-hpsr-wineLight/20">
             <Search size={17} className="text-hpsr-muted" />
@@ -489,7 +489,7 @@ export function PharmaGuideClient() {
                 return (
                   <article
                     key={group.title}
-                    className={`flex min-h-[360px] flex-col overflow-hidden rounded-[16px] border ${group.border} bg-white transition hover:bg-[#fffdf9]`}
+                    className={`hpsr-pharma-group flex min-h-[360px] flex-col overflow-hidden rounded-[16px] border ${group.border} bg-[#eee3d8] shadow-[0_4px_14px_rgba(78,49,33,0.045)] transition hover:bg-[#f4e9df]`}
                   >
                     <header className={`shrink-0 border-b ${group.border} ${group.tint} px-4 py-3`}>
                       <div className="flex items-start justify-between gap-3">
@@ -580,7 +580,7 @@ export function PharmaGuideClient() {
 
 function MedicationDetailsModal({ item, onClose }: { item: Medication; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-[100] grid place-items-center px-4 py-3">
+    <div className="hpsr-modal-tone fixed inset-0 z-[100] grid place-items-center px-4 py-3">
       <button
         type="button"
         aria-label="Fechar detalhes"
@@ -603,7 +603,7 @@ function MedicationDetailsModal({ item, onClose }: { item: Medication; onClose: 
             <p className="mt-2 text-sm leading-relaxed text-hpsr-muted">{item.use}</p>
           </div>
 
-          <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
+          <div className="rounded-[16px] border border-[#d8c4af] bg-[#f2e9de] p-3.5">
             <div className="flex items-start gap-3">
               <ShieldCheck size={18} className="mt-0.5 shrink-0 text-hpsr-wine" />
               <div>
@@ -631,7 +631,7 @@ function MedicationDetailsModal({ item, onClose }: { item: Medication; onClose: 
 
 function SummaryCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5 transition hover:bg-[#fffdf9]">
+    <div className="rounded-[16px] border border-[#d8c4af] bg-[#f1e5d9] p-3.5 transition hover:bg-[#f5eadd]">
       <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">{label}</p>
       <p className="mt-1 text-lg font-black text-hpsr-text">{value}</p>
     </div>

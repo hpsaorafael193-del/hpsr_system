@@ -75,6 +75,14 @@ const statusMap: Record<CastStatus, { label: string; description: string; classN
   },
 };
 
+// O status clínico dirige apenas a borda e o indicador dos cartões; não altera prazos.
+const castCardTone: Record<CastStatus, { frame: string; strip: string }> = {
+  recuperacao: { frame: "border-emerald-400/85 hover:border-emerald-500", strip: "bg-emerald-500" },
+  reavaliacao: { frame: "border-amber-400/90 hover:border-amber-500", strip: "bg-amber-400" },
+  atrasada: { frame: "border-red-500 hover:border-red-600 shadow-[0_7px_22px_rgba(225,58,58,0.13)]", strip: "bg-red-500" },
+  retirado: { frame: "border-zinc-300 hover:border-zinc-400", strip: "bg-zinc-400" },
+};
+
 export default function TraumaPage() {
   useEffect(() => {
     const main = document.querySelector(".hpsr-dashboard-shell > main") as HTMLElement | null;
@@ -320,12 +328,12 @@ export default function TraumaPage() {
   }
 
   return (
-    <div className="hpsr-page min-h-0 gap-2 xl:h-full xl:min-h-0 xl:overflow-hidden">
+    <div className="hpsr-page hpsr-trauma-page min-h-0 gap-2 xl:h-full xl:min-h-0 xl:overflow-hidden">
       <div className="hpsr-topbar !mb-0 shrink-0" />
 
-      <section className="shrink-0 overflow-hidden rounded-[22px] border border-hpsr-border bg-white/[0.9] shadow-[0_18px_42px_rgba(42,7,0,0.07)]">
-        <div className="relative overflow-hidden border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f6eadc_62%,#efe0d2_100%)] px-4 py-3">
-          <div className="pointer-events-none absolute -right-12 -top-16 h-36 w-36 rounded-full bg-hpsr-wine/10 blur-2xl" />
+      <section className="shrink-0 overflow-hidden rounded-[22px] border border-hpsr-border hpsr-trauma-primary bg-[#f0e4d7] shadow-[0_18px_42px_rgba(42,7,0,0.07)]">
+        <div className="hpsr-dark-section-header relative overflow-hidden border-b border-hpsr-border px-4 py-3">
+          <div className="pointer-events-none !absolute -right-12 -top-16 h-36 w-36 rounded-full bg-hpsr-wine/10 blur-2xl" />
           <div className="relative flex items-center gap-2.5">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white shadow-[0_10px_22px_rgba(42,7,0,0.18)]">
               <ClipboardList size={21} />
@@ -350,9 +358,9 @@ export default function TraumaPage() {
       </section>
 
       <section className="grid min-h-0 flex-1 overflow-hidden gap-2 rounded-[22px] xl:grid-cols-[minmax(340px,420px)_minmax(0,1fr)]">
-        <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white/[0.94] shadow-[0_16px_38px_rgba(42,7,0,0.065)]">
-          <div className="relative overflow-hidden border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f6eadc_58%,#ead7c5_100%)] p-3">
-            <div className="pointer-events-none absolute -right-12 -top-14 h-32 w-32 rounded-full bg-hpsr-wine/10 blur-2xl" />
+        <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-hpsr-border hpsr-trauma-primary bg-[#f0e4d7] shadow-[0_16px_38px_rgba(42,7,0,0.065)]">
+          <div className="hpsr-dark-section-header relative overflow-hidden border-b border-hpsr-border p-3">
+            <div className="pointer-events-none !absolute -right-12 -top-14 h-32 w-32 rounded-full bg-hpsr-wine/10 blur-2xl" />
             <div className="relative flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-[15px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white shadow-[0_8px_18px_rgba(42,7,0,0.14)]">
                 <FilePlus2 size={20} />
@@ -367,7 +375,7 @@ export default function TraumaPage() {
 
           <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col overflow-hidden p-3">
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">
-              <div className="rounded-[18px] border border-hpsr-border bg-[#fffaf4] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+              <div className="rounded-[14px] bg-[#f7ebde] p-2.5">
                 <div className="mb-2 flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-white text-hpsr-wine">
                     <UserRound size={16} />
@@ -399,7 +407,7 @@ export default function TraumaPage() {
                 </div>
 
                 {selectedPatient && (
-                  <div className="mt-2 grid grid-cols-2 gap-2 rounded-[14px] border border-hpsr-border bg-white p-2.5 text-xs">
+                  <div className="mt-2 grid grid-cols-2 gap-2 rounded-[14px] border border-hpsr-border bg-[#fcf5ed] p-2.5 text-xs">
                     <PatientInfo label="Nome" value={selectedPatient.name} />
                     <PatientInfo label="Passaporte" value={selectedPatient.passport} />
                     <PatientInfo label="Idade" value={selectedPatient.age || "Não informada"} />
@@ -408,7 +416,7 @@ export default function TraumaPage() {
                 )}
               </div>
 
-              <div className="rounded-[18px] border border-hpsr-border bg-[#fffaf4] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+              <div className="rounded-[14px] bg-[#f7ebde] p-2.5">
                 <div className="mb-2 flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-white text-hpsr-wine">
                     <ClipboardList size={16} />
@@ -429,7 +437,7 @@ export default function TraumaPage() {
                 </TraumaField>
               </div>
 
-              <div className="rounded-[18px] border border-hpsr-border bg-[#fffaf4] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)]">
+              <div className="rounded-[14px] bg-[#f7ebde] p-2.5">
                 <div className="mb-2 flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-[12px] bg-white text-hpsr-wine">
                     <CalendarClock size={16} />
@@ -452,7 +460,7 @@ export default function TraumaPage() {
               </div>
             </div>
 
-            <div className="shrink-0 border-t border-hpsr-border bg-white/[0.96] pt-2">
+            <div className="shrink-0 border-t border-hpsr-border bg-[#f0e4d7] pt-2">
               <button
                 type="submit"
                 disabled={savingRecord}
@@ -465,7 +473,7 @@ export default function TraumaPage() {
           </form>
 
         </aside>
-        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white/[0.92] p-3.5 shadow-[0_14px_34px_rgba(42,7,0,0.055)]">
+        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[22px] border border-hpsr-border hpsr-trauma-primary bg-[#f0e4d7] p-3.5 shadow-[0_14px_34px_rgba(42,7,0,0.055)]">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Histórico</p>
@@ -491,13 +499,13 @@ export default function TraumaPage() {
             ))}
 
             {loadingRecords && (
-              <div className="rounded-[20px] border border-dashed border-hpsr-border bg-[#fffaf4] p-3.5 text-center">
+              <div className="rounded-[20px] border border-dashed border-[#dcc5af] bg-[#f0e2d3] p-3.5 text-center">
                 <p className="font-black text-hpsr-text">Carregando registros...</p>
               </div>
             )}
 
             {!loadingRecords && filteredRecords.length === 0 && (
-              <div className="rounded-[20px] border border-dashed border-hpsr-border bg-[#fffaf4] p-3.5 text-center">
+              <div className="rounded-[20px] border border-dashed border-[#dcc5af] bg-[#f0e2d3] p-3.5 text-center">
                 <p className="font-black text-hpsr-text">Nenhum registro encontrado.</p>
                 <p className="mt-1 text-sm font-semibold text-hpsr-muted">Tente buscar por outro paciente, passaporte ou status.</p>
               </div>
@@ -549,9 +557,9 @@ function CastHistoryCard({ record, onOpen }: { record: CastRecord; onOpen: () =>
     <button
       type="button"
       onClick={onOpen}
-      className="group overflow-hidden rounded-[22px] border border-hpsr-border bg-white text-left shadow-[0_10px_24px_rgba(42,7,0,0.045)] transition hover:-translate-y-0.5 hover:border-hpsr-wineLight hover:shadow-[0_16px_32px_rgba(42,7,0,0.075)]"
+      className={`group overflow-hidden rounded-[22px] border-2 bg-[#f7ebde] text-left shadow-[0_10px_24px_rgba(42,7,0,0.045)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(42,7,0,0.075)] ${castCardTone[statusKey].frame}`}
     >
-      <div className="h-1.5 bg-[linear-gradient(90deg,#672614,#b57b5b,#f0dfcf)]" />
+      <div className={`h-1 ${castCardTone[statusKey].strip}`} />
 
       <div className="p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -570,7 +578,7 @@ function CastHistoryCard({ record, onOpen }: { record: CastRecord; onOpen: () =>
 
             <div className="mt-3 flex flex-wrap gap-2">
               {record.fractures.map((fracture) => (
-                <span key={fracture} className="rounded-full border border-hpsr-border bg-[#fffaf4] px-3 py-1.5 text-xs font-black text-hpsr-text">
+                <span key={fracture} className="rounded-full border border-hpsr-border bg-[#f5eadd] px-3 py-1.5 text-xs font-black text-hpsr-text">
                   {fracture}
                 </span>
               ))}
@@ -588,7 +596,7 @@ function CastHistoryCard({ record, onOpen }: { record: CastRecord; onOpen: () =>
           <DateBox label="Data prevista" value={formatDate(record.removalAt)} />
         </div>
 
-        <div className="mt-3 flex items-center justify-between rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3">
+        <div className="mt-3 flex items-center justify-between rounded-[16px] border border-hpsr-border bg-[#f5eadd] p-3">
           <div className="flex items-start gap-2">
             <CalendarClock size={16} className="mt-0.5 shrink-0 text-hpsr-wine" />
             <p className="text-sm font-semibold leading-relaxed text-hpsr-muted">
@@ -644,7 +652,7 @@ function CastRecordModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
+    <div className="hpsr-modal-tone fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
       <button
         type="button"
         aria-label="Fechar ficha do gesso"
@@ -652,7 +660,7 @@ function CastRecordModal({
         className="fixed inset-0 bg-[#1f0805]/62"
       />
 
-      <section className="hpsr-modal-motion relative z-10 w-full max-w-4xl overflow-hidden rounded-[22px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
+      <section className="hpsr-modal-motion relative z-10 w-full max-w-4xl overflow-hidden rounded-[22px] border border-white/45 bg-[#f1e5d8] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
         <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3">
@@ -680,7 +688,7 @@ function CastRecordModal({
 
         <div className="max-h-[72vh] overflow-y-auto p-3.5">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
-            <div className="rounded-[22px] border border-hpsr-border bg-white p-3.5">
+            <div className="rounded-[22px] border border-hpsr-border bg-[#f8eee4] p-3.5">
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Dados da ficha</p>
 
               <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -712,7 +720,7 @@ function CastRecordModal({
               </div>
             </div>
 
-            <aside className="rounded-[22px] border border-hpsr-border bg-[#fffaf4] p-3.5">
+            <aside className="rounded-[22px] border border-hpsr-border bg-[#f8eee4] p-3.5">
               <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Status atual</p>
               <div className={`mt-3 rounded-[18px] border p-3.5 ${status.className}`}>
                 <div className="flex items-center gap-2">
@@ -740,7 +748,7 @@ function CastRecordModal({
           </div>
         </div>
 
-        <div className="flex flex-col-reverse gap-3 border-t border-hpsr-border bg-white/[0.92] p-3.5 sm:flex-row sm:items-center sm:justify-end">
+        <div className="flex flex-col-reverse gap-3 border-t border-hpsr-border bg-[#f1e5d8] p-3.5 sm:flex-row sm:items-center sm:justify-end">
           <button
             type="button"
             onClick={onClose}
@@ -775,9 +783,9 @@ function QuickPatientModal({ patient, setPatient, saving, onClose, onSave }: {
 }) {
   const field = (key: keyof PatientRegistryItem, value: string) => setPatient((current) => ({ ...current, [key]: value }));
   return (
-    <div className="fixed inset-0 z-[100000] grid place-items-center bg-[#1f0805]/62 p-4">
-      <section className="w-full max-w-xl overflow-hidden rounded-[22px] border border-white/40 bg-[#fffaf4] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
-        <div className="flex items-start justify-between border-b border-hpsr-border bg-white px-5 py-4">
+    <div className="hpsr-modal-tone fixed inset-0 z-[100000] grid place-items-center bg-[#1f0805]/62 p-4">
+      <section className="w-full max-w-xl overflow-hidden rounded-[22px] border border-white/40 bg-[#f8eee4] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
+        <div className="flex items-start justify-between border-b border-hpsr-border bg-[#f1e5d8] px-5 py-4">
           <div className="flex gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-hpsr-border text-hpsr-wine"><UserPlus size={19}/></div><div><h3 className="font-black text-hpsr-text">Cadastro rápido de paciente</h3><p className="text-xs font-semibold text-hpsr-muted">O paciente será cadastrado no registro compartilhado e selecionado automaticamente.</p></div></div>
           <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><X size={18}/></button>
         </div>
@@ -790,7 +798,7 @@ function QuickPatientModal({ patient, setPatient, saving, onClose, onSave }: {
           <TraumaField label="E-mail"><input type="email" className={inputClass} value={patient.email} onChange={(e)=>field("email",e.target.value)} /></TraumaField>
           <div className="sm:col-span-2"><TraumaField label="Acompanhamento"><StyledSelect className={inputClass} value={patient.followUp} onChange={(e)=>field("followUp",e.target.value)}><option>Clínico</option><option>Especializado</option><option>Rotina</option></StyledSelect></TraumaField></div>
         </div>
-        <div className="flex justify-end gap-2 border-t border-hpsr-border bg-white px-5 py-4"><button type="button" onClick={onClose} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-xs font-black text-hpsr-text">Cancelar</button><button type="button" disabled={saving} onClick={onSave} className="rounded-[14px] bg-hpsr-wine px-4 py-3 text-xs font-black text-white disabled:opacity-60">{saving ? "Salvando..." : "Salvar e selecionar"}</button></div>
+        <div className="flex justify-end gap-2 border-t border-hpsr-border bg-[#f1e5d8] px-5 py-4"><button type="button" onClick={onClose} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-xs font-black text-hpsr-text">Cancelar</button><button type="button" disabled={saving} onClick={onSave} className="rounded-[14px] bg-hpsr-wine px-4 py-3 text-xs font-black text-white disabled:opacity-60">{saving ? "Salvando..." : "Salvar e selecionar"}</button></div>
       </section>
     </div>
   );

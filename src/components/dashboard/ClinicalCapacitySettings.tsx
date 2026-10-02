@@ -51,7 +51,7 @@ export function ClinicalCapacitySettings() {
   if (!specialties.length) return null;
 
   return (
-    <section className="rounded-[24px] border border-hpsr-border bg-white/[0.86] p-3.5">
+    <section className="rounded-[24px] border border-[#d3b8a0] bg-[#ecdfd1] p-3.5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Capacidade clínica</p>
@@ -66,7 +66,7 @@ export function ClinicalCapacitySettings() {
           const configuredLimit = Math.max(0, Math.min(99, Number(values[specialty] ?? 5)));
           const used = Number(snapshot?.used || 0);
           const available = Math.max(configuredLimit - used, 0);
-          return <label key={specialty} className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3">
+          return <label key={specialty} className="rounded-[16px] border border-[#d7c0a9] bg-[#f1e6da] p-3">
             <span className="flex items-center gap-2 text-sm font-black text-hpsr-text"><Gauge size={16} className="text-hpsr-wine"/>{specialty}</span>
             <span className="mt-2 flex items-center gap-2"><input type="number" min="0" max="99" value={values[specialty] ?? 5} onChange={(event) => setValues((current) => ({ ...current, [specialty]: Number(event.target.value) }))} className="min-h-[40px] w-24 rounded-[12px] border border-hpsr-border bg-white px-3 text-sm font-black text-hpsr-text outline-none focus:border-hpsr-wine"/><span className="text-xs font-semibold text-hpsr-muted">limite de casos ativos</span></span>
             <span className={`mt-2 block text-xs font-black ${available > 0 ? "text-emerald-700" : "text-rose-700"}`}>{used}/{configuredLimit} · {available > 0 ? `${available} vaga${available === 1 ? "" : "s"}` : "Sem vagas"}</span>

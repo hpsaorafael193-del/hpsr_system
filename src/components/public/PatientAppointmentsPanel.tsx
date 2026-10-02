@@ -47,14 +47,14 @@ type PatientAppointmentsView = "scheduled" | "request" | "pending";
 
 function DiscordSchedulingNotice({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`overflow-hidden rounded-[18px] border-2 border-blue-300 bg-[linear-gradient(135deg,#eff7ff_0%,#dfeeff_100%)] shadow-[0_12px_28px_rgba(37,99,235,.10)] ${compact ? "p-3.5" : "p-4 sm:p-5"}`}>
+    <div className={`overflow-hidden rounded-[18px] border border-[#b7c5c0] bg-[linear-gradient(135deg,#e8ece8_0%,#dfe7e1_100%)] shadow-[0_6px_16px_rgba(54,79,66,.06)] ${compact ? "p-3.5" : "p-4 sm:p-5"}`}>
       <div className="flex items-start gap-3">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-blue-700 text-white shadow-sm"><MessageCircleWarning size={21} /></span>
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-[#557567] text-white shadow-sm"><MessageCircleWarning size={21} /></span>
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[.16em] text-blue-700">Antes de continuar</p>
-          <h3 className="mt-1 text-base font-black text-blue-950 sm:text-lg">Pedidos e horários têm etapas diferentes</h3>
-          <p className="mt-1.5 text-xs font-semibold leading-relaxed text-blue-900 sm:text-sm">Aqui você acompanha seus compromissos. Novos pedidos não escolhem horário na hora; quando um médico vinculado publicar vagas, a escolha aparece em <strong>Horários do médico</strong>.</p>
-          {!compact && <div className="mt-3 rounded-[14px] border border-blue-200 bg-white/80 px-3.5 py-3 text-xs leading-relaxed text-blue-800">
+          <p className="text-[10px] font-black uppercase tracking-[.16em] text-[#4d6b5e]">Orientação</p>
+          <h3 className="mt-1 text-base font-black text-blue-950 sm:text-lg">Como funciona o agendamento</h3>
+          <p className="mt-1.5 text-xs font-semibold leading-relaxed text-blue-900 sm:text-sm">Peça sua consulta e acompanhe os horários publicados em <strong>Horários do médico</strong>.</p>
+          {!compact && <div className="mt-3 rounded-[14px] border border-blue-200 bg-[#f3f0e7] px-3.5 py-3 text-xs leading-relaxed text-blue-800">
             <p className="font-black">Se o Portal pedir seu ID do Discord</p>
             <p className="mt-1"><strong>PC:</strong> abra seu perfil e clique em <strong>“Copiar ID do usuário”</strong>.</p>
             <p className="mt-1"><strong>Celular:</strong> abra seu perfil, role até o final e toque em <strong>“Copiar ID”</strong>.</p>
@@ -203,7 +203,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
           </div>
         </section>
       )}
-      {view !== "request" && <section className="rounded-[18px] border border-hpsr-border bg-white/90 p-3.5 sm:p-4">
+      {view !== "request" && <section className="rounded-[18px] border border-hpsr-border bg-[#f5ece3] p-3.5 sm:p-4">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hpsr-border/70 pb-3">
           <div>
             <h3 className="text-base font-black text-hpsr-text">{view === "pending" ? "Pendências" : "Meus agendamentos"}</h3>
@@ -224,7 +224,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
               const otherRecords = consultationRecords.filter((record) => !record.type.toLowerCase().includes("exame") && !record.type.toLowerCase().includes("document"));
               const hasConsultationSummary = Boolean(appointment.attendanceSummary || consultationRecords.length > 0 || ["Realizada", "Concluída"].includes(appointment.status));
               return (
-                <article key={appointment.id} className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3">
+                <article key={appointment.id} className="rounded-[16px] border border-hpsr-border bg-[#eee2d6] p-3">
                   <button type="button" onClick={() => setExpanded(isExpanded ? null : appointment.id)} className="flex w-full items-center justify-between gap-3 text-left">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-black text-hpsr-text">{appointment.specialty}</p>
@@ -235,7 +235,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
                     <div className="flex shrink-0 items-center gap-2"><span className="rounded-full bg-[#f1dfcd] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{appointment.status}</span>{isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</div>
                   </button>
                   {isExpanded && <div className="mt-3 grid gap-2 border-t border-hpsr-border pt-3 text-xs font-semibold text-hpsr-muted sm:grid-cols-2"><p><strong className="text-hpsr-text">Protocolo:</strong> {appointment.id}</p><p><strong className="text-hpsr-text">Médico:</strong> {appointment.physician}</p><p className="sm:col-span-2"><strong className="text-hpsr-text">Motivo:</strong> {appointment.reason || "Não informado"}</p>{["Acompanhamento", "Outros"].includes(appointment.flowType || "") && appointment.flowDetails && <p className="sm:col-span-2"><strong className="text-hpsr-text">Objetivo informado:</strong> {appointment.flowDetails}</p>}{appointment.notes && <p className="sm:col-span-2"><strong className="text-hpsr-text">Observações:</strong> {appointment.notes}</p>}{hasConsultationSummary && (
-                    <div className="sm:col-span-2 overflow-hidden rounded-[18px] border border-hpsr-border bg-white shadow-[0_10px_24px_rgba(76,31,18,.06)]">
+                    <div className="sm:col-span-2 overflow-hidden rounded-[18px] border border-hpsr-border bg-[#f7f0e8] shadow-[0_7px_18px_rgba(76,31,18,.06)]">
                       <div className="flex items-start gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#fff8f1_0%,#fffdf9_100%)] p-3.5 sm:p-4">
                         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-hpsr-wine text-white"><Stethoscope size={19} /></span>
                         <div className="min-w-0">
@@ -245,7 +245,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
                       </div>
 
                       <div className="space-y-3 p-3.5 sm:p-4">
-                        <section className="rounded-[14px] border border-hpsr-border bg-[#fffaf4] p-3">
+                        <section className="rounded-[14px] border border-hpsr-border bg-[#eee2d6] p-3">
                           <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Consulta</p>
                           {appointment.attendanceSummary ? (
                             <p className="mt-2 text-xs font-semibold leading-relaxed text-hpsr-text">{appointment.attendanceSummary}</p>
@@ -327,7 +327,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
         )}
       </section>}
 
-      {view === "request" && <section className="rounded-[18px] border border-hpsr-border bg-white/90 p-3.5 sm:p-4">
+      {view === "request" && <section className="rounded-[18px] border border-hpsr-border bg-[#f5ece3] p-3.5 sm:p-4">
         <div className="border-b border-hpsr-border/70 pb-3">
           <h3 className="text-base font-black text-hpsr-text">Solicitar consulta</h3>
           <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Aqui você pede uma nova consulta. Isso não marca um horário na hora. Se você já faz acompanhamento, veja Meus agendamentos e Horários do médico.</p>
@@ -351,7 +351,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
             <p className={`text-xs font-black ${capacityAvailable === false ? "text-rose-800" : "text-emerald-800"}`}>{capacityLoading ? "Consultando vagas..." : capacityAvailable === false ? "Sem vagas no momento" : capacityAvailable === true ? "Há profissional com vaga" : "Disponibilidade será confirmada ao enviar"}</p>
             <p className={`mt-1 text-[11px] font-semibold ${capacityAvailable === false ? "text-rose-700" : "text-emerald-700"}`}>{capacityAvailable === false ? "Esta especialidade está com a capacidade preenchida e não receberá novos pedidos agora." : "A solicitação será mostrada somente aos profissionais elegíveis dessa especialidade."}</p>
           </div>}
-          <div className="sm:col-span-2 rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3.5">
+          <div className="sm:col-span-2 rounded-[16px] border border-hpsr-border bg-[#eee2d6] p-3.5">
             <p className="text-xs font-black text-hpsr-text">Valores da consulta</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <div className="rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5"><p className="text-[11px] font-semibold text-hpsr-muted">Consulta especializada</p><p className="mt-0.5 text-sm font-black text-hpsr-text">{formatServicePrice(servicePricing.specialistConsultation)}</p></div>

@@ -481,7 +481,7 @@ export default function CalculatorPage() {
       <div className="hpsr-page-scroll hpsr-calculadora-scroll-region min-h-0 flex-1 overflow-hidden">
       <section className="grid h-full min-h-0 gap-4 xl:grid-cols-[minmax(0,1fr)_420px] xl:items-stretch">
         <div className="order-2 min-h-0 overflow-hidden xl:order-1">
-          <section className="hpsr-calculadora-panel flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] border border-hpsr-border bg-[linear-gradient(180deg,#fffdfa_0%,#ffffff_100%)] shadow-[0_14px_34px_rgba(79,42,21,0.07)]">
+          <section className="hpsr-calculadora-panel flex h-full min-h-0 flex-col overflow-hidden rounded-[20px] border border-[#d6baa3] bg-[linear-gradient(170deg,#f4e5d3_0%,#f0dfcd_100%)] shadow-[0_14px_34px_rgba(79,42,21,0.07)]">
             <div className="shrink-0 border-b border-hpsr-border/70 bg-[linear-gradient(180deg,#f8f1e8_0%,#f4ebe0_100%)] p-2.5">
               <div className="grid gap-2 rounded-[16px] bg-[#f0e7dd] p-2 lg:grid-cols-2">
                 {tabs.map((tab) => (
@@ -502,7 +502,7 @@ export default function CalculatorPage() {
               </div>
             </div>
 
-            <div className="shrink-0 border-b border-hpsr-border/70 px-3.5 py-2.5">
+            <div className="hpsr-dark-section-header shrink-0 border-b border-[#ab8068]/55 px-3.5 py-2.5">
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px] lg:items-center">
                 <div className="flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-hpsr-wine text-white">
@@ -584,9 +584,9 @@ export default function CalculatorPage() {
         </div>
 
         <aside className="order-1 min-h-0 overflow-hidden xl:order-2">
-          <section className="hpsr-calculadora-panel flex h-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-[0_18px_42px_rgba(79,42,21,0.09)]">
-            <div className="hpsr-calculadora-scroll-region flex min-h-0 flex-1 flex-col overflow-hidden bg-[linear-gradient(145deg,#fff8f1_0%,#f8eadc_100%)] p-4">
-              <div className="flex shrink-0 items-center justify-between gap-3">
+          <section className="hpsr-calculadora-panel flex h-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-[#d6baa3] bg-[linear-gradient(170deg,#ecd9c7_0%,#ddc4af_100%)] shadow-[0_18px_42px_rgba(79,42,21,0.09)]">
+            <div className="hpsr-calculadora-scroll-region flex min-h-0 flex-1 flex-col overflow-hidden bg-[linear-gradient(145deg,#ead7c5_0%,#e4ccb7_100%)] p-4">
+              <div className="hpsr-dark-section-header -mx-4 -mt-4 flex shrink-0 items-center justify-between gap-3 px-4 py-3">
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white shadow-sm">
                     <ReceiptText size={19} />
@@ -601,7 +601,7 @@ export default function CalculatorPage() {
                 </span>
               </div>
 
-              <div className="hpsr-calculadora-scroll-region mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[#d9cbbb] bg-[linear-gradient(180deg,#fffefd_0%,#fff8f1_100%)] p-4 shadow-[0_10px_28px_rgba(90,46,24,0.07)]">
+              <div className="hpsr-calculadora-scroll-region mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-[20px] border border-[#d9cbbb] bg-[linear-gradient(180deg,#ead4c0_0%,#e5cbb5_100%)] p-4 shadow-[0_10px_28px_rgba(90,46,24,0.07)]">
                 <div className="flex shrink-0 items-center justify-between gap-3 border-b border-dashed border-[#cfbda9] pb-3">
                   <div>
                     <p className="text-[10px] font-black uppercase tracking-[.08em] text-hpsr-muted">Condições da compra</p>
@@ -649,7 +649,7 @@ export default function CalculatorPage() {
                       className={`group flex min-h-[52px] items-center justify-between gap-3 rounded-[14px] border px-3 py-2.5 text-left transition ${
                         convenio === option.id
                           ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_8px_18px_rgba(103,38,20,0.15)]"
-                          : "border-[#e5d3c2] bg-white/90 text-hpsr-text hover:border-hpsr-wine/35 hover:bg-[#fff8f0]"
+                          : "border-[#d4b59d] bg-[#f0dfce] text-hpsr-text hover:border-hpsr-wine/35 hover:bg-[#f5e6d8]"
                       }`}
                     >
                       <span className="flex min-w-0 items-center gap-3">
@@ -728,7 +728,7 @@ export default function CalculatorPage() {
               </div>
             </div>
 
-            <div className="grid gap-2 border-t border-hpsr-border bg-white p-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+            <div className="grid gap-2 border-t border-[#d6baa3] bg-[#ead6c3] p-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
               <button
                 type="button"
                 onClick={() => void generateAndDownloadReceipt()}
@@ -788,7 +788,7 @@ function ProductList({
   }
 
   return (
-    <div className="overflow-hidden rounded-[18px] border border-hpsr-border bg-white shadow-[0_10px_24px_rgba(82,48,27,0.05)]">
+    <div className="overflow-hidden rounded-[18px] border border-[#d6baa3] bg-[#f4e7d9] shadow-[0_10px_24px_rgba(82,48,27,0.05)]">
       <div className="hidden grid-cols-[72px_minmax(220px,1fr)_150px_150px_230px] items-center gap-3 bg-hpsr-wine px-4 py-3 text-[11px] font-black uppercase tracking-[0.08em] text-white lg:grid">
         <span>Imagem</span>
         <span>Produto</span>
@@ -806,7 +806,7 @@ function ProductList({
             <article
               key={product.id}
               className={`grid gap-3 px-3 py-3 transition lg:grid-cols-[72px_minmax(220px,1fr)_150px_150px_230px] lg:items-center lg:px-4 ${
-                active ? "bg-[#fff8f0]" : "bg-white hover:bg-[#fffdf9]"
+                active ? "bg-[#ecd6c3]" : "bg-[#f0dfce] hover:bg-[#f4e6d8]"
               }`}
             >
               <div className="flex items-center gap-3 lg:block">
@@ -944,8 +944,8 @@ function ProductCard({
   const hasPmPrice = isPmSale && Boolean(product.descontoPmValor);
 
   return (
-    <article className={`relative overflow-hidden rounded-[18px] border bg-[linear-gradient(180deg,#fffefb_0%,#fff8f1_100%)] p-3.5 text-center shadow-[0_10px_24px_rgba(82,48,27,0.05)] transition duration-200 ${
-      active ? "border-hpsr-wine shadow-[0_14px_30px_rgba(111,43,23,0.12)]" : "border-hpsr-border hover:-translate-y-0.5 hover:border-hpsr-wine/30 hover:bg-white hover:shadow-[0_14px_28px_rgba(82,48,27,0.09)]"
+    <article className={`hpsr-calculator-product relative overflow-hidden rounded-[18px] border bg-[linear-gradient(165deg,#f5e9dd_0%,#efdfcf_100%)] p-3.5 text-center shadow-[0_10px_24px_rgba(82,48,27,0.05)] transition duration-200 ${
+      active ? "border-hpsr-wine shadow-[0_14px_30px_rgba(111,43,23,0.12)]" : "border-hpsr-border hover:-translate-y-0.5 hover:border-hpsr-wine/30 hover:shadow-[0_14px_28px_rgba(82,48,27,0.09)]"
     }`}>
       <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-hpsr-wine/35 to-transparent" />
       {active && (

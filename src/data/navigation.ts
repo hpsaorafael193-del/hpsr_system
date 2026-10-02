@@ -11,6 +11,7 @@ import {
   Handshake,
   HeartHandshake,
   Home,
+  ShieldCheck,
   Landmark,
   WalletCards,
   Pill,
@@ -50,6 +51,7 @@ export const toolsNavigation = [
 
 export const adminNavigation = [
   { label: "Direção", href: "/dashboard/equipe", icon: Users },
+  { label: "Interno", href: "/dashboard/interno", icon: ShieldCheck, internalOnly: true },
   { label: "Relatório", href: "/dashboard/direcao", icon: Landmark },
 ];
 

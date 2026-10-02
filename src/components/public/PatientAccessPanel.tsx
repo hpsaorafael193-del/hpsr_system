@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import dynamic from "next/dynamic";
 import {
-  AlertCircle, Baby, BellRing, CalendarClock, ClipboardPlus, FileHeart, FlaskConical, HeartPulse, HelpCircle,
+  AlertCircle, Baby, BellRing, CalendarClock, ClipboardPlus, FileHeart, FlaskConical, HeartPulse, HelpCircle, Syringe,
   Loader2, LockKeyhole, LogIn, MailX, Plus, ShieldCheck, Trash2, UserPlus, UserRound, X,
 } from "lucide-react";
 import { PatientGestationalPlansPanel } from "@/components/public/PatientGestationalPlansPanel";
@@ -18,10 +18,10 @@ import { clearAuthContext, clearLoginPersistence, setAuthContext } from "@/lib/a
 import { formatCityPhoneNumber, normalizeDiscordId } from "@/lib/phone";
 
 type Stage = "checking" | "login" | "register" | "portal";
-type PortalSection = "home" | "appointments" | "request" | "followups" | "exam-request" | "records" | "gestation" | "pending" | "profile";
+type PortalSection = "home" | "appointments" | "request" | "followups" | "exam-request" | "records" | "gestation" | "ivf" | "vaccination" | "pending" | "profile";
 type PortalPatient = { passport: string; name: string; relationship: string; access_type: string; hasClinicalContact?: boolean; discord?: string; cityPhone?: string; preferredContact?: "discord" | "city_phone" | null };
 type PendingChildLink = { passport: string; name: string; relationship: string; status: string };
-type SessionResponse = { authenticated?: boolean; patientName?: string; accessiblePatients?: PortalPatient[]; pendingChildLinks?: PendingChildLink[] };
+type SessionResponse = { authenticated?: boolean; accountId?: string; patientName?: string; accessiblePatients?: PortalPatient[]; pendingChildLinks?: PendingChildLink[]; hasOwnProfile?: boolean };
 
 type RegisterForm = {
   name: string;
@@ -52,7 +52,12 @@ export function PatientAccessPanel() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [register, setRegister] = useState<RegisterForm>(EMPTY_REGISTER);
+  const [registrationType, setRegistrationType] = useState<"patient" | "guardian">("patient");
   const [patientName, setPatientName] = useState("Paciente");
+  const [accountId, setAccountId] = useState("");
+  const [showGestation, setShowGestation] = useState(false);
+  const [showIVF, setShowIVF] = useState(false);
+  const [hasOwnProfile,setHasOwnProfile] = useState(true);
   const [accessiblePatients, setAccessiblePatients] = useState<PortalPatient[]>([]);
   const [selectedPassport, setSelectedPassport] = useState("");
   const [pendingChildLinks, setPendingChildLinks] = useState<PendingChildLink[]>([]);
@@ -61,14 +66,18 @@ export function PatientAccessPanel() {
   const [error, setError] = useState("");
   const [portalSection, setPortalSection] = useState<PortalSection>("home");
   const [childOpen, setChildOpen] = useState(false);
-  const [childForm, setChildForm] = useState({ name: "", passport: "", age: "", birthDate: "", bloodType: "", relationship: "Responsável legal" });
+  const [childForm, setChildForm] = useState({ name: "", passport: "", age: "", ageUnit: "anos", relationship: "Responsável legal", additionalGuardianName: "" });
   const [followupData, setFollowupData] = useState<PatientFollowupData | null>(null);
+  const [followupPassport, setFollowupPassport] = useState("");
   const [followupLoading, setFollowupLoading] = useState(false);
   const [followupError, setFollowupError] = useState("");
   const [helpOpen, setHelpOpen] = useState(false);
   const [recoveryOpen, setRecoveryOpen] = useState(false);
   const portalContentRef = useRef<HTMLDivElement>(null);
   const shouldFocusPortalSectionRef = useRef(false);
+  const followupInFlightRef = useRef<{ passport: string; request: Promise<void> } | null>(null);
+  const followupLastLoadedRef = useRef<{ passport: string; at: number } | null>(null);
+  const followupSequenceRef = useRef(0);
 
   const focusPortalContent = useCallback(() => {
     const content = portalContentRef.current;
@@ -94,26 +103,41 @@ export function PatientAccessPanel() {
     return () => window.cancelAnimationFrame(frame);
   }, [focusPortalContent, portalSection, stage]);
 
-  const loadFollowups = useCallback(async (passport: string) => {
-    if (!passport) { setFollowupData(null); setFollowupError(""); return; }
+  const loadFollowups = useCallback((passport: string, force = false): Promise<void> => {
+    if (!passport) { setFollowupData(null); setFollowupError(""); return Promise.resolve(); }
+    const activeRequest = followupInFlightRef.current;
+    if (activeRequest?.passport === passport) return activeRequest.request;
+    if (!force && followupLastLoadedRef.current?.passport === passport
+        && Date.now() - followupLastLoadedRef.current.at < 20_000) return Promise.resolve();
+    const sequence = ++followupSequenceRef.current;
     setFollowupLoading(true);
     setFollowupError("");
-    try {
-      const response = await fetch(`/api/paciente/acompanhamentos?passport=${encodeURIComponent(passport)}`, { cache: "no-store" });
-      const data = await response.json();
-      if (response.status === 401) return;
-      if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível carregar os acompanhamentos.");
-      setFollowupData({
-        followups: data.followups || [],
-        agendaAvailableCount: Number(data.agendaAvailableCount || 0),
-        scheduledCount: Number(data.scheduledCount || 0),
-        checkedAt: data.checkedAt,
-      });
-    } catch (caught) {
-      setFollowupError(caught instanceof Error ? caught.message : "Não foi possível carregar os acompanhamentos.");
-    } finally {
-      setFollowupLoading(false);
-    }
+    const request = (async () => {
+      try {
+        const response = await fetch(`/api/paciente/acompanhamentos?passport=${encodeURIComponent(passport)}`, { cache: "no-store" });
+        const data = await response.json();
+        if (sequence !== followupSequenceRef.current) return;
+        if (response.status === 401) return;
+        if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível carregar os acompanhamentos.");
+        followupLastLoadedRef.current = { passport, at: Date.now() };
+        setFollowupPassport(passport);
+        setFollowupData({
+          followups: data.followups || [],
+          agendaAvailableCount: Number(data.agendaAvailableCount || 0),
+          scheduledCount: Number(data.scheduledCount || 0),
+          checkedAt: data.checkedAt,
+        });
+      } catch (caught) {
+        if (sequence === followupSequenceRef.current) setFollowupError(caught instanceof Error ? caught.message : "Não foi possível carregar os acompanhamentos.");
+      } finally {
+        if (sequence === followupSequenceRef.current) setFollowupLoading(false);
+      }
+    })();
+    followupInFlightRef.current = { passport, request };
+    void request.finally(() => {
+      if (followupInFlightRef.current?.request === request) followupInFlightRef.current = null;
+    });
+    return request;
   }, []);
 
   const checkSession = useCallback(async () => {
@@ -124,6 +148,8 @@ export function PatientAccessPanel() {
         clearLoginPersistence();
         setAuthContext("patient");
         setPatientName(data.patientName || "Paciente");
+        setAccountId(data.accountId || "");
+        setHasOwnProfile(Boolean(data.hasOwnProfile));
         const profiles = data.accessiblePatients || [];
         setAccessiblePatients(profiles);
         setPendingChildLinks(data.pendingChildLinks || []);
@@ -137,9 +163,78 @@ export function PatientAccessPanel() {
     return false;
   }, []);
 
+  // O cabeçalho público hospeda os perfis e as notificações; o Portal mantém o
+  // prontuário ativo e valida toda seleção contra os vínculos da sessão.
   useEffect(() => {
+    if (stage !== "portal") return;
+    window.dispatchEvent(new CustomEvent("hpsr-patient-portal-updated", { detail: {
+      accountId, accessiblePatients, pendingChildLinks, selectedPassport, hasOwnProfile,
+    } }));
+  }, [stage, accountId, accessiblePatients, pendingChildLinks, selectedPassport, hasOwnProfile]);
+
+  useEffect(() => {
+    const selectFromHeader = (event: Event) => {
+      const { passport, section } = (event as CustomEvent<{ passport: string; section: PortalSection }>).detail || {};
+      if (stage !== "portal") return;
+      const match = accessiblePatients.find((item) => item.passport === passport);
+      if (match) {
+        setSelectedPassport(match.passport);
+        setPortalSection(section === "vaccination" && match.access_type === "self" ? "records" : (section || "home"));
+      } else if (!passport && section === "home") {
+        setPortalSection("home");
+      }
+    };
+    const registerFromHeader = () => { if (stage === "portal") setChildOpen(true); };
+    const openMyData = () => {
+      if (stage !== "portal" || !hasOwnProfile) return;
+      const self = accessiblePatients.find((item) => item.access_type === "self");
+      if (self) setSelectedPassport(self.passport);
+      openPortalSection("profile");
+    };
+    const refreshProfiles = () => { if (stage === "portal") void checkSession(); };
+    const expireSession = () => { setStage("login"); setError("Sua sessão expirou. Entre novamente para continuar."); };
+    window.addEventListener("hpsr-patient-select-profile", selectFromHeader);
+    window.addEventListener("hpsr-patient-register-child", registerFromHeader);
+    window.addEventListener("hpsr-patient-open-my-data", openMyData);
+    window.addEventListener("hpsr-patient-refresh-profiles", refreshProfiles);
+    window.addEventListener("hpsr-patient-session-expired", expireSession);
+    return () => {
+      window.removeEventListener("hpsr-patient-select-profile", selectFromHeader);
+      window.removeEventListener("hpsr-patient-register-child", registerFromHeader);
+      window.removeEventListener("hpsr-patient-open-my-data", openMyData);
+      window.removeEventListener("hpsr-patient-refresh-profiles", refreshProfiles);
+      window.removeEventListener("hpsr-patient-session-expired", expireSession);
+    };
+  }, [stage, accessiblePatients, hasOwnProfile, openPortalSection, checkSession]);
+
+  useEffect(() => {
+    if (stage !== "portal" || !selectedPassport) { setShowGestation(false); setShowIVF(false); return; }
+    let active = true;
+    setShowGestation(false);
+    setShowIVF(false);
+    fetch(`/api/paciente/contexto?passport=${encodeURIComponent(selectedPassport)}`, { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((data) => { if (active) { setShowGestation(Boolean(data?.showGestation)); setShowIVF(Boolean(data?.showIVF)); } })
+      .catch(() => { if (active) { setShowGestation(false); setShowIVF(false); } });
+    return () => { active = false; };
+  }, [selectedPassport, stage]);
+
+  useEffect(() => {
+    // Uma resposta de outro perfil nunca pode permanecer na tela após a troca.
+    followupSequenceRef.current += 1;
+    followupInFlightRef.current = null;
+    setFollowupLoading(false);
+    setFollowupData(null);
+    setFollowupPassport("");
+    setFollowupError("");
+    followupLastLoadedRef.current = null;
     if (stage === "portal" && selectedPassport) void loadFollowups(selectedPassport);
-    else if (stage !== "portal") setFollowupData(null);
+    else if (stage !== "portal") {
+      followupSequenceRef.current += 1;
+      followupInFlightRef.current = null;
+      followupLastLoadedRef.current = null;
+      setFollowupData(null);
+    }
   }, [loadFollowups, selectedPassport, stage]);
 
   useEffect(() => {
@@ -221,7 +316,11 @@ export function PatientAccessPanel() {
     if (register.password !== register.confirmation) {
       setError("A senha e a confirmação não são iguais."); return;
     }
-    const guardians = Array.from(new Set(register.guardianPassports.map((passport) => passport.trim().toUpperCase()).filter(Boolean)));
+    if (registrationType === "patient" && isMinorRegistration) {
+      setError("Crianças não precisam de conta própria. Crie a conta de responsável e cadastre a criança por ela."); return;
+    }
+    const guardians = registrationType === "patient"
+      ? Array.from(new Set(register.guardianPassports.map((passport) => passport.trim().toUpperCase()).filter(Boolean))) : [];
     if (guardians.includes(register.passport.trim().toUpperCase())) {
       setError("O paciente menor de idade não pode ser informado como o próprio responsável."); return;
     }
@@ -238,7 +337,7 @@ export function PatientAccessPanel() {
       });
       const accessToken = existingLogin.data.session?.access_token || "";
 
-      const response = await fetch("/api/paciente/cadastrar", {
+      const response = await fetch(registrationType === "guardian" ? "/api/paciente/conta-responsavel" : "/api/paciente/cadastrar", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -305,15 +404,15 @@ export function PatientAccessPanel() {
       const response = await fetch("/api/paciente/dependentes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(childForm),
+        body: JSON.stringify({ ...childForm, age: `${childForm.age.trim()} ${childForm.ageUnit}` }),
       });
       const data = await response.json();
       if (response.status === 401) { handleSessionExpired(); return; }
       if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível cadastrar a criança.");
       await checkSession();
-      setChildForm({ name: "", passport: "", age: "", birthDate: "", bloodType: "", relationship: "Responsável legal" });
+      setChildForm({ name: "", passport: "", age: "", ageUnit: "anos", relationship: "Responsável legal", additionalGuardianName: "" });
       setChildOpen(false);
-      setMessage(data.message || "Solicitação enviada. O prontuário foi preparado e o vínculo aguarda uma confirmação médica simples.");
+      setMessage(data.message || "Solicitação enviada. O passaporte foi registrado e o vínculo aguarda validação pela Direção.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível cadastrar a criança.");
     } finally { setBusy(false); }
@@ -327,7 +426,7 @@ export function PatientAccessPanel() {
       const supabase = createClient();
       if (supabase) await supabase.auth.signOut();
     } finally {
-      setBusy(false); setStage("login"); setPassword(""); setPatientName("Paciente"); setFollowupData(null); setPortalSection("home"); window.dispatchEvent(new Event("hpsr-patient-session-changed"));
+      setBusy(false); setStage("login"); setPassword(""); setPatientName("Paciente"); setAccountId(""); setFollowupData(null); setPortalSection("home"); window.dispatchEvent(new Event("hpsr-patient-session-changed"));
     }
   }
 
@@ -356,52 +455,35 @@ export function PatientAccessPanel() {
   }
 
   if (stage === "portal") {
+    const selectedProfile = accessiblePatients.find((item) => item.passport === selectedPassport);
+    const activeFollowups = followupPassport === selectedPassport ? followupData : null;
+    const isChildProfile = selectedProfile?.access_type !== "self" && Boolean(selectedProfile);
+    // Ordem funcional fixa; acompanhamentos específicos aparecem somente quando liberados.
     const sections = [
-      { id: "appointments" as const, icon: CalendarClock, title: "Meus agendamentos", subtitle: "Veja suas consultas e os horários combinados." },
-      { id: "request" as const, icon: ClipboardPlus, title: "Solicitar consulta", subtitle: "Peça uma nova consulta. O médico combina o horário depois." },
-      { id: "followups" as const, icon: CalendarClock, title: "Horários do médico", subtitle: "Veja os horários que seu médico publicou para você e confirme um atendimento." },
-      { id: "exam-request" as const, icon: FlaskConical, title: "Solicitar exame", subtitle: "Peça um exame e acompanhe o andamento." },
-      { id: "gestation" as const, icon: Baby, title: "Gestação", subtitle: "Veja os planejamentos liberados pela médica." },
-      { id: "records" as const, icon: FileHeart, title: "Meu prontuário", subtitle: "Veja seus exames, documentos e registros liberados." },
-      { id: "pending" as const, icon: AlertCircle, title: "Pendências", subtitle: "Veja avisos ou ajustes que ainda estão em andamento." },
+      { id: "request" as const, icon: ClipboardPlus, title: "Solicitar consulta", subtitle: "Peça um atendimento." },
+      { id: "exam-request" as const, icon: FlaskConical, title: "Solicitar exame", subtitle: "Peça e acompanhe exames." },
+      { id: "appointments" as const, icon: CalendarClock, title: "Meus agendamentos", subtitle: "Consultas e retornos." },
+      { id: "followups" as const, icon: CalendarClock, title: "Horários do médico", subtitle: "Escolha um horário publicado." },
+      { id: "records" as const, icon: FileHeart, title: "Prontuário e documentos", subtitle: "Seus registros liberados." },
+      { id: "pending" as const, icon: AlertCircle, title: "Pendências", subtitle: "Solicitações que exigem atenção." },
+      ...(showGestation ? [{ id: "gestation" as const, icon: Baby, title: "Gestação", subtitle: "Seu planejamento gestacional." }] : []),
+      ...(showIVF ? [{ id: "ivf" as const, icon: HeartPulse, title: "FIV", subtitle: "Seu planejamento de FIV." }] : []),
+      ...(isChildProfile ? [{ id: "vaccination" as const, icon: Syringe, title: "Vacinação", subtitle: "Caderneta infantil." }] : []),
     ];
 
     return (
       <div className="mx-auto max-w-7xl">
         <div className="grid min-w-0 gap-4">
-          <main className="min-w-0 overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-[0_14px_34px_rgba(82,48,27,.06)]">
-            <div className="flex flex-col gap-3 border-b border-hpsr-border bg-[#fffaf4] p-3.5 sm:p-4">
+          <main className="min-w-0 overflow-hidden rounded-[22px] border border-[#d6c3b0] bg-[#f4ece3] shadow-[0_11px_29px_rgba(77,50,32,.06)]">
+            <div className="flex flex-col gap-3 border-b border-[#d7c6b5] bg-[#eaddcf] p-3.5 sm:p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-[10px] font-black uppercase tracking-[.15em] text-hpsr-wineLight">Portal do paciente</p>
-                  <h2 className="mt-0.5 text-lg font-black text-hpsr-text">Olá, {patientName}</h2>
-                </div>
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                {accessiblePatients.length > 1 && (
-                  <div className="w-full sm:w-72">
-                    <StyledSelect
-                      aria-label="Prontuário em visualização"
-                      className="min-h-[40px] w-full rounded-[12px] border border-hpsr-border bg-white px-3 text-sm font-black text-hpsr-text"
-                      value={selectedPassport}
-                      onChange={(event) => {
-                        setSelectedPassport(event.target.value);
-                        openPortalSection("home");
-                      }}
-                    >
-                      {accessiblePatients.map((item) => (
-                        <option key={item.passport} value={item.passport}>
-                          {item.name} · {item.access_type === "self" ? "Titular" : item.relationship}
-                        </option>
-                      ))}
-                    </StyledSelect>
-                  </div>
-                )}
-                <button type="button" onClick={() => openPortalSection("profile")} className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[12px] border px-3 text-xs font-black shadow-sm ${portalSection === "profile" ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-wine"}`}><UserRound size={15}/>Meus dados</button>
-                <button type="button" onClick={() => setChildOpen(true)} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine shadow-sm"><Baby size={15}/>Solicitar vínculo de criança</button>
+                  <p className="text-[10px] font-bold uppercase tracking-[.12em] text-hpsr-wineLight">Área do paciente</p>
+                  <h2 className="mt-0.5 text-lg font-bold text-hpsr-text">Olá, {patientName}</h2>
                 </div>
               </div>
 
-              <nav className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6" aria-label="Áreas do portal">
+              {accessiblePatients.length > 0 && <nav className="hpsr-touch-scroll flex w-full gap-2 overflow-x-auto pb-1" aria-label="Áreas do portal">
                 {sections.map(({ id, icon: Icon, title }) => {
                   const active = portalSection === id;
                   return (
@@ -409,18 +491,18 @@ export function PatientAccessPanel() {
                       key={id}
                       type="button"
                       onClick={() => openPortalSection(id)}
-                      className={`flex min-h-[42px] items-center justify-center gap-2 rounded-[12px] border px-3 py-2 text-xs font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white shadow-sm" : "border-hpsr-border bg-white text-hpsr-text hover:border-hpsr-wine/35 hover:bg-[#fffdf9]"}`}
+                      className={`flex min-h-[42px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[12px] border px-3 py-2 text-xs font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_2px_6px_rgba(80,39,27,.10)]" : "border-[#d5c0ac] bg-[#f7f0e9] text-hpsr-text hover:border-[#b5967f] hover:bg-[#eee0d3]"}`}
                     >
                       <Icon size={16} />
                       <span>{title}</span>
-                      {id === "followups" && Boolean(followupData?.agendaAvailableCount) && <span className={`ml-1 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[9px] font-black ${active ? "bg-white text-hpsr-wine" : "bg-blue-700 text-white"}`}>{followupData?.agendaAvailableCount}</span>}
+                      {id === "followups" && Boolean(activeFollowups?.agendaAvailableCount) && <span className={`ml-1 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[9px] font-black ${active ? "bg-white text-hpsr-wine" : "bg-[#537368] text-white"}`}>{activeFollowups?.agendaAvailableCount}</span>}
                     </button>
                   );
                 })}
-              </nav>
+              </nav>}
             </div>
 
-            <div className="p-3.5 sm:p-4">
+            <div className="hpsr-patient-content p-3.5 sm:p-4">
               {pendingChildLinks.length > 0 && (
                 <div className="mb-3 rounded-[16px] border border-amber-200 bg-amber-50 p-3.5">
                   <p className="text-xs font-black uppercase tracking-[.13em] text-amber-800">Vínculos pediátricos aguardando validação</p>
@@ -428,54 +510,62 @@ export function PatientAccessPanel() {
                     {pendingChildLinks.map((item) => (
                       <div key={item.passport} className="rounded-[12px] border border-amber-200/80 bg-white px-3 py-2.5">
                         <p className="text-sm font-black text-hpsr-text">{item.name}</p>
-                        <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{item.relationship} · {item.passport} · Aguardando confirmação médica</p>
+                        <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{item.relationship} · {item.passport} · Aguardando a Direção</p>
                       </div>
                     ))}
                   </div>
                   <p className="mt-2 text-xs font-semibold leading-relaxed text-amber-900">O prontuário já foi localizado ou preparado pelo sistema, mas os dados clínicos só serão liberados após a validação.</p>
                 </div>
               )}
-              <div ref={portalContentRef} tabIndex={-1} className="scroll-mt-24 outline-none sm:scroll-mt-20" aria-live="polite">
+              {!selectedPassport && <div className="mb-3 rounded-[16px] border border-[#d6c3b0] bg-[#efe3d7] p-4">
+                <h3 className="text-base font-bold text-hpsr-text">Seu espaço no HP São Rafael</h3>
+                <p className="mt-2 text-sm font-semibold leading-relaxed text-hpsr-muted">Cadastre seus filhos e acompanhe a validação dos vínculos. Após a aprovação, selecione a criança no perfil do cabeçalho para acessar o prontuário.</p>
+                <button type="button" onClick={() => setChildOpen(true)} className="mt-3 inline-flex min-h-[42px] items-center gap-2 rounded-[12px] bg-hpsr-wine px-4 text-xs font-black text-white"><Plus size={16}/>Cadastrar filho ou filha</button>
+              </div>}
+              {selectedPassport && <div ref={portalContentRef} tabIndex={-1} className="scroll-mt-24 outline-none sm:scroll-mt-20" aria-live="polite">
               {Boolean(followupData?.agendaAvailableCount) && portalSection === "home" && (
-                <button type="button" onClick={() => openPortalSection("followups")} className="mb-3 flex w-full items-start gap-3 rounded-[16px] border-2 border-blue-300 bg-[linear-gradient(135deg,#eff7ff_0%,#dfeeff_100%)] p-3.5 text-left shadow-[0_10px_22px_rgba(37,99,235,.07)]">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-blue-700 text-white"><BellRing size={18}/></span>
-                  <span className="min-w-0"><strong className="block text-sm font-black text-blue-950">Novos horários do médico</strong><span className="mt-1 block text-xs font-semibold leading-relaxed text-blue-900">Seu médico publicou horários em {followupData?.agendaAvailableCount} atendimento{followupData?.agendaAvailableCount === 1 ? "" : "s"}. Toque para ver e confirmar.</span></span>
+                <button type="button" onClick={() => openPortalSection("followups")} className="mb-3 flex w-full items-start gap-3 rounded-[16px] border border-[#b7c3c0] bg-[linear-gradient(135deg,#e5eae5_0%,#d9e4df_100%)] p-3.5 text-left shadow-[0_6px_16px_rgba(64,87,79,.05)]">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[#537368] text-white"><BellRing size={18}/></span>
+                  <span className="min-w-0"><strong className="block text-sm font-black text-[#304c41]">Novos horários do médico</strong><span className="mt-1 block text-xs font-semibold leading-relaxed text-[#405f53]">{followupData?.agendaAvailableCount} atendimento{followupData?.agendaAvailableCount === 1 ? "" : "s"} com horários disponíveis. Veja e confirme.</span></span>
                 </button>
               )}
               {portalSection === "home" && (
                 <div>
                   <div className="mb-3">
-                    <h3 className="text-base font-black text-hpsr-text">O que você precisa?</h3>
-                    <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Escolha uma opção. Cada área mostra só o que você precisa saber naquele momento.</p>
+                    <h3 className="text-base font-bold text-hpsr-text">Seu espaço no HP São Rafael</h3>
+                    <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Solicite atendimentos, escolha horários publicados e consulte seus documentos. As novidades ficam no sino; os perfis infantis, no cabeçalho.</p>
+                    <p className="mt-2 text-xs font-bold text-hpsr-wine">Prontuário: {selectedProfile?.name || patientName}</p>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {sections.map(({ id, icon: Icon, title, subtitle }) => (
-                      <button key={id} type="button" onClick={() => openPortalSection(id)} className="group flex min-h-[92px] items-start gap-3 rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3.5 text-left transition hover:border-hpsr-wine/35 hover:bg-white hover:shadow-sm">
-                        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-white text-hpsr-wine shadow-sm"><Icon size={18}/></span>
+                      <button key={id} type="button" onClick={() => openPortalSection(id)} className="group flex min-h-[82px] items-start gap-3 rounded-[15px] border border-[#ddccbb] bg-[#eee3d8] p-3 text-left transition hover:border-[#b5967f] hover:bg-[#e8d9ca] hover:shadow-[0_4px_13px_rgba(76,46,32,.06)]">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] border border-[#dfcab9] bg-[#dfcebe] text-hpsr-wine"><Icon size={18}/></span>
                         <span className="min-w-0">
-                          <strong className="block text-sm font-black text-hpsr-text">{title}</strong>
-                          <span className="mt-1 block text-xs font-semibold leading-relaxed text-hpsr-muted">{subtitle}</span>
+                          <strong className="block text-sm font-bold text-hpsr-text">{title}</strong>
+                          <span className="mt-0.5 block text-[11px] leading-snug text-hpsr-muted">{subtitle}</span>
                         </span>
                       </button>
                     ))}
                   </div>
                 </div>
               )}
-              {portalSection === "appointments" && <div className="space-y-4"><PatientFollowupSummaryPanel data={followupData} loading={followupLoading} error={followupError} onOpenHours={() => openPortalSection("followups")} /><PatientAppointmentsPanel view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => openPortalSection("records")} /></div>}
-              {portalSection === "request" && <PatientAppointmentsPanel view="request" passport={selectedPassport} hasClinicalContact={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasClinicalContact} onSessionExpired={handleSessionExpired} />}
-              {portalSection === "followups" && <PatientFollowupsPanel data={followupData} loading={followupLoading} error={followupError} passport={selectedPassport} onRefresh={() => void loadFollowups(selectedPassport)} />}
-              {portalSection === "exam-request" && <PatientExamRequestsPanel passport={selectedPassport} hasClinicalContact={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasClinicalContact} onSessionExpired={handleSessionExpired} />}
-              {portalSection === "gestation" && <PatientGestationalPlansPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
-              {portalSection === "records" && <PatientRecordsPanel passport={selectedPassport} onSessionExpired={handleSessionExpired} />}
-              {portalSection === "pending" && <PatientAppointmentsPanel view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => openPortalSection("records")} />}
+              {portalSection === "appointments" && <div className="space-y-4"><PatientFollowupSummaryPanel data={activeFollowups} loading={followupLoading} error={followupError} onOpenHours={() => openPortalSection("followups")} /><PatientAppointmentsPanel key={`${selectedPassport}:scheduled`} view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => openPortalSection("records")} /></div>}
+              {portalSection === "request" && <PatientAppointmentsPanel key={`${selectedPassport}:request`} view="request" passport={selectedPassport} hasClinicalContact={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasClinicalContact} onSessionExpired={handleSessionExpired} />}
+              {portalSection === "followups" && <PatientFollowupsPanel key={selectedPassport} data={activeFollowups} loading={followupLoading} error={followupError} passport={selectedPassport} onRefresh={() => void loadFollowups(selectedPassport, true)} />}
+              {portalSection === "exam-request" && <PatientExamRequestsPanel key={selectedPassport} passport={selectedPassport} hasClinicalContact={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasClinicalContact} onSessionExpired={handleSessionExpired} />}
+              {portalSection === "gestation" && showGestation && <PatientGestationalPlansPanel passport={selectedPassport} planType="gestacional" onSessionExpired={handleSessionExpired} />}
+              {portalSection === "ivf" && showIVF && <PatientGestationalPlansPanel passport={selectedPassport} planType="in_vitro" onSessionExpired={handleSessionExpired} />}
+              {portalSection === "records" && <PatientRecordsPanel key={`${selectedPassport}:records`} passport={selectedPassport} mode={isChildProfile ? "documents" : "all"} onSessionExpired={handleSessionExpired} />}
+              {portalSection === "vaccination" && isChildProfile && <PatientRecordsPanel key={`${selectedPassport}:vaccination`} passport={selectedPassport} mode="vaccination" onSessionExpired={handleSessionExpired} />}
+              {portalSection === "pending" && <PatientAppointmentsPanel key={`${selectedPassport}:pending`} view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => openPortalSection("records")} />}
               {portalSection === "profile" && <PatientProfilePanel onSessionExpired={handleSessionExpired} onSaved={async () => { await checkSession(); }} />}
-              </div>
+              </div>}
             </div>
           </main>
         </div>
         <PatientPortalHelp open={helpOpen} onOpen={() => setHelpOpen(true)} onClose={() => setHelpOpen(false)} />
       {childOpen && (
-        <div className="fixed inset-0 z-[1200] flex items-end justify-center bg-[#2a0700]/55 p-0 sm:items-center sm:p-4">
+        <div className="hpsr-modal-tone fixed inset-0 z-[1200] flex items-end justify-center bg-[#2a0700]/55 p-0 sm:items-center sm:p-4">
           <form onSubmit={createChild} className="flex max-h-[94dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] bg-white shadow-2xl sm:max-h-[88dvh] sm:rounded-[24px]">
             <div className="flex items-start justify-between bg-hpsr-wine px-5 py-4 text-white">
               <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-white/65">Fluxo pediátrico</p><h3 className="mt-1 text-xl font-black">Solicitar vínculo da criança</h3></div>
@@ -484,11 +574,15 @@ export function PatientAccessPanel() {
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5"><div className="grid gap-3 sm:grid-cols-2">
               <Field label="Nome da criança"><input className="portal-input" value={childForm.name} onChange={(e)=>setChildForm((c)=>({...c,name:e.target.value}))} required /></Field>
               <Field label="Passaporte"><input className="portal-input uppercase" value={childForm.passport} onChange={(e)=>setChildForm((c)=>({...c,passport:e.target.value.toUpperCase()}))} required /></Field>
-              <Field label="Idade"><input className="portal-input" inputMode="numeric" value={childForm.age} onChange={(e)=>setChildForm((c)=>({...c,age:e.target.value.replace(/\D/g,"")}))} required /></Field>
-              <Field label="Data de nascimento"><input type="date" className="portal-input" value={childForm.birthDate} onChange={(e)=>setChildForm((c)=>({...c,birthDate:e.target.value}))} /></Field>
-              <Field label="Tipo sanguíneo"><StyledSelect className="portal-input" value={childForm.bloodType} onChange={(e)=>setChildForm((c)=>({...c,bloodType:e.target.value}))}><option value="">Não informado</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></StyledSelect></Field>
-              <Field label="Vínculo"><input className="portal-input" value={childForm.relationship} onChange={(e)=>setChildForm((c)=>({...c,relationship:e.target.value}))} /></Field>
-              <p className="sm:col-span-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] p-3 text-xs font-semibold leading-relaxed text-hpsr-muted">O sistema compara nome e passaporte com o Prontuário. Quando encontra uma criança, prepara o vínculo; quando não encontra, cria o prontuário infantil pendente. A liberação ocorre somente após uma confirmação médica simples.</p>
+              <Field label="Idade da criança">
+                <div className="flex gap-2">
+                  <input inputMode="numeric" min="0" max="999" className="portal-input min-w-0 flex-1" placeholder="Ex.: 8" value={childForm.age} onChange={(e)=>setChildForm(c=>({...c,age:e.target.value.replace(/\D/g,"").slice(0,3)}))} required />
+                  <StyledSelect className="portal-input w-32" value={childForm.ageUnit} onChange={(e)=>setChildForm(c=>({...c,ageUnit:e.target.value}))}><option value="meses">meses</option><option value="anos">anos</option></StyledSelect>
+                </div>
+              </Field>
+              <Field label="Seu vínculo com a criança"><StyledSelect className="portal-input" value={childForm.relationship} onChange={(e)=>setChildForm(c=>({...c,relationship:e.target.value}))}><option>Mãe</option><option>Pai</option><option>Tutor</option><option>Responsável legal</option><option>Outro</option></StyledSelect></Field>
+              <Field label="Outro responsável (opcional)"><input className="portal-input" value={childForm.additionalGuardianName} placeholder="Nome do outro responsável" onChange={(e)=>setChildForm(c=>({...c,additionalGuardianName:e.target.value}))}/><span className="mt-1 block text-xs text-hpsr-muted">Informar o nome não concede acesso. Cada responsável deve ter sua própria conta e autorização.</span></Field>
+              <p className="sm:col-span-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] p-3 text-xs font-semibold text-hpsr-muted">Informe o passaporte único do RP. Se a criança já tem prontuário, ele será preservado. A equipe confirma o vínculo fora do sistema, pelo Discord ou durante o RP; somente a Direção libera o acesso.</p>
             </div></div>
             <div className="flex shrink-0 gap-3 border-t border-hpsr-border bg-[#fffaf4] p-4"><button type="button" onClick={()=>setChildOpen(false)} className="min-h-[44px] flex-1 rounded-[13px] border border-hpsr-border bg-white text-sm font-black">Cancelar</button><button disabled={busy} type="submit" className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine text-sm font-black text-white disabled:opacity-50">{busy?<Loader2 size={16} className="animate-spin"/>:<Baby size={16}/>}Enviar para validação</button></div>
           </form>
@@ -509,8 +603,8 @@ export function PatientAccessPanel() {
             <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Entre com sua conta ou crie seu acesso para consultar atendimentos, exames, documentos e pendências do HPSR.</p>
           </div>
           <div className="grid grid-cols-2 gap-2 rounded-[16px] border border-hpsr-border bg-white/90 p-1.5 shadow-sm">
-            <button onClick={() => { setStage("login"); clearFeedback(); }} className={`min-h-[44px] rounded-[12px] px-4 text-sm font-black transition ${stage === "login" ? "bg-hpsr-wine text-white shadow-sm" : "text-hpsr-muted hover:bg-[#fff7ef]"}`}>Entrar</button>
-            <button onClick={() => { setStage("register"); clearFeedback(); }} className={`min-h-[44px] rounded-[12px] px-4 text-sm font-black transition ${stage === "register" ? "bg-hpsr-wine text-white shadow-sm" : "text-hpsr-muted hover:bg-[#fff7ef]"}`}>Criar minha conta</button>
+            <button onClick={() => { setStage("login"); clearFeedback(); }} className={`min-h-[44px] rounded-[12px] px-4 text-sm font-black transition ${stage === "login" ? "bg-hpsr-wine text-white shadow-sm" : "text-hpsr-muted hover:bg-[#fff7ef]"}`}>Login</button>
+            <button onClick={() => { setStage("register"); clearFeedback(); }} className={`min-h-[44px] rounded-[12px] px-4 text-sm font-black transition ${stage === "register" ? "bg-hpsr-wine text-white shadow-sm" : "text-hpsr-muted hover:bg-[#fff7ef]"}`}>Cadastro</button>
           </div>
         </div>
       </div>
@@ -523,7 +617,7 @@ export function PatientAccessPanel() {
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-hpsr-wine text-white shadow-[0_10px_24px_rgba(103,38,20,.18)]"><LockKeyhole size={21} /></div>
                 <div>
                   <p className="text-xs font-black uppercase tracking-[.14em] text-hpsr-wineLight">Acesso seguro</p>
-                  <h3 className="text-[1.3rem] font-black leading-tight text-hpsr-text">Entrar na área do paciente</h3>
+                  <h3 className="text-[1.3rem] font-black leading-tight text-hpsr-text">Acesse sua conta</h3>
                   <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Use o e-mail cadastrado e sua senha para abrir o painel do paciente.</p>
                 </div>
               </div>
@@ -537,7 +631,7 @@ export function PatientAccessPanel() {
                 <Field label="Senha"><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !busy) void login(); }} className="portal-input" placeholder="Sua senha" /></Field>
               </div>
 
-              <button onClick={login} disabled={busy || !email.trim() || !password} className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[18px] bg-hpsr-wine px-5 text-sm font-black text-white shadow-[0_14px_30px_rgba(103,38,20,.16)] transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />} Entrar</button>
+              <button onClick={login} disabled={busy || !email.trim() || !password} className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[18px] bg-hpsr-wine px-5 text-sm font-black text-white shadow-[0_14px_30px_rgba(103,38,20,.16)] transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />} Acessar Portal</button>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <button onClick={recoverPassword} disabled={busy} className="min-h-[42px] rounded-[13px] border border-hpsr-border bg-white px-3 text-center text-sm font-black text-hpsr-wineLight transition hover:border-hpsr-wine/30 hover:text-hpsr-wine">Esqueci minha senha</button>
                 <button type="button" onClick={() => { clearFeedback(); setRecoveryOpen(true); }} disabled={busy} className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-[#fffaf4] px-3 text-center text-sm font-black text-hpsr-wine transition hover:border-hpsr-wine/30"><MailX size={15}/>Não acesso meu e-mail</button>
@@ -550,12 +644,16 @@ export function PatientAccessPanel() {
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-hpsr-wine text-white shadow-[0_12px_28px_rgba(103,38,20,.18)]"><UserPlus size={23} /></div>
               <div>
                 <p className="text-xs font-black uppercase tracking-[.14em] text-hpsr-wineLight">Novo acesso</p>
-                <h3 className="text-[1.35rem] font-black leading-tight text-hpsr-text">Criar conta do paciente</h3>
+                <h3 className="text-[1.35rem] font-black leading-tight text-hpsr-text">{registrationType === "guardian" ? "Criar conta de responsável" : "Criar conta do paciente"}</h3>
                 <p className="mt-1 max-w-2xl text-sm font-semibold leading-relaxed text-hpsr-muted">Cadastre seu acesso para consultar atendimentos, exames, documentos e demais informações liberadas no Portal do Paciente.</p>
               </div>
             </div>
 
-            <div className="mt-5 grid gap-3 rounded-[20px] border border-hpsr-border bg-white/92 p-4 sm:grid-cols-3">
+            <div className="mt-4 flex flex-wrap gap-2 rounded-[15px] bg-[#f4e9df] p-2">
+              <button type="button" onClick={()=>{setRegistrationType("patient");clearFeedback();}} className={`min-h-[42px] flex-1 rounded-[12px] px-3 text-sm font-black ${registrationType==="patient"?"bg-hpsr-wine text-white":"bg-white text-hpsr-wine"}`}>Sou paciente</button>
+              <button type="button" onClick={()=>{setRegistrationType("guardian");clearFeedback();}} className={`min-h-[42px] flex-1 rounded-[12px] px-3 text-sm font-black ${registrationType==="guardian"?"bg-hpsr-wine text-white":"bg-white text-hpsr-wine"}`}>Sou responsável</button>
+            </div>
+            {registrationType === "patient" &&             <div className="mt-5 grid gap-3 rounded-[20px] border border-hpsr-border bg-white/92 p-4 sm:grid-cols-3">
               <div className="rounded-[16px] border border-hpsr-border bg-[#fffaf5] px-4 py-3">
                 <p className="text-[11px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Vinculação</p>
                 <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">O passaporte conecta sua conta ao cadastro institucional.</p>
@@ -568,56 +666,28 @@ export function PatientAccessPanel() {
                 <p className="text-[11px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Acesso</p>
                 <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Depois de criar a conta, o acesso já poderá ser usado no portal.</p>
               </div>
-            </div>
-
+            </div>}
             <div className="mt-5 rounded-[22px] border border-hpsr-border bg-white p-5 shadow-[0_10px_24px_rgba(82,48,27,.04)]">
               <div className="mb-4 flex items-center justify-between gap-3 border-b border-hpsr-border pb-3">
                 <div>
                   <h4 className="text-base font-black text-hpsr-text">Dados do cadastro</h4>
-                  <p className="text-sm font-semibold text-hpsr-muted">Preencha as informações para criar sua conta de paciente.</p>
+                  <p className="text-sm font-semibold text-hpsr-muted">{registrationType === "guardian" ? "Uma conta própria para cadastrar seus filhos, sem precisar de prontuário." : "Preencha as informações para criar sua conta de paciente."}</p>
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Nome completo" wide><input value={register.name} onChange={(e) => setRegister(v => ({...v, name:e.target.value}))} className="portal-input" /></Field>
-              <Field label="Passaporte"><input value={register.passport} onChange={(e) => setRegister(v => ({...v, passport:e.target.value}))} className="portal-input" /></Field>
+              {registrationType === "patient" && <><Field label="Passaporte"><input value={register.passport} onChange={(e) => setRegister(v => ({...v, passport:e.target.value}))} className="portal-input" /></Field>
               <Field label="Idade"><input inputMode="numeric" value={register.age} onChange={(e) => setRegister(v => ({...v, age:e.target.value}))} className="portal-input" /></Field>
-              <Field label="Tipo sanguíneo"><StyledSelect value={register.bloodType} onChange={(e) => setRegister(v => ({...v, bloodType:e.target.value}))} className="portal-input"><option value="">Selecione</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></StyledSelect></Field>
-              {isMinorRegistration && (
-                <div className="sm:col-span-2 rounded-[18px] border border-[#e4c7bd] bg-[#fff8f4] p-4">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[.12em] text-hpsr-wineLight">Responsável pelo menor <span className="normal-case tracking-normal text-hpsr-muted">(opcional)</span></p>
-                      <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Opcional. Caso informado, o responsável precisa existir no prontuário, mas não precisa possuir conta no portal.</p>
-                    </div>
-                    <button type="button" onClick={addGuardianPassport} className="inline-flex min-h-[38px] shrink-0 items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine transition hover:border-hpsr-wineLight">
-                      <Plus size={14} /> Adicionar responsável
-                    </button>
-                  </div>
-                  <div className="mt-3 grid gap-2">
-                    {register.guardianPassports.map((passport, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <input
-                          value={passport}
-                          onChange={(event) => updateGuardianPassport(index, event.target.value)}
-                          placeholder={`Passaporte do responsável ${index + 1}`}
-                          className="portal-input min-w-0 flex-1 uppercase"
-                        />
-                        <button type="button" onClick={() => removeGuardianPassport(index)} aria-label="Remover responsável" className="grid h-[46px] w-[46px] shrink-0 place-items-center rounded-[14px] border border-rose-200 bg-white text-rose-700 transition hover:bg-rose-50">
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <Field label="Telefone"><input inputMode="numeric" maxLength={13} placeholder="(055) 626-323" value={register.phone} onChange={(e) => setRegister(v => ({...v, phone:formatCityPhoneNumber(e.target.value)}))} className="portal-input" /></Field>
-              <Field label="ID do Discord"><input inputMode="numeric" placeholder="ID numérico do seu perfil" value={register.discord} onChange={(e) => setRegister(v => ({...v, discord:normalizeDiscordId(e.target.value)}))} className="portal-input" /><span className="mt-1.5 block text-[11px] font-semibold text-hpsr-muted">Preferencial para contato da equipe. Use o ID do perfil/usuário do Discord, não o passaporte da cidade.</span></Field>
+              <Field label="Tipo sanguíneo"><StyledSelect value={register.bloodType} onChange={(e) => setRegister(v => ({...v, bloodType:e.target.value}))} className="portal-input"><option value="">Selecione</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></StyledSelect></Field></>}
+              {registrationType === "patient" && isMinorRegistration && <p className="sm:col-span-2 rounded-[14px] border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">Para cadastrar uma criança, utilize a conta do responsável. A criança não precisa de conta própria.</p>}
+              {registrationType === "patient" && <><Field label="Telefone"><input inputMode="numeric" maxLength={13} placeholder="(055) 626-323" value={register.phone} onChange={(e) => setRegister(v => ({...v, phone:formatCityPhoneNumber(e.target.value)}))} className="portal-input" /></Field>
+              <Field label="ID do Discord"><input inputMode="numeric" placeholder="ID numérico do seu perfil" value={register.discord} onChange={(e) => setRegister(v => ({...v, discord:normalizeDiscordId(e.target.value)}))} className="portal-input" /><span className="mt-1.5 block text-[11px] font-semibold text-hpsr-muted">Preferencial para contato da equipe. Use o ID do perfil/usuário do Discord, não o passaporte da cidade.</span></Field></>}
               <Field label="E-mail da conta" wide><input type="email" autoComplete="email" value={register.email} onChange={(e) => setRegister(v => ({...v, email:e.target.value}))} className="portal-input" /><span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Este e-mail é usado somente para acesso, recuperação de senha e funções do sistema. Para atendimento, a equipe usa o telefone da cidade ou o ID do Discord.</span></Field>
               <Field label="Senha"><input type="password" autoComplete="new-password" value={register.password} onChange={(e) => setRegister(v => ({...v, password:e.target.value}))} className="portal-input" minLength={6} placeholder="Mínimo de 6 caracteres" /></Field>
               <Field label="Confirmar senha"><input type="password" autoComplete="new-password" value={register.confirmation} minLength={6} onChange={(e) => setRegister(v => ({...v, confirmation:e.target.value}))} className="portal-input" /></Field>
               </div>
             </div>
-            <button onClick={createAccount} disabled={busy || !register.name || !register.passport || !register.email || !register.password || !register.confirmation} className="mt-5 inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[16px] bg-hpsr-wine px-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(103,38,20,.16)] transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />} Criar conta</button>
+            <button onClick={createAccount} disabled={busy || !register.name || (registrationType === "patient" && !register.passport) || !register.email || !register.password || !register.confirmation} className="mt-5 inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[16px] bg-hpsr-wine px-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(103,38,20,.16)] transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />} Criar conta</button>
           </div>
         )}
 
@@ -660,7 +730,7 @@ function PatientPortalHelp({ open, onOpen, onClose }: { open: boolean; onOpen: (
         <HelpCircle size={17}/> Como usar
       </button>
       {open && (
-        <div className="fixed inset-0 z-[1250] flex items-center justify-center bg-[#1f0805]/60 p-3 sm:p-5" role="dialog" aria-modal="true" aria-label="Como usar o Portal do Paciente">
+        <div className="hpsr-modal-tone fixed inset-0 z-[1250] flex items-center justify-center bg-[#1f0805]/60 p-3 sm:p-5" role="dialog" aria-modal="true" aria-label="Como usar o Portal do Paciente">
           <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-2xl sm:max-h-[88dvh] sm:rounded-[26px]">
             <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#fff2e6_100%)] px-4 py-4 sm:px-5">
               <div className="flex items-start justify-between gap-3">
@@ -676,14 +746,14 @@ function PatientPortalHelp({ open, onOpen, onClose }: { open: boolean; onOpen: (
               <div className="grid gap-2 sm:grid-cols-2">
                 {items.map(({ icon: Icon, title, text }, index) => (
                   <div key={title} className={`flex items-start gap-3 rounded-[15px] border p-3.5 ${index === 1 ? "border-blue-200 bg-blue-50/80" : "border-hpsr-border bg-[#fffaf4]"}`}>
-                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[11px] shadow-sm ${index === 1 ? "bg-blue-700 text-white" : "bg-white text-hpsr-wine"}`}><Icon size={17}/></span>
+                    <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-[11px] shadow-sm ${index === 1 ? "bg-[#537368] text-white" : "bg-white text-hpsr-wine"}`}><Icon size={17}/></span>
                     <div className="min-w-0"><p className="text-sm font-black text-hpsr-text">{title}</p><p className="mt-1 text-[11px] font-semibold leading-relaxed text-hpsr-muted sm:text-xs">{text}</p></div>
                   </div>
                 ))}
               </div>
               <div className="mt-3 rounded-[15px] border border-blue-200 bg-blue-50 px-3.5 py-3">
-                <p className="text-xs font-black text-blue-950">Onde vejo os horários?</p>
-                <p className="mt-1 text-[11px] font-semibold leading-relaxed text-blue-900 sm:text-xs"><strong>Horários do médico</strong> é onde aparecem os horários que ele publicou para você escolher. Depois de confirmar, o atendimento aparece em <strong>Meus agendamentos</strong>.</p>
+                <p className="text-xs font-black text-[#304c41]">Onde vejo os horários?</p>
+                <p className="mt-1 text-[11px] font-semibold leading-relaxed text-[#405f53] sm:text-xs"><strong>Horários do médico</strong> é onde aparecem os horários que ele publicou para você escolher. Depois de confirmar, o atendimento aparece em <strong>Meus agendamentos</strong>.</p>
               </div>
             </div>
             <div className="shrink-0 border-t border-hpsr-border bg-white p-3 sm:p-4">

@@ -4,7 +4,7 @@ import { brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneNumber } from "@/lib/phone";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -283,6 +283,8 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
   const [selectedSchedules, setSelectedSchedules] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  // Retém o protocolo/token da mesma tentativa caso a rede falhe após o servidor salvar.
+  const pendingAttemptRef = useRef<{ fingerprint: string; application: StoredStaffApplication } | null>(null);
 
   useModalBehavior(open, onClose);
 
@@ -297,6 +299,10 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
       return;
     }
 
+    if (selectedSchedules.length === 0) {
+      setSubmitError("Selecione ao menos um horário de disponibilidade antes de enviar.");
+      return;
+    }
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
     const passport = String(form.get("passport") ?? "").trim();
@@ -326,10 +332,29 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
       createdAt: now,
     };
 
+    if (application.name.length < 2 || application.name.length > 160
+      || application.passport.length < 1 || application.passport.length > 80
+      || !application.discord || !application.motivation || !application.declarationAccepted
+      || !application.externalAvailability) {
+      setSubmitError("Confira os campos obrigatórios, o passaporte, o Discord e o termo de concordância.");
+      return;
+    }
+
     const client = createClient();
     if (!client) {
       setSubmitError("O serviço de candidaturas está indisponível. Tente novamente mais tarde.");
       return;
+    }
+
+    // Reenviar o mesmo formulário usa a mesma identidade: a PK impede duplicação.
+    const fingerprint = JSON.stringify({ ...application, protocol: "", token: "", createdAt: "" });
+    const prior = pendingAttemptRef.current;
+    if (prior?.fingerprint === fingerprint) {
+      application.protocol = prior.application.protocol;
+      application.token = prior.application.token;
+      application.createdAt = prior.application.createdAt;
+    } else {
+      pendingAttemptRef.current = { fingerprint, application };
     }
 
     setSubmitting(true);
@@ -350,11 +375,34 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
 
       const confirmedApplication = { ...application, status: "Pendente" };
       setSubmittedApplication(confirmedApplication);
+      pendingAttemptRef.current = null;
       formElement.reset();
     } catch (error) {
+      // Timeout pode ocorrer depois da gravação; confirme usando a consulta pública segura.
+      // Não gerar outro protocolo até saber se a tentativa anterior foi registrada.
+      try {
+        const { data: found, error: lookupError } = await client.rpc("consult_staff_application", {
+          p_passport: application.passport, p_token: application.token,
+        });
+        if (!lookupError && found && typeof found === "object" && found.protocol === application.protocol) {
+          setSubmittedApplication({ ...application, status: String(found.status || "Pendente") });
+          pendingAttemptRef.current = null;
+          formElement.reset();
+          return;
+        }
+      } catch {
+        // Conserva os campos e o protocolo para uma nova tentativa segura.
+      }
       console.error("[HPSR] Falha ao enviar candidatura:", error);
-      setSubmitError(
-        "Não foi possível registrar a candidatura no sistema. Nenhum protocolo foi gerado. Verifique sua conexão e tente novamente."
+      const code = typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
+      const details = error instanceof Error ? error.message : "";
+      setSubmitError(code === "42501" || code === "PGRST301"
+        ? "Não foi possível autorizar o envio da ficha. Atualize a página e tente novamente; se persistir, avise a Direção."
+        : code === "23505"
+        ? "Esta tentativa já pode ter sido registrada. Consulte sua candidatura ou procure a Direção antes de reenviar."
+        : /fetch|network|timeout|failed to fetch/i.test(details)
+        ? "A conexão caiu durante o envio. Antes de tentar novamente, consulte a candidatura ou confirme com a Direção para evitar duplicação."
+        : "O Supabase não confirmou o registro da ficha. Os campos permanecem preenchidos; tente novamente ou procure a Direção se persistir."
       );
     } finally {
       setSubmitting(false);
@@ -372,7 +420,7 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
+    <div className="hpsr-modal-tone fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
       <button
         type="button"
         aria-label="Fechar modal"
@@ -419,6 +467,7 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
                 onClick={() => {
                   setSubmittedApplication(null);
                   setSelectedSchedules([]);
+                  pendingAttemptRef.current = null;
                   onClose();
                 }}
                 className="mt-6 rounded-xl bg-[linear-gradient(135deg,#672614,#2a0700)] px-4 py-3 text-sm font-black text-white"
@@ -535,7 +584,7 @@ function ApplicationModal({ open, onClose }: { open: boolean; onClose: () => voi
                     })}
                   </div>
                   <input
-                    required
+                    aria-hidden="true"
                     readOnly
                     value={selectedSchedules.join(", ")}
                     className="sr-only"
@@ -676,7 +725,7 @@ function ConsultApplicationModal({ open, onClose }: { open: boolean; onClose: ()
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
+    <div className="hpsr-modal-tone fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
       <button
         type="button"
         aria-label="Fechar modal"

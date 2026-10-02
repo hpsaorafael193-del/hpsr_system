@@ -15,7 +15,7 @@ export function PublicShell({
   showSystemFooter?: boolean;
 }) {
   return (
-    <div className={`${compactTypography && !patientPortal ? "hpsr-compact-type " : ""}min-h-screen overflow-x-hidden bg-[#fcf6ee] text-hpsr-text`}>
+    <div className={`${compactTypography && !patientPortal ? "hpsr-compact-type " : ""}min-h-screen overflow-x-hidden text-hpsr-text ${patientPortal ? "hpsr-public-shell--patient bg-[#e9ded2]" : "bg-[#fcf6ee]"}`}>
       {showHeader && <PublicHeader patientPortal={patientPortal} />}
       <main className="min-w-0">{children}</main>
       {showSystemFooter && <PublicSystemFooter />}

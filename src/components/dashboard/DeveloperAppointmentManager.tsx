@@ -277,8 +277,8 @@ export function DeveloperAppointmentManager({
   const recentCount = slots.filter((slot) => new Date(slot.starts_at).getTime() < now).length;
 
   return (
-    <section className="overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-[0_12px_34px_rgba(74,38,24,0.06)]">
-      <div className="border-b border-hpsr-border bg-[linear-gradient(180deg,#fffdfb_0%,#fff9f5_100%)] px-4 py-4 sm:px-5">
+    <section className="overflow-hidden rounded-[22px] border border-[#d7c0aa] bg-[#ecdfd1] shadow-[0_12px_34px_rgba(74,38,24,0.06)]">
+      <div className="border-b border-[#d7c0aa] bg-[linear-gradient(180deg,#f2e6d8_0%,#e9d6c4_100%)] px-4 py-4 sm:px-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-hpsr-wine">
@@ -355,7 +355,7 @@ export function DeveloperAppointmentManager({
             {visibleSeries.length ? visibleSeries.map((item) => {
               const isCurrent = item.end_date >= todayKey;
               return (
-                <article key={item.id} className="flex flex-col gap-3 rounded-[15px] border border-hpsr-border bg-white p-3.5 sm:flex-row sm:items-center">
+                <article key={item.id} className="flex flex-col gap-3 rounded-[15px] border border-[#dac3ad] bg-[#f5e9dc] p-3.5 sm:flex-row sm:items-center">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-[#fff2ea] text-hpsr-wine"><CalendarClock size={17} /></span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2"><p className="truncate text-sm font-black text-hpsr-text">{item.specialty}</p><span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-black", isCurrent ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-hpsr-border bg-[#f7f4f2] text-hpsr-muted")}>{isCurrent ? "Ativa" : "Encerrada"}</span></div>
@@ -376,7 +376,7 @@ export function DeveloperAppointmentManager({
               const passport = appointment?.passport || slot.patient_passport;
               const isFuture = new Date(slot.starts_at).getTime() >= now;
               return (
-                <article key={slot.id} className="flex flex-col gap-3 rounded-[15px] border border-hpsr-border bg-white p-3.5 transition hover:border-hpsr-wineLight/50 sm:flex-row sm:items-center">
+                <article key={slot.id} className="flex flex-col gap-3 rounded-[15px] border border-[#dac3ad] bg-[#f5e9dc] p-3.5 transition hover:border-hpsr-wineLight/50 sm:flex-row sm:items-center">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-[#fff2ea] text-hpsr-wine">{patientName ? <UserRound size={17} /> : <Clock3 size={17} />}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">

@@ -291,7 +291,7 @@ export default function PerfilPage() {
 
       <section className="hpsr-page-scroll overflow-y-auto pr-2">
         <div className="space-y-4">
-          <section className="overflow-hidden rounded-[18px] border border-hpsr-border bg-white/[0.86]">
+          <section className="overflow-hidden rounded-[18px] border border-[#d3b8a0] bg-[#ecdfd1]">
             <div className="bg-[linear-gradient(135deg,#672614,#2a0700)] px-4 py-3 text-white">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-3">
@@ -380,7 +380,7 @@ export default function PerfilPage() {
                 {profileItems.map((item) => {
                   const Icon = item.icon;
                   return (
-                    <div key={item.label} className="rounded-[16px] border border-hpsr-border bg-[#fcf6ee] p-3">
+                    <div key={item.label} className="rounded-[16px] border border-[#d7c0a9] bg-[#f1e6da] p-3">
                       <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-[14px] bg-white text-hpsr-wine">
                         <Icon size={17} />
                       </div>
@@ -396,7 +396,7 @@ export default function PerfilPage() {
           <ClinicalCapacitySettings />
 
           <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
-            <article id="assinatura" className="scroll-mt-24 rounded-[24px] border border-hpsr-border bg-white/[0.86] p-3.5">
+            <article id="assinatura" className="scroll-mt-24 rounded-[24px] border border-[#d3b8a0] bg-[#ecdfd1] p-3.5">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Documentos médicos</p>
@@ -497,7 +497,7 @@ export default function PerfilPage() {
             </aside>
           </section>
 
-          <section className="rounded-[24px] border border-hpsr-border bg-white/[0.86] p-3.5">
+          <section className="rounded-[24px] border border-[#d3b8a0] bg-[#ecdfd1] p-3.5">
             <div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[#f7f2ea] text-hpsr-wine"><KeyRound size={18} /></div><div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Segurança</p><h2 className="text-xl font-black text-hpsr-text">Alterar senha</h2></div></div>
             <div className="mt-4 rounded-[14px] border-2 border-amber-400 bg-amber-50 px-4 py-3 text-sm font-black text-amber-900 shadow-sm">
               A nova senha deve ter no mínimo 6 caracteres.
@@ -510,7 +510,7 @@ export default function PerfilPage() {
             <div className="mt-3 flex flex-wrap items-center gap-3"><button type="button" onClick={() => setShowPasswords((v) => !v)} className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">{showPasswords ? "Ocultar senhas" : "Mostrar senhas"}</button><button type="button" onClick={changePassword} className="rounded-[14px] bg-hpsr-wine px-4 py-2 text-xs font-black text-white">Salvar nova senha</button>{passwordMessage && <span className={`rounded-[12px] border px-3 py-2 text-xs font-black ${passwordMessage === "Senha alterada com sucesso." ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-red-300 bg-red-50 text-red-800"}`}>{passwordMessage}</span>}</div>
           </section>
 
-          <section className="rounded-[24px] border border-hpsr-border bg-white/[0.86] p-3.5">
+          <section className="rounded-[24px] border border-[#d3b8a0] bg-[#ecdfd1] p-3.5">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[#f7f2ea] text-hpsr-wine">
                 <FileText size={18} />

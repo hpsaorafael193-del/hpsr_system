@@ -450,7 +450,7 @@ export default function BloodBankPage() {
   }
 
   return (
-    <div className="hpsr-page gap-3">
+    <div className="hpsr-page hpsr-blood-page gap-3">
       <PageHeader
         eyebrow="Ferramentas"
         title="Banco de Sangue"
@@ -458,8 +458,8 @@ export default function BloodBankPage() {
       />
 
       <div className="hpsr-page-scroll space-y-3">
-      <section className="overflow-hidden rounded-[16px] border border-red-100/80 bg-[linear-gradient(180deg,#fff8f6_0%,#fffdfb_100%)]">
-        <div className="border-b border-red-100/80 bg-[linear-gradient(180deg,#fff2ef_0%,#f8e4dd_100%)] px-4 py-3">
+      <section className="hpsr-blood-primary overflow-hidden rounded-[16px] border border-[#e9d5cc] bg-[#f7eee7]">
+        <div className="hpsr-dark-section-header border-b border-[#a6786b]/50 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#7a1208,#9b2a1a)] text-white shadow-[0_10px_24px_rgba(154,42,26,0.18)]">
@@ -478,7 +478,7 @@ export default function BloodBankPage() {
 
         <div className="grid gap-3 p-3.5 xl:grid-cols-[minmax(0,1fr)_360px]">
           <div className="max-h-[72vh] overflow-y-auto pr-2">
-            <div className="rounded-[16px] border border-red-100/80 bg-[linear-gradient(180deg,#fffafa_0%,#ffffff_100%)] p-3.5 shadow-[0_14px_30px_rgba(154,42,26,0.05)]">
+            <div className="hpsr-blood-form p-3.5">
               <h3 className="text-xl font-black text-hpsr-text">Ficha de Triagem</h3>
               <p className="mt-1 text-sm text-hpsr-muted">Preencha os dados e o sistema analisará automaticamente o resultado.</p>
 
@@ -607,8 +607,8 @@ export default function BloodBankPage() {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-[16px] border border-hpsr-border bg-white/[0.88]">
-        <div className="border-b border-hpsr-border bg-[linear-gradient(180deg,#fffaf4_0%,#f5eadc_100%)] px-4 py-3">
+      <section className="hpsr-blood-history overflow-hidden rounded-[16px] border border-[#e6d5c6] bg-[#f7eee6]">
+        <div className="hpsr-dark-section-header border-b border-[#a6786b]/50 px-4 py-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-hpsr-wine text-white">
@@ -647,7 +647,7 @@ export default function BloodBankPage() {
           {filteredRecords.length ? (
             <div className="grid gap-3">
               {filteredRecords.map((record) => (
-                <article key={record.id} className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3.5">
+                <article key={record.id} className="rounded-[16px] border border-[#ddc6b0] bg-[#f4e7d9] p-3.5">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                       <h3 className="text-base font-black text-hpsr-text">{record.form.nome || "Sem nome"}</h3>

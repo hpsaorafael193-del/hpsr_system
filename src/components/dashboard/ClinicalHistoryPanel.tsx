@@ -142,7 +142,7 @@ export function ClinicalHistoryPanel({ recordType, comfortable = false }: { reco
   }
 
   return (
-    <section className={`rounded-[20px] border p-3 shadow-[0_6px_18px_rgba(42,7,0,0.035)] sm:p-4 ${comfortable ? "hpsr-exams-history border-[#e1d5bf] bg-[#fffaf3]" : "border-[#e6ddd6] bg-white"}`}>
+    <section className={`rounded-[20px] border p-3 shadow-[0_6px_18px_rgba(42,7,0,0.035)] sm:p-4 ${comfortable ? "hpsr-exams-history border-[#e1d5bf] bg-[#fffaf3]" : "border-[#d8c2ae] bg-[#eee2d6]"}`}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#f0ebe6] pb-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
@@ -166,7 +166,7 @@ export function ClinicalHistoryPanel({ recordType, comfortable = false }: { reco
         ) : filtered.length ? (
           <div className="grid gap-1.5">
             {filtered.map((item) => (
-              <article key={item.id} className="flex flex-wrap items-center gap-2 rounded-[12px] border border-[#ebe3dc] bg-[#fffdfb] px-3 py-2 transition hover:border-hpsr-wine/20 hover:bg-white">
+              <article key={item.id} className="flex flex-wrap items-center gap-2 rounded-[12px] border border-[#dac5b0] bg-[#f5eadf] px-3 py-2 transition hover:border-hpsr-wine/20 hover:bg-[#f9f1e7]">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-1.5">
                     <p className="truncate text-xs font-black text-hpsr-text">{item.title}</p>
@@ -193,7 +193,7 @@ export function ClinicalHistoryPanel({ recordType, comfortable = false }: { reco
       </div>
 
       {preview && (
-        <div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/60 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreview(null); }}>
+        <div className="hpsr-modal-tone fixed inset-0 z-[180] flex items-center justify-center bg-black/60 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreview(null); }}>
           <div className="flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-hpsr-border px-4 py-3">
               <div><p className="text-[10px] font-black uppercase tracking-[.15em] text-hpsr-wineLight">Registro salvo</p><h3 className="text-lg font-black text-hpsr-text">{preview.title}</h3></div>

@@ -55,7 +55,7 @@ export function PatientEmailRecoveryModal({ onClose, onRecovered }: PatientEmail
   }
 
   return (
-    <div className="fixed inset-0 z-[1260] flex items-center justify-center bg-[#1f0805]/60 p-3 sm:p-5" role="dialog" aria-modal="true" aria-label="Recuperar acesso sem e-mail">
+    <div className="hpsr-modal-tone fixed inset-0 z-[1260] flex items-center justify-center bg-[#1f0805]/60 p-3 sm:p-5" role="dialog" aria-modal="true" aria-label="Recuperar acesso sem e-mail">
       <form onSubmit={(event) => void submit(event)} className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-[24px] border border-hpsr-border bg-white shadow-2xl">
         <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#fff2e6_100%)] px-5 py-4">
           <div className="flex items-start justify-between gap-3">

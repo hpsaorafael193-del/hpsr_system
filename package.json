@@ -1,13 +1,14 @@
 {
   "name": "hpsr-system",
-  "version": "1.0.428",
+  "version": "1.1.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "audit:portal": "node tests/portal-audit.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

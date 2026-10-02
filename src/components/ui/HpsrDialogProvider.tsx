@@ -111,7 +111,7 @@ export function HpsrDialogProvider({ children }: { children: React.ReactNode }) 
     <DialogContext.Provider value={api}>
       {children}
       {dialog && (
-        <div className="fixed inset-0 z-[200000] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
+        <div className="hpsr-modal-tone fixed inset-0 z-[200000] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
           <button type="button" aria-label="Fechar" onClick={() => close(dialog.kind === "confirm" ? false : null)} className="fixed inset-0 bg-[#1f0805]/68" />
           <div className="hpsr-modal-motion relative z-10 w-full max-w-xl overflow-hidden rounded-[22px] border border-white/55 bg-[#fcf6ee] shadow-[0_32px_100px_rgba(27,10,7,.42)]">
             <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f7eadc_55%,#f2e3d0_100%)] px-5 py-4 md:px-6 md:py-5">

@@ -7,6 +7,7 @@ import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvi
 import { createClient } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { clearLoginPersistence } from "@/lib/auth-persistence";
+import { CLINICAL_BOARD_CHANGED_EVENT, loadSharedClinicalBoard } from "@/lib/clinical-board-cache";
 
 type ClockStatus = "Fora de serviço" | "Em serviço" | "Em pausa";
 type MedicalNotification = {
@@ -49,6 +50,12 @@ export function UserMenu() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const notificationsInFlightRef = useRef(false);
+  const notificationsPendingRef = useRef(false);
+  const notificationsOwnerRef = useRef(currentUserProfile.id);
+  notificationsOwnerRef.current = currentUserProfile.id;
+  const latestNotificationLoaderRef = useRef<(force?: boolean) => Promise<void>>(async () => {});
+  const notificationsLastFetchRef = useRef(0);
   const router = useRouter();
 
   const loadClock = useCallback(async () => {
@@ -104,25 +111,34 @@ export function UserMenu() {
 
   const canUseNotifications = canUseMedicalNotifications || canUseDirectorNotifications;
 
-  const loadNotifications = useCallback(async () => {
+  const loadNotifications = useCallback(async (force = false) => {
     if (!canUseNotifications || !currentUserProfile.id) {
       setNotifications([]);
       return;
     }
+    // Evita sobrepor carregamentos disparados por foco + Realtime + polling.
+    if (notificationsInFlightRef.current) {
+      if (force || currentUserProfile.id !== notificationsOwnerRef.current) notificationsPendingRef.current = true;
+      return;
+    }
+    if (!force && Date.now() - notificationsLastFetchRef.current < 10_000) return;
     const client = createClient();
     if (!client) return;
+    notificationsInFlightRef.current = true;
     setNotificationsLoading(true);
     try {
       const combined: MedicalNotification[] = [];
       const userId = String(currentUserProfile.id);
 
       if (canUseMedicalNotifications || canUseDirectorNotifications) {
-        const { data: inboxRows, error: inboxError } = await client.rpc("hpsr_my_clinical_request_board", { p_limit: 400 });
-        if (inboxError) throw inboxError;
+        let inboxRows: Array<Record<string, any>> = [];
+        let inboxError: unknown = null;
+        try { inboxRows = await loadSharedClinicalBoard(userId); }
+        catch (error) { inboxError = error; console.warn("[HPSR] Falha isolada no painel clínico; candidaturas serão consultadas normalmente.", error); }
 
         // O sino anuncia todos os pedidos que o profissional pode assumir,
         // inclusive outras especialidades quando o perfil é da Direção.
-        const mapped = (inboxRows || []).filter((row: any) => row.can_claim === true).map((row: any): MedicalNotification => {
+        const mapped = (inboxError ? [] : inboxRows || []).filter((row: any) => row.can_claim === true).map((row: any): MedicalNotification => {
           const payload = (row.payload || {}) as Record<string, unknown>;
           const readBy = Array.isArray(payload.notificationReadBy) ? payload.notificationReadBy.map(String) : [];
           const flowType = String(payload.flowType || "Consulta comum");
@@ -177,15 +193,25 @@ export function UserMenu() {
       }
 
       combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      setNotifications(combined.slice(0, 60));
+      if (notificationsOwnerRef.current === currentUserProfile.id) {
+        setNotifications(combined.slice(0, 60));
+        notificationsLastFetchRef.current = Date.now();
+      }
     } catch (caught) {
       console.warn("[HPSR] Não foi possível carregar as notificações.", caught);
     } finally {
+      notificationsInFlightRef.current = false;
       setNotificationsLoading(false);
+      if (notificationsPendingRef.current) {
+        notificationsPendingRef.current = false;
+        window.setTimeout(() => void latestNotificationLoaderRef.current(true), 0);
+      }
     }
   }, [canUseNotifications, canUseMedicalNotifications, canUseDirectorNotifications, currentUserProfile.id]);
 
+  latestNotificationLoaderRef.current = loadNotifications;
   useEffect(() => {
+    notificationsLastFetchRef.current = 0;
     void loadNotifications();
     if (!canUseNotifications || !currentUserProfile.id) return;
     const client = createClient();
@@ -196,21 +222,30 @@ export function UserMenu() {
       if (refreshTimer !== null) window.clearTimeout(refreshTimer);
       refreshTimer = window.setTimeout(() => {
         refreshTimer = null;
-        if (document.visibilityState === "visible") void loadNotifications();
-      }, 900);
+        if (document.visibilityState === "visible") void loadNotifications(true);
+      }, 950);
     };
-    let channel = client.channel(`user-notifications-${currentUserProfile.id}`);
-    if (canUseMedicalNotifications || canUseDirectorNotifications) {
-      channel = channel.on("postgres_changes", { event: "*", schema: "public", table: "appointments" }, scheduleRefresh);
-    }
-    if (canUseDirectorNotifications) {
-      channel = channel.on("postgres_changes", { event: "*", schema: "public", table: "staff_applications" }, scheduleRefresh);
-    }
-    channel.subscribe();
+    // AppLayout já acompanha appointments: compartilhar seu evento sem abrir outro canal.
+    window.addEventListener(CLINICAL_BOARD_CHANGED_EVENT, scheduleRefresh);
+    const channel = canUseDirectorNotifications
+      ? client.channel(`director-application-notifications-${currentUserProfile.id}`)
+          .on("postgres_changes", { event: "*", schema: "public", table: "staff_applications" }, scheduleRefresh)
+          .subscribe()
+      : null;
+    const fallbackInterval = window.setInterval(() => {
+      if (document.visibilityState === "visible") void loadNotifications();
+    }, 120000);
+    const refreshOnFocus = () => {
+      if (document.visibilityState === "visible") void loadNotifications();
+    };
+    window.addEventListener("focus", refreshOnFocus);
 
     return () => {
+      window.clearInterval(fallbackInterval);
+      window.removeEventListener("focus", refreshOnFocus);
+      window.removeEventListener(CLINICAL_BOARD_CHANGED_EVENT, scheduleRefresh);
       if (refreshTimer !== null) window.clearTimeout(refreshTimer);
-      void client.removeChannel(channel);
+      if (channel) void client.removeChannel(channel);
     };
   }, [canUseNotifications, canUseMedicalNotifications, canUseDirectorNotifications, currentUserProfile.id, loadNotifications]);
 
@@ -442,7 +477,7 @@ export function UserMenu() {
             </div>
 
             {!currentUserProfile.signaturePath && <button type="button" role="menuitem" onClick={() => { setOpen(false); router.push("/dashboard/perfil#assinatura"); }} className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] font-black text-amber-800 transition hover:bg-amber-100"><UserRound size={15}/> Perfil incompleto · falta assinatura</button>}
-            {canUseNotifications && <button type="button" role="menuitem" onClick={() => { setOpen(false); setNotificationsOpen(true); void loadNotifications(); }} className="relative flex w-full items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5 text-[11px] font-black text-hpsr-wine transition hover:bg-[#f7f2ea]"><BellRing size={15}/> Minhas notificações{unreadNotificationCount > 0 && <span className="ml-auto rounded-full bg-red-600 px-2 py-0.5 text-[9px] font-black text-white">{unreadNotificationCount}</span>}</button>}
+            {canUseNotifications && <button type="button" role="menuitem" onClick={() => { setOpen(false); setNotificationsOpen(true); void loadNotifications(true); }} className="relative flex w-full items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5 text-[11px] font-black text-hpsr-wine transition hover:bg-[#f7f2ea]"><BellRing size={15}/> Minhas notificações{unreadNotificationCount > 0 && <span className="ml-auto rounded-full bg-red-600 px-2 py-0.5 text-[9px] font-black text-white">{unreadNotificationCount}</span>}</button>}
             <button type="button" role="menuitem" onClick={() => { setOpen(false); router.push("/dashboard/perfil"); }} className="flex w-full items-center justify-center gap-2 rounded-[12px] px-3 py-2 text-[11px] font-bold text-hpsr-wine transition hover:bg-[#f7f2ea]"><UserRound size={15}/> Ver perfil completo</button>
             <button type="button" role="menuitem" onClick={handleLogout} className="flex w-full items-center justify-center gap-2 rounded-[12px] px-3 py-2 text-[11px] font-bold text-hpsr-muted transition hover:bg-[#f7f2ea]"><LogOut size={15}/> Sair</button>
           </div>
@@ -450,7 +485,7 @@ export function UserMenu() {
       )}
 
       {notificationsOpen && (
-        <div className="fixed inset-0 z-[1200] flex items-center justify-center px-3 py-4 sm:px-5">
+        <div className="hpsr-modal-tone fixed inset-0 z-[1200] flex items-center justify-center px-3 py-4 sm:px-5">
           <button type="button" aria-label="Fechar notificações" onClick={() => setNotificationsOpen(false)} className="absolute inset-0 bg-[#2a0700]/45" />
           <section className="relative z-10 flex max-h-[min(720px,92dvh)] w-full max-w-[620px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf5] shadow-[0_28px_90px_rgba(42,7,0,.28)]">
             <header className="flex shrink-0 items-start justify-between gap-4 border-b border-hpsr-border bg-white px-5 py-4">

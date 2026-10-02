@@ -77,7 +77,7 @@ export function PatientExamRequestsPanel({ passport, hasClinicalContact, onSessi
 
   return (
     <div className="space-y-4">
-      <section className="rounded-[18px] border border-hpsr-border bg-white/90 p-3.5 sm:p-4">
+      <section className="rounded-[18px] border border-hpsr-border bg-[#f5ece3] p-3.5 sm:p-4">
         <div className="flex items-start gap-3 border-b border-hpsr-border/70 pb-3">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-hpsr-wine text-white"><FlaskConical size={18}/></span>
           <div>
@@ -116,12 +116,12 @@ export function PatientExamRequestsPanel({ passport, hasClinicalContact, onSessi
         </form>
       </section>
 
-      <section className="rounded-[18px] border border-hpsr-border bg-white/90 p-3.5 sm:p-4">
+      <section className="rounded-[18px] border border-hpsr-border bg-[#f5ece3] p-3.5 sm:p-4">
         <div className="flex items-center justify-between gap-3 border-b border-hpsr-border/70 pb-3">
           <div><h3 className="text-base font-black text-hpsr-text">Minhas solicitações de exame</h3><p className="mt-0.5 text-xs font-semibold text-hpsr-muted">Veja aqui como está o seu pedido de exame.</p></div>
           <button type="button" onClick={() => void load()} className="inline-flex items-center gap-1.5 rounded-[10px] border border-hpsr-border bg-white px-2.5 py-2 text-[11px] font-black text-hpsr-wine"><RefreshCcw size={13}/> Atualizar</button>
         </div>
-        {loading ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-hpsr-wine"/></div> : requests.length ? <div className="mt-3 max-h-[360px] space-y-2 overflow-y-auto pr-1">{requests.map((item) => <article key={item.id} className="rounded-[15px] border border-hpsr-border bg-[#fffaf4] p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-hpsr-text">{item.specialty}</p><p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">{item.reason}</p></div><span className="shrink-0 rounded-full bg-[#f1dfcd] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{item.status}</span></div>{item.answer && <div className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900"><strong>Resposta da equipe:</strong> {item.answer}</div>}</article>)}</div> : <p className="mt-4 rounded-[14px] border border-dashed border-hpsr-border bg-[#fffaf4] p-4 text-center text-sm font-semibold text-hpsr-muted">Nenhuma solicitação de exame registrada.</p>}
+        {loading ? <div className="flex justify-center py-8"><Loader2 className="animate-spin text-hpsr-wine"/></div> : requests.length ? <div className="mt-3 max-h-[360px] space-y-2 overflow-y-auto pr-1">{requests.map((item) => <article key={item.id} className="rounded-[15px] border border-hpsr-border bg-[#eee3d8] p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-hpsr-text">{item.specialty}</p><p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">{item.reason}</p></div><span className="shrink-0 rounded-full bg-[#f1dfcd] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{item.status}</span></div>{item.answer && <div className="mt-3 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900"><strong>Resposta da equipe:</strong> {item.answer}</div>}</article>)}</div> : <p className="mt-4 rounded-[14px] border border-dashed border-hpsr-border bg-[#eee3d8] p-4 text-center text-sm font-semibold text-hpsr-muted">Nenhuma solicitação de exame registrada.</p>}
       </section>
     </div>
   );

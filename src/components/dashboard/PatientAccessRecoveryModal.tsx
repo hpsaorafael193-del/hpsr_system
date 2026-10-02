@@ -64,7 +64,7 @@ export function PatientAccessRecoveryModal({ patient, onClose }: PatientAccessRe
   }
 
   return (
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-[#2a0700]/50 p-3 sm:p-5" role="dialog" aria-modal="true" aria-label="Recuperação assistida do Portal do Paciente">
+    <div className="hpsr-modal-tone fixed inset-0 z-[1000] flex items-center justify-center bg-[#2a0700]/50 p-3 sm:p-5" role="dialog" aria-modal="true" aria-label="Recuperação assistida do Portal do Paciente">
       <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-xl flex-col overflow-hidden rounded-[24px] border border-white/80 bg-[#fffaf4] shadow-2xl">
         <div className="bg-[linear-gradient(135deg,#2a0700,#672614,#9d6b4f)] px-5 py-4 text-white">
           <div className="flex items-start justify-between gap-3">

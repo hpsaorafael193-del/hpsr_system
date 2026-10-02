@@ -911,7 +911,7 @@ function InsuranceModal({
             : modal.plan.name;
 
   return (
-    <div className="fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3">
+    <div className="hpsr-modal-tone fixed inset-0 z-[999] flex items-center justify-center overflow-y-auto px-4 py-3">
       <button
         type="button"
         aria-label="Fechar modal"

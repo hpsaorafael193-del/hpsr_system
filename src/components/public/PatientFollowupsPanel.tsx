@@ -72,7 +72,7 @@ export function PatientFollowupSummaryPanel({
   onOpenHours: () => void;
 }) {
   return (
-    <section className="rounded-[18px] border border-hpsr-border bg-white/90 p-3.5 sm:p-4">
+    <section className="rounded-[18px] border border-hpsr-border bg-[#f5ece3] p-3.5 sm:p-4">
       <div className="flex items-start gap-3">
         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-hpsr-wine text-white"><HeartPulse size={18}/></span>
         <div className="min-w-0">
@@ -90,7 +90,7 @@ export function PatientFollowupSummaryPanel({
             {data.followups.map((item) => {
               const scheduled = item.nextOccurrence?.scheduleState === "scheduled";
               return (
-                <div key={item.planId} className="rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3.5 py-3">
+                <div key={item.planId} className="rounded-[14px] border border-hpsr-border bg-[#eee3d8] px-3.5 py-3">
                   <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{item.specialty}</p>
                   <p className="mt-1 text-sm font-black text-hpsr-text">{item.doctorName}</p>
                   <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">{item.frequency || "Acompanhamento ativo"}</p>
@@ -104,7 +104,7 @@ export function PatientFollowupSummaryPanel({
           )}
         </>
       ) : (
-        <p className="mt-3 rounded-[13px] border border-dashed border-hpsr-border bg-[#fffaf4] p-4 text-center text-sm font-semibold text-hpsr-muted">Nenhum médico está vinculado a este paciente no momento.</p>
+        <p className="mt-3 rounded-[13px] border border-dashed border-hpsr-border bg-[#eee3d8] p-4 text-center text-sm font-semibold text-hpsr-muted">Nenhum médico está vinculado a este paciente no momento.</p>
       )}
     </section>
   );
@@ -171,7 +171,7 @@ export function PatientFollowupsPanel({
 
   return (
     <div className="space-y-4">
-      <section className="rounded-[18px] border border-hpsr-border bg-white/90 p-3.5 sm:p-4">
+      <section className="rounded-[18px] border border-hpsr-border bg-[#f5ece3] p-3.5 sm:p-4">
         <div className="flex flex-col gap-3 border-b border-hpsr-border/70 pb-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-hpsr-wine text-white"><HeartPulse size={18}/></span>
@@ -184,9 +184,9 @@ export function PatientFollowupsPanel({
         </div>
 
         {data?.agendaAvailableCount ? (
-          <div className="mt-4 rounded-[17px] border-2 border-blue-300 bg-[linear-gradient(135deg,#eff7ff_0%,#dfeeff_100%)] p-4 shadow-[0_10px_24px_rgba(37,99,235,.08)]">
+          <div className="mt-4 rounded-[17px] border border-[#b7c5c0] bg-[linear-gradient(135deg,#e8ece8_0%,#dfe7e1_100%)] p-4 shadow-[0_6px_16px_rgba(54,79,66,.06)]">
             <div className="flex items-start gap-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-blue-700 text-white"><BellRing size={18}/></span>
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[#557567] text-white"><BellRing size={18}/></span>
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[.15em] text-blue-700">Horários disponíveis</p>
                 <h4 className="mt-1 text-base font-black text-blue-950">Seu médico publicou novos horários</h4>
@@ -204,7 +204,7 @@ export function PatientFollowupsPanel({
           const selectedSlot = availableSlots.find((slot) => slot.id === selectedSlotId) || null;
           const itemFeedback = feedback[item.planId];
           return (
-            <article key={item.planId} className="rounded-[17px] border border-hpsr-border bg-[#fffaf4] p-4">
+            <article key={item.planId} className="rounded-[17px] border border-hpsr-border bg-[#eee3d8] p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">{item.specialty}</p><h4 className="mt-1 text-base font-black text-hpsr-text">{item.doctorName}</h4></div>
                 <span className={`w-fit rounded-full border px-3 py-1 text-[10px] font-black ${state === "scheduled" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : state === "available" ? "border-blue-200 bg-blue-50 text-blue-700" : "border-hpsr-border bg-white text-hpsr-wine"}`}>{state === "scheduled" ? "Horário confirmado" : state === "available" ? "Horários disponíveis" : "Aguardando nova agenda"}</span>
@@ -229,7 +229,7 @@ export function PatientFollowupsPanel({
                   <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {availableSlots.map((slot) => {
                       const active = selectedSlotId === slot.id;
-                      return <button key={slot.id} type="button" onClick={() => setSelectedByPlan((current) => ({ ...current, [item.planId]: slot.id }))} className={`rounded-[12px] border px-3 py-2.5 text-left transition ${active ? "border-blue-700 bg-blue-700 text-white shadow-sm" : "border-blue-200 bg-white text-blue-950 hover:border-blue-400"}`}><span className="block text-[10px] font-black uppercase tracking-[.08em] opacity-75">{slotDay(slot.startsAt)}</span><span className="mt-1 flex items-center gap-1.5 text-sm font-black"><Clock3 size={14}/>{slotTime(slot.startsAt)}</span></button>;
+                      return <button key={slot.id} type="button" onClick={() => setSelectedByPlan((current) => ({ ...current, [item.planId]: slot.id }))} className={`rounded-[12px] border px-3 py-2.5 text-left transition ${active ? "border-blue-700 bg-[#557567] text-white shadow-sm" : "border-blue-200 bg-white text-blue-950 hover:border-blue-400"}`}><span className="block text-[10px] font-black uppercase tracking-[.08em] opacity-75">{slotDay(slot.startsAt)}</span><span className="mt-1 flex items-center gap-1.5 text-sm font-black"><Clock3 size={14}/>{slotTime(slot.startsAt)}</span></button>;
                     })}
                   </div>
                   {selectedSlot && <div className="mt-3 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5">

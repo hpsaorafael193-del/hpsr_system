@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { ChevronDown, X } from "lucide-react";
 import { adminNavigation, mainNavigation, toolsNavigation } from "@/data/navigation";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
@@ -11,10 +12,11 @@ import { canAccessObstetra } from "@/lib/obstetra-access";
 export function MobileSidebar({ onOpenSystemInfo, hasPendingAppointmentRequest = false }: { onOpenSystemInfo: () => void; hasPendingAppointmentRequest?: boolean }) {
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
   const canSeeTeamAdmin =
     currentUserProfile.systemRole === "Administrador do Sistema" ||
     ["Diretora", "Vice Diretor"].includes(currentUserProfile.role);
-  const visibleAdminNavigation = canSeeTeamAdmin ? adminNavigation : [];
+  const visibleAdminNavigation = canSeeTeamAdmin ? adminNavigation.filter((item) => !item.internalOnly || ["Diretora", "Vice Diretor / Dev"].includes(currentUserProfile.role)) : [];
   const visibleToolsNavigation = toolsNavigation.filter((item) =>
     canSeeNavigationItem(item, currentUserProfile.role) &&
     (item.href !== "/dashboard/obstetra" || canAccessObstetra(currentUserProfile.role, currentUserProfile.specialty))
@@ -64,19 +66,21 @@ export function MobileSidebar({ onOpenSystemInfo, hasPendingAppointmentRequest =
 
             <nav className="space-y-6">
               {groups.map((group) => (
-                <div key={group.title}>
+                <div key={group.title} className="border-b border-white/10 pb-4 last:border-b-0">
                   <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-100/60">{group.title}</p>
                   <div className="space-y-1">
                     {group.items.map((item: any) => {
                       const Icon = item.icon;
                       const hasChildren = Array.isArray(item.children) && item.children.length > 0;
                       const notifyPending = item.href === "/dashboard/agendamento" && hasPendingAppointmentRequest;
+                      const active = pathname === item.href || (hasChildren && pathname.startsWith(item.href + "/"));
                       return (
                         <div key={item.href}>
                           <Link
                             onClick={() => !hasChildren && setOpen(false)}
                             href={item.href}
-                            className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium text-orange-50/95 hover:bg-white/10 hover:text-white ${notifyPending ? "border border-red-300/30 bg-red-500/10 shadow-[0_0_16px_rgba(239,68,68,0.2)]" : ""}`}
+                            aria-current={active ? "page" : undefined}
+                            className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition ${active ? "border-[#e4d2c1] bg-[#fffaf4] text-hpsr-wine shadow-[inset_4px_0_0_#98523b]" : "border-transparent text-orange-50/95 hover:border-white/15 hover:bg-white/10 hover:text-white"} ${notifyPending ? "border border-red-300/30 bg-red-500/10 shadow-[0_0_16px_rgba(239,68,68,0.2)]" : ""}`}
                           >
                             <span className="relative shrink-0"><Icon size={19} />{notifyPending && <span className="absolute -right-1.5 -top-1.5 h-2.5 w-2.5 rounded-full border border-white/80 bg-red-500 shadow-[0_0_9px_rgba(239,68,68,0.85)]" />}</span>
                             <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -89,9 +93,10 @@ export function MobileSidebar({ onOpenSystemInfo, hasPendingAppointmentRequest =
                                   onClick={() => setOpen(false)}
                                   key={child.href}
                                   href={child.href}
-                                  className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm text-orange-50/70 hover:bg-white/10 hover:text-white"
+                                  aria-current={pathname === child.href ? "page" : undefined}
+                                  className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#f0c9a8] ${pathname === child.href ? "bg-white/20 font-bold text-white ring-1 ring-white/25" : "text-orange-50/80 hover:bg-white/10 hover:text-white"}`}
                                 >
-                                  <span className="h-1.5 w-1.5 rounded-full bg-orange-50/40" />
+                                  <span className={`h-1.5 w-1.5 rounded-full ${pathname === child.href ? "bg-white" : "bg-orange-50/40"}`} />
                                   {child.label}
                                 </Link>
                               ))}

@@ -19,16 +19,23 @@ export async function POST(request: NextRequest) {
       .select("user_id,patient_passport,email")
       .eq("user_id", authData.user.id)
       .maybeSingle();
-    if (!account) return NextResponse.json({ error: "Esta conta não está vinculada a um paciente." }, { status: 403 });
+    if (!account) return NextResponse.json({ error: "Esta conta ainda não está vinculada ao Portal." }, { status: 403 });
 
     let { data: portalAccess } = await supabase
       .from("patient_portal_access")
       .select("id,access_enabled")
-      .eq("patient_passport", account.patient_passport)
+      .eq("user_id", account.user_id)
       .maybeSingle();
+    if (!portalAccess && account.patient_passport) {
+      const previous = await supabase.from("patient_portal_access").select("id,access_enabled")
+        .eq("patient_passport",account.patient_passport).maybeSingle();
+      if(previous.error) throw previous.error;
+      portalAccess=previous.data;
+    }
     if (!portalAccess) {
       const inserted = await supabase.from("patient_portal_access").insert({
-        patient_passport: account.patient_passport,
+        patient_passport: account.patient_passport || null,
+        user_id: account.user_id,
         email: account.email,
         access_enabled: true,
       }).select("id,access_enabled").single();

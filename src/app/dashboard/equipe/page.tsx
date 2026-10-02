@@ -1036,7 +1036,7 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="hpsr-page gap-3 lg:h-[calc(100dvh-2.4rem)] lg:min-h-0 lg:overflow-hidden">
+    <div className="hpsr-page hpsr-team-direction-page gap-3 lg:h-[calc(100dvh-2.4rem)] lg:min-h-0 lg:overflow-hidden">
       <PageHeader
         eyebrow="Administração"
         title="Direção"
@@ -1044,17 +1044,17 @@ export default function TeamPage() {
       />
 
       <div className="min-h-0 flex flex-1 flex-col gap-3 overflow-hidden md:gap-4">
-      <section className="shrink-0 overflow-hidden rounded-[16px] border border-hpsr-border bg-white md:rounded-[16px]">
-        <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] p-3 md:p-3.5">
+      <section className="shrink-0 overflow-hidden rounded-[16px] border border-[#b79580] bg-[#eee1d4] md:rounded-[16px]">
+        <div className="hpsr-team-direction-hero border-b border-[#926958] bg-[linear-gradient(112deg,#3f211d_0%,#61342d_63%,#74453a_100%)] p-3 md:p-3.5">
           <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(480px,0.82fr)] xl:items-center">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#edc7ac]">
                 Administração da equipe
               </p>
-              <h1 className="mt-1.5 text-[clamp(1.18rem,1.8vw,1.55rem)] font-black text-hpsr-text">
+              <h1 className="mt-1.5 text-[clamp(1.18rem,1.8vw,1.55rem)] font-black text-[#fff9f2]">
                 Gestão administrativa da equipe
               </h1>
-              <p className="mt-1 max-w-3xl text-xs leading-relaxed text-hpsr-muted sm:text-sm">
+              <p className="mt-1 max-w-3xl text-xs leading-relaxed text-[#efdbcd] sm:text-sm">
                 A Diretoria administra vínculos e permissões. O Diretor Clínico acompanha exclusivamente o histórico assistencial para orientação técnica.
               </p>
             </div>
@@ -1088,7 +1088,7 @@ export default function TeamPage() {
             </div>
           </div>
 
-          <div className="mt-3 grid gap-2 grid-cols-2 md:grid-cols-5">
+          <div className="hpsr-team-direction-metrics mt-3 grid gap-2 grid-cols-2 md:grid-cols-5">
             <PracticalMetric label="Pendências" value={String(pendingApplications.length)} />
             <PracticalMetric label="Contratos" value={String(contractAlerts.length)} />
             <PracticalMetric label="Membros" value={String(members.length)} />
@@ -1098,8 +1098,8 @@ export default function TeamPage() {
         </div>
       </section>
 
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] border border-hpsr-border bg-white md:rounded-[16px]">
-        <div className="shrink-0 border-b border-hpsr-border bg-[#fcf6ee] px-4 py-3 md:px-5 md:py-4">
+      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] border border-[#d4b9a3] bg-[#eee2d6] shadow-[0_7px_24px_rgba(92,56,38,.055)] md:rounded-[16px]">
+        <div className="shrink-0 border-b border-[#d7bba4] bg-[#e9d9c9] px-4 py-3 md:px-5 md:py-4">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(320px,.65fr)_auto] lg:items-center">
             <div><h2 className="text-base font-black text-hpsr-text md:text-lg">Equipe cadastrada</h2><p className="mt-1 text-xs text-hpsr-muted md:text-sm">Clique em um resumo para expandir detalhes, contrato, permissões e ações administrativas.</p></div>
             <label className="flex min-h-[42px] items-center gap-3 rounded-[16px] border border-hpsr-border bg-white px-3.5 focus-within:border-hpsr-wineLight focus-within:ring-2 focus-within:ring-hpsr-wineLight/20"><Search size={17} className="text-hpsr-muted"/><input className="w-full bg-transparent text-sm font-semibold text-hpsr-text outline-none placeholder:text-zinc-400" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Buscar na equipe cadastrada"/></label>
@@ -1107,7 +1107,7 @@ export default function TeamPage() {
           </div>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden p-3 md:p-4">
+        <div className="min-h-0 flex-1 overflow-hidden bg-[#efe3d6] p-3 md:p-4">
           <div className="grid h-full min-h-0 content-start gap-3 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarGutter: "stable" }}>
             {categoryOrder.map((category) => {
               const categoryMembers = visibleMembers.filter((member) => member.category === category);
@@ -1115,7 +1115,7 @@ export default function TeamPage() {
 
               return (
                 <div key={category} className="grid gap-2.5">
-                  <div className="sticky top-0 z-[1] col-span-full flex items-center justify-between gap-3 rounded-[14px] border border-hpsr-border bg-[#fff8f0]/95 px-3 py-2 backdrop-blur md:px-4 md:py-2.5">
+                  <div className="sticky top-0 z-[1] col-span-full flex items-center justify-between gap-3 rounded-[14px] border border-[#d7bba4] bg-[#e8d5c4]/95 px-3 py-2 backdrop-blur md:px-4 md:py-2.5">
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">{category}</p>
                     <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-wine">
                       {categoryMembers.length} item{categoryMembers.length === 1 ? "" : "s"}
@@ -1131,8 +1131,8 @@ export default function TeamPage() {
                         key={member.id}
                         className={`min-w-0 overflow-hidden rounded-[16px] border transition ${
                           selected
-                            ? "border-hpsr-wine bg-white shadow-[0_12px_34px_rgba(42,7,0,0.08)]"
-                            : "border-hpsr-border bg-[#fffaf4]"
+                            ? "border-hpsr-wine/70 bg-[#f8f0e8] shadow-[0_12px_34px_rgba(42,7,0,0.08)]"
+                            : "border-[#ddc6b2] bg-[#f6ecdf]"
                         }`}
                       >
                         <button
@@ -1189,7 +1189,7 @@ export default function TeamPage() {
                         </button>
 
                         {selected && (
-                          <div className="border-t border-hpsr-border bg-white p-3.5">
+                          <div className="border-t border-[#decab7] bg-[#f4e8db] p-3.5">
                             <TeamMemberExpandedContent member={member} onContractAction={handleContractAction} onAdministrativeAction={handleAdministrativeAction} />
                           </div>
                         )}
@@ -1303,7 +1303,7 @@ function RegistrationRequestsModal({
   const rejectedCount = currentItems.filter((item) => item.status === "Recusado").length;
 
   return (
-    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
+    <div className="hpsr-modal-tone fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
       <button type="button" aria-label="Fechar" onClick={onClose} className="fixed inset-0 bg-[#1f0805]/62" />
       <div className="hpsr-modal-motion relative z-10 flex w-full max-w-5xl flex-col overflow-hidden rounded-[18px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,.36)]">
         <div className="flex items-start justify-between gap-3 border-b border-hpsr-border bg-white px-5 py-4">
@@ -1359,7 +1359,7 @@ function RegistrationRequestsModal({
                 </article>
               );
             })}
-            {!loading && orderedItems.length === 0 ? <div className="rounded-[16px] border border-dashed border-hpsr-border bg-white p-6 text-center text-sm text-hpsr-muted">{showHistory ? "Nenhuma solicitação oculta no histórico." : "Nenhuma solicitação de cadastro recebida."}</div> : null}
+            {!loading && orderedItems.length === 0 ? <div className="rounded-[16px] border border-dashed border-[#d6bda4] bg-[#f3e4d5] p-6 text-center text-sm text-hpsr-muted">{showHistory ? "Nenhuma solicitação oculta no histórico." : "Nenhuma solicitação de cadastro recebida."}</div> : null}
           </div>
         </div>
       </div>
@@ -1401,7 +1401,7 @@ function AdministrativeActionModal({
           : "Registre a justificativa desta ação para manter o histórico do colaborador atualizado.";
 
   return (
-    <div className="fixed inset-0 z-[100001] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
+    <div className="hpsr-modal-tone fixed inset-0 z-[100001] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
       <button type="button" aria-label="Fechar modal" onClick={onCancel} className="fixed inset-0 bg-[#1f0805]/68" />
       <div className="hpsr-modal-motion relative z-10 w-full max-w-2xl overflow-hidden rounded-[22px] border border-white/55 bg-[#fcf6ee] shadow-[0_32px_100px_rgba(27,10,7,.42)]">
         <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f7eadc_55%,#f2e3d0_100%)] px-5 py-4 md:px-6 md:py-5">
@@ -1477,7 +1477,7 @@ function PendingApplicationsModal({
   const visibleItems = activeView === "pendentes" ? pendingItems : visibleHistoricalItems;
 
   return (
-    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
+    <div className="hpsr-modal-tone fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
       <button type="button" aria-label="Fechar modal" onClick={onClose} className="fixed inset-0 bg-[#1f0805]/62" />
       <div className="hpsr-modal-motion relative z-10 flex max-h-[92dvh] w-full max-w-6xl flex-col overflow-hidden rounded-[16px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
         <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] px-4 py-3.5">
@@ -1496,7 +1496,7 @@ function PendingApplicationsModal({
         <div className="min-h-0 flex-1 overflow-y-auto p-3.5">
           <div className="grid gap-3">
             {visibleItems.map((item) => <ApplicationCard key={item.protocol} item={item} onOpenAnalysis={onOpenAnalysis} onDelete={onDelete} />)}
-            {visibleItems.length === 0 && <div className="rounded-[16px] border border-dashed border-hpsr-border bg-white p-7 text-center"><p className="font-black text-hpsr-text">{activeView === "pendentes" ? "Nenhum formulário pendente." : "Nenhum formulário encontrado no histórico."}</p></div>}
+            {visibleItems.length === 0 && <div className="rounded-[16px] border border-dashed border-[#d6bda4] bg-[#f3e4d5] p-7 text-center"><p className="font-black text-hpsr-text">{activeView === "pendentes" ? "Nenhum formulário pendente." : "Nenhum formulário encontrado no histórico."}</p></div>}
           </div>
         </div>
       </div>
@@ -1569,7 +1569,7 @@ function ApplicationAnalysisModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100000] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
+    <div className="hpsr-modal-tone fixed inset-0 z-[100000] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
       <button
         type="button"
         aria-label="Fechar"
@@ -2088,7 +2088,7 @@ function TeamMemberEmptyPanel({ members, onSelect }: { members: TeamMember[]; on
 
 function PracticalMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[16px] border border-hpsr-border bg-white px-4 py-3">
+    <div className="rounded-[16px] border border-[#dbc2ae] bg-[#f7ede3] px-4 py-3">
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{label}</p>
       <p className="mt-1 text-lg font-black text-hpsr-text">{value}</p>
     </div>
@@ -2383,7 +2383,7 @@ function ManageMemberModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
+    <div className="hpsr-modal-tone fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-hidden px-4 py-3">
       <button type="button" aria-label="Fechar" onClick={onClose} className="fixed inset-0 bg-[#1f0805]/62" />
       <form onSubmit={handleSubmit} className="hpsr-modal-motion relative z-10 flex w-full max-w-6xl max-h-[92dvh] flex-col overflow-hidden rounded-[18px] border border-white/45 bg-[#fcf6ee] shadow-[0_28px_90px_rgba(27,10,7,0.36)]">
         <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)] px-4 py-3.5 md:px-5 md:py-4">

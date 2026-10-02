@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
     if (discord && discord === passport.replace(/\D/g, "")) {
       return NextResponse.json({ error: "Esse número é o seu passaporte/ID da cidade. No campo Discord, informe o ID do seu perfil do Discord." }, { status: 400 });
     }
+    if (isMinor) return NextResponse.json({ error: "O cadastro infantil é feito pela conta do responsável, sem criar uma conta para a criança." }, {status:400});
     if (guardianPassports.includes(passport)) {
       return NextResponse.json({ error: "O paciente menor de idade não pode ser o próprio responsável." }, { status: 400 });
     }
@@ -103,20 +104,20 @@ export async function POST(request: NextRequest) {
     ]);
 
     const existingAccount = accountByPassport || accountByEmail || accountByUser;
-    if (existingAccount) {
+    // A conta de responsável sem prontuário pode tornar-se paciente mantendo
+    // exatamente o mesmo auth.uid() e os vínculos infantis já autorizados.
+    const upgradingGuardianAccount = Boolean(linkedUserId && accountByUser &&
+      !accountByUser.patient_passport && !accountByPassport &&
+      accountByUser.email?.toLowerCase() === email);
+    if (existingAccount && !upgradingGuardianAccount) {
       const sameUser = Boolean(linkedUserId && existingAccount.user_id === linkedUserId);
       const samePassport = existingAccount.patient_passport === passport;
       const sameEmail = String(existingAccount.email || "").toLowerCase() === email;
       if (sameUser && samePassport && sameEmail) {
         return NextResponse.json({ ok: true, alreadyLinked: true, message: "Sua conta já está vinculada ao Portal do Paciente." });
       }
-      if (accountByPassport) {
-        return NextResponse.json({ error: "Este passaporte já está vinculado a outra conta do Portal do Paciente." }, { status: 409 });
-      }
-      if (accountByEmail || accountByUser) {
-        return NextResponse.json({ error: "Este e-mail ou conta já está vinculado a outro paciente." }, { status: 409 });
-      }
-      return NextResponse.json({ error: "Já existe uma conta vinculada a estes dados." }, { status: 409 });
+      if (accountByPassport) return NextResponse.json({ error: "Este passaporte já está vinculado a outra conta." }, { status: 409 });
+      return NextResponse.json({ error: "Esta conta já está vinculada a outro paciente." }, { status: 409 });
     }
 
     const { data: existingPatient, error: patientLookupError } = await supabase
@@ -161,31 +162,29 @@ export async function POST(request: NextRequest) {
       createdRegistryPassport = passport;
     }
 
-    const { error: accountError } = await supabase.from("patient_accounts").insert({
-      user_id: linkedUserId,
-      patient_passport: passport,
-      email,
-    });
+    const { error: accountError } = upgradingGuardianAccount
+      ? await supabase.from("patient_accounts").update({patient_passport:passport,display_name:name}).eq("user_id",linkedUserId)
+      : await supabase.from("patient_accounts").insert({user_id:linkedUserId,patient_passport:passport,email});
     if (accountError) throw accountError;
-    createdPatientAccountUserId = linkedUserId;
+    if (!upgradingGuardianAccount) createdPatientAccountUserId = linkedUserId;
 
     const { data: portalAccess, error: portalLookupError } = await supabase
       .from("patient_portal_access")
       .select("id")
-      .eq("patient_passport", passport)
+      .eq(upgradingGuardianAccount ? "user_id" : "patient_passport", upgradingGuardianAccount ? linkedUserId : passport)
       .maybeSingle();
     if (portalLookupError) throw portalLookupError;
 
     if (portalAccess?.id) {
       const { error: portalUpdateError } = await supabase
         .from("patient_portal_access")
-        .update({ email, access_enabled: true, triage_status: "Pendente" })
+        .update({ user_id: linkedUserId, patient_passport:passport, email, access_enabled: true, triage_status: "Pendente" })
         .eq("id", portalAccess.id);
       if (portalUpdateError) throw portalUpdateError;
     } else {
       const { data: insertedPortalAccess, error: portalInsertError } = await supabase
         .from("patient_portal_access")
-        .insert({ patient_passport: passport, email, access_enabled: true, triage_status: "Pendente" })
+        .insert({ patient_passport: passport, user_id: linkedUserId, email, access_enabled: true, triage_status: "Pendente" })
         .select("id")
         .single();
       if (portalInsertError) throw portalInsertError;
