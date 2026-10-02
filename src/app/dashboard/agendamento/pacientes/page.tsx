@@ -145,6 +145,9 @@ function toDatetimeLocal(value: string) {
 function friendlyDatabaseError(error: { code?: string; message?: string } | null | undefined) {
   const code = String(error?.code || "");
   const message = String(error?.message || "");
+  if (message.includes("CAPACIDADE_VINCULOS_ESGOTADA")) {
+    return "Este médico atingiu o limite de pacientes vinculados nessa especialidade.";
+  }
   if (code === "23505" || message.includes("patient_doctor_links_patient")) {
     return "Este paciente já possui um médico vinculado nesta especialidade.";
   }
