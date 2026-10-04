@@ -111,9 +111,24 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       .maybeSingle();
 
     if (profileError || profile?.access_status !== "Aprovado") {
-      const statusMessage = profile?.access_status === "Recusado"
-        ? "Seu cadastro foi recusado pela administração."
-        : "Seu cadastro ainda aguarda aprovação da administração.";
+      // Uma conta de paciente sem perfil profissional não equivale a uma solicitação pendente.
+      const { data: pendingRequest } = !profileError && !profile
+        ? await client.from("staff_registration_requests")
+            .select("id")
+            .eq("auth_user_id", data.user.id)
+            .eq("status", "Pendente")
+            .limit(1)
+            .maybeSingle()
+        : { data: null };
+      const statusMessage = profileError
+        ? "Não foi possível verificar seu acesso profissional. Tente novamente."
+        : profile?.access_status === "Recusado"
+          ? "Seu cadastro foi recusado pela administração."
+          : profile?.access_status === "Desligado"
+            ? "Seu acesso profissional foi encerrado. Procure a Direção."
+            : profile?.access_status === "Pendente" || pendingRequest
+              ? "Sua solicitação de equipe está aguardando aprovação da Direção."
+              : "Esta conta ainda não tem solicitação profissional. Use Cadastrar com o mesmo e-mail e senha do Portal para solicitá-la.";
       await client.auth.signOut();
       setAuthLoading(false);
       setAuthMessage(statusMessage);
@@ -191,40 +206,77 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       }
 
       setAuthLoading(true);
-      const { data, error } = await client.auth.signUp({
-        email: item.email,
-        password: form.password,
-        options: {
-          data: {
-            name: item.name,
-            passport: item.passport,
-            crm: item.crm,
-            cityPhone: item.cityPhone,
-            specialty: item.specialty,
-            requestedRole: item.requestedRole,
-            registrationRequestId: requestId,
-          },
-        },
-      });
-
-      if (error) {
-        setAuthLoading(false);
-        setAuthMessage(error.message);
-        return;
-      }
-
-      if (data.session) {
-        const { error: requestError } = await client.rpc("submit_staff_registration", {
-          request_id: requestId,
-          request_payload: item,
+      async function submitAndVerifyRequest(authUserId: string) {
+        const { error: requestError } = await client!.rpc("submit_staff_registration", {
+          request_id: requestId, request_payload: item,
         });
+        if (requestError) return requestError.message;
+        const { data: request, error: lookupError } = await client!
+          .from("staff_registration_requests")
+          .select("id")
+          .eq("auth_user_id", authUserId)
+          .eq("status", "Pendente")
+          .limit(1)
+          .maybeSingle();
+        if (lookupError || !request) return "Não foi possível confirmar o registro do pedido na Direção. Tente novamente ou contate o suporte.";
+        return null;
+      }
+      // O mesmo Auth pode ter o Portal e a equipe como dois acessos independentes.
+      // Confirma a identidade de quem já é paciente antes de abrir o pedido na Direção.
+      const existingLogin = await client.auth.signInWithPassword({
+        email: item.email.toLowerCase(), password: form.password,
+      });
+      if (existingLogin.data.session) {
+        const requestError = await submitAndVerifyRequest(existingLogin.data.session.user.id);
+        await client.auth.signOut();
         if (requestError) {
           setAuthLoading(false);
-          setAuthMessage(`Conta criada, mas a solicitação não foi registrada: ${requestError.message}`);
-          await client.auth.signOut();
+          setAuthMessage(`Não foi possível registrar a solicitação: ${requestError}`);
           return;
         }
-        await client.auth.signOut();
+      } else {
+        const { data, error } = await client.auth.signUp({
+          email: item.email,
+          password: form.password,
+          options: {
+            data: {
+              account_type: "staff",
+              name: item.name,
+              passport: item.passport,
+              crm: item.crm,
+              cityPhone: item.cityPhone,
+              specialty: item.specialty,
+              requestedRole: item.requestedRole,
+              registrationRequestId: requestId,
+            },
+          },
+        });
+        if (error) {
+          setAuthLoading(false);
+          setAuthMessage(error.message);
+          return;
+        }
+        // Supabase pode retornar um usuário fictício em um signUp duplicado.
+        // NUNCA dizer que o pedido foi criado nesse caso.
+        if (!data.user || (data.user.identities?.length === 0 && !data.session)) {
+          setAuthLoading(false);
+          setAuthMessage("Se você já possui conta de paciente, informe a senha dessa conta no cadastro profissional. Se esqueceu a senha, use a recuperação de acesso antes de continuar.");
+          return;
+        }
+        if (data.session) {
+          const requestError = await submitAndVerifyRequest(data.session.user.id);
+          await client.auth.signOut();
+          if (requestError) {
+            setAuthLoading(false);
+            setAuthMessage(`Conta criada, mas o pedido não foi registrado: ${requestError}`);
+            return;
+          }
+        } else {
+          setAuthLoading(false);
+          setRegisterForm({ name: "", email: "", password: "", cityPhone: "", passport: "", crm: "" });
+          setAuthMessage("Verifique o e-mail para confirmar a nova conta. Depois, entre pelo acesso profissional para acompanhar sua aprovação.");
+          return;
+        }
       }
       setAuthLoading(false);
     } else {
@@ -245,7 +297,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       reference: item.passport,
     });
     setRegisterForm({ name: "", email: "", password: "", cityPhone: "", passport: "", crm: "" });
-    setAuthMessage("Cadastro criado. O acesso permanecerá bloqueado até a aprovação da administração.");
+    setAuthMessage("Solicitação profissional registrada para aprovação da Direção. O acesso médico permanecerá bloqueado até a aprovação.");
   }
 
   if (!open || !mounted) return null;
@@ -368,7 +420,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           ) : (
             <form onSubmit={handleRegister} className="max-h-[52vh] space-y-3 overflow-y-auto rounded-[18px] border border-hpsr-border bg-white/[0.78] p-3.5 pr-3">
               <div className="rounded-[14px] border border-blue-200 bg-blue-50 px-3 py-2 text-[11px] font-bold leading-relaxed text-blue-900">
-                O cadastro será bloqueado até a aprovação da administração. O cargo inicial será Estagiário de Enfermagem.
+                Se já possui conta de paciente, use o mesmo e-mail e senha: o cadastro cria um acesso profissional separado para a aprovação da Direção. O cargo inicial será Estagiário de Enfermagem.
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
