@@ -264,7 +264,7 @@ export const lab_uroculturaModel: IntelligentExamModel = {
     ],
     "defaultProfileId": "negativa"
   },
-  "pdfModel": {
+  "documentModel": {
     "template": "institutional-a4",
     "sections": [
       "titulo",
@@ -414,8 +414,7 @@ export const lab_uroculturaModel: IntelligentExamModel = {
     "mode": "future",
     "acceptedTypes": [
       "image/png",
-      "image/jpeg",
-      "application/pdf"
+      "image/jpeg"
     ]
   }
 };

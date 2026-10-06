@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
-  ArrowLeft,
   CalendarClock,
+  ClipboardList,
   ChevronDown,
   ChevronUp,
   CircleUserRound,
-  Filter,
   History,
+  HeartPulse,
   IdCard,
   Loader2,
   MessageCircle,
@@ -46,6 +46,8 @@ type HistoryRow = LinkRow & {
   end_reason: string;
 };
 
+type IntakeFormStatus = { patient_passport: string; form_type: "gestational" | "ivf_ropa"; status: string; requested_at: string };
+
 type Doctor = {
   id: string;
   name: string;
@@ -73,11 +75,12 @@ type EndModalState = {
 const LINK_END_REASONS = [
   "Acompanhamento concluído",
   "Desistência do paciente",
+  "Falta de resposta",
   "Mudança de médico",
   "Impossibilidade de continuidade",
 ] as const;
 
-const fieldClass = "min-h-[46px] w-full rounded-[14px] border border-hpsr-border bg-white px-3.5 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wine focus:ring-2 focus:ring-hpsr-wineLight/20";
+const fieldClass = "min-h-[44px] w-full rounded-[13px] border border-[#cfb6a4] bg-[#efe1d5] px-3.5 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wine focus:ring-2 focus:ring-hpsr-wineLight/20";
 const labelClass = "text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-muted";
 
 function normalize(value: unknown) {
@@ -173,9 +176,11 @@ export default function MyPatientsPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [view, setView] = useState<ViewMode>("mine");
   const [search, setSearch] = useState("");
+  const [mineSpecialtyFilter, setMineSpecialtyFilter] = useState("");
   const [adminDoctorFilter, setAdminDoctorFilter] = useState("");
   const [adminSpecialtyFilter, setAdminSpecialtyFilter] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [intakeStatus, setIntakeStatus] = useState<Map<string, IntakeFormStatus>>(new Map());
   const [collapsedSpecialties, setCollapsedSpecialties] = useState<Set<string>>(new Set());
   const [collapsedDoctors, setCollapsedDoctors] = useState<Set<string>>(new Set());
   const [modal, setModal] = useState<{ mode: ModalMode; form: LinkForm } | null>(null);
@@ -201,17 +206,27 @@ export default function MyPatientsPage() {
     setLoading(true);
     setError("");
     try {
-      const [linksResult, historyResult, profilesResult, adminResult] = await Promise.all([
+      const [linksResult, historyResult, profilesResult, adminResult, formsResult] = await Promise.all([
         client.from("patient_doctor_links").select("id,patient_passport,doctor_id,specialty,started_at").order("started_at", { ascending: false }),
         client.from("patient_doctor_link_history").select("id,patient_passport,doctor_id,specialty,started_at,ended_at,end_reason").order("ended_at", { ascending: false }),
         client.from("profiles").select("id,name,role,specialty,crm,access_status").eq("access_status", "Aprovado").order("name"),
         client.rpc("hpsr_is_patient_link_admin"),
+        client.from("followup_intake_forms").select("patient_passport,form_type,status,requested_at").order("requested_at", { ascending: false }).limit(500),
       ]);
 
       if (linksResult.error) throw linksResult.error;
       if (historyResult.error) throw historyResult.error;
       if (profilesResult.error) throw profilesResult.error;
       if (adminResult.error) throw adminResult.error;
+
+      const latestIntake = new Map<string, IntakeFormStatus>();
+      if (!formsResult.error) {
+        ((formsResult.data || []) as IntakeFormStatus[]).forEach((row) => {
+          const key = `${row.patient_passport}|${row.form_type}`;
+          if (!latestIntake.has(key)) latestIntake.set(key, row);
+        });
+      }
+      setIntakeStatus(latestIntake);
 
       const availableDoctors = (profilesResult.data || [])
         .filter((row) => isClinicalProfessional(row))
@@ -243,15 +258,21 @@ export default function MyPatientsPage() {
     [links, currentUserProfile.id],
   );
 
+  const mySpecialties = useMemo(
+    () => Array.from(new Set(myLinks.map((row) => row.specialty))).sort((a, b) => a.localeCompare(b, "pt-BR")),
+    [myLinks],
+  );
+
   const searchFilteredMyLinks = useMemo(() => {
     const term = normalize(search);
-    if (!term) return myLinks;
     return myLinks.filter((row) => {
       const patient = patientByPassport.get(row.patient_passport);
-      return [patient?.name, row.patient_passport, row.specialty]
+      const searchMatch = !term || [patient?.name, row.patient_passport, row.specialty]
         .some((value) => normalize(value).includes(term));
+      const specialtyMatch = !mineSpecialtyFilter || normalizeSpecialty(row.specialty) === normalizeSpecialty(mineSpecialtyFilter);
+      return searchMatch && specialtyMatch;
     });
-  }, [myLinks, patientByPassport, search]);
+  }, [myLinks, patientByPassport, search, mineSpecialtyFilter]);
 
   const myGroups = useMemo(() => {
     const groups = new Map<string, LinkRow[]>();
@@ -434,11 +455,84 @@ export default function MyPatientsPage() {
         p_end_reason: endModal.reason,
       });
       if (rpcError) throw rpcError;
-      const result = data as { ok?: boolean; error?: string; futureAppointments?: number; activeFollowups?: number } | null;
+      const result = data as { ok?: boolean; error?: string; futureAppointments?: number; activeFollowups?: number; cancelledAppointments?: number; archivedFollowups?: number; cancelledOccurrences?: number; commitmentsPreserved?: boolean } | null;
       if (!result?.ok) throw new Error(result?.error || "Não foi possível encerrar o vínculo.");
+      const isNoResponse = endModal.reason === "Falta de resposta";
       const preserved = Number(result.futureAppointments || 0) + Number(result.activeFollowups || 0);
+      let cancelledAppointments = Number(result.cancelledAppointments || 0);
+      let archivedFollowups = Number(result.archivedFollowups || 0);
+
+      // Compatibilidade com bancos que ainda estejam na função anterior do RPC:
+      // o encerramento por falta de resposta não pode preservar compromissos ativos.
+      if (isNoResponse && result.commitmentsPreserved !== false) {
+        const endedAt = new Date().toISOString();
+        const doctorId = endModal.row.doctor_id;
+        const specialtyKey = normalizeSpecialty(endModal.row.specialty);
+
+        const { data: appointmentRows, error: appointmentReadError } = await client
+          .from("appointments")
+          .select("id,status,payload")
+          .eq("passport", endModal.row.patient_passport);
+        if (appointmentReadError) throw appointmentReadError;
+        const activeAppointmentIds = (appointmentRows || []).filter((item: any) => {
+          const payload = (item.payload || {}) as Record<string, unknown>;
+          const itemDoctorId = String(payload.doctorId || payload.doctor_id || payload.acceptedById || "");
+          const itemSpecialty = normalizeSpecialty(String(payload.specialty || ""));
+          return itemDoctorId === doctorId
+            && itemSpecialty === specialtyKey
+            && !["Realizada","Concluída","Concluído","Não compareceu","Cancelada","Recusada","Recusado","Arquivado","Encerrado"].includes(String(item.status || ""));
+        });
+        for (const item of activeAppointmentIds) {
+          const payload = { ...((item as any).payload || {}), appointmentManagementStatus: "Sem resposta", appointmentManagementNote: "Encerrado automaticamente com o vínculo por falta de resposta.", cancellationReason: "Falta de resposta", cancelledAt: endedAt, cancelledById: currentUserProfile.id, cancelledByName: currentUserProfile.systemName, updatedAt: endedAt };
+          const { error: appointmentUpdateError } = await client.from("appointments").update({ status: "Cancelada", payload, updated_at: endedAt }).eq("id", item.id);
+          if (appointmentUpdateError) throw appointmentUpdateError;
+        }
+        cancelledAppointments = activeAppointmentIds.length;
+
+        const { data: planRows, error: plansReadError } = await client
+          .from("clinical_followup_plans")
+          .select("id,status,specialty")
+          .eq("patient_passport", endModal.row.patient_passport)
+          .eq("doctor_id", doctorId);
+        if (plansReadError) throw plansReadError;
+        const activePlans = (planRows || []).filter((plan: any) => normalizeSpecialty(String(plan.specialty || "")) === specialtyKey && !["Arquivado","Concluído","Concluída","Cancelado","Cancelada"].includes(String(plan.status || "Ativo")));
+        const activePlanIds = activePlans.map((plan: any) => String(plan.id));
+        if (activePlanIds.length) {
+          const { data: occurrenceRows, error: occurrenceReadError } = await client
+            .from("clinical_followup_occurrences")
+            .select("id,status")
+            .in("plan_id", activePlanIds);
+          if (occurrenceReadError) throw occurrenceReadError;
+          const activeOccurrenceIds = (occurrenceRows || [])
+            .filter((occurrence: any) => !["Realizada","Concluída","Concluído","Cancelado","Cancelada","Não compareceu"].includes(String(occurrence.status || "")))
+            .map((occurrence: any) => String(occurrence.id));
+          if (activeOccurrenceIds.length) {
+            const { error: occurrenceUpdateError } = await client
+              .from("clinical_followup_occurrences")
+              .update({ status: "Cancelado", updated_at: endedAt })
+              .in("id", activeOccurrenceIds);
+            if (occurrenceUpdateError) throw occurrenceUpdateError;
+          }
+
+          const { error: planUpdateError } = await client
+            .from("clinical_followup_plans")
+            .update({ status: "Arquivado", updated_at: endedAt })
+            .in("id", activePlanIds);
+          if (planUpdateError) throw planUpdateError;
+        }
+        archivedFollowups = activePlanIds.length;
+      }
+
       setEndModal(null);
-      setMessage(preserved > 0 ? `Vínculo encerrado e registrado no histórico. ${preserved} compromisso(s) relacionado(s) permanecem na Agenda do Médico para revisão.` : "Vínculo encerrado e registrado no histórico com sucesso.");
+      if (isNoResponse) {
+        const details = [
+          cancelledAppointments ? `${cancelledAppointments} consulta(s)/solicitação(ões) ativa(s) encerrada(s)` : "",
+          archivedFollowups ? `${archivedFollowups} acompanhamento(s) ativo(s) arquivado(s)` : "",
+        ].filter(Boolean).join(" e ");
+        setMessage(details ? `Vínculo encerrado por falta de resposta e mantido somente no histórico. ${details}.` : "Vínculo encerrado por falta de resposta e mantido somente no histórico.");
+      } else {
+        setMessage(preserved > 0 ? `Vínculo encerrado e registrado no histórico. ${preserved} compromisso(s) relacionado(s) permanecem na Agenda do Médico para revisão.` : "Vínculo encerrado e registrado no histórico com sucesso.");
+      }
       await load();
     } catch (caught) {
       setError(friendlyDatabaseError(caught as { code?: string; message?: string }));
@@ -482,254 +576,96 @@ export default function MyPatientsPage() {
   }
 
   return (
-    <div className="hpsr-page hpsr-schedule-page hpsr-patients-page gap-3">
-      <PageHeader schedule eyebrow="Agendamentos" title="Meus Pacientes" description="Carteira de vínculos médico-paciente organizada por especialidade." />
+    <div className="hpsr-page hpsr-schedule-page hpsr-patients-page gap-3 bg-[#eadbce] px-1.5 pb-2 sm:px-2">
+      <PageHeader compact schedule eyebrow="Agendamentos" title="Meus pacientes" description="Gerencie os pacientes sob sua responsabilidade." />
 
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[22px] border border-hpsr-border bg-white shadow-[0_12px_34px_rgba(74,38,24,0.06)]">
-        <div className="hpsr-patient-schedule-header border-b border-[#a77864]/50 bg-[linear-gradient(110deg,#42201c,#64352d_65%,#744238)] px-3 py-3.5 sm:px-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="inline-flex w-full rounded-[13px] border border-[#eadbd5] bg-white p-1 sm:w-auto">
-              <button
-                type="button"
-                onClick={() => setView("mine")}
-                className={`flex min-h-[40px] flex-1 items-center justify-center gap-2 rounded-[10px] px-4 text-xs font-black transition sm:min-w-[150px] ${view === "mine" ? "bg-hpsr-wine text-white shadow-sm" : "text-hpsr-muted hover:bg-[#fff8f4] hover:text-hpsr-text"}`}
-              >
-                <UsersRound size={14} /> Minha carteira
-              </button>
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => setView("admin")}
-                  className={`flex min-h-[40px] flex-1 items-center justify-center gap-2 rounded-[10px] px-4 text-xs font-black transition sm:min-w-[170px] ${view === "admin" ? "bg-hpsr-wine text-white shadow-sm" : "text-hpsr-muted hover:bg-[#fff8f4] hover:text-hpsr-text"}`}
-                >
-                  <ShieldCheck size={14} /> Visão administrativa
+      <header className="flex shrink-0 flex-col gap-3 px-2 pb-1 sm:flex-row sm:items-center sm:justify-between sm:px-3">
+        <div>
+          <h1 className="text-[clamp(1.55rem,2.2vw,2rem)] font-black tracking-tight text-[#4b1b13]">Meus pacientes</h1>
+          <p className="mt-0.5 text-sm font-semibold text-[#7f6356]">Gerencie os pacientes sob sua responsabilidade.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/dashboard/agendamento/clinica" className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[12px] border border-[#b98770] bg-[#efe1d5] px-4 text-xs font-black text-[#5b2117] transition hover:bg-[#e7d3c4]">
+            <CalendarClock size={15} /> Agenda do médico
+          </Link>
+          <button type="button" onClick={openCreate} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[12px] bg-[linear-gradient(135deg,#71301f,#4b190f)] px-4 text-xs font-black text-[#fff5ed] shadow-[0_6px_14px_rgba(73,25,15,.18)] transition hover:brightness-105">
+            <Plus size={16} /> Novo vínculo
+          </button>
+        </div>
+      </header>
+
+      <nav className="shrink-0 rounded-[14px] border border-[#8b594c] bg-[linear-gradient(110deg,#4a211a,#6b352a_65%,#7b4638)] p-1.5 shadow-[0_7px_18px_rgba(62,23,14,.12)]">
+        <div className="grid gap-1.5 sm:grid-cols-3">
+          <button type="button" onClick={() => setView("mine")} className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[10px] px-4 text-xs font-black transition ${view === "mine" ? "bg-[#8a3a22] text-white shadow-sm" : "text-[#f1ddd0] hover:bg-white/10 hover:text-white"}`}><UsersRound size={14}/> Minha carteira</button>
+          {isAdmin ? <button type="button" onClick={() => setView("admin")} className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[10px] px-4 text-xs font-black transition ${view === "admin" ? "bg-[#8a3a22] text-white shadow-sm" : "text-[#f1ddd0] hover:bg-white/10 hover:text-white"}`}><ShieldCheck size={14}/> Visão administrativa</button> : <span className="hidden sm:block" />}
+          <button type="button" onClick={() => setView("history")} className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[10px] px-4 text-xs font-black transition ${view === "history" ? "bg-[#8a3a22] text-white shadow-sm" : "text-[#f1ddd0] hover:bg-white/10 hover:text-white"}`}><History size={14}/> Histórico</button>
+        </div>
+      </nav>
+
+      {message && <div className="shrink-0 rounded-[12px] border border-emerald-300/80 bg-[#dce9da] px-3.5 py-2.5 text-sm font-bold text-emerald-900">{message}</div>}
+      {error && !modal && <div className="shrink-0 rounded-[12px] border border-rose-300 bg-[#efd9d4] px-3.5 py-2.5 text-sm font-bold text-rose-900">{error}</div>}
+
+      <section className="shrink-0 border-b border-[#c8a991] pb-3">
+        <div className={`grid gap-2.5 ${view === "mine" ? "lg:grid-cols-[minmax(300px,1fr)_300px]" : isAdmin ? "lg:grid-cols-[minmax(280px,1fr)_240px_240px_auto]" : "lg:grid-cols-[minmax(300px,1fr)]"}`}>
+          <div className="relative min-w-0">
+            <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#85513d]" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={view === "mine" ? "Buscar paciente ou passaporte..." : view === "history" ? "Buscar no histórico..." : "Buscar paciente, passaporte ou médico..."} className={`${fieldClass} pl-10 placeholder:font-medium placeholder:text-[#9b7d6c]`} />
+          </div>
+
+          {view === "mine" && (
+            <div className="min-w-0">
+              <StyledSelect className={fieldClass} value={mineSpecialtyFilter} onChange={(event) => setMineSpecialtyFilter(event.target.value)} searchable>
+                <option value="">Todas as especialidades</option>
+                {mySpecialties.map((specialty) => <option key={specialty} value={specialty}>{specialty}</option>)}
+              </StyledSelect>
+            </div>
+          )}
+
+          {view !== "mine" && isAdmin && <>
+            <StyledSelect className={fieldClass} value={adminDoctorFilter} onChange={(event) => setAdminDoctorFilter(event.target.value)} searchable><option value="">Todos os médicos</option>{doctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name}</option>)}</StyledSelect>
+            <StyledSelect className={fieldClass} value={adminSpecialtyFilter} onChange={(event) => setAdminSpecialtyFilter(event.target.value)} searchable><option value="">Todas as especialidades</option>{allAdminSpecialties.map((specialty) => <option key={specialty} value={specialty}>{specialty}</option>)}</StyledSelect>
+            <button type="button" onClick={clearAdminFilters} disabled={!hasAdminFilters} className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-[12px] border border-[#c6a58f] bg-[#e7d5c7] px-3 text-xs font-black text-[#78503f] transition hover:bg-[#dfc9b9] disabled:opacity-40"><RotateCcw size={14}/> Limpar</button>
+          </>}
+        </div>
+      </section>
+
+      <section className="hpsr-patients-scroll min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]">
+        {(loading || patientsLoading) ? (
+          <div className="flex min-h-[300px] items-center justify-center gap-2 text-sm font-bold text-[#806657]"><Loader2 size={18} className="animate-spin"/> Carregando carteira...</div>
+        ) : view === "mine" ? (
+          myGroups.length ? <div className="space-y-3">
+            {myGroups.map((group) => {
+              const key=`mine:${group.specialty}`;
+              const collapsed=collapsedSpecialties.has(key);
+              return <section key={key} className="overflow-hidden rounded-[16px] border border-[#c9a991] bg-[#e6d5c7]">
+                <button type="button" onClick={() => toggleSpecialty(key)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#dec8b8] sm:px-5">
+                  <div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[#ead9cd] text-[#6a281b]"><Stethoscope size={17}/></span><div className="min-w-0"><p className="truncate text-sm font-black text-[#3f2119]">{group.specialty}</p><p className="mt-0.5 text-[11px] font-semibold text-[#7d6456]">{group.rows.length} paciente{group.rows.length === 1 ? "" : "s"} vinculado{group.rows.length === 1 ? "" : "s"}</p></div></div>
+                  {collapsed ? <ChevronDown size={16} className="text-[#6d3b2c]"/> : <ChevronUp size={16} className="text-[#6d3b2c]"/>}
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setView("history")}
-                className={`flex min-h-[40px] flex-1 items-center justify-center gap-2 rounded-[10px] px-4 text-xs font-black transition sm:min-w-[130px] ${view === "history" ? "bg-hpsr-wine text-white shadow-sm" : "text-hpsr-muted hover:bg-[#fff8f4] hover:text-hpsr-text"}`}
-              >
-                <History size={14} /> Histórico
+                {!collapsed && <div className="border-t border-[#c7a78f]">{group.rows.map((row) => <PatientLinkCard key={row.id} row={row} patient={patientByPassport.get(row.patient_passport)} doctor={doctorById.get(row.doctor_id)} expanded={expanded.has(row.id)} onToggle={() => toggleExpanded(row.id)} onEdit={() => openEdit(row)} onEnd={() => openEnd(row)} showDoctor={false} intakeStatus={intakeStatus}/>)}</div>}
+              </section>;
+            })}
+          </div> : <EmptyState title="Sua carteira está vazia" text={search || mineSpecialtyFilter ? "Nenhum paciente da sua carteira corresponde aos filtros." : "Quando um vínculo for criado para você, o paciente aparecerá aqui agrupado por especialidade."}/>
+        ) : view === "history" ? (
+          historyFiltered.length ? <div className="space-y-2.5">{historyFiltered.map((row) => <HistoryLinkCard key={row.id} row={row} patient={patientByPassport.get(row.patient_passport)} doctor={doctorById.get(row.doctor_id)}/>)}</div> : <EmptyState title="Histórico vazio" text={search ? "Nenhum vínculo encerrado corresponde à busca." : "Os vínculos encerrados ou substituídos aparecerão aqui."}/>
+        ) : isAdmin ? (
+          adminGroups.length ? <div className="space-y-3">{adminGroups.map((doctorGroup) => {
+            const doctorKey=`admin-doctor:${doctorGroup.doctorId}`;
+            const doctorCollapsed=collapsedDoctors.has(doctorKey);
+            const total=doctorGroup.specialties.reduce((sum,group)=>sum+group.rows.length,0);
+            return <section key={doctorKey} className="overflow-hidden rounded-[16px] border border-[#c9a991] bg-[#e4d1c1]">
+              <button type="button" onClick={() => toggleDoctor(doctorKey)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#dcc4b4] sm:px-5">
+                <div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#6b2a1c] text-[#f8e9de]"><CircleUserRound size={18}/></span><div className="min-w-0"><p className="truncate text-sm font-black text-[#3f2119]">{doctorGroup.doctor?.name || "Médico não localizado"}</p><p className="mt-0.5 text-[11px] font-semibold text-[#7d6456]">{doctorGroup.doctor?.role || "Profissional"} · {total} vínculo{total===1?"":"s"}</p></div></div>
+                {doctorCollapsed ? <ChevronDown size={16} className="text-[#6d3b2c]"/> : <ChevronUp size={16} className="text-[#6d3b2c]"/>}
               </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
-              <Link
-                href="/dashboard/agendamento/clinica"
-                className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3.5 text-xs font-black text-hpsr-wine shadow-sm transition hover:-translate-y-0.5 hover:border-hpsr-wineLight hover:bg-[#fff9f5]"
-              >
-                <ArrowLeft size={15} /> Agenda do Médico
-              </Link>
-              <button
-                type="button"
-                onClick={openCreate}
-                className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[12px] bg-[linear-gradient(135deg,#742b18_0%,#45150b_100%)] px-4 text-xs font-black text-white shadow-[0_8px_18px_rgba(83,31,16,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_22px_rgba(83,31,16,0.24)] sm:text-sm"
-              >
-                <Plus size={16} /> Novo vínculo
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col p-3 sm:p-4">
-          {message && <div className="mb-4 rounded-[13px] border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-sm font-bold text-emerald-900">{message}</div>}
-          {error && !modal && <div className="mb-4 rounded-[13px] border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm font-bold text-rose-900">{error}</div>}
-
-          <div className="mb-3 rounded-[15px] border border-hpsr-border bg-[#fffaf7] p-2.5 sm:p-3">
-            <div className={`grid gap-2.5 ${view !== "mine" && isAdmin ? "lg:grid-cols-[minmax(260px,1fr)_220px_220px_auto]" : "lg:grid-cols-[minmax(280px,520px)]"}`}>
-              <div className="relative min-w-0">
-                <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-hpsr-muted" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder={view === "mine" ? "Buscar paciente ou passaporte..." : view === "history" ? "Buscar no histórico..." : "Buscar paciente, passaporte ou médico..."}
-                  className={`${fieldClass} bg-white pl-10 placeholder:font-medium placeholder:text-zinc-400`}
-                />
-              </div>
-
-              {view !== "mine" && isAdmin && (
-                <>
-                  <div className="min-w-0">
-                    <StyledSelect value={adminDoctorFilter} onChange={(event) => setAdminDoctorFilter(event.target.value)} searchable>
-                      <option value="">Todos os médicos</option>
-                      {doctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name}</option>)}
-                    </StyledSelect>
-                  </div>
-                  <div className="min-w-0">
-                    <StyledSelect value={adminSpecialtyFilter} onChange={(event) => setAdminSpecialtyFilter(event.target.value)} searchable>
-                      <option value="">Todas as especialidades</option>
-                      {allAdminSpecialties.map((specialty) => <option key={specialty} value={specialty}>{specialty}</option>)}
-                    </StyledSelect>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={clearAdminFilters}
-                    disabled={!hasAdminFilters}
-                    className="inline-flex min-h-[46px] items-center justify-center gap-1.5 rounded-[12px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-muted transition hover:text-hpsr-wine disabled:cursor-default disabled:opacity-40"
-                  >
-                    <RotateCcw size={14} /> Limpar
-                  </button>
-                </>
-              )}
-            </div>
-            {view !== "mine" && isAdmin && (
-              <div className="mt-2.5 flex items-center gap-1.5 text-[11px] font-semibold text-hpsr-muted">
-                <Filter size={12} /> Use os filtros para localizar rapidamente um vínculo específico.
-              </div>
-            )}
-          </div>
-
-          <div className="hpsr-patients-scroll min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]">
-          {(loading || patientsLoading) ? (
-            <div className="flex min-h-[300px] items-center justify-center gap-2 text-sm font-bold text-hpsr-muted">
-              <Loader2 size={18} className="animate-spin" /> Carregando carteira...
-            </div>
-          ) : view === "mine" ? (
-            myGroups.length ? (
-              <div className="space-y-3">
-                {myGroups.map((group) => {
-                  const key = `mine:${group.specialty}`;
-                  const collapsed = collapsedSpecialties.has(key);
-                  return (
-                    <section key={key} className="overflow-hidden rounded-[17px] border border-hpsr-border bg-white shadow-[0_4px_16px_rgba(74,38,24,0.035)]">
-                      <button
-                        type="button"
-                        onClick={() => toggleSpecialty(key)}
-                        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition hover:bg-[#fff9f5] sm:px-5"
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-[#f8eee9] text-hpsr-wine">
-                            <Stethoscope size={16} />
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-black text-hpsr-text">{group.specialty}</p>
-                            <p className="mt-0.5 text-[11px] font-semibold text-hpsr-muted">{group.rows.length} paciente{group.rows.length === 1 ? "" : "s"} vinculado{group.rows.length === 1 ? "" : "s"}</p>
-                          </div>
-                        </div>
-                        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-hpsr-muted">
-                          {collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                        </span>
-                      </button>
-                      {!collapsed && (
-                        <div className="space-y-2 border-t border-hpsr-border bg-[#fbf8f6] p-2.5 sm:p-3">
-                          {group.rows.map((row) => (
-                            <PatientLinkCard
-                              key={row.id}
-                              row={row}
-                              patient={patientByPassport.get(row.patient_passport)}
-                              doctor={doctorById.get(row.doctor_id)}
-                              expanded={expanded.has(row.id)}
-                              onToggle={() => toggleExpanded(row.id)}
-                              onEdit={() => openEdit(row)}
-                              onEnd={() => openEnd(row)}
-                              showDoctor={false}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </section>
-                  );
-                })}
-              </div>
-            ) : (
-              <EmptyState title="Sua carteira está vazia" text={search ? "Nenhum paciente da sua carteira corresponde à busca." : "Quando um vínculo for criado para você, o paciente aparecerá aqui agrupado por especialidade."} />
-            )
-          ) : view === "history" ? (
-            historyFiltered.length ? (
-              <div className="space-y-2.5">
-                {historyFiltered.map((row) => (
-                  <HistoryLinkCard
-                    key={row.id}
-                    row={row}
-                    patient={patientByPassport.get(row.patient_passport)}
-                    doctor={doctorById.get(row.doctor_id)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <EmptyState title="Histórico vazio" text={search ? "Nenhum vínculo encerrado corresponde à busca." : "Os vínculos encerrados ou substituídos aparecerão aqui."} />
-            )
-          ) : isAdmin ? (
-            adminGroups.length ? (
-              <div className="space-y-3">
-                {adminGroups.map((doctorGroup) => {
-                  const doctorKey = `admin-doctor:${doctorGroup.doctorId}`;
-                  const doctorCollapsed = collapsedDoctors.has(doctorKey);
-                  const total = doctorGroup.specialties.reduce((sum, group) => sum + group.rows.length, 0);
-                  return (
-                    <section key={doctorKey} className="overflow-hidden rounded-[17px] border border-hpsr-border bg-white shadow-[0_4px_16px_rgba(74,38,24,0.035)]">
-                      <button
-                        type="button"
-                        onClick={() => toggleDoctor(doctorKey)}
-                        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition hover:bg-[#fff9f5] sm:px-5"
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-hpsr-wine text-white">
-                            <CircleUserRound size={18} />
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-black text-hpsr-text">{doctorGroup.doctor?.name || "Médico não localizado"}</p>
-                            <p className="mt-0.5 truncate text-[11px] font-semibold text-hpsr-muted">{doctorGroup.doctor?.role || "Profissional"} · {doctorGroup.specialties.length} especialidade{doctorGroup.specialties.length === 1 ? "" : "s"}</p>
-                          </div>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-2">
-                          <span className="rounded-full bg-[#f6ece7] px-2.5 py-1 text-[10px] font-black text-hpsr-muted">{total} vínculo{total === 1 ? "" : "s"}</span>
-                          {doctorCollapsed ? <ChevronDown size={16} className="text-hpsr-muted" /> : <ChevronUp size={16} className="text-hpsr-muted" />}
-                        </div>
-                      </button>
-
-                      {!doctorCollapsed && (
-                        <div className="space-y-2.5 border-t border-hpsr-border bg-[#fffaf7] p-2.5 sm:p-3">
-                          {doctorGroup.specialties.map((group) => {
-                            const specialtyKey = `${doctorKey}:${group.specialty}`;
-                            const specialtyCollapsed = collapsedSpecialties.has(specialtyKey);
-                            return (
-                              <section key={specialtyKey} className="overflow-hidden rounded-[15px] border border-hpsr-border bg-white">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleSpecialty(specialtyKey)}
-                                  className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left transition hover:bg-[#fff8f4]"
-                                >
-                                  <div className="flex min-w-0 items-center gap-2.5">
-                                    <Stethoscope size={14} className="shrink-0 text-hpsr-wine" />
-                                    <span className="truncate text-xs font-black text-hpsr-text">{group.specialty}</span>
-                                    <span className="rounded-full bg-[#f6ece7] px-2 py-0.5 text-[9px] font-black text-hpsr-muted">{group.rows.length}</span>
-                                  </div>
-                                  {specialtyCollapsed ? <ChevronDown size={14} className="text-hpsr-muted" /> : <ChevronUp size={14} className="text-hpsr-muted" />}
-                                </button>
-                                {!specialtyCollapsed && (
-                                  <div className="space-y-2 border-t border-hpsr-border bg-[#fffaf7] p-2.5">
-                                    {group.rows.map((row) => (
-                                      <PatientLinkCard
-                                        key={row.id}
-                                        row={row}
-                                        patient={patientByPassport.get(row.patient_passport)}
-                                        doctor={doctorGroup.doctor}
-                                        expanded={expanded.has(row.id)}
-                                        onToggle={() => toggleExpanded(row.id)}
-                                        onEdit={() => openEdit(row)}
-                                        onEnd={() => openEnd(row)}
-                                        showDoctor={false}
-                                      />
-                                    ))}
-                                  </div>
-                                )}
-                              </section>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </section>
-                  );
-                })}
-              </div>
-            ) : (
-              <EmptyState title="Nenhum vínculo encontrado" text="Ajuste os filtros ou a busca para localizar outros vínculos." />
-            )
-          ) : null}
-          </div>
-        </div>
+              {!doctorCollapsed && <div className="space-y-2.5 border-t border-[#c7a78f] p-2.5">{doctorGroup.specialties.map((group) => {
+                const specialtyKey=`${doctorKey}:${group.specialty}`;
+                const specialtyCollapsed=collapsedSpecialties.has(specialtyKey);
+                return <section key={specialtyKey} className="overflow-hidden rounded-[14px] border border-[#c9ad99] bg-[#e9d9cc]"><button type="button" onClick={() => toggleSpecialty(specialtyKey)} className="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left hover:bg-[#dfcabb]"><div className="flex items-center gap-2.5"><Stethoscope size={14} className="text-[#6b2a1c]"/><span className="text-xs font-black text-[#3f2119]">{group.specialty}</span><span className="rounded-full bg-[#d9c0ae] px-2 py-0.5 text-[9px] font-black text-[#684333]">{group.rows.length}</span></div>{specialtyCollapsed ? <ChevronDown size={14}/> : <ChevronUp size={14}/>}</button>{!specialtyCollapsed && <div className="border-t border-[#c9ad99]">{group.rows.map((row) => <PatientLinkCard key={row.id} row={row} patient={patientByPassport.get(row.patient_passport)} doctor={doctorGroup.doctor} expanded={expanded.has(row.id)} onToggle={() => toggleExpanded(row.id)} onEdit={() => openEdit(row)} onEnd={() => openEnd(row)} showDoctor={false} intakeStatus={intakeStatus}/>)}</div>}</section>;
+              })}</div>}
+            </section>;
+          })}</div> : <EmptyState title="Nenhum vínculo encontrado" text="Ajuste os filtros ou a busca para localizar outros vínculos."/>
+        ) : null}
       </section>
 
       {modal && (
@@ -773,6 +709,7 @@ function PatientLinkCard({
   onEdit,
   onEnd,
   showDoctor = true,
+  intakeStatus,
 }: {
   row: LinkRow;
   patient?: SharedPatient;
@@ -782,6 +719,7 @@ function PatientLinkCard({
   onEdit: () => void;
   onEnd: () => void;
   showDoctor?: boolean;
+  intakeStatus: Map<string, IntakeFormStatus>;
 }) {
   const name = patient?.name || `Paciente ${row.patient_passport}`;
   const initials = name
@@ -790,47 +728,53 @@ function PatientLinkCard({
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("") || "P";
+  const normalizedSpecialty = normalizeSpecialty(row.specialty);
+  const formType = normalizedSpecialty === "ginecologia" ? "ivf_ropa" : normalizedSpecialty === "obstetra" ? "gestational" : null;
+  const form = formType ? intakeStatus.get(`${row.patient_passport}|${formType}`) : undefined;
+  const formStatusLabel = !form ? "Não solicitada" : form.status === "requested" ? "Aguardando paciente" : form.status === "draft" ? "Em preenchimento" : form.status === "submitted" ? "Enviada ao médico" : form.status === "reviewed" ? "Analisada" : "Encerrada";
+  const formStatusClass = !form ? "bg-[#f2e9e3] text-hpsr-muted" : form.status === "submitted" ? "bg-[#f5dfd7] text-hpsr-wine" : form.status === "reviewed" ? "bg-[#eadfd7] text-[#573126]" : "bg-[#f7eee8] text-hpsr-wine";
 
   return (
-    <article className="overflow-hidden rounded-[14px] border border-hpsr-border bg-white shadow-[0_3px_12px_rgba(74,38,24,0.025)] transition hover:-translate-y-px hover:border-hpsr-wineLight/60 hover:shadow-[0_7px_18px_rgba(74,38,24,0.055)]">
-      <div className="flex flex-col gap-3 px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+    <article className="border-b border-[#cdb29f] bg-[#eadccd] last:border-b-0">
+      <div className="grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1.35fr)_160px_150px_auto] sm:items-center sm:px-5">
         <div className="flex min-w-0 items-center gap-3">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#f5ece7] text-xs font-black text-hpsr-wine">
+          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[#dcc2b0] text-xs font-black text-[#6a291d]">
             {initials}
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-black text-hpsr-text">{name}</p>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-hpsr-muted">
-              <span className="inline-flex items-center gap-1"><IdCard size={11} /> {row.patient_passport}</span>
-              {showDoctor && doctor && <span className="truncate">{doctor.name}</span>}
-              {showDoctor && <span className="truncate text-hpsr-wine">{row.specialty}</span>}
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-semibold text-[#765c4e]">
+              <span>Passaporte {row.patient_passport}</span>
+              {patient?.age && <><span>·</span><span>{patient.age} anos</span></>}
+              {patient?.sex && <><span>·</span><span>{patient.sex}</span></>}
+              {showDoctor && doctor && <><span>·</span><span className="truncate">{doctor.name}</span></>}
             </div>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onToggle}
-          className="inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-[10px] border border-hpsr-border bg-[#fffaf7] px-3 text-xs font-black text-hpsr-wine transition hover:border-hpsr-wineLight hover:bg-white"
-        >
-          {expanded ? "Fechar" : "Detalhes"}
-          {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        <div className="border-l border-[#cdb29f] pl-4"><p className="text-[9px] font-black uppercase tracking-[.14em] text-[#805342]">Vínculo</p><span className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-[#d8eadb] px-2.5 py-1 text-[10px] font-black text-emerald-800"><span className="h-1.5 w-1.5 rounded-full bg-emerald-700"/>Ativo</span></div>
+        <div className="border-l border-[#cdb29f] pl-4"><p className="text-[9px] font-black uppercase tracking-[.14em] text-[#805342]">Desde</p><p className="mt-1 text-xs font-black text-[#3f2119]">{formatStartedAt(row.started_at).split(",")[0]}</p></div>
+        <button type="button" onClick={onToggle} className="inline-flex min-h-[36px] shrink-0 items-center justify-center gap-1.5 rounded-[11px] border border-[#ba927b] bg-[#e5d1c2] px-3 text-xs font-black text-[#632619] transition hover:bg-[#dcc3b2]">
+          <Pencil size={13}/>{expanded ? "Fechar" : "Gerenciar vínculo"}{expanded ? <ChevronUp size={14}/> : <ChevronDown size={14}/>} 
         </button>
       </div>
 
       {expanded && (
-        <div className="border-t border-hpsr-border bg-[#fbf8f6] px-3.5 py-3 sm:px-4">
+        <div className="border-t border-[#cdb29f] bg-[#dfccbd] px-4 py-3 sm:px-5">
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <Detail icon={<Stethoscope size={13} />} label="Especialidade" value={row.specialty} />
             <Detail icon={<CalendarClock size={13} />} label="Início do vínculo" value={formatStartedAt(row.started_at)} />
             <Detail icon={<MessageCircle size={13} />} label="Discord · preferencial" value={patient?.discord || "Não informado"} />
             <Detail icon={<Phone size={13} />} label="Telefone da cidade" value={patient?.cityPhone || "Não informado"} />
           </div>
-          <div className="mt-3 flex flex-wrap justify-end gap-2">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            {["obstetra","ginecologia"].includes(normalizeSpecialty(row.specialty)) && <span className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-[9px] px-2.5 text-[10px] font-black ${formStatusClass}`}><ClipboardList size={12}/> Ficha: {formStatusLabel}</span>}
+            <div className="ml-auto flex flex-wrap justify-end gap-2">
+            {["obstetra","ginecologia"].includes(normalizeSpecialty(row.specialty)) && <Link href={`/dashboard/obstetra?patient=${encodeURIComponent(row.patient_passport)}&specialty=${encodeURIComponent(row.specialty)}`} className="inline-flex min-h-[36px] items-center gap-1.5 rounded-[10px] bg-hpsr-wine px-3 text-xs font-black text-white transition hover:brightness-105"><HeartPulse size={13}/> Ver acompanhamento</Link>}
             <button
               type="button"
               onClick={onEdit}
-              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-[10px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine transition hover:bg-[#f8f5f2]"
+              className="inline-flex min-h-[36px] items-center gap-1.5 rounded-[10px] border border-hpsr-border bg-[#eadccd] px-3 text-xs font-black text-[#632619] transition hover:bg-[#e0cbbb]"
             >
               <Pencil size={13} /> Corrigir vínculo
             </button>
@@ -841,6 +785,7 @@ function PatientLinkCard({
             >
               <UserRoundX size={13} /> Encerrar vínculo
             </button>
+            </div>
           </div>
         </div>
       )}
@@ -851,7 +796,7 @@ function PatientLinkCard({
 function HistoryLinkCard({ row, patient, doctor }: { row: HistoryRow; patient?: SharedPatient; doctor?: Doctor }) {
   const name = patient?.name || `Paciente ${row.patient_passport}`;
   return (
-    <article className="rounded-[15px] border border-[#dac3ad] bg-[#f2e6d9] px-4 py-3.5 shadow-[0_3px_12px_rgba(74,38,24,0.025)]">
+    <article className="rounded-[14px] border border-[#c9aa94] bg-[#e4d1c1] px-4 py-3.5">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -876,7 +821,7 @@ function HistoryLinkCard({ row, patient, doctor }: { row: HistoryRow; patient?: 
 
 function Detail({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2.5">
+    <div className="rounded-[11px] border border-[#c8ab97] bg-[#eadacd] px-3 py-2.5">
       <div className="flex items-center gap-1.5 text-hpsr-muted">
         {icon}
         <p className="text-[9px] font-black uppercase tracking-[0.1em]">{label}</p>
@@ -888,7 +833,7 @@ function Detail({ icon, label, value }: { icon: ReactNode; label: string; value:
 
 function EmptyState({ title, text }: { title: string; text: string }) {
   return (
-    <div className="grid min-h-[260px] place-items-center rounded-[18px] border border-dashed border-hpsr-border bg-[#fffaf7] p-6 text-center">
+    <div className="grid min-h-[260px] place-items-center rounded-[16px] border border-dashed border-[#bc9d87] bg-[#e5d3c5] p-6 text-center">
       <div className="max-w-md">
         <span className="mx-auto grid h-11 w-11 place-items-center rounded-full bg-[#f5ece7] text-hpsr-wine">
           <UsersRound size={20} />
@@ -921,8 +866,8 @@ function EndLinkModal({
 }) {
   return (
     <div className="hpsr-modal-tone fixed inset-0 z-[999] flex items-end justify-center bg-[#2a0700]/35 p-0 sm:items-center sm:p-4">
-      <div className="w-full max-w-lg overflow-hidden rounded-t-[24px] border border-hpsr-border bg-white shadow-2xl sm:rounded-[22px]">
-        <div className="flex items-start justify-between gap-4 border-b border-hpsr-border px-5 py-4">
+      <div className="w-full max-w-lg overflow-hidden rounded-t-[24px] border border-[#c9ad99] bg-[#eadbce] shadow-2xl sm:rounded-[22px]">
+        <div className="flex items-start justify-between gap-4 border-b border-[#c8ab97] bg-[#e1ccbc] px-5 py-4">
           <div className="flex min-w-0 items-start gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-rose-50 text-rose-700"><UserRoundX size={18}/></span>
             <div className="min-w-0">
@@ -931,21 +876,25 @@ function EndLinkModal({
               <p className="mt-1 text-sm font-medium text-hpsr-muted">{doctor?.name || "Médico"} · {state.row.specialty}</p>
             </div>
           </div>
-          <button type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-hpsr-border bg-white text-hpsr-muted"><X size={17}/></button>
+          <button type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-hpsr-border bg-[#eadacd] text-hpsr-muted"><X size={17}/></button>
         </div>
         <div className="space-y-4 p-5">
           {error && <div className="rounded-[13px] border border-rose-200 bg-rose-50 px-3.5 py-3 text-sm font-bold text-rose-900">{error}</div>}
           <div>
             <label className={labelClass}>Motivo do encerramento</label>
-            <StyledSelect value={state.reason} onChange={(event) => setState({ ...state, reason: event.target.value })}>
+            <StyledSelect className={fieldClass} value={state.reason} onChange={(event) => setState({ ...state, reason: event.target.value })}>
               <option value="">Selecione o motivo</option>
               {LINK_END_REASONS.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
             </StyledSelect>
           </div>
-          <div className="rounded-[13px] border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs font-semibold leading-relaxed text-amber-900">Consultas futuras e acompanhamentos já existentes não serão apagados automaticamente. Eles permanecem na Agenda do Médico para revisão, até a integração da Mudança 5.</div>
+          {state.reason === "Falta de resposta" ? (
+            <div className="rounded-[13px] border border-rose-200 bg-rose-50 px-3.5 py-3 text-xs font-semibold leading-relaxed text-rose-900">Ao encerrar por falta de resposta, o vínculo fica apenas no histórico. Consultas/solicitações ainda ativas serão canceladas e acompanhamentos ativos serão arquivados, sem apagar o histórico clínico já registrado.</div>
+          ) : (
+            <div className="rounded-[13px] border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs font-semibold leading-relaxed text-amber-900">Nos demais motivos, consultas futuras e acompanhamentos já existentes permanecem preservados para revisão na Agenda do Médico.</div>
+          )}
         </div>
-        <div className="flex justify-end gap-2 border-t border-hpsr-border bg-[#fbfaf9] px-5 py-3.5">
-          <button type="button" disabled={busy} onClick={onClose} className="min-h-[42px] rounded-[13px] border border-hpsr-border bg-white px-4 text-sm font-black text-hpsr-text">Cancelar</button>
+        <div className="flex justify-end gap-2 border-t border-[#c8ab97] bg-[#dfcbbb] px-5 py-3.5">
+          <button type="button" disabled={busy} onClick={onClose} className="min-h-[42px] rounded-[13px] border border-hpsr-border bg-[#eadacd] px-4 text-sm font-black text-hpsr-text">Cancelar</button>
           <button type="button" disabled={busy || !state.reason} onClick={onConfirm} className="inline-flex min-h-[42px] min-w-[150px] items-center justify-center gap-2 rounded-[13px] bg-rose-700 px-4 text-sm font-black text-white disabled:opacity-50">{busy ? <Loader2 size={16} className="animate-spin"/> : <UserRoundX size={16}/>} Encerrar vínculo</button>
         </div>
       </div>
@@ -989,13 +938,13 @@ function LinkModal({
 
   return (
     <div className="hpsr-modal-tone fixed inset-0 z-[999] flex items-end justify-center bg-[#2a0700]/35 p-0 sm:items-center sm:p-4">
-      <div className="w-full max-w-2xl overflow-hidden rounded-t-[24px] border border-hpsr-border bg-white shadow-2xl sm:rounded-[22px]">
-        <div className="flex items-start justify-between gap-4 border-b border-hpsr-border px-5 py-4 sm:px-6">
+      <div className="w-full max-w-2xl overflow-hidden rounded-t-[24px] border border-[#c9ad99] bg-[#eadbce] shadow-2xl sm:rounded-[22px]">
+        <div className="flex items-start justify-between gap-4 border-b border-[#c8ab97] bg-[#e1ccbc] px-5 py-4 sm:px-6">
           <div className="flex min-w-0 items-start gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-[#f5ece7] text-hpsr-wine"><UsersRound size={18}/></span>
             <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-hpsr-muted">Meus Pacientes</p><h2 className="mt-0.5 text-lg font-black text-hpsr-text">{mode === "create" ? "Criar vínculo" : "Corrigir vínculo"}</h2><p className="mt-1 text-sm font-medium leading-relaxed text-hpsr-muted">{mode === "create" ? "Registre paciente, médico e especialidade." : "Use esta edição apenas para corrigir um cadastro feito de forma incorreta."}</p></div>
           </div>
-          <button type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-hpsr-border bg-white text-hpsr-muted transition hover:bg-[#fff8f4] hover:text-hpsr-text"><X size={17}/></button>
+          <button type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-hpsr-border bg-[#eadacd] text-hpsr-muted transition hover:bg-[#dfc9ba] hover:text-hpsr-text"><X size={17}/></button>
         </div>
 
         <div className="space-y-4 p-4 sm:p-6">
@@ -1004,7 +953,7 @@ function LinkModal({
 
           <div>
             <label className={labelClass}>Paciente</label>
-            <StyledSelect value={form.passport} onChange={(event) => setForm({ ...form, passport: event.target.value })} searchable>
+            <StyledSelect className={fieldClass} value={form.passport} onChange={(event) => setForm({ ...form, passport: event.target.value })} searchable>
               <option value="">Selecione um paciente</option>
               {patients.map((patient) => <option key={patient.passport} value={patient.passport}>{patient.name} · {patient.passport}</option>)}
             </StyledSelect>
@@ -1014,7 +963,7 @@ function LinkModal({
             <div>
               <label className={labelClass}>Médico</label>
               {isAdmin ? (
-                <StyledSelect value={form.doctorId} onChange={(event) => changeDoctor(event.target.value)} searchable>
+                <StyledSelect className={fieldClass} value={form.doctorId} onChange={(event) => changeDoctor(event.target.value)} searchable>
                   <option value="">Selecione o médico</option>
                   {doctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name}</option>)}
                 </StyledSelect>
@@ -1024,7 +973,7 @@ function LinkModal({
             </div>
             <div>
               <label className={labelClass}>Especialidade</label>
-              <StyledSelect value={form.specialty} onChange={(event) => setForm({ ...form, specialty: event.target.value })} searchable>
+              <StyledSelect className={fieldClass} value={form.specialty} onChange={(event) => setForm({ ...form, specialty: event.target.value })} searchable>
                 <option value="">Selecione a especialidade</option>
                 {specialties.map((specialty) => <option key={specialty} value={specialty}>{specialty}</option>)}
               </StyledSelect>
@@ -1034,7 +983,7 @@ function LinkModal({
           {mode === "edit" && (
             <div>
               <label className={labelClass}>Motivo caso haja troca de médico/especialidade</label>
-              <StyledSelect value={form.replacementReason || "Mudança de médico"} onChange={(event) => setForm({ ...form, replacementReason: event.target.value })}>
+              <StyledSelect className={fieldClass} value={form.replacementReason || "Mudança de médico"} onChange={(event) => setForm({ ...form, replacementReason: event.target.value })}>
                 {LINK_END_REASONS.map((reason) => <option key={reason} value={reason}>{reason}</option>)}
               </StyledSelect>
             </div>
@@ -1047,13 +996,13 @@ function LinkModal({
             </div>
           )}
 
-          <div className="rounded-[13px] border border-hpsr-border bg-white px-3.5 py-3 text-xs font-semibold leading-relaxed text-hpsr-muted">
+          <div className="rounded-[13px] border border-[#c8ab97] bg-[#e5d3c5] px-3.5 py-3 text-xs font-semibold leading-relaxed text-hpsr-muted">
             Este vínculo é a fonte oficial da relação médico-paciente. O Portal passa a exibir novos horários deste médico e especialidade enquanto o vínculo estiver ativo; consultas já marcadas continuam preservadas mesmo após o encerramento.
           </div>
         </div>
 
-        <div className="flex justify-end gap-2 border-t border-hpsr-border bg-[#fbfaf9] px-4 py-3.5 sm:px-6">
-          <button type="button" disabled={busy} onClick={onClose} className="min-h-[42px] rounded-[13px] border border-hpsr-border bg-white px-4 text-sm font-black text-hpsr-text">Cancelar</button>
+        <div className="flex justify-end gap-2 border-t border-[#c8ab97] bg-[#dfcbbb] px-4 py-3.5 sm:px-6">
+          <button type="button" disabled={busy} onClick={onClose} className="min-h-[42px] rounded-[13px] border border-hpsr-border bg-[#eadacd] px-4 text-sm font-black text-hpsr-text">Cancelar</button>
           <button type="button" disabled={busy} onClick={onSave} className="inline-flex min-h-[42px] min-w-[150px] items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">{busy ? <Loader2 size={16} className="animate-spin"/> : mode === "create" ? <Plus size={16}/> : <Pencil size={16}/>} {mode === "create" ? "Criar vínculo" : "Salvar correção"}</button>
         </div>
       </div>

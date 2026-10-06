@@ -1,0 +1,6 @@
+packages:
+  - .
+allowBuilds:
+  unrs-resolver: true
+overrides:
+  es-to-primitive: 1.3.0

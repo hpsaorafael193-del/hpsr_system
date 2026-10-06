@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
 import { BadgeInfo, Hash, IdCard, Lock, LogIn, Mail, Phone, ShieldCheck, Stethoscope, UserRound, X } from "lucide-react";
 import { currentUserProfile } from "@/data/current-user-profile";
 import { createClient, createPasswordRecoveryClient, isSupabaseConfigured } from "@/lib/supabase";
-import { LOCAL_AUTH_SESSION_KEY, STAFF_REGISTRATION_REQUESTS_KEY } from "@/lib/local-auth";
+import { LOCAL_AUTH_SESSION_KEY } from "@/lib/local-auth";
 import { registerSystemActivity } from "@/lib/administrative-storage";
 import { setAuthContext, setLoginPersistence } from "@/lib/auth-persistence";
 
@@ -280,13 +280,8 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       }
       setAuthLoading(false);
     } else {
-      let current: Array<Record<string, unknown>> = [];
-      try { current = JSON.parse(localStorage.getItem(STAFF_REGISTRATION_REQUESTS_KEY) || "[]"); } catch {}
-      if (current.some((entry) => entry.passport === item.passport && entry.status === "Pendente")) {
-        setAuthMessage("Já existe uma solicitação pendente para este passaporte.");
-        return;
-      }
-      localStorage.setItem(STAFF_REGISTRATION_REQUESTS_KEY, JSON.stringify([item, ...current]));
+      setAuthMessage("Supabase não configurado. Solicitações profissionais não são armazenadas localmente.");
+      return;
     }
 
     registerSystemActivity({

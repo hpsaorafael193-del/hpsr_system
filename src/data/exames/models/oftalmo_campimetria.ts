@@ -197,7 +197,7 @@ export const oftalmo_campimetriaModel: IntelligentExamModel = {
     ],
     "defaultProfileId": "normal"
   },
-  "pdfModel": {
+  "documentModel": {
     "template": "institutional-a4",
     "sections": [
       "titulo",
@@ -310,8 +310,7 @@ export const oftalmo_campimetriaModel: IntelligentExamModel = {
     "mode": "future",
     "acceptedTypes": [
       "image/png",
-      "image/jpeg",
-      "application/pdf"
+      "image/jpeg"
     ]
   }
 };

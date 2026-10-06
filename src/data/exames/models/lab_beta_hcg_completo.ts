@@ -297,7 +297,7 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
     ],
     "defaultProfileId": "negativo"
   },
-  "pdfModel": {
+  "documentModel": {
     "template": "institutional-a4",
     "sections": [
       "titulo",
@@ -455,8 +455,7 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
     "mode": "future",
     "acceptedTypes": [
       "image/png",
-      "image/jpeg",
-      "application/pdf"
+      "image/jpeg"
     ]
   }
 };

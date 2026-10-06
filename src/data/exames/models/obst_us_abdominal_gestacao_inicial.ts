@@ -375,7 +375,7 @@ export const obst_us_abdominal_gestacao_inicialModel: IntelligentExamModel = {
     ],
     "defaultProfileId": "gestacao_normal"
   },
-  "pdfModel": {
+  "documentModel": {
     "template": "institutional-a4",
     "sections": [
       "titulo",
@@ -557,8 +557,7 @@ export const obst_us_abdominal_gestacao_inicialModel: IntelligentExamModel = {
     "mode": "future",
     "acceptedTypes": [
       "image/png",
-      "image/jpeg",
-      "application/pdf"
+      "image/jpeg"
     ]
   }
 };

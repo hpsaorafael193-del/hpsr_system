@@ -319,7 +319,7 @@ export const lab_teste_dnaModel: IntelligentExamModel = {
     ],
     "defaultProfileId": "compatibilidade"
   },
-  "pdfModel": {
+  "documentModel": {
     "template": "institutional-a4",
     "sections": [
       "titulo",
@@ -464,8 +464,7 @@ export const lab_teste_dnaModel: IntelligentExamModel = {
     "mode": "future",
     "acceptedTypes": [
       "image/png",
-      "image/jpeg",
-      "application/pdf"
+      "image/jpeg"
     ]
   }
 };

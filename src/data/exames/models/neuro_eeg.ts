@@ -249,7 +249,7 @@ export const neuro_eegModel: IntelligentExamModel = {
     ],
     "defaultProfileId": "normal"
   },
-  "pdfModel": {
+  "documentModel": {
     "template": "institutional-a4",
     "sections": [
       "titulo",
@@ -378,8 +378,7 @@ export const neuro_eegModel: IntelligentExamModel = {
     "mode": "future",
     "acceptedTypes": [
       "image/png",
-      "image/jpeg",
-      "application/pdf"
+      "image/jpeg"
     ]
   }
 };

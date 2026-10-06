@@ -10,6 +10,7 @@ import { exportAdministrativeReport, type AdministrativeMember } from "@/lib/exp
 import { TimeClockAdministrativeReport } from "@/components/dashboard/TimeClockAdministrativeReport";
 import { ApplicationHistoryModal } from "@/components/dashboard/ApplicationHistoryModal";
 import { isStaffApplicationPending } from "@/lib/staff-application-status";
+import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 
 type GenericRecord = Record<string, any>;
 type SupabaseActivityRow = { id: string; module: string; action: string; description: string; actor?: string | null; reference?: string | null; created_at: string };
@@ -272,7 +273,7 @@ export default function DirectionPage() {
         ],
       });
     } catch (error) {
-      window.alert(error instanceof Error ? `Não foi possível gerar o relatório completo. ${error.message}` : "Não foi possível gerar o relatório completo.");
+      await hpsrAlert(error instanceof Error ? `Não foi possível gerar o relatório completo. ${error.message}` : "Não foi possível gerar o relatório completo.", "Relatório administrativo");
     } finally {
       setExportingReport(false);
     }

@@ -21,7 +21,7 @@ import {
   X,
 } from "lucide-react";
 
-const systemVersion = "1.1.2";
+const systemVersion = "1.1.16-test.75";
 const developerDiscordLabel = "@lluidhy";
 
 const technologyGroups = [

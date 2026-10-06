@@ -1,9 +1,11 @@
+import { defaultPlanningContent } from "@/lib/obstetric-default-content";
 /**
  * Planejamento Obstetra/FIV no RP.
  *
- * Os marcadores de semana/etapa são rótulos narrativos do RP. Eles nunca
- * determinam intervalos. O sistema apenas sugere datas; o médico pode alterar,
- * adicionar ou remover datas e a validação de padrão é somente orientativa.
+ * A data inicial define o dia da semana do cronograma sugerido. O sistema
+ * propõe as consultas/etapas a cada 7 dias preservando esse dia, mas a médica
+ * pode ajustar qualquer data depois da confirmação. A data final permanece
+ * apenas como referência/limite visual do planejamento e não cria etapa extra.
  */
 export type PlanningKind = "gestacional" | "in_vitro";
 
@@ -37,27 +39,26 @@ export const IVF_WEEKS = [1, 2, 3, 4, 5] as const;
 export const PLANNING_CONFIG = {
   gestacional: {
     expectedCount: 8,
-    targetWeekday: 3,
-    targetWeekdayLabel: "quarta-feira",
     markers: GESTATIONAL_WEEKS.map((week) => `${week === 12 ? "até " : ""}${week} semanas`),
     weeks: [...GESTATIONAL_WEEKS],
     defaultTitles: GESTATIONAL_WEEKS.map((_, index) => `Consulta ${index + 1}`),
   },
   in_vitro: {
     expectedCount: 5,
-    targetWeekday: 2,
-    targetWeekdayLabel: "terça-feira",
     markers: IVF_WEEKS.map((week) => `${week}ª semana`),
     weeks: [...IVF_WEEKS],
     defaultTitles: IVF_WEEKS.map((_, index) => `Etapa ${index + 1}`),
   },
 } as const;
 
+const WEEKDAY_LABELS = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"] as const;
+
 export function isDateOnly(value: string) { return /^\d{4}-\d{2}-\d{2}$/.test(value); }
 export function dateOnlyToUtc(value: string) { const [y,m,d]=value.split("-").map(Number); return new Date(Date.UTC(y,m-1,d)); }
 export function utcToDateOnly(date: Date) { return date.toISOString().slice(0,10); }
 export function addPlanningDays(value: string, count: number) { if(!isDateOnly(value)) return ""; const d=dateOnlyToUtc(value); d.setUTCDate(d.getUTCDate()+count); return utcToDateOnly(d); }
 export function weekdayForDate(value: string) { return isDateOnly(value) ? dateOnlyToUtc(value).getUTCDay() : -1; }
+export function planningWeekdayLabel(value: string) { const weekday=weekdayForDate(value); return weekday>=0 ? WEEKDAY_LABELS[weekday] : "dia da data inicial"; }
 export function nextPlanningWeekday(value: string, targetWeekday: number) { if(!isDateOnly(value)) return ""; const d=dateOnlyToUtc(value); d.setUTCDate(d.getUTCDate()+((targetWeekday-d.getUTCDay()+7)%7)); return utcToDateOnly(d); }
 export function collectPlanningWeekdays(initial:string, finalDate:string, targetWeekday:number) {
   if(!isDateOnly(initial)||!isDateOnly(finalDate)||finalDate<initial) return [];
@@ -76,17 +77,34 @@ function defaultTitle(kind:PlanningKind,index:number){ return PLANNING_CONFIG[ki
 function defaultWeek(kind:PlanningKind,index:number){ return PLANNING_CONFIG[kind].weeks[index] || index+1; }
 
 export function createPlanningSuggestion(kind:PlanningKind, initial:string, finalDate:string):PlanningSuggestion {
-  const config=PLANNING_CONFIG[kind]; const key=planningKey(kind,initial,finalDate);
+  const config=PLANNING_CONFIG[kind];
+  const key=planningKey(kind,initial,finalDate);
   if(!isDateOnly(initial)||!isDateOnly(finalDate)||finalDate<initial){
-    return {kind,key,candidateDates:[],steps:[],expectedCount:config.expectedCount,foundCount:0,targetWeekday:config.targetWeekday,targetWeekdayLabel:config.targetWeekdayLabel,valid:false,warning:"Informe uma data inicial e uma data final válidas.",suggestedStartDate:null};
+    return {kind,key,candidateDates:[],steps:[],expectedCount:config.expectedCount,foundCount:0,targetWeekday:-1,targetWeekdayLabel:"dia da data inicial",valid:false,warning:"Informe uma data inicial e uma data final válidas.",suggestedStartDate:null};
   }
-  const candidateDates=collectPlanningWeekdays(initial,finalDate,config.targetWeekday);
-  const suggestedStartDate=weekdayForDate(initial)===config.targetWeekday?null:nextPlanningWeekday(initial,config.targetWeekday);
-  const foundCount=candidateDates.length; const messages:string[]=[];
-  if(suggestedStartDate) messages.push(`A data inicial não corresponde a uma ${config.targetWeekdayLabel}. Como referência, a primeira data sugerida seria ${suggestedStartDate.split("-").reverse().join("/")}.`);
-  if(foundCount!==config.expectedCount) messages.push(`O período informado sugere ${foundCount} ${foundCount===1?"data":"datas"} em ${config.targetWeekdayLabel}s; o modelo de referência costuma ter ${config.expectedCount}. Isto é apenas uma recomendação e não impede a confirmação.`);
-  const steps=candidateDates.map((date,index)=>({number:index+1,title:defaultTitle(kind,index),description:"",planned_text:"",marker:defaultMarker(kind,index),week:defaultWeek(kind,index),date}));
-  return {kind,key,candidateDates,steps,expectedCount:config.expectedCount,foundCount,targetWeekday:config.targetWeekday,targetWeekdayLabel:config.targetWeekdayLabel,valid:true,warning:messages.join(" "),suggestedStartDate};
+
+  const targetWeekday=weekdayForDate(initial);
+  const targetWeekdayLabel=planningWeekdayLabel(initial);
+  const candidateDates=Array.from({length:config.expectedCount},(_,index)=>addPlanningDays(initial,index*7));
+  const steps=candidateDates.map((date,index)=>({
+    number:index+1,
+    title:defaultTitle(kind,index),
+    description:defaultPlanningContent(kind,index),
+    planned_text:defaultPlanningContent(kind,index),
+    marker:defaultMarker(kind,index),
+    week:defaultWeek(kind,index),
+    date,
+  }));
+
+  const messages=[`Cronograma sugerido em ${targetWeekdayLabel}: todas as ${kind === "in_vitro" ? "etapas" : "consultas"} mantêm o dia da semana da data inicial.`];
+  if(candidateDates[candidateDates.length-1] > finalDate) {
+    messages.push(`A ${kind === "in_vitro" ? "5ª etapa" : "8ª consulta"} sugerida ultrapassa a data final de referência. Confira o período; as datas continuam editáveis.`);
+  }
+
+  return {
+    kind,key,candidateDates,steps,expectedCount:config.expectedCount,foundCount:steps.length,
+    targetWeekday,targetWeekdayLabel,valid:true,warning:messages.join(" "),suggestedStartDate:null,
+  };
 }
 
 export function normalizePlanningStep(step:Partial<PlanningStep>,kind:PlanningKind,index:number):PlanningStep {
@@ -108,13 +126,17 @@ export function validatePlanningSteps(_kind:PlanningKind,steps:PlanningStep[],in
 export function planningAdvisories(kind:PlanningKind,steps:PlanningStep[],initial?:string,finalDate?:string){
   const config=PLANNING_CONFIG[kind]; const warnings:string[]=[];
   if(steps.length!==config.expectedCount) warnings.push(`Quantidade diferente do padrão de referência (${steps.length} informadas; referência ${config.expectedCount}).`);
-  const offDay=steps.filter(s=>isDateOnly(s.date)&&weekdayForDate(s.date)!==config.targetWeekday).length;
-  if(offDay) warnings.push(`${offDay} ${offDay===1?"data está":"datas estão"} fora de ${config.targetWeekdayLabel}.`);
-  for(let i=1;i<steps.length;i+=1){ if(steps[i].date<=steps[i-1].date){ warnings.push("As datas não estão em ordem cronológica."); break; } }
+  const referenceDate=(initial && isDateOnly(initial) ? initial : steps.find(s=>isDateOnly(s.date))?.date) || "";
+  const referenceWeekday=weekdayForDate(referenceDate);
+  if(referenceWeekday>=0){
+    const offDay=steps.filter(s=>isDateOnly(s.date)&&weekdayForDate(s.date)!==referenceWeekday).length;
+    if(offDay) warnings.push(`${offDay} ${offDay===1?"data está":"datas estão"} fora de ${planningWeekdayLabel(referenceDate)}, dia definido pela data inicial.`);
+  }
+  for(let i=1;i<steps.length;i+=1){ if(isDateOnly(steps[i].date) && isDateOnly(steps[i-1].date) && steps[i].date<=steps[i-1].date){ warnings.push("As datas não estão em ordem cronológica."); break; } }
   if(initial && steps.some(s=>s.date<initial)) warnings.push("Há consulta/etapa anterior à data inicial de referência.");
   if(finalDate && steps.some(s=>s.date>finalDate)) warnings.push("Há consulta/etapa posterior à data final de referência.");
   return warnings;
 }
 
 export function renumberPlanningSteps(kind:PlanningKind,steps:PlanningStep[]){ return steps.map((step,index)=>normalizePlanningStep({...step,number:index+1},kind,index)); }
-export function newPlanningStep(kind:PlanningKind,index:number,date=""):PlanningStep { return normalizePlanningStep({date},kind,index); }
+export function newPlanningStep(kind:PlanningKind,index:number,date=""):PlanningStep { return normalizePlanningStep({date, planned_text:defaultPlanningContent(kind,index)},kind,index); }

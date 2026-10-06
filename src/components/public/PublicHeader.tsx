@@ -97,6 +97,10 @@ export function PublicHeader({ patientPortal = false }: { patientPortal?: boolea
     setProfileMenuOpen(false);
     window.dispatchEvent(new Event("hpsr-patient-register-child"));
   };
+  const openPortalSection = (section: string) => {
+    setProfileMenuOpen(false);
+    window.dispatchEvent(new CustomEvent("hpsr-patient-select-profile", { detail: { passport: selectedPassport, section } }));
+  };
 
   async function logoutPatient() {
     setLeaving(true);
@@ -115,7 +119,7 @@ export function PublicHeader({ patientPortal = false }: { patientPortal?: boolea
 
   return (
     <header className={`sticky top-0 z-[60] border-b backdrop-blur-md ${patientPortal ? "border-[#d5c3b1] bg-[#eee3d7]/95 shadow-[0_4px_18px_rgba(74,47,34,.05)]" : "border-black/5 bg-[#fcf6ee]/95"}`}>
-      <div className="mx-auto flex min-w-0 max-w-7xl items-center justify-between gap-2 px-2 py-2 min-[390px]:px-3 sm:gap-3 sm:px-4 lg:px-5">
+      <div className="mx-auto flex min-w-0 w-full max-w-[1780px] items-center justify-between gap-2 px-3 py-2.5 sm:gap-3 sm:px-4 lg:px-5 xl:px-6">
         <div className="flex min-w-0 items-center gap-4">
           <Link href="/" className="shrink-0">
             <PublicLogo compact />
@@ -149,24 +153,21 @@ export function PublicHeader({ patientPortal = false }: { patientPortal?: boolea
             <div className="relative min-w-0">
               <button type="button" onClick={() => setProfileMenuOpen((current) => !current)}
                 aria-label="Selecionar perfil do paciente" aria-expanded={profileMenuOpen} aria-haspopup="menu"
-                className="flex min-h-[43px] min-w-0 items-center gap-1 rounded-[15px] min-[390px]:gap-2 sm:gap-2.5 border border-[#d4c0ae] bg-[#f5ede5] px-2.5 py-2 text-left shadow-[0_3px_10px_rgba(73,47,34,.045)] transition hover:border-[#a98a76] hover:bg-[#eee1d5] sm:px-3">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-[#e8d6c6] text-hpsr-wine">
+                className="flex h-11 min-w-0 items-center gap-2 rounded-[12px] border border-[#d4c0ae] bg-[#f5ede5] px-2.5 text-left shadow-[0_3px_10px_rgba(73,47,34,.045)] transition hover:border-[#a98a76] hover:bg-[#eee1d5] sm:px-3">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#e8d6c6] text-hpsr-wine">
                   {activeProfile?.access_type !== "self" && activeProfile ? <Baby size={17}/> : <UserRound size={17}/>}
                 </span>
-                <span className="hidden min-w-0 sm:block">
-                  <span className="block text-[9px] font-black uppercase tracking-[.13em] text-hpsr-wineLight">{activeProfile?.access_type !== "self" && activeProfile ? "Prontuário selecionado" : "Paciente logado"}</span>
-                  <span className="block max-w-[190px] truncate text-sm font-black text-hpsr-text">{activeProfile?.name || patientName}</span>
-                </span>
+                <span className="hidden max-w-[150px] truncate text-sm font-black text-hpsr-text sm:block">{activeProfile?.access_type !== "self" && activeProfile ? activeProfile.name : "Meu perfil"}</span>
                 <ChevronDown size={14} aria-hidden className={`shrink-0 text-hpsr-wine transition-transform ${profileMenuOpen ? "rotate-180" : ""}`}/>
               </button>
               {profileMenuOpen && <>
                 <button type="button" className="fixed inset-0 z-40 cursor-default" aria-label="Fechar perfis" onClick={() => setProfileMenuOpen(false)}/>
                 <div role="menu" aria-label="Perfis do Portal do Paciente" className="absolute right-0 top-full z-50 mt-2 max-h-[min(70dvh,480px)] w-[min(310px,calc(100vw-1.5rem))] overflow-y-auto rounded-[20px] border border-hpsr-border bg-[#f2e8de] p-2.5 shadow-[0_18px_46px_rgba(72,49,34,.18)]">
-                  <p className="px-2 pb-2 text-xs font-black uppercase tracking-[.12em] text-hpsr-wineLight">Selecionar prontuário</p>
+                  <p className="px-2 pb-2 text-xs font-black uppercase tracking-[.12em] text-hpsr-wineLight">Escolher pessoa</p>
                   {profiles.map((item) => <button key={item.passport} role="menuitem" type="button" onClick={() => selectProfile(item.passport)}
                     className={`mb-1 flex w-full items-center gap-2.5 rounded-[13px] border px-3 py-2.5 text-left ${selectedPassport === item.passport ? "border-hpsr-wine/30 bg-[#e6d6c8]" : "border-[#decdbc] bg-[#f9f3ed]"}`}>
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#eadacc] text-hpsr-wine">{item.access_type === "self" ? <UserRound size={19}/> : <Baby size={19}/>}</span>
-                    <span className="min-w-0 flex-1"><strong className="block truncate text-xs text-hpsr-text">{item.name}</strong><small className="block text-[10px] font-semibold text-hpsr-muted">{item.access_type === "self" ? "Meu perfil" : "Prontuário infantil"}</small></span>
+                    <span className="min-w-0 flex-1"><strong className="block truncate text-xs text-hpsr-text">{item.name}</strong><small className="block text-[10px] font-semibold text-hpsr-muted">{item.access_type === "self" ? "Meu perfil" : "Criança vinculada"}</small></span>
                     {selectedPassport === item.passport && <ShieldCheck size={16} className="shrink-0 text-hpsr-wine"/>}
                   </button>)}
                   {pendingProfiles.map((item) => <div key={item.passport} className="mb-1 flex items-center gap-2.5 rounded-[13px] border border-[#d7bfa0] bg-[#f5e9d8] px-3 py-2.5">
@@ -186,7 +187,7 @@ export function PublicHeader({ patientPortal = false }: { patientPortal?: boolea
               type="button"
               onClick={() => void logoutPatient()}
               disabled={leaving}
-              className="inline-flex min-h-[43px] items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-2.5 min-[390px]:px-3.5 text-sm font-black text-white shadow-sm transition hover:brightness-105 disabled:opacity-50"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-[12px] bg-hpsr-wine px-3 text-sm font-black text-white shadow-sm transition hover:brightness-105 disabled:opacity-50"
             >
               <LogOut size={16} /> <span className="hidden sm:inline">Sair</span>
             </button>

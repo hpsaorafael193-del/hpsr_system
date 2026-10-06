@@ -208,7 +208,7 @@ export const lab_eletroforese_hemoglobinaModel: IntelligentExamModel = {
     ],
     "defaultProfileId": "normal"
   },
-  "pdfModel": {
+  "documentModel": {
     "template": "institutional-a4",
     "sections": [
       "titulo",
@@ -350,8 +350,7 @@ export const lab_eletroforese_hemoglobinaModel: IntelligentExamModel = {
     "mode": "future",
     "acceptedTypes": [
       "image/png",
-      "image/jpeg",
-      "application/pdf"
+      "image/jpeg"
     ]
   }
 };

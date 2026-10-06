@@ -5,10 +5,7 @@ import { brazilDate, brazilIso, brazilMonth } from "@/lib/brazil-datetime";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import {
-  readFinancialPlanEntries,
   registerSystemActivity,
-  replaceFinancialPlanEntriesCache,
-  saveFinancialPlanEntry,
   type FinancialPlanEntry,
 } from "@/lib/administrative-storage";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase";
@@ -229,18 +226,6 @@ function financialRowToInsurancePlan(row: FinancialPlanRow): Patient | null {
   return plan;
 }
 
-function localEntryToRow(entry: FinancialPlanEntry): FinancialPlanRow {
-  return {
-    id: entry.id,
-    plan_id: entry.planId,
-    plan_name: entry.planName,
-    holder_passport: entry.holderPassport,
-    value: entry.value,
-    payload: entry,
-    created_at: entry.createdAt,
-  };
-}
-
 function parseIsoDate(value: string) {
   const [year, month, day] = value.split("-").map(Number);
   return new Date(year, month - 1, day);
@@ -392,14 +377,13 @@ export default function InsurancePage() {
         }
 
         rows = (data || []) as FinancialPlanRow[];
-        const authoritativeCache = rows.flatMap((row) => {
-          const payload = objectValue(row.payload);
-          return payload.id ? [payload as unknown as FinancialPlanEntry] : [];
-        });
-        replaceFinancialPlanEntriesCache(authoritativeCache);
       } else {
-        // Fallback local permitido somente em ambiente sem Supabase configurado.
-        rows = readFinancialPlanEntries().map(localEntryToRow);
+        if (!cancelled) {
+          setInsurancePlans([]);
+          setPlansLoadError("Supabase não configurado. Convênios não possuem armazenamento local alternativo.");
+          setPlansLoading(false);
+        }
+        return;
       }
       const loaded = rows.flatMap((row) => {
         const plan = financialRowToInsurancePlan(row);
@@ -443,9 +427,8 @@ export default function InsurancePage() {
     };
 
     if (!isSupabaseConfigured()) {
-      saveFinancialPlanEntry(entry);
-      setReportPlans((current) => [plan, ...current.filter((item) => item.id !== plan.id)]);
-      return true;
+      await hpsrAlert("Supabase não configurado. O convênio não foi salvo porque o sistema não usa armazenamento local como banco paralelo.", "Falha ao salvar");
+      return false;
     }
 
     const client = createClient();
@@ -470,8 +453,6 @@ export default function InsurancePage() {
       return false;
     }
 
-    const cache = readFinancialPlanEntries();
-    replaceFinancialPlanEntriesCache([entry, ...cache.filter((item) => item.id !== entry.id)]);
     setReportPlans((current) => [plan, ...current.filter((item) => item.id !== plan.id)]);
     return true;
   }

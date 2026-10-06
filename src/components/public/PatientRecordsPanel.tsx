@@ -2,7 +2,22 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Download, Eye, FileText, Loader2, RefreshCcw, Stethoscope, Syringe, X } from "lucide-react";
+import { CardPreview, renderVaccinationCard } from "@/components/vaccination/VaccinationWorkspace";
+import type { AdultCardVariant, VaccinationApplication, VaccinationGroup } from "@/lib/vaccination";
 
+
+type VaccinationCardSnapshot = {
+  schemaVersion?: number;
+  cardModel: string;
+  group: VaccinationGroup;
+  adultVariant: AdultCardVariant;
+  patientName: string;
+  passport: string;
+  birthDate: string;
+  doctorName: string;
+  observations: string;
+  applications: VaccinationApplication[];
+};
 type PatientRecord = {
   id: string;
   type: string;
@@ -15,13 +30,14 @@ type PatientRecord = {
   isConfidential: boolean;
   previewImage?: string | null;
   previewImages?: string[];
+  vaccinationCard?: VaccinationCardSnapshot | null;
 };
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" });
 }
 
-export function PatientRecordsPanel({ onSessionExpired, passport, mode = "all" }: { onSessionExpired?: () => void; passport?: string; mode?: "all" | "documents" | "vaccination" }) {
+export function PatientRecordsPanel({ onSessionExpired, passport, mode = "all" }: { onSessionExpired?: () => void; passport?: string; mode?: "all" | "documents" | "vaccination" | "exams" }) {
   const [records, setRecords] = useState<PatientRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -80,7 +96,8 @@ export function PatientRecordsPanel({ onSessionExpired, passport, mode = "all" }
 
   const visibleRecords = useMemo(() => {
     const scoped = mode === "vaccination" ? records.filter((record) => record.type.toLowerCase().includes("vacina"))
-      : mode === "documents" ? records.filter((record) => !record.type.toLowerCase().includes("vacina")) : records;
+      : mode === "exams" ? records.filter((record) => record.type.toLowerCase().includes("exame"))
+      : mode === "documents" ? records.filter((record) => !record.type.toLowerCase().includes("vacina") && !record.type.toLowerCase().includes("exame")) : records;
     if (activeType === "Todos" || mode !== "all") return scoped;
     return scoped.filter((record) => record.type.toLowerCase().includes(activeType.toLowerCase()));
   }, [activeType, records, mode]);
@@ -100,7 +117,46 @@ export function PatientRecordsPanel({ onSessionExpired, passport, mode = "all" }
     }
   }
 
+  async function downloadVaccinationCard(record: PatientRecord, snapshot: VaccinationCardSnapshot) {
+    const pages = snapshot.group === "crianca" ? 2 : 1;
+    const safeName = record.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "caderneta-vacinacao";
+    const generated: Array<{ url: string; filename: string }> = [];
+    try {
+      for (let page = 0; page < pages; page += 1) {
+        const canvas = document.createElement("canvas");
+        await renderVaccinationCard({
+          canvas,
+          group: snapshot.group,
+          adultVariant: snapshot.adultVariant || "masculino",
+          applications: snapshot.applications || [],
+          patientName: snapshot.patientName,
+          passport: snapshot.passport,
+          birthDate: snapshot.birthDate || "",
+          doctorName: snapshot.doctorName,
+          observations: snapshot.observations || "",
+          page,
+        });
+        const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob((value) => value ? resolve(value) : reject(new Error("Falha ao gerar o PNG solicitado.")), "image/png"));
+        generated.push({ url: URL.createObjectURL(blob), filename: pages > 1 ? `${safeName}-pagina-${page + 1}.png` : `${safeName}.png` });
+      }
+      generated.forEach((item, index) => {
+        window.setTimeout(() => {
+          const anchor = document.createElement("a");
+          anchor.href = item.url;
+          anchor.download = item.filename;
+          anchor.click();
+        }, index * 250);
+      });
+    } finally {
+      window.setTimeout(() => generated.forEach((item) => URL.revokeObjectURL(item.url)), Math.max(2500, pages * 600));
+    }
+  }
+
   async function downloadRecord(record: PatientRecord) {
+    if (record.vaccinationCard) {
+      await downloadVaccinationCard(record, record.vaccinationCard);
+      return;
+    }
     const pages = record.previewImages?.length ? record.previewImages : (record.previewImage ? [record.previewImage] : []);
     const safeName = record.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "registro";
     if (pages.length === 1) {
@@ -160,15 +216,15 @@ export function PatientRecordsPanel({ onSessionExpired, passport, mode = "all" }
   }
 
   if (loading) {
-    return <div className="rounded-[24px] border border-hpsr-border bg-[#f5ece3] p-6 text-center"><Loader2 className="mx-auto animate-spin text-hpsr-wine" /><p className="mt-3 text-sm font-bold text-hpsr-muted">Carregando seu prontuário...</p></div>;
+    return <div className="rounded-[24px] border border-hpsr-border bg-[#f5ece3] p-6 text-center"><Loader2 className="mx-auto animate-spin text-hpsr-wine" /><p className="mt-3 text-sm font-bold text-hpsr-muted">Carregando suas informações...</p></div>;
   }
 
   return (
     <section className="rounded-[24px] border border-hpsr-border bg-[#f5ece3] p-4 shadow-[0_10px_27px_rgba(82,48,27,0.055)] sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Seu prontuário</p>
-          <h2 className="text-xl font-black text-hpsr-text">{mode === "vaccination" ? "Carteira de vacinação" : mode === "documents" ? "Prontuário e documentos" : "Meus registros"}</h2>
+          <p className="text-[10px] font-black uppercase tracking-[0.15em] text-hpsr-wineLight">Disponível para você</p>
+          <h2 className="text-xl font-black text-hpsr-text">{mode === "vaccination" ? "Carteira de vacinação" : mode === "exams" ? "Resultados de exames" : mode === "documents" ? "Receitas e documentos" : "Meus registros"}</h2>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1">
           <button type="button" onClick={() => void loadRecords(false, true)} className="shrink-0 rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine"><RefreshCcw className="mr-1.5 inline" size={14} />Atualizar</button>
@@ -229,7 +285,7 @@ export function PatientRecordsPanel({ onSessionExpired, passport, mode = "all" }
         <div className="hpsr-modal-tone fixed inset-0 z-[120] flex items-end justify-center overflow-y-auto bg-black/55 p-2 sm:items-center sm:p-3" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelected(null); }}>
           <div className="flex max-h-[96dvh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[22px] border border-hpsr-border bg-white shadow-2xl sm:max-h-[92dvh] sm:rounded-[22px]">
             <div className="flex items-center justify-between border-b border-hpsr-border bg-[#fff8f0] p-4"><div><h3 className="font-black text-hpsr-text">{selected.title}</h3><p className="text-xs font-semibold text-hpsr-muted">{formatDate(selected.createdAt)} · {selected.doctor}</p></div><button type="button" onClick={() => setSelected(null)} className="rounded-full border border-hpsr-border bg-white p-2 text-hpsr-wine"><X size={18} /></button></div>
-            <div className="hpsr-touch-scroll min-h-0 flex-1 overflow-y-auto p-3 sm:p-5"><div className="mb-4 rounded-[12px] border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-950">Conteúdo disponibilizado pelo Hospital São Rafael.</div>{(selected.previewImages?.length || selected.previewImage) ? <div className="space-y-4">{(selected.previewImages?.length ? selected.previewImages : [selected.previewImage!]).map((page, index) => <img key={`${selected.id}-${index}`} src={page} alt={`${selected.title} — página ${index + 1}`} className="mx-auto h-auto max-w-full rounded-[12px] border border-hpsr-border bg-white" />)}</div> : <iframe title={`Documento clínico: ${selected.title}`} sandbox="" referrerPolicy="no-referrer" loading="lazy" className="h-[min(64dvh,720px)] min-h-[280px] w-full max-w-full rounded-xl border border-hpsr-border bg-white" srcDoc={`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: blob: https:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font:15px/1.55 Arial,sans-serif;padding:14px;overflow-wrap:anywhere;color:#321b14;}img,table{max-width:100%;}table{display:block;overflow-x:auto;}</style>${selected.html || "<p>Este registro antigo não possui conteúdo formatado disponível.</p>"}`} />}</div>
+            <div className="hpsr-touch-scroll min-h-0 flex-1 overflow-y-auto p-3 sm:p-5"><div className="mb-4 rounded-[12px] border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-950">Conteúdo disponibilizado pelo Hospital São Rafael.</div>{selected.vaccinationCard ? <div className="space-y-4">{Array.from({ length: selected.vaccinationCard.group === "crianca" ? 2 : 1 }, (_, page) => <div key={`${selected.id}-dynamic-${page}`} className="overflow-x-auto rounded-[14px] border border-hpsr-border bg-[#f5ece3] p-2 sm:p-3"><CardPreview group={selected.vaccinationCard!.group} adultVariant={selected.vaccinationCard!.adultVariant || "masculino"} applications={selected.vaccinationCard!.applications || []} patientName={selected.vaccinationCard!.patientName} passport={selected.vaccinationCard!.passport} birthDate={selected.vaccinationCard!.birthDate || ""} doctorName={selected.vaccinationCard!.doctorName} observations={selected.vaccinationCard!.observations || ""} page={page} zoom={90} /></div>)}</div> : (selected.previewImages?.length || selected.previewImage) ? <div className="space-y-4">{(selected.previewImages?.length ? selected.previewImages : [selected.previewImage!]).map((page, index) => <img key={`${selected.id}-${index}`} src={page} alt={`${selected.title} — página ${index + 1}`} className="mx-auto h-auto max-w-full rounded-[12px] border border-hpsr-border bg-white" />)}</div> : <iframe title={`Documento clínico: ${selected.title}`} sandbox="" referrerPolicy="no-referrer" loading="lazy" className="h-[min(64dvh,720px)] min-h-[280px] w-full max-w-full rounded-xl border border-hpsr-border bg-white" srcDoc={`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: blob: https:; style-src 'unsafe-inline'; font-src data:; base-uri 'none'; form-action 'none'"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{font:15px/1.55 Arial,sans-serif;padding:14px;overflow-wrap:anywhere;color:#321b14;}img,table{max-width:100%;}table{display:block;overflow-x:auto;}</style>${selected.html || "<p>Este registro antigo não possui conteúdo formatado disponível.</p>"}`} />}</div>
           </div>
         </div>
       )}

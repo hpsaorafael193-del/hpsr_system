@@ -1,0 +1,46 @@
+import assert from 'node:assert/strict';
+import { readFileSync, existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
+const require = createRequire(import.meta.url);
+let ts;
+try { ts = require('typescript'); } catch { ts = require(require('node:path').join(execFileSync('npm',['root','-g'],{encoding:'utf8'}).trim(),'typescript')); }
+const read = (path) => readFileSync(path,'utf8');
+const renderer = read('src/lib/obstetric-document.ts');
+assert(renderer.includes('export async function renderIntegralPlanning'));
+assert(renderer.includes('export async function renderIndividualPlanning'));
+assert(renderer.includes('canvas.toBlob(') && renderer.includes('"image/png"'));
+assert(renderer.includes('drawDynamicIntegralBody'));
+console.log('PASS PNG: modelos oficiais, exportação integral/individual sob demanda e compatibilidade com quantidades históricas');
+const planner = read('src/app/dashboard/obstetra/page.tsx');
+assert(!planner.includes('storage.from("obstetric-plans").upload('));
+assert(planner.includes('planning_released_snapshot: snapshot'));
+assert(planner.includes('individual_released_snapshot: releaseSnapshot'));
+assert(planner.includes('individual_released_document_path: null'));
+assert(planner.includes('archived.push({ at: now, released_snapshot:'));
+assert(planner.includes('individual_released_snapshot: { ...previousSnapshot'));
+assert(planner.includes('current.individual_released_at'));
+assert(!planner.includes('if (!readyIntegralPreview ||'));
+assert(!planner.includes('if (!readyIndividualPreview ||'));
+console.log('PASS médico: salvamento sem prévia, PNG opcional, snapshots, revisões e proteção de consultas liberadas');
+const api = read('src/app/api/paciente/planejamentos-gestacionais/route.ts');
+const ui = read('src/components/public/PatientGestationalPlansPanel.tsx');
+const card = read('src/components/public/FollowupConsultationCard.tsx');
+assert(api.includes('integralAvailable && integralSnapshot'));
+assert(api.includes('individual_released_at'));
+assert(api.includes('dynamic_png_available'));
+assert(!api.includes('print_url'));
+assert(!existsSync('src/app/api/paciente/planejamentos-gestacionais/imprimir/route.ts'));
+assert(!existsSync('src/lib/obstetric-print-document.ts'));
+assert(ui.includes('downloadDynamicPng(plan,item)'));
+assert(ui.includes('downloadDynamicPng(plan)'));
+assert(ui.includes('window.setInterval'));
+assert(!ui.includes('PDF') && !card.includes('PDF'));
+for (const file of ['src/app/dashboard/obstetra/page.tsx','src/components/public/PatientGestationalPlansPanel.tsx','src/components/public/FollowupConsultationCard.tsx','src/app/api/paciente/planejamentos-gestacionais/route.ts']) {
+  const parsed = ts.createSourceFile(file,read(file),ts.ScriptTarget.Latest,true,file.endsWith('tsx')?ts.ScriptKind.TSX:ts.ScriptKind.TS);
+  assert.equal(parsed.parseDiagnostics.length,0,`Erro de sintaxe ${file}`);
+}
+console.log('PASS Portal: snapshots autorizados, PNG dinâmico/legado e nenhuma rota de impressão/PDF');
+assert.equal(JSON.parse(read('package.json')).version,'1.1.11');
+assert(read('src/components/layout/DeveloperCreditsModal.tsx').includes('systemVersion = "1.1.11"'));
+console.log('PASS versão corrigida v1.1.11');

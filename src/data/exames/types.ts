@@ -107,7 +107,7 @@ export type IntelligentExamModel = {
     sections: IntelligentExamSection[];
     defaultProfileId: string;
   };
-  pdfModel: {
+  documentModel: {
     template: "institutional-a4";
     sections: string[];
   };

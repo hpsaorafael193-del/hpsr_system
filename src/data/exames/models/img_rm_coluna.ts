@@ -279,7 +279,7 @@ export const img_rm_colunaModel: IntelligentExamModel = {
     ],
     "defaultProfileId": "normal"
   },
-  "pdfModel": {
+  "documentModel": {
     "template": "institutional-a4",
     "sections": [
       "titulo",
@@ -421,8 +421,7 @@ export const img_rm_colunaModel: IntelligentExamModel = {
     "mode": "future",
     "acceptedTypes": [
       "image/png",
-      "image/jpeg",
-      "application/pdf"
+      "image/jpeg"
     ]
   }
 };

@@ -4,8 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Download, Handshake, ReceiptText, Search, Trash2, UserRound, UsersRound, WalletCards } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import {
-  readFinancialPlanEntries,
-  readFinancialReceipts,
   removeFinancialReceipt,
   registerSystemActivity,
   type FinancialPlanEntry,

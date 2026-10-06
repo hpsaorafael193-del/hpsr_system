@@ -146,7 +146,7 @@ export default function DashboardHomePage() {
           return (
             <article
               key={card.title}
-              className="rounded-[16px] border border-[#e8dccc] bg-white/[0.86] px-4 py-3"
+              className="rounded-[16px] border border-[#d7c2b3] bg-[#f4e8df] px-4 py-3 shadow-[0_5px_16px_rgba(83,43,31,.035)]"
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white">
@@ -168,7 +168,7 @@ export default function DashboardHomePage() {
       </section>
 
       <section className="mt-3 grid gap-3 xl:grid-cols-[minmax(0,1.5fr)_minmax(300px,370px)]">
-        <div className="rounded-[16px] border border-[#e8dccc] bg-white/[0.86] p-3.5">
+        <div className="rounded-[16px] border border-[#d7c2b3] bg-[#f1e3d8] p-3.5 shadow-[0_5px_16px_rgba(83,43,31,.035)]">
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#7a3b27]">
@@ -191,7 +191,7 @@ export default function DashboardHomePage() {
                 <Link
                   key={item.title}
                   href={item.href}
-                  className="rounded-[16px] border border-[#e8dccc] bg-[#fcf6ee] px-4 py-3 transition hover:bg-white"
+                  className="rounded-[16px] border border-[#d9c4b6] bg-[#f8eee6] px-4 py-3 transition hover:bg-[#fff8f3]"
                 >
                   <div className="flex h-8 w-8 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white">
                     <Icon size={17} />
@@ -223,7 +223,7 @@ export default function DashboardHomePage() {
             {institutionalTags.map((tag) => (
               <span
                 key={tag}
-                className="rounded-full border border-[#e8dccc] bg-[#fcf6ee] px-3.5 py-1.5 text-[12px] font-semibold text-[#672614]"
+                className="rounded-full border border-[#d8c1b1] bg-[#f3e3d7] px-3.5 py-1.5 text-[12px] font-semibold text-[#672614]"
               >
                 {tag}
               </span>

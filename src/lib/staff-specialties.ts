@@ -16,6 +16,15 @@ export const GENERAL_BASE_SPECIALTY_ROLES = new Set([
   "Vice Diretor / Dev",
 ]);
 
+export const FULL_ACCESS_ADMIN_ROLES = new Set([
+  "Diretora",
+  "Vice Diretor / Dev",
+]);
+
+export function isFullAccessAdministrativeRole(role: string | null | undefined) {
+  return FULL_ACCESS_ADMIN_ROLES.has(String(role || "").trim());
+}
+
 export const UNRESTRICTED_SPECIALTY_ROLES = new Set([
   "Diretora",
   "Vice Diretor",

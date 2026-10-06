@@ -4,7 +4,7 @@ import { getValidPatientSession, normalizePassport } from "@/lib/patient-portal/
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Notice = { id: string; passport: string; kind: "exam" | "document" | "appointment" | "reschedule" | "guardian"; title: string; description: string; at: string; section: "records" | "appointments" | "pending" | "exam-request" | "vaccination" | "home" };
+type Notice = { id: string; passport: string; kind: "exam" | "document" | "appointment" | "reschedule" | "guardian" | "followup_form"; title: string; description: string; at: string; section: "records" | "appointments" | "pending" | "exam-request" | "vaccination" | "home" | "accompaniment" };
 
 // Retorna somente avisos de prontuários ligados à sessão verificada no servidor.
 // A leitura clínica continua condicionada às rotas de cada prontuário.
@@ -44,20 +44,30 @@ export async function GET(request: NextRequest) {
     const passports = [...allowed].filter(Boolean).slice(0, 30);
     if (!passports.length) return NextResponse.json({ ok: true, notices: guardianNotices });
     const since = new Date(Date.now() - 45 * 86400000).toISOString();
-    const [appointments, records] = await Promise.all([
-      valid.supabase.from("appointments").select("id,passport,status,updated_at,created_at,flow_type:payload->>flowType")
+    const [appointments, records, forms] = await Promise.all([
+      valid.supabase.from("appointments").select("id,passport,status,updated_at,created_at,flow_type:payload->>flowType,patient_notification_title:payload->>patientNotificationTitle,patient_notification:payload->>patientNotification,patient_notification_at:payload->>patientNotificationAt")
         .in("passport", passports).gte("updated_at", since).order("updated_at", { ascending: false }).limit(120),
       valid.supabase.from("clinical_records").select("id,patient_passport,record_type,released_at")
         .in("patient_passport", passports).eq("is_confidential", false).not("released_at", "is", null)
         .gte("released_at", since).order("released_at", { ascending: false }).limit(120),
+      valid.supabase.from("followup_intake_forms").select("id,patient_passport,doctor_name,form_type,status,requested_at,updated_at")
+        .in("patient_passport", passports).in("status", ["requested","draft"]).gte("requested_at", since)
+        .order("requested_at", { ascending: false }).limit(120),
     ]);
-    if (appointments.error || records.error) throw appointments.error || records.error;
+    if (appointments.error || records.error || forms.error) throw appointments.error || records.error || forms.error;
     const notices: Notice[] = [...guardianNotices];
     for (const a of appointments.data || []) {
       const status = String(a.status || "").toLocaleLowerCase("pt-BR");
-      const at = a.updated_at || a.created_at || "";
+      const customTitle = String((a as any).patient_notification_title || "").trim();
+      const customDescription = String((a as any).patient_notification || "").trim();
+      const customAt = String((a as any).patient_notification_at || "").trim();
+      const at = customAt || a.updated_at || a.created_at || "";
       const isExamRequest = String(a.flow_type || "").toLocaleLowerCase("pt-BR").includes("exame");
-      if (status.includes("reagendamento solicitado") || status === "adiada") notices.push({
+      if (customTitle && customDescription) notices.push({
+        id: `appointment-notice:${a.id}:${customAt || a.updated_at || a.created_at || ""}`, passport: a.passport, kind: "appointment",
+        title: customTitle, description: customDescription, at, section: "appointments",
+      });
+      else if (status.includes("reagendamento solicitado") || status === "adiada") notices.push({
         id: `appointment:${a.id}:${at}`, passport: a.passport, kind: "reschedule",
         title: "Atualização de agendamento", description: "Confira o reagendamento solicitado pelo médico.", at, section: "pending",
       });
@@ -68,6 +78,13 @@ export async function GET(request: NextRequest) {
           : (isExamRequest ? "Solicitação de exame aceita" : "Consulta confirmada"),
         description: "Confira a atualização da equipe médica.", at, section: isExamRequest ? "exam-request" : "appointments",
       });
+    }
+    for (const f of forms.data || []) {
+      const typeLabel = f.form_type === "ivf_ropa" ? "FIV (Método ROPA)" : "acompanhamento obstétrico";
+      notices.push({ id: `followup-form:${f.id}:${f.requested_at}`, passport: f.patient_passport,
+        kind: "followup_form", title: "Ficha para preencher",
+        description: `${f.doctor_name || "Sua equipe médica"} solicitou o preenchimento da ficha de ${typeLabel}. Acesse Acompanhamento para responder.`,
+        at: f.requested_at || "", section: "accompaniment" });
     }
     for (const r of records.data || []) {
       const type = String(r.record_type || "");

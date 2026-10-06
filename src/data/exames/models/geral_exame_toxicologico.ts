@@ -251,7 +251,7 @@ export const geral_exame_toxicologicoModel: IntelligentExamModel = {
     ],
     "defaultProfileId": "negativo"
   },
-  "pdfModel": {
+  "documentModel": {
     "template": "institutional-a4",
     "sections": [
       "tecnica",
@@ -491,8 +491,7 @@ export const geral_exame_toxicologicoModel: IntelligentExamModel = {
     "mode": "future",
     "acceptedTypes": [
       "image/png",
-      "image/jpeg",
-      "application/pdf"
+      "image/jpeg"
     ]
   }
 };

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Clock3, Eye, EyeOff, Search, Trash2, X } from "lucide-react";
+import { Clock3, Eye, EyeOff, PencilLine, Search, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { hpsrAlert, hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
@@ -21,7 +21,7 @@ type PreviewState = {
   images?: string[];
 } | null;
 
-export function ClinicalHistoryPanel({ recordType, comfortable = false }: { recordType: "Exame" | "Documento"; comfortable?: boolean }) {
+export function ClinicalHistoryPanel({ recordType, comfortable = false, onEdit }: { recordType: "Exame" | "Documento"; comfortable?: boolean; onEdit?: (recordId: string) => void }) {
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,6 +179,7 @@ export function ClinicalHistoryPanel({ recordType, comfortable = false }: { reco
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   <button type="button" onClick={() => void openItem(item)} title={`Ver ${recordType.toLowerCase()}`} className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-hpsr-border bg-white px-2.5 text-[10px] font-black text-hpsr-text hover:border-hpsr-wine/30"><Eye size={13} /> Ver</button>
+                  {recordType === "Documento" && onEdit ? <button type="button" onClick={() => onEdit(item.id)} title="Editar documento" className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-hpsr-wine/15 bg-[#fff8f1] px-2.5 text-[10px] font-black text-hpsr-wine hover:border-hpsr-wine/35"><PencilLine size={13} /> Editar</button> : null}
                   <button type="button" disabled={visibilitySavingId === item.id} onClick={() => void toggleConfidentiality(item)} title={item.isConfidential ? "Liberar ao paciente" : "Colocar em sigilo"} className="inline-flex h-8 items-center gap-1.5 rounded-[9px] border border-hpsr-wine/15 bg-[#fff8f1] px-2.5 text-[10px] font-black text-hpsr-wine disabled:opacity-50">
                     {item.isConfidential ? <><Eye size={13} /> Liberar</> : <><EyeOff size={13} /> Sigilo</>}
                   </button>

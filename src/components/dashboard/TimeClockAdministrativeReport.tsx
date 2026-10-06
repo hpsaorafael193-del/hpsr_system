@@ -6,6 +6,7 @@ import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState } from "react";
 import { Activity, Clock3, Download, History, RefreshCw, ShieldCheck, Square, UsersRound } from "lucide-react";
 import { createClient } from "@/lib/supabase";
+import { hpsrPrompt } from "@/components/ui/HpsrDialogProvider";
 
 type Entry = { id: string; userId: string; user: string; openedAt: string; closedAt?: string | null; workedSeconds: number; status: string };
 type Ranking = { position: number; userId: string; user: string; workedSeconds: number };
@@ -64,9 +65,10 @@ export function TimeClockAdministrativeReport() {
 
   async function setClosedAt(entry: Entry) {
     const initial = toLocalDateTimeInput(entry.closedAt || brazilIso());
-    const value = window.prompt(
+    const value = await hpsrPrompt(
       entry.closedAt ? "Novo horário de encerramento (AAAA-MM-DDTHH:mm):" : "Horário em que o ponto deve ser encerrado (AAAA-MM-DDTHH:mm):",
       initial,
+      "Ajustar encerramento do ponto"
     );
     if (!value) return;
     const parsed = new Date(value);

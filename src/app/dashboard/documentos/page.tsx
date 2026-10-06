@@ -107,20 +107,6 @@ type RenderContext = {
   today: string;
 };
 
-type SavedDocumentDraft = {
-  patient: PatientDraft;
-  doctor: DoctorDraft;
-  selectedDoctorId?: string;
-  selectedModelId: string;
-  guidedValues: Record<string, string>;
-  useModel?: boolean;
-  catalogOpen?: boolean;
-  editorHtml: string;
-  catalogSearch: string;
-  catalogCategory: DocumentCategory | "todos";
-  savedAt: string;
-};
-
 type AppDialog = {
   title: string;
   message: string;
@@ -131,7 +117,6 @@ type AppDialog = {
   }[];
 } | null;
 
-const DRAFT_KEY = "hpsr-documentos-draft-v300";
 const emptyPatient: PatientDraft = {
   name: "",
   passport: "",
@@ -503,6 +488,65 @@ function PatientQuickRegisterModal({
   );
 }
 
+function DocumentVisualPreviewPage({
+  html,
+  pageIndex,
+  totalPages,
+  patient,
+  doctor,
+  title,
+  today,
+}: {
+  html: string;
+  pageIndex: number;
+  totalPages: number;
+  patient: PatientDraft;
+  doctor: DoctorDraft;
+  title: string;
+  today: string;
+}) {
+  return (
+    <section className="relative h-[1123px] w-[794px] overflow-hidden bg-[#fffdfb] font-sans text-[#4b2118]">
+      <img src="/logo-hpsr.png" alt="" aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 select-none object-contain opacity-[0.055]" />
+      <div className="relative z-10 flex h-full flex-col px-[42px] pb-[18px] pt-[24px]">
+        <header className="rounded-[16px] border border-[#e4d8d0] bg-white/95 px-4 py-3 shadow-[0_8px_24px_rgba(42,7,0,0.045)]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <img src="/logo-hpsr.png" alt="Hospital São Rafael" className="h-10 w-10 object-contain" />
+              <div>
+                <p className="text-[8.5px] font-black uppercase tracking-[0.18em] text-[#8d665b]">Hospital São Rafael</p>
+                <p className="mt-1 text-[16.5px] font-black text-[#3d1710]">HOSPITAL SÃO RAFAEL</p>
+                <p className="mt-1 text-[8.5px] font-bold text-[#8d665b]">DOCUMENTO MÉDICO · HOSPITAL SÃO RAFAEL</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[8px]">
+              <div className="w-[84px] rounded-[10px] border border-[#e5d9d1] bg-white px-2.5 py-1.5"><p className="font-black uppercase tracking-[0.12em] text-[#8d665b]">Data</p><p className="mt-0.5 font-black text-[#3d1710]">{today}</p></div>
+              <div className="w-[86px] rounded-[10px] border border-[#e5d9d1] bg-white px-2.5 py-1.5"><p className="font-black uppercase tracking-[0.12em] text-[#8d665b]">Página</p><p className="mt-0.5 font-black text-[#3d1710]">{pageIndex + 1}/{Math.max(totalPages, 1)}</p></div>
+            </div>
+          </div>
+        </header>
+        <div className="mt-[10px] rounded-[12px] border border-[#e1d1c7] bg-[#f8efea] px-4 py-2 text-center text-[11.5px] font-black uppercase tracking-[0.06em] text-[#5b1809]">{title}</div>
+        <div className="mt-2 grid grid-cols-[2.4fr_1fr_.65fr_1.15fr] gap-2">
+          {[['Paciente', patient.name || '-'], ['Passaporte', patient.passport || '-'], ['Idade', patient.age || '-'], ['Tipo sanguíneo', patient.bloodType || '-']].map(([label, value]) => (
+            <div key={label} className="min-h-[48px] rounded-[10px] border border-[#e5d9d1] bg-white px-2.5 py-2">
+              <p className="text-[7px] font-black uppercase tracking-[0.12em] text-[#8d665b]">{label}</p>
+              <p className="mt-1 truncate text-[9px] font-black text-[#3d1710]">{value}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 min-h-0 flex-1 overflow-hidden rounded-[16px] border border-[#e7ddd6] bg-white px-5 py-4 text-[10px] leading-[1.58] shadow-[0_10px_26px_rgba(42,7,0,0.035)] [&_h1]:mb-3 [&_h1]:text-[15px] [&_h1]:font-black [&_h1]:uppercase [&_h1]:tracking-[0.05em] [&_h1]:text-[#5b1809] [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:rounded-[8px] [&_h2]:border [&_h2]:border-[#e6dad2] [&_h2]:bg-[#fbf6f2] [&_h2]:px-3 [&_h2]:py-2 [&_h2]:text-[11px] [&_h2]:font-black [&_h2]:uppercase [&_h2]:tracking-[0.05em] [&_h2]:text-[#5b1809] [&_p]:mb-2.5 [&_strong]:text-[#3d1710] [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[#e7ddd6] [&_td]:p-2 [&_th]:border [&_th]:border-[#e7ddd6] [&_th]:bg-[#f7eee8] [&_th]:p-2 [&_th]:text-left [&_th]:font-black [&_th]:text-[#5b1809]" dangerouslySetInnerHTML={{ __html: html }} />
+        <footer className="mt-3 border-t border-[#cfb3a2] pt-2 text-center text-[8px] text-[#7a5148]">
+          {doctor.signatureImage ? <img src={doctor.signatureImage} alt="Assinatura cadastrada do médico" className="mx-auto h-[48px] w-[280px] object-contain" /> : <div className="mx-auto flex h-[48px] items-end justify-center text-[20px] italic text-[#5b1809]" style={{ fontFamily: 'Georgia, serif' }}>{doctor.name || 'Nome do médico'}</div>}
+          <div className="mx-auto mb-1 h-1 w-[250px] border-b border-dashed border-[#8d665b]" />
+          <p className="font-black text-[#5b1809]">Dr(a). {doctor.name || 'Nome do médico'}</p>
+          <p className="font-semibold">{doctor.role || 'Médico'} · CRM: {doctor.crm || '000000'}</p>
+          <div className="mt-1 flex items-center justify-between text-[7.5px]"><span>Hospital São Rafael</span><span>Documento médico institucional</span><span>Página {pageIndex + 1}/{Math.max(totalPages, 1)}</span></div>
+        </footer>
+      </div>
+    </section>
+  );
+}
+
 export default function DocumentsPage() {
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const { patients: sharedPatients, selectedPatient: sharedSelectedPatient, selectPatient: selectSharedPatient, upsertPatient: upsertSharedPatient, loading: patientsLoading } = usePatientSelection();
@@ -523,7 +567,6 @@ export default function DocumentsPage() {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const modelPanelRef = useRef<HTMLDivElement | null>(null);
   const lastRange = useRef<Range | null>(null);
-  const previewRef = useRef<HTMLDivElement | null>(null);
   const signatureInputRef = useRef<HTMLInputElement | null>(null);
   const [patient, setPatient] = useState<PatientDraft>(emptyPatient);
   const patientOptions = sharedPatients as PatientDraft[];
@@ -548,18 +591,17 @@ export default function DocumentsPage() {
   const [catalogOpen, setCatalogOpen] = useState(true);
   const [useModel, setUseModel] = useState(false);
   const [editorHtml, setEditorHtml] = useState("");
-  const [lastSavedAt, setLastSavedAt] = useState("");
-  const [saveStatus, setSaveStatus] = useState("Rascunho local");
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [editingReleasedSnapshot, setEditingReleasedSnapshot] = useState<Record<string, unknown> | null>(null);
+  const [loadedIsConfidential, setLoadedIsConfidential] = useState(true);
+  const [documentDirty, setDocumentDirty] = useState(false);
   const [appDialog, setAppDialog] = useState<AppDialog>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewPageHtmls, setPreviewPageHtmls] = useState<string[]>([]);
-  const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [previewPageIndex, setPreviewPageIndex] = useState(0);
-  const [previewRendering, setPreviewRendering] = useState(false);
   const [savingDocument, setSavingDocument] = useState(false);
-  const previewRenderingIndexesRef = useRef<Set<number>>(new Set());
   const [editorPageGuideTops, setEditorPageGuideTops] = useState<number[]>([]);
-  const [isConfidential, setIsConfidential] = useState(false);
+  const [isConfidential, setIsConfidential] = useState(true);
   const [tablePickerOpen, setTablePickerOpen] = useState(false);
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
@@ -608,43 +650,13 @@ export default function DocumentsPage() {
   }, [editorHtml, generatedHtml, selectedModelId]);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY);
-      if (!raw) {
-        const initial = `<h1>${documentModels[0].title}</h1><p><br></p>`;
-        setEditorHtml(initial);
-        window.setTimeout(() => {
-          if (editorRef.current) editorRef.current.innerHTML = initial;
-        }, 0);
-        return;
-      }
-      const saved = JSON.parse(raw) as Partial<SavedDocumentDraft>;
-      setPatient(saved.patient || emptyPatient);
-      setDoctor(saved.doctor || initialDoctor);
-      setSelectedDoctorId(saved.selectedDoctorId === "current-user" ? (currentUserProfile.id || "current-user") : (saved.selectedDoctorId || currentUserProfile.id || "current-user"));
-      setSelectedModelId(saved.selectedModelId || documentModels[0].id);
-      setGuidedValues(saved.guidedValues || {});
-      setUseModel(Boolean(saved.useModel));
-      setCatalogOpen(saved.catalogOpen ?? true);
-      setCatalogSearch(saved.catalogSearch || "");
-      setCatalogCategory(saved.catalogCategory || "todos");
-      setEditorHtml(saved.editorHtml || "");
-      if (saved.savedAt) {
-        setLastSavedAt(
-          new Date(saved.savedAt).toLocaleTimeString("pt-BR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        );
-      }
-      window.setTimeout(() => {
-        if (editorRef.current)
-          editorRef.current.innerHTML = saved.editorHtml || "";
-      }, 0);
-    } catch {
-      // mantém estado inicial se o rascunho local estiver corrompido
-    }
-  }, [today]);
+    const initial = `<h1>${documentModels[0]?.title || "Documento médico"}</h1><p><br></p>`;
+    setEditorHtml((current) => current || initial);
+    window.setTimeout(() => {
+      if (editorRef.current && !editorRef.current.innerHTML.trim()) editorRef.current.innerHTML = initial;
+    }, 0);
+    // O conteúdo clínico não usa localStorage: Supabase é a fonte oficial após salvamento explícito.
+  }, []);
 
   useEffect(() => {
     const currentOption: DoctorOption = {
@@ -698,77 +710,6 @@ export default function DocumentsPage() {
     });
   }, [selectedDoctorId, availableDoctors]);
 
-  useEffect(() => {
-    const save = window.setTimeout(() => saveDraft(false), 500);
-    return () => window.clearTimeout(save);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    patient,
-    doctor,
-    selectedDoctorId,
-    selectedModelId,
-    guidedValues,
-    useModel,
-    catalogOpen,
-    catalogSearch,
-    catalogCategory,
-    editorHtml,
-  ]);
-
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === "hidden") saveDraft(false);
-      if (document.visibilityState === "visible") {
-        try {
-          const raw = localStorage.getItem(DRAFT_KEY);
-          if (!raw) return;
-          const saved = JSON.parse(raw) as Partial<SavedDocumentDraft>;
-          if (
-            saved.editorHtml &&
-            editorRef.current &&
-            editorRef.current.innerHTML.trim() === ""
-          ) {
-            editorRef.current.innerHTML = saved.editorHtml;
-            setEditorHtml(saved.editorHtml);
-          }
-        } catch {
-          // sem ação
-        }
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () =>
-      document.removeEventListener("visibilitychange", handleVisibility);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function saveDraft(manual = true) {
-    const html = normalizeEditorHtml(
-      editorRef.current?.innerHTML ?? editorHtml,
-    );
-    const savedAt = brazilIso();
-    const draft: SavedDocumentDraft = {
-      patient,
-      doctor,
-      selectedDoctorId,
-      selectedModelId,
-      guidedValues,
-      useModel,
-      catalogOpen,
-      editorHtml: html,
-      catalogSearch,
-      catalogCategory,
-      savedAt,
-    };
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-    const time = new Date(savedAt).toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    setLastSavedAt(time);
-    setSaveStatus(manual ? `Salvo às ${time}` : "Rascunho local");
-  }
-
   function rememberSelection() {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0 || !editorRef.current) return;
@@ -810,7 +751,7 @@ export default function DocumentsPage() {
   function syncEditor() {
     const html = normalizeEditorHtml(editorRef.current?.innerHTML || "");
     setEditorHtml(html);
-    setSaveStatus("Salvando...");
+    setDocumentDirty(true);
     rememberSelection();
     window.requestAnimationFrame(updateEditorPageGuides);
   }
@@ -836,8 +777,8 @@ export default function DocumentsPage() {
               if (editorRef.current)
                 editorRef.current.innerHTML = generatedHtml;
               setEditorHtml(generatedHtml);
+              setDocumentDirty(true);
               setAppDialog(null);
-              saveDraft(false);
             },
           },
         ],
@@ -846,7 +787,7 @@ export default function DocumentsPage() {
     }
     if (editorRef.current) editorRef.current.innerHTML = generatedHtml;
     setEditorHtml(generatedHtml);
-    saveDraft(false);
+    setDocumentDirty(true);
   }
 
   function openModelEditor() {
@@ -1557,39 +1498,10 @@ export default function DocumentsPage() {
     return canvas;
   }
 
-  async function ensurePreviewPageRendered(pages: string[], index: number) {
-    if (!pages[index]) return;
-    if (previewImages[index]) return;
-    if (previewRenderingIndexesRef.current.has(index)) return;
-    previewRenderingIndexesRef.current.add(index);
-    setPreviewRendering(true);
-    try {
-      const canvas = await renderDocumentCanvas(pages[index], index, pages.length);
-      const image = canvas?.toDataURL("image/png") || "";
-      setPreviewImages((current) => {
-        const next = current.length === pages.length ? [...current] : Array.from({ length: pages.length }, (_, pageIndex) => current[pageIndex] || "");
-        next[index] = image;
-        return next;
-      });
-    } catch (error) {
-      console.error("[HPSR][Documentos] Falha ao gerar a pré-visualização da página.", error);
-      setAppDialog({
-        title: "Não foi possível gerar a pré-visualização",
-        message: "Uma imagem externa do documento ou da assinatura foi bloqueada pelo navegador. A assinatura incompatível será ignorada; tente abrir a pré-visualização novamente.",
-        actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
-      });
-    } finally {
-      previewRenderingIndexesRef.current.delete(index);
-      setPreviewRendering(previewRenderingIndexesRef.current.size > 0);
-    }
-  }
-
   async function initializePreviewPages(pages: string[]) {
     setPreviewPageHtmls(pages);
-    setPreviewImages(Array.from({ length: pages.length }, () => ""));
     setPreviewPageIndex(0);
     setPreviewOpen(true);
-    await ensurePreviewPageRendered(pages, 0);
   }
 
   async function downloadPng() {
@@ -1619,7 +1531,98 @@ export default function DocumentsPage() {
     await initializePreviewPages(pages);
   }
 
-  async function saveDocument() {
+  function buildStructuredDocumentPayload(
+    html: string,
+    savedAt: string,
+    activeAppointment: Awaited<ReturnType<typeof findActiveAppointmentContext>>,
+    releasedSnapshot: Record<string, unknown> | null = editingReleasedSnapshot,
+  ) {
+    return {
+      schemaVersion: 2,
+      documentKind: "medical-document",
+      documentTitle: selectedModel?.title || "Documento médico",
+      documentModelId: selectedModelId,
+      documentCategory: selectedModel?.category || "relatorios",
+      documentHtml: html,
+      guidedValues,
+      useModel,
+      patient,
+      doctor,
+      selectedDoctorId,
+      ...(releasedSnapshot ? { releasedSnapshot } : {}),
+      ...(activeAppointment ? {
+        appointmentId: activeAppointment.id,
+        appointmentSpecialty: activeAppointment.specialty,
+        appointmentDoctor: activeAppointment.doctorName,
+        appointmentDate: activeAppointment.date,
+        appointmentTime: activeAppointment.time,
+      } : {}),
+      savedAt,
+    };
+  }
+
+  function resetDocumentEditor() {
+    const firstModel = documentModels[0];
+    const initial = `<h1>${firstModel?.title || "Documento médico"}</h1><p><br></p>`;
+    setEditingRecordId(null);
+    setEditingReleasedSnapshot(null);
+    setLoadedIsConfidential(true);
+    setIsConfidential(true);
+    setSelectedModelId(firstModel?.id || "");
+    setGuidedValues({});
+    setUseModel(false);
+    setEditorHtml(initial);
+    setDocumentDirty(false);
+    setPreviewOpen(false);
+    if (editorRef.current) editorRef.current.innerHTML = initial;
+  }
+
+  async function loadDocumentForEditing(recordId: string) {
+    const client = createClient();
+    if (!client) {
+      setAppDialog({ title: "Não foi possível abrir o documento", message: "Supabase não configurado.", actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
+      return;
+    }
+    setSavingDocument(true);
+    try {
+      const { data, error } = await client.from("clinical_records")
+        .select("id,patient_passport,payload,is_confidential")
+        .eq("id", recordId)
+        .in("record_type", ["Documento", "documento"])
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) throw new Error("Documento não encontrado.");
+      const payload = (data.payload || {}) as Record<string, any>;
+      const loadedPatient = payload.patient && typeof payload.patient === "object" ? payload.patient as PatientDraft : { ...emptyPatient, passport: String(data.patient_passport || "") };
+      const loadedDoctor = payload.doctor && typeof payload.doctor === "object" ? payload.doctor as DoctorDraft : initialDoctor;
+      const modelId = documentModels.some((model) => model.id === String(payload.documentModelId || ""))
+        ? String(payload.documentModelId)
+        : documentModels.find((model) => model.title === String(payload.documentTitle || ""))?.id || documentModels[0]?.id || "";
+      const html = normalizeEditorHtml(String(payload.documentHtml || payload.editorHtml || "")) || `<h1>${String(payload.documentTitle || "Documento médico")}</h1><p><br></p>`;
+      setPatient(loadedPatient);
+      setDoctor(loadedDoctor);
+      setSelectedDoctorId(String(payload.selectedDoctorId || currentUserProfile.id || "current-user"));
+      setSelectedModelId(modelId);
+      setGuidedValues(payload.guidedValues && typeof payload.guidedValues === "object" ? payload.guidedValues as Record<string, string> : {});
+      setUseModel(Boolean(payload.useModel));
+      setEditorHtml(html);
+      setEditingRecordId(String(data.id));
+      setEditingReleasedSnapshot(payload.releasedSnapshot && typeof payload.releasedSnapshot === "object" ? payload.releasedSnapshot as Record<string, unknown> : null);
+      setLoadedIsConfidential(Boolean(data.is_confidential));
+      setIsConfidential(Boolean(data.is_confidential));
+      setDocumentDirty(false);
+      setPreviewOpen(false);
+      window.setTimeout(() => { if (editorRef.current) editorRef.current.innerHTML = html; }, 0);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      hpsrSuccess("O documento foi carregado para edição. Alterações salvas não mudam o Portal até uma nova liberação.", "Documento carregado");
+    } catch (error) {
+      setAppDialog({ title: "Não foi possível abrir o documento", message: error instanceof Error ? error.message : "Falha ao carregar o registro.", actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
+    } finally {
+      setSavingDocument(false);
+    }
+  }
+
+  async function saveDocument(options?: { publishCurrent?: boolean }) {
     if (savingDocument) return;
     if (!patient.passport?.trim() || !patient.name?.trim()) {
       setAppDialog({ title: "Paciente obrigatório", message: "Selecione ou cadastre o paciente antes de salvar.", actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
@@ -1632,61 +1635,77 @@ export default function DocumentsPage() {
 
     setSavingDocument(true);
     try {
-      const html = normalizeEditorHtml(
-        editorRef.current?.innerHTML ?? editorHtml,
-      );
+      const html = normalizeEditorHtml(editorRef.current?.innerHTML ?? editorHtml);
       if (editorRef.current) editorRef.current.innerHTML = html;
       setEditorHtml(html);
-      saveDraft(true);
-
-      const pages = buildDocumentPages();
       const savedAt = brazilIso();
-      const renderedImages: string[] = [];
-      for (let index = 0; index < pages.length; index += 1) {
-        const canvas = await renderDocumentCanvas(pages[index], index, pages.length);
-        const image = canvas?.toDataURL("image/png") || "";
-        if (image.startsWith("data:image/")) renderedImages.push(image);
-      }
-
       const client = createClient();
       if (!client) throw new Error("Não foi possível conectar ao banco de dados.");
-
-      const recordId = `document-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const activeAppointment = await findActiveAppointmentContext(client, patient.passport || "", { id: selectedDoctorId, name: doctor.name });
-      const { error } = await client.from("clinical_records").insert({
-        id: recordId,
+      const payload = buildStructuredDocumentPayload(html, savedAt, activeAppointment);
+      const historyFields = {
         patient_passport: patient.passport.trim(),
-        record_type: "Documento",
-        is_confidential: isConfidential,
-        released_at: isConfidential ? null : savedAt,
-        payload: {
-          documentTitle: selectedModel?.title || "Documento médico",
-          documentHtml: html,
-          previewImage: renderedImages[0] || null,
-          previewImages: renderedImages,
-          patient,
-          doctor,
-          ...(activeAppointment ? {
-            appointmentId: activeAppointment.id,
-            appointmentSpecialty: activeAppointment.specialty,
-            appointmentDoctor: activeAppointment.doctorName,
-            appointmentDate: activeAppointment.date,
-            appointmentTime: activeAppointment.time,
-          } : {}),
-          savedAt,
-        },
-      });
-      if (error) throw error;
+        history_title: selectedModel?.title || "Documento médico",
+        history_patient_name: patient.name.trim(),
+        history_doctor_name: doctor.name.trim() || "Equipe médica",
+      };
 
-      const savedTime = new Date(savedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      setLastSavedAt(savedTime);
-      setSaveStatus(`Salvo às ${savedTime}`);
-      setPreviewPageHtmls(pages);
-      setPreviewImages(Array.from({ length: pages.length }, (_, index) => renderedImages[index] || ""));
-      setPreviewPageIndex(0);
-      setPreviewOpen(true);
-      window.dispatchEvent(new CustomEvent("hpsr:clinical-record-saved", { detail: { recordType: "Documento" } }));
-      hpsrSuccess(`O documento foi salvo no prontuário de ${patient.name}.`, "Documento salvo");
+      let recordId = editingRecordId;
+      let finalConfidential = isConfidential;
+      let latestReleasedSnapshot = editingReleasedSnapshot;
+
+      if (editingRecordId) {
+        const { error } = await client.from("clinical_records").update({ ...historyFields, payload }).eq("id", editingRecordId);
+        if (error) throw error;
+        const visibilityChanged = isConfidential !== loadedIsConfidential;
+        const shouldRepublish = Boolean(options?.publishCurrent) && !isConfidential;
+        if (visibilityChanged || shouldRepublish) {
+          const { data: changed, error: visibilityError } = await client.rpc("set_clinical_record_confidentiality", {
+            target_record_id: editingRecordId,
+            confidential: isConfidential,
+          });
+          if (visibilityError) throw visibilityError;
+          const changedPayload = (changed as any)?.payload;
+          latestReleasedSnapshot = changedPayload?.releasedSnapshot && typeof changedPayload.releasedSnapshot === "object" ? changedPayload.releasedSnapshot : latestReleasedSnapshot;
+          finalConfidential = Boolean((changed as any)?.is_confidential ?? isConfidential);
+        }
+      } else {
+        recordId = `document-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        const requestedConfidential = isConfidential;
+        const { error } = await client.from("clinical_records").insert({
+          id: recordId,
+          ...historyFields,
+          record_type: "Documento",
+          is_confidential: true,
+          released_at: null,
+          payload,
+        });
+        if (error) throw error;
+        finalConfidential = true;
+        if (!requestedConfidential) {
+          const { data: changed, error: visibilityError } = await client.rpc("set_clinical_record_confidentiality", {
+            target_record_id: recordId,
+            confidential: false,
+          });
+          if (visibilityError) throw visibilityError;
+          const changedPayload = (changed as any)?.payload;
+          latestReleasedSnapshot = changedPayload?.releasedSnapshot && typeof changedPayload.releasedSnapshot === "object" ? changedPayload.releasedSnapshot : null;
+          finalConfidential = false;
+        }
+      }
+
+      setEditingRecordId(recordId);
+      setEditingReleasedSnapshot(latestReleasedSnapshot);
+      setLoadedIsConfidential(finalConfidential);
+      setIsConfidential(finalConfidential);
+      setDocumentDirty(false);
+      window.dispatchEvent(new CustomEvent("hpsr:clinical-record-saved", { detail: { recordType: "Documento", id: recordId } }));
+      const portalMessage = finalConfidential
+        ? "O documento foi salvo internamente e permanece em sigilo no Portal."
+        : options?.publishCurrent || !editingRecordId
+          ? "O documento foi salvo e a versão atual foi liberada no Portal."
+          : "O documento foi salvo internamente. O Portal continua exibindo a última versão liberada.";
+      hpsrSuccess(portalMessage, editingRecordId ? "Documento atualizado" : "Documento salvo");
     } catch (error) {
       setAppDialog({
         title: "Não foi possível salvar o documento",
@@ -1700,12 +1719,6 @@ export default function DocumentsPage() {
 
 
   const previewHtml = editorHtml;
-
-  useEffect(() => {
-    if (!previewOpen) return;
-    if (!previewPageHtmls.length) return;
-    void ensurePreviewPageRendered(previewPageHtmls, previewPageIndex);
-  }, [previewOpen, previewPageIndex, previewPageHtmls]);
 
   return (
     <>
@@ -1722,6 +1735,17 @@ export default function DocumentsPage() {
             <p className="mt-1 text-sm font-medium leading-relaxed text-hpsr-muted">Formulário à esquerda, editor à direita. Escolha um documento e aplique o modelo quando precisar.</p>
           </div>
         </header>
+
+        {editingRecordId ? (
+          <section className="flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-[#dfc9b8] bg-[#fff7ee] px-4 py-3">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wine">Editando registro salvo</p>
+              <p className="mt-1 text-sm font-black text-hpsr-text">{selectedModel?.title || "Documento médico"} · {patient.name || patient.passport}</p>
+              <p className="mt-1 text-xs font-semibold text-hpsr-muted">{!isConfidential && documentDirty ? "Há alterações internas ainda não publicadas. O Portal mantém a última versão liberada." : isConfidential ? "O documento está em sigilo no Portal do Paciente." : "A versão liberada permanece preservada até uma nova publicação explícita."}</p>
+            </div>
+            <button type="button" onClick={resetDocumentEditor} className="h-10 rounded-[12px] border border-hpsr-wine/20 bg-white px-4 text-xs font-black text-hpsr-wine hover:border-hpsr-wine/40">Novo documento</button>
+          </section>
+        ) : null}
 
         <section className="hpsr-documents-workspace grid min-h-0 flex-1 items-start gap-4 overflow-visible xl:grid-cols-[minmax(360px,420px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(400px,460px)_minmax(0,1fr)]">
           <aside aria-label="Formulário do documento" className="hpsr-documents-form-scroll min-w-0 space-y-4 no-print xl:overflow-y-auto xl:overscroll-contain xl:rounded-[24px] xl:border xl:border-[#dfd6c8] xl:bg-[linear-gradient(180deg,#f8eee5_0%,#f3e2de_100%)] xl:p-2 xl:[scrollbar-gutter:stable]">
@@ -2132,92 +2156,9 @@ export default function DocumentsPage() {
           </main>
         </section>
         <div className="hpsr-documents-history">
-          <ClinicalHistoryPanel recordType="Documento" comfortable />
+          <ClinicalHistoryPanel recordType="Documento" comfortable onEdit={(recordId) => void loadDocumentForEditing(recordId)} />
         </div>
       </div>
-
-        <div
-          className="pointer-events-none fixed -left-[9999px] top-0 h-[1123px] w-[794px] overflow-hidden"
-          aria-hidden="true"
-        >
-          <section className="h-[1123px] w-[794px] overflow-hidden bg-white">
-            <div
-              ref={previewRef}
-              className="relative h-[1123px] w-[794px] overflow-hidden bg-white"
-            >
-              <div className="pointer-events-none absolute inset-0 bg-[#fffdfb]" />
-              <img
-                src="/logo-hpsr.png"
-                alt="Marca d’água do Hospital São Rafael"
-                className="pointer-events-none absolute left-1/2 top-1/2 h-[340px] w-[340px] -translate-x-1/2 -translate-y-1/2 select-none object-contain opacity-[0.06]"
-                draggable={false}
-              />
-              <div className="relative z-10 flex h-full flex-col px-[4.9%] pb-[3.3%] pt-[3%] font-sans text-[6.25px] leading-[1.48] text-[#4b2118]">
-                <div className="rounded-[16px] border border-[#e4d8d0] bg-[linear-gradient(180deg,#fbf6f2_0%,#ffffff_100%)] px-4 py-3 shadow-[0_8px_24px_rgba(42,7,0,0.045)]">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <p className="text-[5.8px] font-black uppercase tracking-[0.22em] text-[#8d665b]">Hospital São Rafael</p>
-                      <h1 className="mt-1 text-[10.8px] font-black uppercase tracking-[0.06em] text-[#3d1710]">{selectedModel?.title || "Documento médico"}</h1>
-                      <p className="mt-1 text-[6px] font-semibold text-[#7a5148]">Documento clínico institucional</p>
-                    </div>
-                    <div className="grid w-[174px] gap-1.5 text-[5.8px]">
-                      <div className="rounded-[10px] border border-[#e5d9d1] bg-white px-2.5 py-1.5">
-                        <p className="font-black uppercase tracking-[0.12em] text-[#8d665b]">Data da emissão</p>
-                        <p className="mt-0.5 font-black text-[#3d1710]">{today}</p>
-                      </div>
-                      <div className="rounded-[10px] border border-[#e5d9d1] bg-white px-2.5 py-1.5">
-                        <p className="font-black uppercase tracking-[0.12em] text-[#8d665b]">Formato</p>
-                        <p className="mt-0.5 font-black text-[#3d1710]">PNG institucional</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-[3.8%] rounded-[16px] border border-[#e6dad2] bg-white px-4 py-3 shadow-[0_8px_22px_rgba(42,7,0,0.035)]">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[6.2px] font-black uppercase tracking-[0.18em] text-[#5b1809]">Identificação do paciente</p>
-                    <span className="rounded-full border border-[#e5d9d1] bg-[#faf4f0] px-2.5 py-1 text-[5.7px] font-black uppercase tracking-[0.12em] text-[#8d665b]">Registro clínico</span>
-                  </div>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    {[
-                      ["Nome", patient.name || "-"],
-                      ["Passaporte", patient.passport || "-"],
-                      ["Idade", patient.age || "-"],
-                      ["Tipo sanguíneo", patient.bloodType || "-"],
-                    ].map(([label, value]) => (
-                      <div key={label} className="rounded-[12px] border border-[#eee3dc] bg-[#fffdfb] px-2.5 py-2">
-                        <p className="text-[5.6px] font-black uppercase tracking-[0.12em] text-[#8d665b]">{label}</p>
-                        <p className="mt-0.5 text-[6.6px] font-black text-[#3d1710]">{value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div
-                  className="mt-[4.2%] min-h-0 flex-1 overflow-hidden rounded-[18px] border border-[#e7ddd6] bg-white px-4 py-3 text-[6.35px] leading-[1.58] text-[#4b2118] shadow-[0_10px_26px_rgba(42,7,0,0.035)] [&_h1]:mb-2 [&_h1]:text-[9.2px] [&_h1]:font-black [&_h1]:uppercase [&_h1]:tracking-[0.05em] [&_h1]:text-[#5b1809] [&_h2]:mb-1.5 [&_h2]:mt-2.5 [&_h2]:rounded-[8px] [&_h2]:border [&_h2]:border-[#e6dad2] [&_h2]:bg-[#fbf6f2] [&_h2]:px-2.5 [&_h2]:py-1.5 [&_h2]:text-[7.1px] [&_h2]:font-black [&_h2]:uppercase [&_h2]:tracking-[0.06em] [&_h2]:text-[#5b1809] [&_p]:mb-2 [&_strong]:text-[#3d1710] [&_table]:my-2.5 [&_table]:w-full [&_table]:overflow-hidden [&_table]:rounded-[10px] [&_table]:border [&_table]:border-[#e7ddd6] [&_td]:border [&_td]:border-[#e7ddd6] [&_td]:p-1.5 [&_td]:align-middle [&_th]:border [&_th]:border-[#e7ddd6] [&_th]:bg-[#f7eee8] [&_th]:p-1.5 [&_th]:text-left [&_th]:font-black [&_th]:text-[#5b1809]"
-                  dangerouslySetInnerHTML={{ __html: previewHtml }}
-                />
-                <footer className="mt-[2%] rounded-[14px] border border-[#e6dad2] bg-[#fffdfb] px-4 py-1.5 text-center text-[5.7px] text-[#7a5148]">
-                  {doctor.signatureImage ? (
-                    <img src={doctor.signatureImage} alt="Assinatura cadastrada do médico" className="mx-auto h-[50px] w-[280px] object-contain" />
-                  ) : (
-                    <div className="mx-auto flex h-[50px] items-end justify-center text-[13px] italic text-[#5b1809]" style={{ fontFamily: "Georgia, serif" }}>{doctor.name || "Nome do médico"}</div>
-                  )}
-                  <div className="mx-auto mb-0.5 h-1.5 w-[40%] border-b border-dashed border-[#8d665b]" />
-                  <p className="font-black text-[#5b1809]">
-                    Dr(a). {doctor.name || "Nome do médico"}
-                  </p>
-                  <p className="font-semibold">
-                    {doctor.role || "Médico"} · CRM: {doctor.crm || "000000"}
-                  </p>
-                  <p className="mt-0.5 font-semibold">
-                    Hospital São Rafael · Documento médico institucional
-                  </p>
-                </footer>
-              </div>
-            </div>
-          </section>
-        </div>
 
       {previewOpen && (
         <div className="hpsr-modal-tone fixed inset-0 z-50 flex items-center justify-center bg-[#1f0805]/60 p-4 no-print">
@@ -2244,34 +2185,24 @@ export default function DocumentsPage() {
             </div>
 
             <div className="min-h-0 flex-1 overflow-auto bg-[linear-gradient(180deg,#f4f0ed_0%,#ebe5e0_100%)] p-6">
-              <div className="mx-auto w-fit origin-top scale-[0.72] sm:scale-[0.78] md:scale-[0.86] xl:scale-100">
-                <section className="h-[1123px] w-[794px] overflow-hidden bg-white shadow-[0_18px_52px_rgba(42,7,0,0.22)]">
-                  {previewImages[previewPageIndex] ? (
-                    <img
-                      src={previewImages[previewPageIndex]}
-                      alt="Pré-visualização fiel do documento"
-                      className="block h-[1123px] w-[794px] object-contain"
-                      draggable={false}
-                    />
-                  ) : (
-                    <div className="flex h-[1123px] w-[794px] items-center justify-center bg-white text-center">
-                      <div>
-                        <div className="mx-auto mb-3 h-9 w-9 animate-spin rounded-full border-2 border-hpsr-border border-t-hpsr-wine" />
-                        <p className="text-sm font-black text-hpsr-text">Gerando página {previewPageIndex + 1}...</p>
-                        <p className="mt-1 text-xs font-semibold text-hpsr-muted">A pré-visualização agora carrega uma página por vez para reduzir o uso de memória.</p>
-                      </div>
-                    </div>
-                  )}
-                </section>
+              <div className="mx-auto w-fit origin-top scale-[0.72] sm:scale-[0.78] md:scale-[0.86] xl:scale-100 shadow-[0_18px_52px_rgba(42,7,0,0.22)]">
+                <DocumentVisualPreviewPage
+                  html={previewPageHtmls[previewPageIndex] || ""}
+                  pageIndex={previewPageIndex}
+                  totalPages={previewPageHtmls.length}
+                  patient={patient}
+                  doctor={doctor}
+                  title={selectedModel?.title || "Documento médico"}
+                  today={today}
+                />
               </div>
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hpsr-border bg-white px-4 py-3">
               <div className="flex items-center gap-2">
-                <button type="button" disabled={previewPageIndex === 0 || previewRendering} onClick={() => setPreviewPageIndex((current) => Math.max(0, current - 1))} className="h-9 rounded-[11px] border border-hpsr-border bg-white px-3 text-xs font-black disabled:opacity-40">Anterior</button>
+                <button type="button" disabled={previewPageIndex === 0} onClick={() => setPreviewPageIndex((current) => Math.max(0, current - 1))} className="h-9 rounded-[11px] border border-hpsr-border bg-white px-3 text-xs font-black disabled:opacity-40">Anterior</button>
                 <span className="text-xs font-black text-hpsr-muted">{previewPageIndex + 1}/{Math.max(previewPageHtmls.length, 1)}</span>
-                <button type="button" disabled={previewPageIndex >= previewPageHtmls.length - 1 || previewRendering} onClick={() => setPreviewPageIndex((current) => Math.min(previewPageHtmls.length - 1, current + 1))} className="h-9 rounded-[11px] border border-hpsr-border bg-white px-3 text-xs font-black disabled:opacity-40">Próxima</button>
-                {previewRendering ? <span className="text-[11px] font-black uppercase tracking-[0.12em] text-hpsr-wine">Gerando página...</span> : null}
+                <button type="button" disabled={previewPageIndex >= previewPageHtmls.length - 1} onClick={() => setPreviewPageIndex((current) => Math.min(previewPageHtmls.length - 1, current + 1))} className="h-9 rounded-[11px] border border-hpsr-border bg-white px-3 text-xs font-black disabled:opacity-40">Próxima</button>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button
@@ -2288,10 +2219,20 @@ export default function DocumentsPage() {
                 >
                   <Download size={15} /> Baixar PNG
                 </button>
+                {editingRecordId && !isConfidential ? (
+                  <button
+                    type="button"
+                    onClick={() => void saveDocument({ publishCurrent: true })}
+                    disabled={savingDocument}
+                    className="inline-flex h-10 items-center gap-2 rounded-[12px] border border-emerald-300 bg-emerald-50 px-4 text-xs font-black text-emerald-800 transition hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Send size={15} /> {savingDocument ? "Publicando..." : "Salvar e atualizar Portal"}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => void saveDocument()}
-                  disabled={savingDocument || previewRendering}
+                  disabled={savingDocument}
                   className="inline-flex h-10 items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-4 text-xs font-black text-hpsr-text transition hover:border-hpsr-wine/40 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Save size={15} /> {savingDocument ? "Salvando..." : "Salvar no sistema"}

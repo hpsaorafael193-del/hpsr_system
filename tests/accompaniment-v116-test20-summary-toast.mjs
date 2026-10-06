@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
+const pkg = JSON.parse(read('package.json'));
+const page = read('src/app/dashboard/obstetra/page.tsx');
+assert.equal(pkg.version, '1.1.16-test.30');
+assert(page.includes('Resumo do acompanhamento'));
+assert(page.includes('Próxima consulta'));
+assert(page.includes('Próxima etapa'));
+assert(page.includes('Parto previsto'));
+assert(page.includes('Confirmação β-hCG'));
+assert(page.includes('Planejamento integral'));
+assert(page.includes('fixed bottom-3 right-3 z-[260]'));
+assert(!page.includes('fixed right-3 top-3 z-[260]'));
+console.log('PASS v1.1.16-test.30: resumo integrado e avisos fixos no canto inferior direito.');

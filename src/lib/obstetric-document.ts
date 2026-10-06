@@ -9,65 +9,98 @@ const COLORS = {
 
 const INTEGRAL_LAYOUTS = {
   gestacional: {
-    src: "/clinical-assistant/official-gestational-integral-v2.png",
-    width: 1491,
-    height: 1055,
-    doctor: { x: 190, y: 183, width: 675 },
-    patient: { x: 292, y: 230, width: 765 },
-    passport: { x: 292, y: 274, width: 730 },
-    dateCenterX: 349,
-    dateRows: [368, 445, 524, 603, 681, 760, 839, 918],
-    textRows: [319, 397, 475, 553, 632, 711, 790, 870],
-    textRowHeight: 70,
-    textX: 748,
-    textWidth: 700,
-    finalTextY: 963,
+    src: "/clinical-assistant/official-gestational-integral-v3.png",
+    width: 1920,
+    height: 1280,
+    doctor: { x: 203, y: 220, width: 705 },
+    patient: { x: 213, y: 257, width: 698 },
+    passport: { x: 295, y: 299, width: 616 },
+    identityStyle: {
+      doctor: { fontSize: 25, minSize: 15, weight: 500, color: "#7d3b21", family: "Arial, sans-serif", tracking: 0 },
+      patient: { fontSize: 31, minSize: 18, weight: 700, color: "#7d3b21", family: "Georgia, 'Times New Roman', serif", tracking: 0 },
+      passport: { fontSize: 25, minSize: 15, weight: 700, color: "#7d3b21", family: "Arial, sans-serif", tracking: 1.4 },
+    },
+    dateCenterX: 477,
+    dateWidth: 214,
+    dateFontSize: 27,
+    dateRows: [400, 503, 610, 712, 814, 919, 1023, 1121],
+    textBoxes: [
+      { x: 989, y: 352, width: 875, height: 80 },
+      { x: 989, y: 458, width: 875, height: 87 },
+      { x: 989, y: 572, width: 875, height: 80 },
+      { x: 989, y: 678, width: 875, height: 76 },
+      { x: 989, y: 780, width: 875, height: 78 },
+      { x: 989, y: 884, width: 875, height: 78 },
+      { x: 989, y: 988, width: 875, height: 74 },
+      { x: 989, y: 1088, width: 875, height: 68 },
+    ],
+    referenceBox: { x: 989, y: 1190, width: 875, height: 54 },
   },
   in_vitro: {
-    src: "/clinical-assistant/official-ivf-integral-v2.png",
-    width: 1491,
-    height: 1055,
-    doctor: { x: 270, y: 202, width: 650 },
-    patient: { x: 303, y: 248, width: 745 },
-    passport: { x: 298, y: 286, width: 700 },
-    dateCenterX: 364,
-    dateRows: [398, 529, 667, 802, 932],
-    textRows: [336, 468, 600, 733, 866],
-    textRowHeight: 112,
-    textX: 760,
-    textWidth: 670,
-    finalTextY: 0,
+    src: "/clinical-assistant/official-ivf-integral-v3.png",
+    width: 1920,
+    height: 1280,
+    doctor: { x: 267, y: 236, width: 531 },
+    patient: { x: 227, y: 281, width: 691 },
+    passport: { x: 299, y: 329, width: 627 },
+    identityStyle: {
+      doctor: { fontSize: 25, minSize: 15, weight: 500, color: "#7d3b21", family: "Arial, sans-serif", tracking: 0 },
+      patient: { fontSize: 31, minSize: 18, weight: 700, color: "#7d3b21", family: "Georgia, 'Times New Roman', serif", tracking: 0 },
+      passport: { fontSize: 25, minSize: 15, weight: 700, color: "#7d3b21", family: "Arial, sans-serif", tracking: 1.4 },
+    },
+    dateCenterX: 486,
+    dateWidth: 220,
+    dateFontSize: 28,
+    dateRows: [463, 628, 792, 958, 1133],
+    textBoxes: [
+      { x: 997, y: 395, width: 860, height: 140 },
+      { x: 997, y: 570, width: 860, height: 128 },
+      { x: 997, y: 734, width: 860, height: 128 },
+      { x: 997, y: 898, width: 860, height: 145 },
+      { x: 997, y: 1078, width: 860, height: 136 },
+    ],
+    referenceBox: null,
   },
 } as const;
 
 const INDIVIDUAL_LAYOUTS = {
   gestacional: {
-    src: "/clinical-assistant/official-gestational-individual-v2.png",
-    width: 1536,
-    height: 1024,
-    doctor: { x: 192, y: 178, width: 730 },
-    patient: { x: 297, y: 226, width: 735 },
-    passport: { x: 294, y: 265, width: 720 },
-    circle: { x: 54, y: 319, radius: 34 },
-    date: { x: 416, y: 320, width: 226 },
-    marker: { x: 905, y: 320, width: 565 },
-    planned: { x: 48, y: 438, width: 1434, height: 124 },
-    evolution: { x: 48, y: 654, width: 1434, height: 116 },
-    conduct: { x: 48, y: 855, width: 1434, height: 126 },
+    src: "/clinical-assistant/official-gestational-individual-v3.png",
+    width: 1448,
+    height: 1086,
+    doctor: { x: 159, y: 179, width: 495 },
+    patient: { x: 132, y: 211, width: 522 },
+    passport: { x: 132, y: 246, width: 522 },
+    identityStyle: {
+      doctor: { fontSize: 20, minSize: 12, weight: 500, color: "#9b6a55", family: "Georgia, 'Times New Roman', serif", tracking: 0 },
+      patient: { fontSize: 22, minSize: 13, weight: 600, color: "#8a4b35", family: "Georgia, 'Times New Roman', serif", tracking: 0 },
+      passport: { fontSize: 20, minSize: 12, weight: 600, color: "#9b6a55", family: "Georgia, 'Times New Roman', serif", tracking: 0 },
+    },
+    circle: { x: 61, y: 311, radius: 31 },
+    date: { x: 474, y: 311, width: 230 },
+    marker: { x: 916, y: 311, width: 430 },
+    planned: { x: 45, y: 431, width: 1357, height: 121 },
+    evolution: { x: 45, y: 647, width: 1357, height: 119 },
+    exams: { x: 45, y: 861, width: 1357, height: 137 },
   },
   in_vitro: {
-    src: "/clinical-assistant/official-ivf-individual-v2.png",
-    width: 1536,
-    height: 1024,
-    doctor: { x: 274, y: 185, width: 625 },
-    patient: { x: 310, y: 239, width: 755 },
-    passport: { x: 299, y: 283, width: 730 },
-    circle: { x: 57, y: 375, radius: 34 },
-    date: { x: 422, y: 375, width: 224 },
-    marker: { x: 930, y: 375, width: 545 },
-    planned: { x: 48, y: 480, width: 1434, height: 102 },
-    evolution: { x: 48, y: 663, width: 1434, height: 112 },
-    conduct: { x: 48, y: 855, width: 1434, height: 112 },
+    src: "/clinical-assistant/official-ivf-individual-v3.png",
+    width: 1448,
+    height: 1086,
+    doctor: { x: 208, y: 180, width: 452 },
+    patient: { x: 132, y: 211, width: 528 },
+    passport: { x: 132, y: 246, width: 528 },
+    identityStyle: {
+      doctor: { fontSize: 20, minSize: 12, weight: 500, color: "#9b6a55", family: "Georgia, 'Times New Roman', serif", tracking: 0 },
+      patient: { fontSize: 22, minSize: 13, weight: 600, color: "#8a4b35", family: "Georgia, 'Times New Roman', serif", tracking: 0 },
+      passport: { fontSize: 20, minSize: 12, weight: 600, color: "#9b6a55", family: "Georgia, 'Times New Roman', serif", tracking: 0 },
+    },
+    circle: { x: 61, y: 311, radius: 31 },
+    date: { x: 474, y: 311, width: 230 },
+    marker: { x: 916, y: 311, width: 430 },
+    planned: { x: 45, y: 431, width: 1357, height: 121 },
+    evolution: { x: 45, y: 647, width: 1357, height: 119 },
+    exams: { x: 45, y: 861, width: 1357, height: 137 },
   },
 } as const;
 
@@ -87,6 +120,7 @@ function formatDate(value: string) {
 /** Desenha o valor com a mesma família, cor e altura visual do rótulo impresso.
  * A redução de fonte só ocorre quando o conteúdo não cabe na região aprovada. */
 type IdentitySlot = { x: number; y: number; width: number };
+type IdentityTextStyle = { fontSize: number; minSize: number; weight: number; color: string; family: string; tracking: number };
 function fitText(
   ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number,
   fontSize: number, minSize = 13, weight = 700, color = COLORS.brownDark,
@@ -124,16 +158,20 @@ function fitText(
  * valores são inseridos aqui, alinhados com a linha-base de cada rótulo. */
 function drawIdentity(ctx: CanvasRenderingContext2D, layout: {
   doctor: IdentitySlot; patient: IdentitySlot; passport: IdentitySlot;
+  identityStyle?: { doctor: IdentityTextStyle; patient: IdentityTextStyle; passport: IdentityTextStyle };
 }, doctor: string, patient: string, passport: string) {
-  // "Obstetra/Ginecologista:" — mesma tipografia leve e tom quente do rótulo.
+  const defaults = {
+    doctor: { fontSize: 28, minSize: 17, weight: 400, color: "#b98f7e", family: "Arial, sans-serif", tracking: 0 },
+    patient: { fontSize: 44, minSize: 20, weight: 700, color: "#7d3b21", family: "Georgia, 'Times New Roman', serif", tracking: 0 },
+    passport: { fontSize: 26, minSize: 16, weight: 700, color: "#b17b5b", family: "Arial, sans-serif", tracking: 2.1 },
+  };
+  const style = layout.identityStyle || defaults;
   fitText(ctx, doctor, layout.doctor.x, layout.doctor.y, layout.doctor.width,
-    28, 17, 400, "#b98f7e", "Arial, sans-serif");
-  // "NOME:" — mesma serifada, peso e marrom do cabeçalho aprovado.
+    style.doctor.fontSize, style.doctor.minSize, style.doctor.weight, style.doctor.color, style.doctor.family, style.doctor.tracking);
   fitText(ctx, patient, layout.patient.x, layout.patient.y, layout.patient.width,
-    44, 20, 700, "#7d3b21", "Georgia, 'Times New Roman', serif");
-  // "PASSAPORTE:" — mesma cor, corpo e espaçamento aberto do rótulo.
+    style.patient.fontSize, style.patient.minSize, style.patient.weight, style.patient.color, style.patient.family, style.patient.tracking);
   fitText(ctx, passport, layout.passport.x, layout.passport.y, layout.passport.width,
-    26, 16, 700, "#b17b5b", "Arial, sans-serif", 2.1);
+    style.passport.fontSize, style.passport.minSize, style.passport.weight, style.passport.color, style.passport.family, style.passport.tracking);
 }
 
 function centeredText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxWidth: number, fontSize = 21, color = COLORS.lightText) {
@@ -243,44 +281,56 @@ function centeredFitText(ctx: CanvasRenderingContext2D, text: string, x: number,
   ctx.restore();
 }
 
+function insetBox(box: { x: number; y: number; width: number; height: number }, horizontal = 0, vertical = 0) {
+  return {
+    x: box.x + horizontal,
+    y: box.y + vertical,
+    width: Math.max(1, box.width - horizontal * 2),
+    height: Math.max(1, box.height - vertical * 2),
+  };
+}
+
 function drawIntegralStep(ctx: CanvasRenderingContext2D, step: PlanningStep, box: { x: number; y: number; width: number; height: number }, kind: PlanningKind) {
   const rawTitle = String(step.title || "").trim();
   const title = /^(Consulta|Etapa)\s+\d+$/i.test(rawTitle) ? "" : rawTitle;
   const body = String(step.planned_text || step.description || "").trim();
   if (!title && !body) return;
   const compact = kind === "gestacional";
+  // O conteúdo não deve encostar nas divisórias do modelo. Esse respiro é
+  // aplicado de forma idêntica em todas as linhas do integral.
+  const safeBox = insetBox(box, compact ? 18 : 20, compact ? 7 : 10);
   if (title) {
-    drawWrappedText(ctx, title, { x: box.x, y: box.y, width: box.width, height: compact ? 22 : 28 }, { fontSize: compact ? 14 : 16, lineHeight: compact ? 17 : 20, weight: 800, maxLines: 1, maskTemplateRules: true });
+    drawWrappedText(ctx, title, { x: safeBox.x, y: safeBox.y, width: safeBox.width, height: compact ? 29 : 34 }, { fontSize: compact ? 23 : 26, lineHeight: compact ? 28 : 32, weight: 800, maxLines: 1 });
   }
   if (body) {
-    drawWrappedText(ctx, body, { x: box.x, y: box.y + (title ? (compact ? 19 : 24) : 0), width: box.width, height: box.height - (title ? (compact ? 19 : 24) : 0) }, { fontSize: compact ? 12.5 : 14, lineHeight: compact ? 15 : 18, weight: 500, maxLines: compact ? 3 : 5, maskTemplateRules: true });
+    const titleOffset = title ? (compact ? 29 : 34) : 0;
+    drawWrappedText(ctx, body, { x: safeBox.x, y: safeBox.y + titleOffset, width: safeBox.width, height: safeBox.height - titleOffset }, { fontSize: compact ? 24 : 25, lineHeight: compact ? 29 : 31, weight: 550, maxLines: compact ? 3 : 5, verticalAlign: "middle" });
   }
 }
-
 
 function drawDynamicIntegralBody(ctx: CanvasRenderingContext2D, kind: PlanningKind, steps: PlanningStep[], referenceDate: string, width: number, height: number) {
   const config = kind === "gestacional"
     ? {
-        top: 314,
-        bottom: 1010,
-        footerHeight: 76,
-        dividerPairs: [[239, 250], [461, 472], [720, 730]] as const,
-        dateBox: { left: 261, right: 454 },
-        marker: { left: 476, right: 719 },
-        text: { left: 745, right: 1450 },
-        circleX: 53,
-        labelX: 102,
+        top: 340,
+        bottom: 1264,
+        footerHeight: 95,
+        dividerPairs: [[333, 340], [613, 621], [952, 962]] as const,
+        dateBox: { left: 354, right: 601 },
+        marker: { left: 638, right: 952 },
+        text: { left: 1007, right: 1847 },
+        circleX: 86,
+        labelX: 151,
       }
     : {
-        top: 328,
-        bottom: 1010,
-        footerHeight: 72,
-        dividerPairs: [[237, 247], [461, 472], [724, 734]] as const,
-        dateBox: { left: 258, right: 453 },
-        marker: { left: 477, right: 723 },
-        text: { left: 748, right: 1450 },
-        circleX: 53,
-        labelX: 102,
+        top: 375,
+        bottom: 1230,
+        footerHeight: 0,
+        dividerPairs: [[337, 343], [629, 637], [967, 980]] as const,
+        dateBox: { left: 359, right: 614 },
+        marker: { left: 637, right: 967 },
+        text: { left: 1015, right: 1840 },
+        circleX: 91,
+        labelX: 152,
       };
   const rowsBottom = config.bottom - config.footerHeight;
   const rowCount = Math.max(1, steps.length);
@@ -288,8 +338,8 @@ function drawDynamicIntegralBody(ctx: CanvasRenderingContext2D, kind: PlanningKi
   const brown = COLORS.brownDark;
   const cream = "#fffaf6";
   const pale = "#f8ebe3";
-  const outerLeft = 13;
-  const outerRight = width - 13;
+  const outerLeft = 29;
+  const outerRight = width - 30;
 
   ctx.save();
   ctx.fillStyle = cream;
@@ -321,7 +371,7 @@ function drawDynamicIntegralBody(ctx: CanvasRenderingContext2D, kind: PlanningKi
     ctx.fillStyle = index % 2 ? "#fffdfb" : pale;
     ctx.fillRect(config.marker.left, y, config.marker.right - config.marker.left, rowHeight);
 
-    const radius = Math.min(30, rowHeight * 0.3);
+    const radius = Math.min(39, rowHeight * 0.3);
     ctx.fillStyle = brown;
     ctx.beginPath();
     ctx.arc(config.circleX, mid, radius, 0, Math.PI * 2);
@@ -329,77 +379,79 @@ function drawDynamicIntegralBody(ctx: CanvasRenderingContext2D, kind: PlanningKi
     ctx.fillStyle = COLORS.lightText;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = `700 ${Math.max(18, radius * 1.05)}px Georgia, serif`;
+    ctx.font = `700 ${Math.max(23, radius * 1.05)}px Georgia, serif`;
     ctx.fillText(String(step.number || index + 1), config.circleX, mid);
 
     ctx.fillStyle = brown;
     ctx.textAlign = "left";
-    ctx.font = `800 ${Math.max(15, Math.min(22, rowHeight * 0.23))}px Arial, sans-serif`;
+    ctx.font = `800 ${Math.max(19, Math.min(27, rowHeight * 0.23))}px Arial, sans-serif`;
     ctx.fillText("CONSULTA", config.labelX, mid);
 
     const boxX = config.dateBox.left;
     const boxW = config.dateBox.right - config.dateBox.left;
-    const boxH = Math.min(kind === "gestacional" ? 48 : 50, rowHeight * 0.5);
+    const boxH = Math.min(kind === "gestacional" ? 69 : 85, rowHeight * 0.52);
     ctx.fillStyle = "#c48d70";
     ctx.beginPath();
-    ctx.roundRect(boxX, mid - boxH / 2, boxW, boxH, 9);
+    ctx.roundRect(boxX, mid - boxH / 2, boxW, boxH, 12);
     ctx.fill();
-    centeredText(ctx, formatDate(step.date), boxX + boxW / 2, mid, boxW - 16, Math.max(12, Math.min(18, rowHeight * 0.17)));
+    centeredText(ctx, formatDate(step.date), boxX + boxW / 2, mid, boxW - 22, Math.max(17, Math.min(27, rowHeight * 0.18)));
 
     centeredFitText(
       ctx,
       step.marker || (kind === "in_vitro" ? `Etapa ${index + 1}` : `Marco ${index + 1}`),
       (config.marker.left + config.marker.right) / 2,
       mid,
-      config.marker.right - config.marker.left - 20,
-      Math.max(14, Math.min(21, rowHeight * 0.21)),
-      11,
+      config.marker.right - config.marker.left - 24,
+      Math.max(18, Math.min(27, rowHeight * 0.21)),
+      13,
     );
 
     const body = step.planned_text || step.description || "";
-    const textHeight = Math.max(32, rowHeight - 20);
+    const textHeight = Math.max(42, rowHeight - 32);
     drawWrappedText(
       ctx,
       body,
-      { x: config.text.left, y: y + 10, width: config.text.right - config.text.left, height: textHeight },
+      { x: config.text.left, y: y + 16, width: config.text.right - config.text.left, height: textHeight },
       {
-        fontSize: Math.max(11.5, Math.min(14, rowHeight * 0.15)),
-        lineHeight: Math.max(15, Math.min(19, rowHeight * 0.2)),
-        weight: 500,
-        maxLines: Math.max(2, Math.floor((rowHeight - 18) / 16)),
+        fontSize: Math.max(22, Math.min(25, rowHeight * 0.22)),
+        lineHeight: Math.max(28, Math.min(33, rowHeight * 0.27)),
+        weight: 550,
+        maxLines: Math.max(2, Math.floor((rowHeight - 28) / 21)),
         verticalAlign: "middle",
       },
     );
   });
 
-  const fy = rowsBottom;
-  ctx.fillStyle = "#f3dfd3";
-  ctx.fillRect(outerLeft, fy, outerRight - outerLeft, config.footerHeight);
-  ctx.strokeStyle = brown;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(outerLeft, fy);
-  ctx.lineTo(outerRight, fy);
-  ctx.stroke();
-  ctx.fillStyle = brown;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.font = "800 20px Arial, sans-serif";
-  ctx.fillText(kind === "gestacional" ? "Parto · data de referência" : "β-hCG · data de referência", 34, fy + config.footerHeight / 2);
-  ctx.textAlign = "right";
-  ctx.font = "800 21px Arial, sans-serif";
-  ctx.fillText(formatDate(referenceDate), outerRight - 24, fy + config.footerHeight / 2);
+  if (config.footerHeight > 0) {
+    const fy = rowsBottom;
+    ctx.fillStyle = "#f3dfd3";
+    ctx.fillRect(outerLeft, fy, outerRight - outerLeft, config.footerHeight);
+    ctx.strokeStyle = brown;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(outerLeft, fy);
+    ctx.lineTo(outerRight, fy);
+    ctx.stroke();
+    ctx.fillStyle = brown;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.font = "800 24px Arial, sans-serif";
+    ctx.fillText("Parto · data de referência", 48, fy + config.footerHeight / 2);
+    ctx.textAlign = "right";
+    ctx.font = "800 26px Arial, sans-serif";
+    ctx.fillText(formatDate(referenceDate), outerRight - 28, fy + config.footerHeight / 2);
+  }
   ctx.restore();
 }
 
-export async function renderIntegralPlanning({ kind, patient, passport, doctor, steps, referenceDate }: {
+export async function renderIntegralPlanningCanvas({ kind, patient, passport, doctor, steps, referenceDate }: {
   kind: PlanningKind;
   patient: string;
   passport: string;
   doctor: string;
   steps: PlanningStep[];
   referenceDate: string;
-}): Promise<Blob> {
+}): Promise<HTMLCanvasElement> {
   const layout = INTEGRAL_LAYOUTS[kind];
   const source = await loadImage(layout.src);
   if (source.naturalWidth !== layout.width || source.naturalHeight !== layout.height) throw new Error("As dimensões do modelo integral não correspondem ao mapeamento aprovado.");
@@ -415,29 +467,42 @@ export async function renderIntegralPlanning({ kind, patient, passport, doctor, 
 
   if (steps.length === layout.dateRows.length) {
     steps.forEach((step, index) => {
-      centeredText(ctx, formatDate(step.date), layout.dateCenterX, layout.dateRows[index], 170, 20);
-      drawIntegralStep(ctx, step, { x: layout.textX, y: layout.textRows[index], width: layout.textWidth, height: layout.textRowHeight }, kind);
+      centeredText(ctx, formatDate(step.date), layout.dateCenterX, layout.dateRows[index], layout.dateWidth, layout.dateFontSize);
+      drawIntegralStep(ctx, step, layout.textBoxes[index], kind);
     });
-    if (kind === "gestacional" && referenceDate) {
-      drawWrappedText(ctx, `Data prevista para o parto: ${formatDate(referenceDate)}`, { x: layout.textX, y: layout.finalTextY, width: layout.textWidth, height: 42 }, { fontSize: 14, lineHeight: 18, weight: 800, maxLines: 2 });
+    if (kind === "gestacional" && referenceDate && layout.referenceBox) {
+      drawWrappedText(
+        ctx,
+        `Data prevista para o parto: ${formatDate(referenceDate)}`,
+        layout.referenceBox,
+        { fontSize: 19, lineHeight: 24, weight: 800, maxLines: 2, verticalAlign: "middle", maskTemplateRules: true },
+      );
     }
   } else {
     drawDynamicIntegralBody(ctx, kind, steps, referenceDate, layout.width, layout.height);
   }
 
-  return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Falha ao gerar PNG integral.")), "image/png"));
+  return canvas;
 }
 
-export async function renderIndividualPlanning({ kind, patient, passport, doctor, step, evolution, observation, conduct }: {
+function canvasToPngBlob(canvas: HTMLCanvasElement, errorMessage: string) {
+  return new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error(errorMessage)), "image/png"));
+}
+
+export async function renderIntegralPlanning(args: Parameters<typeof renderIntegralPlanningCanvas>[0]): Promise<Blob> {
+  return canvasToPngBlob(await renderIntegralPlanningCanvas(args), "Falha ao gerar PNG integral.");
+}
+
+export async function renderIndividualPlanningCanvas({ kind, patient, passport, doctor, step, evolution, exams, observation }: {
   kind: PlanningKind;
   patient: string;
   passport: string;
   doctor: string;
   step: PlanningStep;
   evolution: string;
+  exams: string;
   observation: string;
-  conduct: string;
-}): Promise<Blob> {
+}): Promise<HTMLCanvasElement> {
   const layout = INDIVIDUAL_LAYOUTS[kind];
   const source = await loadImage(layout.src);
   if (source.naturalWidth !== layout.width || source.naturalHeight !== layout.height) throw new Error("As dimensões do modelo individual não correspondem ao mapeamento aprovado.");
@@ -473,20 +538,27 @@ export async function renderIndividualPlanning({ kind, patient, passport, doctor
   ctx.fillText(String(step.number), layout.circle.x, layout.circle.y + 1);
   ctx.restore();
 
-  centeredText(ctx, formatDate(step.date), layout.date.x, layout.date.y, layout.date.width, 20);
+  centeredText(ctx, formatDate(step.date), layout.date.x, layout.date.y, layout.date.width, 21, COLORS.brownDark);
   const marker = String(step.marker || "").trim();
   const title = String(step.title || "").trim();
   const markerText = kind === "in_vitro" && title && marker.toLocaleLowerCase("pt-BR") !== title.toLocaleLowerCase("pt-BR") && !/^Etapa \d+$/i.test(title)
     ? `${marker} · ${title}`
     : marker || title;
-  fitText(ctx, markerText, layout.marker.x, layout.marker.y, layout.marker.width, 22, 13, 800, COLORS.brownDark);
+  fitText(ctx, markerText, layout.marker.x, layout.marker.y, layout.marker.width, 21, 13, 800, COLORS.brownDark);
 
-  drawWrappedText(ctx, step.planned_text || step.description, layout.planned, { fontSize: 19, lineHeight: 25, weight: 600, maxLines: 5 });
-  void observation; // observação médica permanece interna e não é impressa no PNG.
-  drawWrappedText(ctx, evolution, layout.evolution, { fontSize: 18, lineHeight: 24, weight: 600, maxLines: 5 });
-  drawWrappedText(ctx, conduct, layout.conduct, { fontSize: 19, lineHeight: 25, weight: 600, maxLines: 5 });
+  const plannedBox = insetBox(layout.planned, 18, 13);
+  const evolutionBox = insetBox(layout.evolution, 18, 13);
+  const examsBox = insetBox(layout.exams, 18, 13);
+  drawWrappedText(ctx, step.planned_text || step.description, plannedBox, { fontSize: 26, lineHeight: 31, weight: 600, maxLines: 4 });
+  void observation; // observação médica interna permanece fora do PNG e do Portal.
+  drawWrappedText(ctx, evolution, evolutionBox, { fontSize: 25, lineHeight: 30, weight: 600, maxLines: 4 });
+  drawWrappedText(ctx, exams, examsBox, { fontSize: 25, lineHeight: 30, weight: 600, maxLines: 5 });
 
-  return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("Falha ao gerar PNG individual.")), "image/png"));
+  return canvas;
+}
+
+export async function renderIndividualPlanning(args: Parameters<typeof renderIndividualPlanningCanvas>[0]): Promise<Blob> {
+  return canvasToPngBlob(await renderIndividualPlanningCanvas(args), "Falha ao gerar PNG individual.");
 }
 
 /** Compatibilidade com chamadas antigas da aba Obstetra. */

@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+const page = fs.readFileSync("src/app/dashboard/obstetra/page.tsx", "utf8");
+const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+assert.equal(pkg.version, "1.1.16-test.30");
+assert(page.includes("xl:justify-between"), "A grade da Definição médica deve empurrar o resumo para a borda direita.");
+assert(page.includes("max-w-[320px] justify-self-end"), "O resumo deve ancorar à direita sem alterar seus elementos internos.");
+assert(!page.includes('rounded-[18px] border border-[#dcbac4] bg-transparent px-5 py-5 xl:min-h-0\" aria-label=\"Resumo do acompanhamento'), "O resumo não deve manter borda externa.");
+assert(page.includes('aria-label="Resumo do acompanhamento"'));
+console.log("PASS v1.1.16-test.30: resumo ancorado à direita e sem borda externa, preservando os elementos internos.");

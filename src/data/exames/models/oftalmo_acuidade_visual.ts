@@ -201,7 +201,7 @@ export const oftalmo_acuidade_visualModel: IntelligentExamModel = {
     ],
     "defaultProfileId": "normal"
   },
-  "pdfModel": {
+  "documentModel": {
     "template": "institutional-a4",
     "sections": [
       "titulo",
@@ -322,8 +322,7 @@ export const oftalmo_acuidade_visualModel: IntelligentExamModel = {
     "mode": "future",
     "acceptedTypes": [
       "image/png",
-      "image/jpeg",
-      "application/pdf"
+      "image/jpeg"
     ]
   }
 };

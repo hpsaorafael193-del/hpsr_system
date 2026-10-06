@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const css = readFileSync('src/app/globals.css', 'utf8');
+const page = readFileSync('src/app/dashboard/obstetra/page.tsx', 'utf8');
+assert(page.includes('hpsr-obstetric-editor-list grid min-w-0 gap-4'), 'Editor obstétrico deve usar listagem vertical total');
+assert(!page.includes('hpsr-obstetric-stage-shell min-w-0'), 'Planejamento previsto não deve depender do antigo shell lateral');
+assert(page.includes('hpsr-stage-scroll'), 'Planejamento previsto deve limitar internamente apenas o conteúdo integral longo, preservando a estrutura vertical da página');
+assert.match(css, /\.hpsr-obstetric-editor-list\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s);
+assert.match(css, /#acompanhamento-conteudo\s*\{[^}]*position:\s*static;[^}]*height:\s*auto;[^}]*overflow:\s*visible;/s);
+assert.match(css, /background-color:\s*#f5e8dc;/);
+console.log('PASS editor obstétrico em listagem vertical com conteúdo integral limitado quando longo');
+console.log('PASS campos bege preservados');

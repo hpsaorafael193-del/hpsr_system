@@ -1,27 +1,45 @@
-import { normalizeStaffSpecialtyName, specialtiesForStaffRole } from "@/lib/staff-specialties";
+import {
+  isFullAccessAdministrativeRole,
+  normalizeStaffSpecialtyName,
+  specialtiesForStaffRole,
+} from "@/lib/staff-specialties";
 
-/** Acesso à aba Obstetra; não concede especialidades clínicas ao perfil. */
-export function canAccessObstetra(role: string, specialty: string | null | undefined): boolean {
-  const normalizedRole = String(role || "").trim();
-  if (["Diretora", "Vice Diretor", "Vice Diretor / Dev"].includes(normalizedRole)) return true;
-  if (!["Médico Clínico", "Médico Especialista", "Médico Plantonista", "Médico Cirurgião", "Diretor Clínico"].includes(normalizedRole)) return false;
+const OBSTETRA_ELIGIBLE_ROLES = new Set([
+  "Médico Especialista",
+  "Médico Plantonista",
+  "Médico Cirurgião",
+  "Diretor Clínico",
+  "Diretora",
+  "Vice Diretor",
+  "Vice Diretor / Dev",
+]);
 
-  return specialtiesForStaffRole(normalizedRole, specialty).some((value) =>
-    ["obstetra", "obstetricia", "ginecologia", "ginecologista", "obstetricia e ginecologia", "ginecologia e obstetricia"].includes(normalizeStaffSpecialtyName(value))
-  );
+function assignedReproductiveSpecialties(role: string, specialty: string | null | undefined) {
+  return specialtiesForStaffRole(String(role || "").trim(), specialty).map((entry) => normalizeStaffSpecialtyName(entry));
 }
 
-/** Permissão específica de cada modalidade. A Direção conserva seu acesso
- * administrativo; os demais médicos dependem da especialidade atribuída. */
+/** Diretora e Vice Diretor / Dev possuem acesso administrativo total. Demais perfis dependem da especialidade clínica atribuída. */
+export function canAccessObstetra(role: string, specialty: string | null | undefined): boolean {
+  const normalizedRole = String(role || "").trim();
+  if (isFullAccessAdministrativeRole(normalizedRole)) return true;
+  if (!OBSTETRA_ELIGIBLE_ROLES.has(normalizedRole)) return false;
+  const assigned = assignedReproductiveSpecialties(normalizedRole, specialty);
+  return assigned.some((value) => [
+    "obstetra", "obstetricia", "obstetrica", "ginecologia", "ginecologista",
+    "ginecologia e obstetricia", "obstetricia e ginecologia", "ginecologista e obstetra",
+  ].includes(value));
+}
+
+/** Diretora e Vice Diretor / Dev podem assumir qualquer modalidade; demais profissionais dependem da especialidade atribuída. */
 export function canManageReproductivePlan(
   role: string,
   specialty: string | null | undefined,
   kind: "gestacional" | "in_vitro",
 ): boolean {
-  if (!canAccessObstetra(role, specialty)) return false;
-  if (["Diretora", "Vice Diretor", "Vice Diretor / Dev"].includes(String(role || "").trim())) return true;
-  const assigned = specialtiesForStaffRole(String(role || "").trim(), specialty)
-    .map((entry) => normalizeStaffSpecialtyName(entry));
+  const normalizedRole = String(role || "").trim();
+  if (isFullAccessAdministrativeRole(normalizedRole)) return true;
+  if (!canAccessObstetra(normalizedRole, specialty)) return false;
+  const assigned = assignedReproductiveSpecialties(normalizedRole, specialty);
   const combined = ["ginecologia e obstetricia", "obstetricia e ginecologia", "ginecologista e obstetra"];
   if (kind === "gestacional") return assigned.some((value) =>
     ["obstetra", "obstetricia", "obstetrica", ...combined].includes(value)

@@ -132,7 +132,7 @@ function buildPublicAnswer(
 const inputClass =
   "min-w-0 w-full rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-sm font-medium text-hpsr-text outline-none transition placeholder:text-zinc-400 focus:border-hpsr-wineLight focus:bg-white focus:ring-2 focus:ring-hpsr-wineLight/20";
 
-type ScheduledAppointment = { id: string; time: string; date: string; passport: string; patient: string; specialty: string; doctor: string; type: string; status: string; acceptedAt?: string; acceptedById?: string; acceptedByName?: string; acceptedBySelf?: boolean; contactEmail?: string; discordId?: string; discord?: string; cityPhone?: string; reason?: string; notes?: string; createdAt?: string };
+type ScheduledAppointment = { id: string; time: string; date: string; passport: string; patient: string; specialty: string; doctor: string; doctorId?: string; type: string; status: string; acceptedAt?: string; acceptedById?: string; acceptedByName?: string; acceptedBySelf?: boolean; contactEmail?: string; discordId?: string; discord?: string; cityPhone?: string; reason?: string; notes?: string; createdAt?: string };
 const scheduledAppointments: ScheduledAppointment[] = [];
 
 
@@ -238,14 +238,31 @@ export default function AppointmentsPage() {
     }
 
     const mapped = (data || []).map(mapAppointmentRow);
+    const doctorIds = Array.from(new Set(mapped.map((item) => String(item.doctorId || item.acceptedById || "")).filter(Boolean)));
     const passports = Array.from(new Set(mapped.map((item) => item.passport).filter(Boolean)));
-    const { data: patientContacts } = passports.length
-      ? await client.from("patient_registry").select("passport,city_phone,discord").in("passport", passports)
-      : { data: [] as any[] };
+    const [{ data: patientContacts }, { data: doctorProfiles }] = await Promise.all([
+      passports.length
+        ? client.from("patient_registry").select("passport,city_phone,discord").in("passport", passports)
+        : Promise.resolve({ data: [] as any[] }),
+      doctorIds.length
+        ? client.from("profiles").select("id,name").in("id", doctorIds)
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
     const contactByPassport = new Map<string, { cityPhone: string; discord: string }>((patientContacts || []).map((item: any) => [String(item.passport || ""), { cityPhone: String(item.city_phone || "").trim(), discord: String(item.discord || "").trim() }]));
+    const doctorNameById = new Map<string, string>((doctorProfiles || []).map((item: any) => [String(item.id || ""), String(item.name || "").trim()]));
     setPublicRequests(mapped.map((item) => {
       const central = contactByPassport.get(item.passport) || { cityPhone: "", discord: "" };
-      return { ...item, cityPhone: central.cityPhone || item.cityPhone || "", discordId: central.discord || item.discordId || item.discord || "", contactChannel: central.discord || item.discordId || item.discord ? "discord" : "city_phone" };
+      const stableDoctorId = String(item.doctorId || item.acceptedById || "");
+      const canonicalDoctorName = stableDoctorId ? doctorNameById.get(stableDoctorId) : "";
+      return {
+        ...item,
+        doctor: canonicalDoctorName || item.doctor,
+        acceptedByName: canonicalDoctorName || item.acceptedByName,
+        doctorId: stableDoctorId || item.doctorId,
+        cityPhone: central.cityPhone || item.cityPhone || "",
+        discordId: central.discord || item.discordId || item.discord || "",
+        contactChannel: central.discord || item.discordId || item.discord ? "discord" : "city_phone",
+      };
     }));
   }, []);
 
@@ -432,6 +449,7 @@ export default function AppointmentsPage() {
           patient: item.patient,
           specialty: item.specialty,
           doctor: item.doctor || "A definir",
+          doctorId: item.doctorId || item.acceptedById || "",
           type: item.flowType || "Consulta comum",
           status: item.status === "Reagendamento aceito" ? "Confirmada" : item.status,
           acceptedAt: item.acceptedAt,
@@ -506,62 +524,47 @@ export default function AppointmentsPage() {
       <PageHeader
         schedule
         eyebrow="Agendamentos"
-        title="Central de agendamentos"
-        description="Painel geral para solicitações, consultas, acompanhamentos, reagendamentos e pendências de cobrança."
+        title="Agendamentos"
+        description="Gerencie e acompanhe todos os atendimentos agendados da unidade."
       />
 
-      <section className="hpsr-quick-access-panel shrink-0 rounded-[18px] border border-[#854e40] bg-[linear-gradient(112deg,#3e211e_0%,#60332d_60%,#75463b_100%)] p-3 shadow-[0_8px_24px_rgba(59,27,21,.13)] sm:p-4">
-        <div className="mb-3 flex items-center justify-between gap-3 px-1">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#efc9ae]">Acessos rápidos</p>
-            <p className="mt-0.5 text-sm font-semibold text-[#f1e2d5]">Escolha a área que deseja gerenciar.</p>
-          </div>
-          <div className="hidden h-9 w-9 items-center justify-center rounded-[12px] border border-white/20 bg-white/10 text-[#ffead9] sm:flex">
-            <CalendarClock size={18} />
-          </div>
-        </div>
-
-        <div className="grid gap-2 sm:grid-cols-3">
-          <ScheduleCard
-            icon={Stethoscope}
-            title="Agenda do Médico"
-            description="Calendário, consultas e gestão médica."
-            href="/dashboard/agendamento/clinica"
-          />
-
-          <ScheduleCard
-            icon={CalendarPlus2}
-            title="Agendar consulta"
-            description="Abra a Agenda do Médico já no formulário de nova consulta."
-            href="/dashboard/agendamento/clinica?new=1"
-          />
-
-          <button
-            type="button"
-            onClick={() => { setSearchTerm(""); setRequestsModalOpen(true); }}
-            className="group rounded-[17px] border border-[#d8beaa] bg-[#f4e9de] p-3.5 text-left transition hover:border-hpsr-wineLight/50 hover:bg-[#eee0d1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-hpsr-wine/30"
-          >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white shadow-sm">
-                <CalendarDays size={19} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="truncate text-sm font-black text-hpsr-text">Solicitações</h3>
-                  <div className="flex items-center gap-1.5">
-                    <span className="rounded-full bg-[#f6e7e1] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{availableRequestCount} para atender</span>
-                    {requestMonitoringCount > 0 && <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-800">{requestMonitoringCount} para acompanhar</span>}
-                    <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-muted">{acceptedForContactCount} aceite{acceptedForContactCount === 1 ? "" : "s"}</span>
-                  </div>
-                </div>
-                <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">Consultas e exames por especialidade, com indisponíveis identificadas e seus aceites logo abaixo.</p>
-              </div>
-            </div>
-          </button>
-        </div>
+      <section className="overflow-hidden rounded-[18px] border border-[#8b594c] bg-[linear-gradient(110deg,#47231f_0%,#65352f_62%,#7a493e_100%)] px-4 py-3.5 shadow-[0_9px_24px_rgba(62,28,22,.11)] sm:px-5">
+        <p className="text-[11px] font-black uppercase tracking-[.18em] text-[#e7c8b8]">Agendamentos</p>
+        <h1 className="mt-0.5 text-2xl font-black tracking-tight text-[#fffaf5]">Agendamentos</h1>
+        <p className="mt-1 text-sm font-medium text-[#f0ded3]">Gerencie e acompanhe todos os atendimentos agendados da unidade.</p>
       </section>
 
-      <ConsultationOverview appointments={visibleAppointments} prioritySpecialties={isDirection ? userSpecialties : []} />
+      <section className="grid gap-2.5 lg:grid-cols-3">
+        <ScheduleCard
+          icon={CalendarDays}
+          title="Agenda do médico"
+          description="Acesse a agenda do médico e visualize os horários disponíveis."
+          href="/dashboard/agendamento/clinica"
+        />
+        <ScheduleCard
+          icon={UsersRound}
+          title="Meus pacientes"
+          description="Visualize e gerencie seus pacientes vinculados."
+          href="/dashboard/agendamento/pacientes"
+        />
+        <button
+          type="button"
+          onClick={() => { setSearchTerm(""); setRequestsModalOpen(true); }}
+          className="group flex min-h-[86px] items-center gap-3 rounded-[17px] border border-[#d2b8a8] bg-[#f3e4d9] p-3 text-left shadow-[0_5px_18px_rgba(83,43,31,.045)] transition hover:border-[#c99f89] hover:bg-[#f7e9df]"
+        >
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[13px] bg-[linear-gradient(135deg,#8f3219,#641c0c)] text-white shadow-sm"><CalendarDays size={21}/></span>
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center justify-between gap-3">
+              <strong className="text-[15px] font-black text-hpsr-text">Solicitações de consulta</strong>
+              {pendingRequests.length > 0 && <span className="grid h-7 min-w-7 place-items-center rounded-full bg-[#d51f2b] px-2 text-xs font-black text-white">{pendingRequests.length}</span>}
+            </span>
+            <span className="mt-1 block max-w-[260px] text-sm leading-relaxed text-hpsr-muted">Consultas e exames aguardando agendamento.</span>
+          </span>
+          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] border border-[#dcc5b6] bg-white text-hpsr-wine transition group-hover:border-hpsr-wine/30"><ChevronRight size={15}/></span>
+        </button>
+      </section>
+
+      <ConsultationOverview appointments={visibleAppointments} currentDoctorId={currentUserProfile.id} currentDoctorName={currentUserProfile.systemName} />
 
       {requestsModalOpen && (
         <RequestsCenterModal
@@ -582,7 +585,7 @@ export default function AppointmentsPage() {
   );
 }
 
-function ConsultationOverview({ appointments, prioritySpecialties }: { appointments: typeof scheduledAppointments; prioritySpecialties: string[] }) {
+function ConsultationOverview({ appointments, currentDoctorId, currentDoctorName }: { appointments: typeof scheduledAppointments; currentDoctorId: string; currentDoctorName: string }) {
   const [recentOnly, setRecentOnly] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<ScheduledAppointment | null>(null);
   const [relatedRecords, setRelatedRecords] = useState<Array<{ id: string; type: string; title: string; released: boolean }>>([]);
@@ -638,85 +641,102 @@ function ConsultationOverview({ appointments, prioritySpecialties }: { appointme
 
   useEffect(() => { void loadAppointmentDetails(selectedAppointment); }, [selectedAppointment, loadAppointmentDetails]);
 
-  const recentCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const recentlyAcceptedCount = appointments.filter((item) => item.acceptedAt && new Date(item.acceptedAt).getTime() >= recentCutoff).length;
-  const filteredAppointments = recentOnly
-    ? appointments.filter((item) => item.acceptedAt && new Date(item.acceptedAt).getTime() >= recentCutoff)
-    : appointments;
-  const sortedAppointments = [...filteredAppointments].sort((first, second) => {
-    // Na Direção, atendimentos das próprias especialidades aparecem primeiro.
-    const firstOwn = belongsToProfileSpecialties(first.specialty, prioritySpecialties);
-    const secondOwn = belongsToProfileSpecialties(second.specialty, prioritySpecialties);
-    if (firstOwn !== secondOwn) return firstOwn ? -1 : 1;
+  const [statusFilter, setStatusFilter] = useState<"all" | "scheduled" | "completed">("all");
+  const [tableSearch, setTableSearch] = useState("");
+  const [specialtyFilter, setSpecialtyFilter] = useState("all");
+  const [doctorFilter, setDoctorFilter] = useState("all");
 
-    const timestamp = (item: ScheduledAppointment) => {
-      const preferred = item.acceptedAt || item.createdAt;
-      if (preferred) {
-        const parsed = new Date(preferred).getTime();
-        if (Number.isFinite(parsed)) return parsed;
-      }
-      if (item.date && item.date !== "A definir") {
-        const parsed = new Date(`${item.date}T${item.time && item.time !== "A definir" ? item.time : "00:00"}:00-03:00`).getTime();
-        if (Number.isFinite(parsed)) return parsed;
-      }
-      return 0;
-    };
-    return timestamp(second) - timestamp(first);
-  });
+  const normalizedAppointments = useMemo(() => appointments.map((item) => {
+    const isCurrentDoctor = Boolean(currentDoctorId && (item.doctorId === currentDoctorId || item.acceptedById === currentDoctorId));
+    return isCurrentDoctor && currentDoctorName
+      ? { ...item, doctor: currentDoctorName, doctorId: currentDoctorId }
+      : item;
+  }), [appointments, currentDoctorId, currentDoctorName]);
+  const specialtyOptions = useMemo(() => Array.from(new Set(normalizedAppointments.map((item) => item.specialty).filter(Boolean))).sort((a, b) => a.localeCompare(b, "pt-BR")), [normalizedAppointments]);
+  const doctorOptions = useMemo(() => Array.from(new Set(normalizedAppointments.map((item) => item.doctor).filter((value) => value && value !== "A definir"))).sort((a, b) => a.localeCompare(b, "pt-BR")), [normalizedAppointments]);
+  const completedStatuses = new Set(["Concluída", "Realizada"]);
+  const tableAppointments = useMemo(() => {
+    const query = tableSearch.trim().toLocaleLowerCase("pt-BR");
+    return [...normalizedAppointments]
+      .filter((item) => {
+        if (statusFilter === "completed" && !completedStatuses.has(item.status)) return false;
+        if (statusFilter === "scheduled" && completedStatuses.has(item.status)) return false;
+        if (specialtyFilter !== "all" && item.specialty !== specialtyFilter) return false;
+        if (doctorFilter !== "all" && item.doctor !== doctorFilter) return false;
+        if (query && ![item.patient, item.passport, item.specialty, item.doctor].some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(query))) return false;
+        return true;
+      })
+      .sort((first, second) => {
+        const key = (item: ScheduledAppointment) => {
+          if (!item.date || item.date === "A definir") return "0000-00-00T00:00";
+          const time = item.time && item.time !== "A definir" ? item.time : "00:00";
+          return `${item.date}T${time}`;
+        };
+        return key(second).localeCompare(key(first));
+      });
+  }, [normalizedAppointments, statusFilter, specialtyFilter, doctorFilter, tableSearch]);
   const selectedPhone = selectedPatientContact.cityPhone || selectedAppointment?.cityPhone || "";
 
   return (
     <>
-      <section className="flex min-h-0 flex-col overflow-hidden rounded-[20px] border border-[#d6bda9] bg-[#eee3d7] shadow-[0_8px_26px_rgba(92,56,38,.06)] xl:max-h-[calc(100dvh-250px)]">
-        <div className="hpsr-schedule-section-header flex shrink-0 flex-col gap-3 border-b border-[#a77864]/50 bg-[linear-gradient(110deg,#42201c_0%,#64352d_62%,#744238_100%)] px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+      <section className="overflow-hidden rounded-[20px] border border-[#d2b8a8] bg-[#f1e2d7] shadow-[0_6px_20px_rgba(83,43,31,.045)]">
+        <div className="flex flex-col gap-4 px-5 pb-4 pt-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-hpsr-wineLight">Visão geral</p>
-            <h2 className="mt-0.5 text-lg font-black text-hpsr-text">Agendamento geral</h2>
-            <p className="mt-0.5 text-xs leading-relaxed text-hpsr-muted">Visão consolidada dos atendimentos já assumidos ou agendados.</p>
+            <p className="text-[11px] font-black uppercase tracking-[.16em] text-hpsr-wine">Agendamentos gerais</p>
+            <p className="mt-1 text-sm text-hpsr-muted">Lista consolidada de todos os atendimentos agendados.</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => setRecentOnly(false)} className={`rounded-[12px] border px-3 py-2 text-xs font-black transition ${!recentOnly ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-wine"}`}>Todos</button>
-            <button type="button" onClick={() => setRecentOnly(true)} className={`rounded-[12px] border px-3 py-2 text-xs font-black transition ${recentOnly ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-hpsr-border bg-white text-hpsr-wine"}`}>Aceitos recentemente · {recentlyAcceptedCount}</button>
+          <div className="inline-flex self-start overflow-hidden rounded-[14px] border border-[#d7bdad] bg-[#f7ece4] p-1">
+            {[
+              ["all", "Todos"],
+              ["scheduled", "Agendados"],
+              ["completed", "Concluídos"],
+            ].map(([value, label]) => <button key={value} type="button" onClick={() => setStatusFilter(value as "all" | "scheduled" | "completed")} className={`min-w-[108px] rounded-[10px] px-4 py-2.5 text-xs font-black transition ${statusFilter === value ? "bg-[linear-gradient(135deg,#8d321b,#6b1f0d)] text-white shadow-sm" : "text-hpsr-wine hover:bg-[#f8eee7]"}`}>{label}</button>)}
           </div>
         </div>
 
-        <div className="grid min-h-0 content-start gap-3 overflow-visible bg-[#f0e5d9] p-3 sm:p-4 xl:flex-1 xl:overflow-y-auto xl:overscroll-y-auto xl:pr-3 [scrollbar-gutter:stable]">
-          {sortedAppointments.length ? sortedAppointments.map((item) => (
-            <button
-              type="button"
-              key={item.id}
-              onClick={() => setSelectedAppointment(item)}
-              className={`group relative grid min-h-[118px] w-full gap-5 overflow-hidden rounded-[20px] border bg-[#f8f1e9] p-5 text-left shadow-[0_6px_22px_rgba(89,44,30,0.05)] transition duration-200 hover:border-hpsr-wineLight/60 hover:bg-[#f4e8dc] hover:shadow-[0_12px_32px_rgba(89,44,30,0.09)] 2xl:grid-cols-[minmax(0,1.35fr)_minmax(210px,0.8fr)_minmax(180px,0.6fr)_180px] 2xl:items-center ${item.status === "Aceita" ? "border-amber-200/90" : "border-hpsr-border"}`}
-            >
-              <span className={`absolute inset-y-0 left-0 w-1.5 ${item.status === "Aceita" ? "bg-amber-400" : item.status === "Agendada" || item.status === "Confirmada" ? "bg-emerald-500" : "bg-hpsr-wine/60"}`} />
+        <div className="px-5 pb-4">
+          <div className="relative">
+            <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#835241]"/>
+            <input value={tableSearch} onChange={(event) => setTableSearch(event.target.value)} placeholder="Buscar paciente ou passaporte..." className="h-13 w-full rounded-[15px] border border-[#d6bdad] bg-[#fbf4ee] py-3.5 pl-12 pr-4 text-sm font-semibold text-hpsr-text outline-none transition placeholder:text-zinc-400 focus:border-hpsr-wine/50 focus:ring-2 focus:ring-hpsr-wine/10"/>
+          </div>
+          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            <label className="grid grid-cols-[52px_1fr] overflow-hidden rounded-[15px] border border-[#d6bdad] bg-[#fbf4ee]">
+              <span className="grid place-items-center border-r border-[#dfcabd] bg-[#f0ded2] text-hpsr-wine"><Stethoscope size={19}/></span>
+              <span className="grid gap-1 px-3 py-2">
+                <span className="text-[11px] font-black text-hpsr-text">Especialidade</span>
+                <select value={specialtyFilter} onChange={(event) => setSpecialtyFilter(event.target.value)} className="min-w-0 bg-transparent text-sm font-semibold text-hpsr-text outline-none"><option value="all">Todas as especialidades</option>{specialtyOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              </span>
+            </label>
+            <label className="grid grid-cols-[52px_1fr] overflow-hidden rounded-[15px] border border-[#d6bdad] bg-[#fbf4ee]">
+              <span className="grid place-items-center border-r border-[#dfcabd] bg-[#f0ded2] text-hpsr-wine"><UserCheck size={19}/></span>
+              <span className="grid gap-1 px-3 py-2">
+                <span className="text-[11px] font-black text-hpsr-text">Médico responsável</span>
+                <select value={doctorFilter} onChange={(event) => setDoctorFilter(event.target.value)} className="min-w-0 bg-transparent text-sm font-semibold text-hpsr-text outline-none"><option value="all">Todos os médicos</option>{doctorOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+              </span>
+            </label>
+          </div>
+        </div>
 
-              <div className="pl-2">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Paciente</p>
-                <h3 className="mt-1.5 text-[17px] font-black leading-tight text-hpsr-text">{item.patient}</h3>
-                <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                  <span className="rounded-[10px] border border-hpsr-border bg-[#fffaf7] px-2.5 py-1 text-[11px] font-black text-hpsr-muted">Passaporte {item.passport}</span>
-                  <span className="rounded-[10px] bg-[#f7eee9] px-2.5 py-1 text-[11px] font-black text-hpsr-wine">{item.specialty}</span>
-                </div>
-              </div>
-
-              <div className="2xl:border-l 2xl:border-hpsr-border/70 2xl:pl-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Médico responsável</p>
-                <p className="mt-1.5 text-[15px] font-black text-hpsr-text">{item.doctor}</p>
-                <p className="mt-1 text-xs font-semibold text-hpsr-muted">{item.type}</p>
-              </div>
-
-              <div className="2xl:border-l 2xl:border-hpsr-border/70 2xl:pl-5">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Data e hora</p>
-                <p className="mt-1.5 text-[15px] font-black text-hpsr-text">{item.status === "Aceita" ? "Aguardando agendamento" : (item.date && item.date !== "A definir" ? formatDate(item.date) : "A definir")}</p>
-                <p className="mt-1 text-xs font-semibold text-hpsr-muted">{item.status === "Aceita" ? "Definição manual" : (item.time && item.time !== "A definir" ? item.time : "Horário a definir")}</p>
-              </div>
-
-              <div className="flex items-center justify-between gap-3 border-t border-hpsr-border/70 pt-4 2xl:grid 2xl:justify-items-end 2xl:border-l 2xl:border-t-0 2xl:pl-5 2xl:pt-0">
-                <span className={`rounded-full border px-3.5 py-1.5 text-xs font-black ${consultationStatusClass(item.status)}`}>{item.status}</span>
-                <span className="inline-flex items-center gap-1.5 rounded-[11px] border border-hpsr-wine/15 bg-[#fff8f4] px-3 py-2 text-[11px] font-black text-hpsr-wine transition group-hover:border-hpsr-wine/30 group-hover:bg-hpsr-wine group-hover:text-white">Ver detalhes <ChevronRight size={14}/></span>
-              </div>
-            </button>
-          )) : <EmptyState title={recentOnly ? "Nenhum aceite recente" : "Nenhum paciente no agendamento geral"} description={recentOnly ? "Não há solicitações aceitas nos últimos 7 dias." : "As solicitações aceitas aparecerão aqui para continuidade do contato e agendamento."} />}
+        <div className="max-h-[520px] overflow-auto border-t border-[#e2d1c5]">
+          <table className="min-w-[980px] w-full border-collapse">
+            <thead className="sticky top-0 z-10 bg-[#e9d7cb] shadow-[0_1px_0_#d7c0b1]">
+              <tr className="border-b border-[#e6d7cd] text-left">
+                {['Paciente','Passaporte','Médico responsável','Especialidade','Data','Horário','Status',''].map((label) => <th key={label || 'actions'} className="px-5 py-3 text-[10px] font-black uppercase tracking-[.15em] text-hpsr-wineLight">{label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {tableAppointments.length ? tableAppointments.map((item) => <tr key={item.id} className="border-b border-[#e0cbbd] bg-[#f8eee7] transition last:border-b-0 hover:bg-[#f2e2d7]">
+                <td className="px-5 py-3.5 text-sm font-black text-hpsr-text">{item.patient}</td>
+                <td className="px-5 py-3.5 text-sm font-medium text-hpsr-text">{item.passport ? `Passaporte ${item.passport}` : '—'}</td>
+                <td className="px-5 py-3.5 text-sm font-medium text-hpsr-text">{item.doctor || 'A definir'}</td>
+                <td className="px-5 py-3.5 text-sm font-medium text-hpsr-text">{item.specialty}</td>
+                <td className="px-5 py-3.5 text-sm font-medium text-hpsr-text">{item.date && item.date !== 'A definir' ? formatDate(item.date) : 'A definir'}</td>
+                <td className="px-5 py-3.5 text-sm font-medium text-hpsr-text">{item.time && item.time !== 'A definir' ? item.time : 'A definir'}</td>
+                <td className="px-5 py-3.5"><span className={`inline-flex min-w-[92px] justify-center rounded-full border px-3 py-1.5 text-[11px] font-black ${consultationStatusClass(item.status)}`}>{item.status}</span></td>
+                <td className="px-5 py-3.5 text-right"><button type="button" onClick={() => setSelectedAppointment(item)} className="inline-flex min-h-9 items-center gap-2 rounded-[12px] border border-[#dcc5b6] bg-[#fffaf7] px-4 text-xs font-black text-hpsr-wine transition hover:border-hpsr-wine/35 hover:bg-[#f8eee7]">Ver detalhes <ChevronRight size={14}/></button></td>
+              </tr>) : <tr><td colSpan={8} className="px-5 py-12 text-center text-sm font-semibold text-hpsr-muted">Nenhum agendamento corresponde aos filtros atuais.</td></tr>}
+            </tbody>
+          </table>
         </div>
       </section>
 
@@ -1234,21 +1254,13 @@ function ScheduleCard({
   href: string;
 }) {
   return (
-    <Link
-      href={href}
-      className="group rounded-[17px] border border-[#d8beaa] bg-[#f4e9de] p-3.5 transition hover:border-hpsr-wineLight/50 hover:bg-[#eee0d1]"
-    >
-      <div className="flex items-start gap-3">
-        <div className="flex min-w-0 gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white shadow-sm">
-            <Icon size={19} />
-          </div>
-          <div className="min-w-0">
-            <h3 className="truncate text-sm font-black text-hpsr-text">{title}</h3>
-            <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">{description}</p>
-          </div>
-        </div>
-      </div>
+    <Link href={href} className="group flex min-h-[86px] items-center gap-3 rounded-[17px] border border-[#d2b8a8] bg-[#f3e4d9] p-3 shadow-[0_5px_16px_rgba(83,43,31,.045)] transition hover:border-[#c99f89] hover:bg-[#f7e9df]">
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[13px] bg-[linear-gradient(135deg,#8f3219,#641c0c)] text-white shadow-sm"><Icon size={21}/></span>
+      <span className="min-w-0 flex-1">
+        <strong className="block text-[15px] font-black text-hpsr-text">{title}</strong>
+        <span className="mt-1 block max-w-[260px] text-sm leading-relaxed text-hpsr-muted">{description}</span>
+      </span>
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] border border-[#dcc5b6] bg-white text-hpsr-wine transition group-hover:border-hpsr-wine/30"><ChevronRight size={15}/></span>
     </Link>
   );
 }

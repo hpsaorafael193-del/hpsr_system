@@ -151,7 +151,7 @@ export function PatientProfilePanel({ onSessionExpired, onSaved }: { onSessionEx
           <ProfileField label="Data de nascimento"><input className="portal-input" type="date" value={profile.birthDate} onChange={(e)=>setProfile(v=>({...v,birthDate:e.target.value}))} /></ProfileField>
           <ProfileField label="Sexo"><StyledSelect className="portal-input" value={profile.sex} onChange={(e)=>setProfile(v=>({...v,sex:e.target.value}))}><option value="">Não informado</option><option value="Masculino">Masculino</option><option value="Feminino">Feminino</option></StyledSelect></ProfileField>
         </div>
-        <div className="mt-4 rounded-[13px] border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs font-semibold leading-relaxed text-amber-950"><strong>Passaporte não pode ser alterado aqui.</strong> Ele é usado para ligar sua conta ao seu prontuário.</div>
+        <div className="mt-4 rounded-[13px] border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs font-semibold leading-relaxed text-amber-950"><strong>Passaporte não pode ser alterado aqui.</strong> Ele é usado para ligar sua conta ao seu cadastro no hospital.</div>
         <button disabled={saving} className="mt-4 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-60">{saving ? <Loader2 className="animate-spin" size={17}/> : <Save size={17}/>}Salvar dados</button>
       </form>
 

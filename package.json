@@ -1,6 +1,6 @@
 {
   "name": "hpsr-system",
-  "version": "1.1.2",
+  "version": "1.1.16-test.75",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "audit:portal": "node tests/portal-audit.mjs"
+    "audit:portal": "node tests/portal-audit.mjs",
+    "audit:release": "node tests/release-audit.mjs",
+    "audit:current": "node tests/portal-audit.mjs && node tests/staff-registration-audit.mjs && node tests/patient-link-permission-v116t4.mjs && node tests/release-audit.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -34,7 +36,7 @@
   "engines": {
     "node": "24.x"
   },
-  "packageManager": "pnpm@10.13.1",
+  "packageManager": "pnpm@12.2.0",
   "pnpm": {
     "overrides": {
       "es-to-primitive": "1.3.0"

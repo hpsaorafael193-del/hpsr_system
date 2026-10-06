@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { clearLoginPersistence } from "@/lib/auth-persistence";
 import { CLINICAL_BOARD_CHANGED_EVENT, loadSharedClinicalBoard } from "@/lib/clinical-board-cache";
+import { hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
 
 type ClockStatus = "Fora de serviço" | "Em serviço" | "Em pausa";
 type MedicalNotification = {
@@ -374,7 +375,7 @@ export function UserMenu() {
   async function handleAction(action: "enter" | "pause" | "return" | "finish") {
     if (actionLoading) return;
     if (action === "finish" && clock.status === "Em pausa") {
-      const confirmed = window.confirm("O ponto está em pausa. Deseja encerrar a pausa e finalizar o ponto agora?");
+      const confirmed = await hpsrConfirm("O ponto está em pausa. Deseja encerrar a pausa e finalizar o ponto agora?", "Finalizar ponto");
       if (!confirmed) return;
     }
     const client = createClient();

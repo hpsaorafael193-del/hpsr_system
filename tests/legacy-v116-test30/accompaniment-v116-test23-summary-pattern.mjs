@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const read = (p) => readFileSync(p, 'utf8');
+const pkg = JSON.parse(read('package.json'));
+const page = read('src/app/dashboard/obstetra/page.tsx');
+assert.equal(pkg.version, '1.1.16-test.30');
+assert(page.includes('aria-label="Resumo do acompanhamento"'));
+assert(page.includes('Visão rápida dos principais marcos deste acompanhamento.'));
+assert(page.includes('text-[#9e5a72]'));
+assert(page.includes('bg-transparent'));
+assert(page.includes('border-[#dcbac4]'));
+assert(!page.includes('absolute bottom-0 left-0 top-0 hidden w-[3px]'));
+console.log('PASS v1.1.16-test.30: resumo usa rosa apenas nas linhas e detalhes, sem fundo rosa nem ícone decorativo.');

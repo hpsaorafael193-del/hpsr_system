@@ -7,6 +7,7 @@ import { ChevronDown, Code2, Menu } from "lucide-react";
 import { adminNavigation, mainNavigation, toolsNavigation } from "@/data/navigation";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { canAccessObstetra } from "@/lib/obstetra-access";
+import { isFullAccessAdministrativeRole } from "@/lib/staff-specialties";
 import { cn } from "@/lib/utils";
 
 export function Sidebar({ collapsed, onToggle, onOpenSystemInfo, hasPendingAppointmentRequest = false }: { collapsed: boolean; onToggle: () => void; onOpenSystemInfo: () => void; hasPendingAppointmentRequest?: boolean }) {
@@ -14,7 +15,8 @@ export function Sidebar({ collapsed, onToggle, onOpenSystemInfo, hasPendingAppoi
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const canSeeTeamAdmin =
     currentUserProfile.systemRole === "Administrador do Sistema" ||
-    ["Diretora", "Vice Diretor"].includes(currentUserProfile.role);
+    isFullAccessAdministrativeRole(currentUserProfile.role) ||
+    currentUserProfile.role === "Vice Diretor";
   const visibleAdminNavigation = canSeeTeamAdmin ? adminNavigation.filter((item) => !item.internalOnly || ["Diretora", "Vice Diretor / Dev"].includes(currentUserProfile.role)) : [];
   const visibleToolsNavigation = toolsNavigation.filter((item) =>
     canSeeNavigationItem(item, currentUserProfile.role) &&

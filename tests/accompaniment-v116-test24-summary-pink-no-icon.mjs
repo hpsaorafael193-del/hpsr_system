@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const page = readFileSync('src/app/dashboard/obstetra/page.tsx','utf8');
+const pkg = JSON.parse(readFileSync('package.json','utf8'));
+assert.equal(pkg.version, '1.1.16-test.30');
+const label = page.indexOf('aria-label="Resumo do acompanhamento"');
+const start = page.lastIndexOf('<aside', label);
+const end = page.indexOf('</aside>', label);
+assert(start >= 0 && end > start);
+const block = page.slice(start, end);
+assert(block.includes('bg-transparent'));
+assert(!block.includes('border-[#dcbac4]'));
+assert(block.includes('border-[#dfc4cd]'));
+assert(block.includes('text-[#9e5a72]'));
+assert(!block.includes('<Baby'));
+assert(!block.includes('<Sparkles'));
+assert(!block.includes('hpsr-obstetric-icon'));
+console.log('PASS v1.1.16-test.30: resumo integrado, sem borda externa, linhas internas rosas e sem ícone.');

@@ -27,7 +27,7 @@ import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvi
 import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
 import { ClinicalCapacitySettings } from "@/components/dashboard/ClinicalCapacitySettings";
 import { createClient } from "@/lib/supabase";
-import { readSystemActivities, registerSystemActivity, type SystemActivity } from "@/lib/administrative-storage";
+import { registerSystemActivity, type SystemActivity } from "@/lib/administrative-storage";
 
 type EditableProfile = {
   characterName: string;

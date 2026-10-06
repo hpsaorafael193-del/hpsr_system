@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+const page = fs.readFileSync("src/app/dashboard/obstetra/page.tsx", "utf8");
+const css = fs.readFileSync("src/app/globals.css", "utf8");
+assert.equal(pkg.version, "1.1.16-test.30");
+assert(page.includes('hpsr-stage-scroll mt-5'), "Conteúdo integral confirmado deve possuir viewport interno dedicado.");
+assert.match(css, /hpsr-obstetric-stage-preview\s*>\s*\.hpsr-stage-scroll[\s\S]{0,260}max-height:\s*clamp\(440px, 58dvh, 640px\)/);
+assert.match(css, /hpsr-stage-scroll[\s\S]{0,300}overflow-y:\s*auto[\s\S]{0,160}overscroll-behavior-y:\s*auto[\s\S]{0,120}scrollbar-gutter:\s*auto/);
+assert.match(css, /@media \(max-width: 767px\)[\s\S]{0,320}hpsr-stage-scroll[\s\S]{0,180}overflow-y:\s*visible/);
+console.log("PASS v1.1.16-test.30: conteúdo integral usa scroll interno só quando excede a altura confortável e não prende scroll curto/mobile.");

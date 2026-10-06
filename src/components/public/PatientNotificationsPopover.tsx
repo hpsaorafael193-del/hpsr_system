@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, CalendarClock, FileCheck2, RefreshCcw, X } from "lucide-react";
 
-type Notice = { id: string; passport: string; kind: string; title: string; description: string; at: string; section: "home" | "appointments" | "pending" | "exam-request" | "records" | "vaccination" };
+type Notice = { id: string; passport: string; kind: string; title: string; description: string; at: string; section: "home" | "appointments" | "pending" | "exam-request" | "records" | "vaccination" | "accompaniment" };
 type Profile = { passport: string; name: string };
 
 export function PatientNotificationsPopover({ accountId, profiles, pending, onNavigate, onSessionExpired }: {
@@ -83,9 +83,9 @@ export function PatientNotificationsPopover({ accountId, profiles, pending, onNa
   return <div className="relative shrink-0">
     <button type="button" onClick={() => { setOpen((old) => !old); if (!open) void refresh(true); }}
       aria-label={`Notificações${unread ? `, ${unread} não lidas` : ""}`} aria-expanded={open}
-      className="relative inline-flex min-h-[42px] items-center gap-2 rounded-[12px] border border-[#d4c0ae] bg-[#f5ede5] px-3 text-xs font-bold text-hpsr-wine shadow-[0_3px_10px_rgba(73,47,34,.045)] transition hover:bg-[#eee1d5]">
-      <Bell size={18}/><span className="hidden sm:inline">Notificações</span>
-      {unread > 0 && <span className="rounded-full bg-hpsr-wine px-1.5 py-0.5 text-[10px] text-white">{unread > 99 ? "99+" : unread}</span>}
+      className="relative inline-flex h-11 w-11 items-center justify-center rounded-[12px] border border-[#d4c0ae] bg-[#f5ede5] text-hpsr-wine shadow-[0_3px_10px_rgba(73,47,34,.045)] transition hover:bg-[#eee1d5]">
+      <Bell size={19}/>
+      {unread > 0 && <span className="absolute right-1.5 top-1.5 grid min-h-4 min-w-4 place-items-center rounded-full bg-[#672614] px-1 text-[9px] font-black text-white">{unread > 9 ? "9+" : unread}</span>}
     </button>
     {open && <><button className="fixed inset-0 z-[1040] cursor-default" aria-label="Fechar notificações" onClick={() => setOpen(false)}/>
       <section className="fixed left-3 right-3 top-20 z-[1050] max-h-[min(74dvh,520px)] overflow-y-auto rounded-[20px] border border-hpsr-border bg-[#f1e6db] p-3 shadow-[0_20px_65px_rgba(82,48,27,.23)] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[390px]" aria-label="Central de notificações">

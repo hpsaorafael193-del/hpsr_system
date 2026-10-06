@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
       const occurrences = byPlan.get(plan.id) || [];
       const integralAvailable = Boolean(
         plan.portal_released_at &&
-        plan.planning_released_document_path?.startsWith(`${plan.doctor_id}/${plan.id}/`)
+        (Boolean(plan.planning_released_snapshot) || plan.planning_released_document_path?.startsWith(`${plan.doctor_id}/${plan.id}/`))
       );
       const integralSnapshot = integralAvailable && plan.planning_released_snapshot && typeof plan.planning_released_snapshot === "object"
         ? plan.planning_released_snapshot
@@ -55,13 +55,21 @@ export async function GET(request: NextRequest) {
           ? occurrence.individual_released_snapshot
           : {};
         const documentAvailable = Boolean(occurrence.individual_released_document_path?.startsWith(`${plan.doctor_id}/${plan.id}/individual/${occurrence.id}/`));
+        const dynamicAvailable = Boolean(occurrence.individual_released_at && occurrence.individual_released_snapshot);
         return {
           id: occurrence.id,
-          step_number: occurrence.step_number,
-          planned_date: occurrence.planned_date,
-          marker: occurrence.rp_marker,
-          title: occurrence.step_title,
-          ...snapshot,
+          patient_name: dynamicAvailable && typeof snapshot.patient_name === "string" ? snapshot.patient_name : plan.patient_name,
+          doctor_name: dynamicAvailable && typeof snapshot.doctor_name === "string" ? snapshot.doctor_name : plan.doctor_name,
+          step_number: dynamicAvailable && Number(snapshot.step_number) > 0 ? Number(snapshot.step_number) : occurrence.step_number,
+          planned_date: dynamicAvailable && typeof snapshot.planned_date === "string" ? snapshot.planned_date : occurrence.planned_date,
+          marker: dynamicAvailable && typeof snapshot.marker === "string" ? snapshot.marker : occurrence.rp_marker,
+          title: dynamicAvailable && typeof snapshot.title === "string" ? snapshot.title : occurrence.step_title,
+          planned_text: typeof snapshot.planned_text === "string" ? snapshot.planned_text : "",
+          evolution_text: typeof snapshot.evolution_text === "string" ? snapshot.evolution_text : "",
+          exams_performed: typeof snapshot.exams_performed === "string" ? snapshot.exams_performed : "",
+          exam_explanation: typeof snapshot.exam_explanation === "string" ? snapshot.exam_explanation : "",
+          patient_observations: typeof snapshot.patient_observations === "string" ? snapshot.patient_observations : "",
+          dynamic_available: dynamicAvailable,
           png_url: documentAvailable ? `/api/paciente/planejamentos-gestacionais/individual?occurrenceId=${encodeURIComponent(occurrence.id)}&passport=${encodeURIComponent(passport)}` : null,
           released_at: occurrence.individual_released_at,
         };
@@ -79,10 +87,11 @@ export async function GET(request: NextRequest) {
           total_consultations: null,
         }),
         portal_released_at: integralAvailable ? plan.portal_released_at : null,
-        png_url: integralAvailable ? `/api/paciente/planejamentos-gestacionais/documento?planId=${encodeURIComponent(plan.id)}&passport=${encodeURIComponent(passport)}` : null,
+        dynamic_available: Boolean(integralAvailable && integralSnapshot),
+        png_url: integralAvailable && plan.planning_released_document_path ? `/api/paciente/planejamentos-gestacionais/documento?planId=${encodeURIComponent(plan.id)}&passport=${encodeURIComponent(passport)}` : null,
         individuals,
       };
-    }).filter((plan) => plan.png_url || plan.individuals.length);
+    }).filter((plan) => plan.dynamic_available || plan.png_url || plan.individuals.length);
 
     return NextResponse.json({ plans }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (caught) {

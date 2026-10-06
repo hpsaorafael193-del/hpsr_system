@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import dynamic from "next/dynamic";
 import {
-  AlertCircle, Baby, BellRing, CalendarClock, ClipboardPlus, FileHeart, FlaskConical, HeartPulse, HelpCircle, Syringe,
-  Loader2, LockKeyhole, LogIn, MailX, Plus, ShieldCheck, Trash2, UserPlus, UserRound, X,
+  AlertCircle, ArrowRight, Baby, BellRing, CalendarClock, CalendarDays, CheckCircle2, ClipboardList, ClipboardPlus, FileHeart, FileText, FlaskConical, HeartPulse, HelpCircle, Home, Syringe,
+  Loader2, LockKeyhole, LogIn, MailX, Plus, ShieldCheck, Trash2, UserPlus, UserRound, Users, X,
+  type LucideIcon,
 } from "lucide-react";
 import { PatientGestationalPlansPanel } from "@/components/public/PatientGestationalPlansPanel";
+import { PatientFollowupFormsPanel } from "@/components/public/PatientFollowupFormsPanel";
 import { PatientRecordsPanel } from "@/components/public/PatientRecordsPanel";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { PatientAppointmentsPanel } from "@/components/public/PatientAppointmentsPanel";
@@ -18,7 +20,7 @@ import { clearAuthContext, clearLoginPersistence, setAuthContext } from "@/lib/a
 import { formatCityPhoneNumber, normalizeDiscordId } from "@/lib/phone";
 
 type Stage = "checking" | "login" | "register" | "portal";
-type PortalSection = "home" | "appointments" | "request" | "followups" | "exam-request" | "records" | "gestation" | "ivf" | "vaccination" | "pending" | "profile";
+type PortalSection = "home" | "consultations" | "exams" | "documents" | "accompaniment" | "family" | "appointments" | "request" | "followups" | "exam-request" | "records" | "gestation" | "ivf" | "vaccination" | "pending" | "profile";
 type PortalPatient = { passport: string; name: string; relationship: string; access_type: string; hasClinicalContact?: boolean; discord?: string; cityPhone?: string; preferredContact?: "discord" | "city_phone" | null };
 type PendingChildLink = { passport: string; name: string; relationship: string; status: string };
 type SessionResponse = { authenticated?: boolean; accountId?: string; patientName?: string; accessiblePatients?: PortalPatient[]; pendingChildLinks?: PendingChildLink[]; hasOwnProfile?: boolean };
@@ -458,136 +460,205 @@ export function PatientAccessPanel() {
     const selectedProfile = accessiblePatients.find((item) => item.passport === selectedPassport);
     const activeFollowups = followupPassport === selectedPassport ? followupData : null;
     const isChildProfile = selectedProfile?.access_type !== "self" && Boolean(selectedProfile);
-    // Ordem funcional fixa; acompanhamentos específicos aparecem somente quando liberados.
-    const sections = [
-      { id: "request" as const, icon: ClipboardPlus, title: "Solicitar consulta", subtitle: "Peça um atendimento." },
-      { id: "exam-request" as const, icon: FlaskConical, title: "Solicitar exame", subtitle: "Peça e acompanhe exames." },
-      { id: "appointments" as const, icon: CalendarClock, title: "Meus agendamentos", subtitle: "Consultas e retornos." },
-      { id: "followups" as const, icon: CalendarClock, title: "Horários do médico", subtitle: "Escolha um horário publicado." },
-      { id: "records" as const, icon: FileHeart, title: "Prontuário e documentos", subtitle: "Seus registros liberados." },
-      { id: "pending" as const, icon: AlertCircle, title: "Pendências", subtitle: "Solicitações que exigem atenção." },
-      ...(showGestation ? [{ id: "gestation" as const, icon: Baby, title: "Gestação", subtitle: "Seu planejamento gestacional." }] : []),
-      ...(showIVF ? [{ id: "ivf" as const, icon: HeartPulse, title: "FIV", subtitle: "Seu planejamento de FIV." }] : []),
-      ...(isChildProfile ? [{ id: "vaccination" as const, icon: Syringe, title: "Vacinação", subtitle: "Caderneta infantil." }] : []),
+    const activeName = selectedProfile?.name || patientName;
+
+    const quickAccess = [
+      { id: "home" as const, icon: Home, title: "Início" },
+      { id: "consultations" as const, icon: CalendarDays, title: "Consultas" },
+      { id: "exams" as const, icon: FlaskConical, title: "Exames" },
+      { id: "documents" as const, icon: FileText, title: "Documentos" },
+      { id: "accompaniment" as const, icon: HeartPulse, title: "Acompanhamento" },
     ];
 
+    const nextAppointment = activeFollowups?.followups
+      .filter((item) => item.nextOccurrence?.scheduleState === "scheduled" && item.nextOccurrence.scheduledAt)
+      .sort((a, b) => new Date(a.nextOccurrence?.scheduledAt || 0).getTime() - new Date(b.nextOccurrence?.scheduledAt || 0).getTime())[0];
+    const nextAppointmentDate = nextAppointment?.nextOccurrence?.scheduledAt ? new Date(nextAppointment.nextOccurrence.scheduledAt) : null;
+    const nextAppointmentValid = Boolean(nextAppointmentDate && !Number.isNaN(nextAppointmentDate.getTime()));
+
+    const goToProfile = (passport: string) => {
+      const match = accessiblePatients.find((item) => item.passport === passport);
+      if (!match) return;
+      setSelectedPassport(match.passport);
+      openPortalSection("home");
+    };
+
     return (
-      <div className="mx-auto max-w-7xl">
-        <div className="grid min-w-0 gap-4">
-          <main className="min-w-0 overflow-hidden rounded-[22px] border border-[#d6c3b0] bg-[#f4ece3] shadow-[0_11px_29px_rgba(77,50,32,.06)]">
-            <div className="flex flex-col gap-3 border-b border-[#d7c6b5] bg-[#eaddcf] p-3.5 sm:p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[.12em] text-hpsr-wineLight">Área do paciente</p>
-                  <h2 className="mt-0.5 text-lg font-bold text-hpsr-text">Olá, {patientName}</h2>
+      <div className="w-full px-1.5 pb-5 pt-3 sm:px-3 sm:pt-4 lg:px-4 xl:px-5">
+        <div className="overflow-hidden bg-[#f2ebe3] shadow-[0_10px_28px_rgba(66,39,25,.045)] lg:rounded-[16px]">
+          {selectedPassport ? (
+            <>
+              <section className={`grid border-b border-[#ded0c3] lg:grid-cols-[43%_57%] ${isChildProfile ? "min-h-[278px]" : "min-h-[240px]"}`}>
+                <div className={`flex flex-col justify-center bg-[radial-gradient(circle_at_15%_15%,rgba(255,250,244,.76),transparent_36%),linear-gradient(120deg,#f4ede4_0%,#ebe1d6_100%)] px-6 sm:px-9 lg:px-10 ${isChildProfile ? "py-7 lg:py-8" : "py-6 lg:py-7"}`}>
+                  <p className="mb-2 text-[10px] font-black uppercase tracking-[.18em] text-[#8c6d5c]">{isChildProfile ? "Portal da criança" : "Portal do Paciente"}</p>
+                  <h1 className="max-w-[650px] text-[clamp(2rem,4vw,3.25rem)] font-black leading-[1.02] tracking-[-.04em] text-[#4c281b]">{isChildProfile ? `Cuidando de ${activeName}, com tudo no lugar certo.` : "Cuidado humanizado, com mais praticidade."}</h1>
+                  <p className="mt-3 max-w-xl text-[clamp(.95rem,1.35vw,1.08rem)] font-medium leading-relaxed text-[#7e7168]">{isChildProfile ? `Consultas, exames, documentos e solicitações deste perfil são sempre relacionados a ${activeName}.` : "Resolva pelo Portal o que não precisa esperar sua ida ao hospital."}</p>
+                  {isChildProfile && <div className="mt-4 flex w-fit max-w-full items-center gap-3 rounded-[12px] border border-[#cdb8a9] bg-[#f8eee5] px-3.5 py-2.5 shadow-[0_8px_20px_rgba(83,39,27,.05)]"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#672614] text-white"><Baby size={16}/></span><span className="min-w-0"><strong className="block truncate text-xs font-black text-[#4e291c]">Perfil infantil ativo: {activeName}</strong><span className="mt-0.5 block text-[11px] font-semibold text-[#846f63]">Tudo o que você fizer agora será para esta criança.</span></span></div>}
+                  <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                    <button type="button" onClick={() => openPortalSection("followups")} className="inline-flex min-h-[46px] items-center justify-center gap-3 rounded-[8px] bg-[#65331f] px-7 text-sm font-black text-white transition hover:brightness-105">{isChildProfile ? `Escolher horário para ${activeName}` : "Escolher um horário"} <ArrowRight size={18}/></button>
+                    <button type="button" onClick={() => openPortalSection("request")} className="inline-flex min-h-[46px] items-center justify-center gap-3 rounded-[8px] border border-[#704630] bg-transparent px-7 text-sm font-black text-[#5f321f] transition hover:bg-[#fbf4ec]/80">{isChildProfile ? `Pedir consulta para ${activeName}` : "Pedir nova consulta"} <ArrowRight size={18}/></button>
+                  </div>
+                  <p className="mt-2 max-w-xl text-[11px] font-semibold leading-relaxed text-[#8a786d]">Já recebeu horários do médico? <strong className="text-[#5f321f]">Escolha um horário.</strong> Ainda precisa pedir atendimento? <strong className="text-[#5f321f]">Peça uma consulta.</strong></p>
                 </div>
-              </div>
+                <div className="relative min-h-[210px] overflow-hidden bg-[#eadfd6] lg:min-h-[240px]">
+                  <div className="absolute inset-0 scale-[1.012] bg-[url('/portal-paciente-banner.webp')] bg-cover bg-center filter saturate-[.72] contrast-[1.12] brightness-[.94]" />
+                  <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(76,25,18,.66)_0%,rgba(103,38,20,.42)_18%,rgba(103,38,20,.20)_42%,rgba(103,38,20,.06)_68%,rgba(103,38,20,0)_100%)]" />
+                  <div className="absolute inset-y-0 left-0 w-[22%] bg-[linear-gradient(90deg,rgba(76,25,18,.50)_0%,rgba(103,38,20,.22)_55%,rgba(103,38,20,0)_100%)]" />
+                  <div className="absolute inset-x-0 bottom-0 h-[16%] bg-[linear-gradient(0deg,rgba(88,32,21,.14),rgba(88,32,21,0))]" />
+                </div>
+              </section>
 
-              {accessiblePatients.length > 0 && <nav className="hpsr-touch-scroll flex w-full gap-2 overflow-x-auto pb-1" aria-label="Áreas do portal">
-                {sections.map(({ id, icon: Icon, title }) => {
-                  const active = portalSection === id;
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      onClick={() => openPortalSection(id)}
-                      className={`flex min-h-[42px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[12px] border px-3 py-2 text-xs font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_2px_6px_rgba(80,39,27,.10)]" : "border-[#d5c0ac] bg-[#f7f0e9] text-hpsr-text hover:border-[#b5967f] hover:bg-[#eee0d3]"}`}
-                    >
-                      <Icon size={16} />
-                      <span>{title}</span>
-                      {id === "followups" && Boolean(activeFollowups?.agendaAvailableCount) && <span className={`ml-1 inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[9px] font-black ${active ? "bg-white text-hpsr-wine" : "bg-[#537368] text-white"}`}>{activeFollowups?.agendaAvailableCount}</span>}
-                    </button>
-                  );
-                })}
-              </nav>}
-            </div>
+              {isChildProfile && (
+                <section className="flex flex-col gap-3 border-b border-[#d8c5b8] bg-[#eaded3] px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-10">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#672614] text-white"><Baby size={17}/></span>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-[.15em] text-[#8b6758]">Você está cuidando de</p>
+                      <p className="truncate text-sm font-black text-[#4e291c]">{activeName}</p>
+                    </div>
+                    <span className="hidden h-7 w-px bg-[#ccb7a9] sm:block" />
+                    <p className="hidden text-xs font-semibold text-[#79675d] sm:block">Todas as áreas abaixo usam os dados desta criança.</p>
+                  </div>
+                  <button type="button" onClick={() => openPortalSection("family")} className="inline-flex min-h-[38px] shrink-0 items-center justify-center gap-2 rounded-[8px] border border-[#b99c8b] bg-[#f8efe7] px-3.5 text-xs font-black text-[#672614] transition hover:bg-[#f3e6db]"><Users size={14}/> Trocar perfil</button>
+                </section>
+              )}
 
-            <div className="hpsr-patient-content p-3.5 sm:p-4">
-              {pendingChildLinks.length > 0 && (
-                <div className="mb-3 rounded-[16px] border border-amber-200 bg-amber-50 p-3.5">
-                  <p className="text-xs font-black uppercase tracking-[.13em] text-amber-800">Vínculos pediátricos aguardando validação</p>
-                  <div className="mt-2 space-y-2">
-                    {pendingChildLinks.map((item) => (
-                      <div key={item.passport} className="rounded-[12px] border border-amber-200/80 bg-white px-3 py-2.5">
-                        <p className="text-sm font-black text-hpsr-text">{item.name}</p>
-                        <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{item.relationship} · {item.passport} · Aguardando a Direção</p>
+              <section className="grid border-b border-[#ded0c3] bg-[#f6efe7] sm:grid-cols-2 lg:grid-cols-5">
+                {quickAccess.map(({ id, icon: Icon, title }, index) => (
+                  <button key={`${title}-${index}`} type="button" onClick={() => openPortalSection(id)} className="group flex min-h-[76px] items-center gap-4 border-b border-[#ded0c3] px-6 py-4 text-left transition hover:bg-[#eee5dc] sm:[&:nth-child(odd)]:border-r lg:border-b-0 lg:border-r lg:[&:nth-child(odd)]:border-r lg:last:border-r-0">
+                    <Icon size={26} strokeWidth={1.7} className="shrink-0 text-[#672614]"/>
+                    <strong className="min-w-0 flex-1 text-[15px] font-bold text-[#4f2c20]">{title}</strong><ArrowRight size={15} className="text-[#672614]"/>
+                  </button>
+                ))}
+              </section>
+
+              <main ref={portalContentRef} tabIndex={-1} className="scroll-mt-24 outline-none" aria-live="polite">
+                {pendingChildLinks.length > 0 && (
+                  <div className="mx-5 mt-5 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 sm:mx-8">
+                    <p className="text-sm font-black text-amber-900">Cadastro de criança aguardando validação</p>
+                    <p className="mt-1 text-xs font-semibold leading-relaxed text-amber-900/80">A equipe do Hospital São Rafael precisa confirmar o vínculo antes de liberar as informações da criança.</p>
+                  </div>
+                )}
+
+                {portalSection === "home" && (
+                  <div className="px-6 py-8 sm:px-10 lg:px-12 lg:py-10">
+                    <div className="grid gap-5 lg:grid-cols-[1.08fr_.92fr]">
+                      <section className="rounded-[18px] border border-[#ddcfc2] bg-[#f6efe7] p-5 sm:p-6">
+                        <div className="flex items-center justify-between gap-3">
+                          <div><p className="text-[11px] font-black uppercase tracking-[.15em] text-[#927566]">Próximo atendimento</p><h2 className="mt-1 text-[clamp(1.45rem,2.4vw,1.9rem)] font-bold text-[#4e291c]">{nextAppointment ? (isChildProfile ? `Próxima consulta de ${activeName}` : "Sua próxima consulta") : (isChildProfile ? `Nenhuma consulta confirmada para ${activeName}` : "Nenhuma consulta confirmada")}</h2></div>
+                          <CalendarDays size={25} className="text-[#672614]"/>
+                        </div>
+                        {nextAppointment && nextAppointmentDate && nextAppointmentValid ? <div className="mt-5 flex flex-col gap-5 border-t border-[#ddcfc2] pt-5 sm:flex-row sm:items-center">
+                          <div className="min-w-[88px] border-b border-[#ddcfc2] pb-4 sm:border-b-0 sm:border-r sm:pb-0 sm:pr-5"><strong className="block text-4xl leading-none text-[#4e291c]">{nextAppointmentDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit" })}</strong><span className="mt-1 block text-sm font-black uppercase text-[#6d4435]">{nextAppointmentDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", month: "short" }).replace(".", "")}</span></div>
+                          <div className="min-w-0 flex-1"><p className="text-lg font-bold text-[#4e291c]">{nextAppointment.doctorName}</p><p className="mt-1 text-sm text-[#82736a]">{nextAppointment.specialty}</p><p className="mt-2 text-xs font-semibold text-[#672614]">{nextAppointmentDate.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", hour: "2-digit", minute: "2-digit" })}</p></div>
+                          <button type="button" onClick={() => openPortalSection("appointments")} className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[8px] border border-[#672614] px-4 text-xs font-black text-[#672614]">Ver detalhes <ArrowRight size={15}/></button>
+                        </div> : <div className="mt-5 flex items-center justify-between gap-4 border-t border-[#ddcfc2] pt-5"><p className="text-sm text-[#82736a]">Quando uma consulta for confirmada, ela aparece aqui.</p><button type="button" onClick={() => openPortalSection("consultations")} className="text-xs font-black text-[#672614] underline underline-offset-4">Ver consultas</button></div>}
+                      </section>
+
+                      <section className="rounded-[18px] border border-[#ddcfc2] bg-[#f6efe7] p-5 sm:p-6">
+                        <div className="flex items-center justify-between gap-3"><div><p className="text-[11px] font-black uppercase tracking-[.15em] text-[#927566]">Ações rápidas</p><h2 className="mt-1 text-[clamp(1.45rem,2.4vw,1.9rem)] font-bold text-[#4e291c]">O que você precisa?</h2></div><ArrowRight size={22} className="text-[#672614]"/></div>
+                        <div className="mt-4 divide-y divide-[#ddcfc2] border-t border-[#ddcfc2]">
+                          <button type="button" onClick={() => openPortalSection("followups")} className="flex w-full items-center gap-3 py-3.5 text-left"><CalendarClock size={19} className="text-[#672614]"/><strong className="flex-1 text-sm text-[#4d291d]">{isChildProfile ? `Escolher horário para ${activeName}` : "Escolher horário do médico"}</strong><ArrowRight size={15}/></button>
+                          <button type="button" onClick={() => openPortalSection("request")} className="flex w-full items-center gap-3 py-3.5 text-left"><ClipboardPlus size={19} className="text-[#672614]"/><strong className="flex-1 text-sm text-[#4d291d]">{isChildProfile ? `Pedir consulta para ${activeName}` : "Pedir nova consulta"}</strong><ArrowRight size={15}/></button>
+                          <button type="button" onClick={() => openPortalSection("exam-request")} className="flex w-full items-center gap-3 py-3.5 text-left"><FlaskConical size={19} className="text-[#672614]"/><strong className="flex-1 text-sm text-[#4d291d]">{isChildProfile ? `Pedir exame para ${activeName}` : "Pedir exame"}</strong><ArrowRight size={15}/></button>
+                        </div>
+                      </section>
+                    </div>
+
+                    {Boolean(activeFollowups?.agendaAvailableCount) && <button type="button" onClick={() => openPortalSection("followups")} className="mt-5 flex w-full items-center gap-3 rounded-[14px] border border-[#d8c1b3] bg-[#f3e7df] px-4 py-3 text-left"><BellRing size={18} className="text-[#672614]"/><strong className="flex-1 text-sm text-[#672614]">Seu médico publicou novos horários.</strong><span className="text-xs font-black text-[#672614]">Escolher <ArrowRight size={13} className="inline"/></span></button>}
+
+                    <div className="mt-5 grid gap-5 lg:grid-cols-[1.08fr_.92fr]">
+                      <section className="rounded-[18px] border border-[#ddcfc2] bg-[#f6efe7] p-5 sm:p-6">
+                        <div className="flex items-center justify-between gap-3"><div><p className="text-[11px] font-black uppercase tracking-[.15em] text-[#927566]">Meu acompanhamento</p><h2 className="mt-1 text-xl font-bold text-[#4e291c]">Seu cuidado, etapa por etapa</h2></div><HeartPulse size={24} className="text-[#672614]"/></div>
+                        {showGestation || showIVF ? <div className="mt-4 grid gap-3 sm:grid-cols-2">{showGestation && <button type="button" onClick={() => openPortalSection("gestation")} className="flex items-center gap-3 rounded-[14px] border border-[#ddcfc2] bg-[#fcf8f3] px-4 py-4 text-left"><Baby size={21} className="text-[#672614]"/><span className="flex-1"><strong className="block text-sm text-[#4e291c]">Gestação</strong><span className="mt-1 block text-xs text-[#82736a]">Ver planejamento</span></span><ArrowRight size={15}/></button>}{showIVF && <button type="button" onClick={() => openPortalSection("ivf")} className="flex items-center gap-3 rounded-[14px] border border-[#ddcfc2] bg-[#fcf8f3] px-4 py-4 text-left"><HeartPulse size={21} className="text-[#672614]"/><span className="flex-1"><strong className="block text-sm text-[#4e291c]">Fertilização in vitro</strong><span className="mt-1 block text-xs text-[#82736a]">Ver etapas</span></span><ArrowRight size={15}/></button>}</div> : <p className="mt-4 text-sm text-[#82736a]">Nenhum acompanhamento liberado no momento.</p>}
+                      </section>
+
+                      <section className="rounded-[18px] border border-[#ddcfc2] bg-[#f6efe7] p-5 sm:p-6">
+                        <div className="flex items-center justify-between gap-3"><div><p className="text-[11px] font-black uppercase tracking-[.15em] text-[#927566]">Minha família</p><h2 className="mt-1 text-xl font-bold text-[#4e291c]">Crianças vinculadas</h2></div><Users size={24} className="text-[#672614]"/></div>
+                        <div className="mt-4 flex flex-wrap gap-2">{accessiblePatients.filter((item) => item.access_type !== "self").slice(0, 3).map((item) => <button type="button" key={item.passport} onClick={() => goToProfile(item.passport)} className="rounded-full border border-[#ddcfc2] bg-[#fcf8f3] px-3 py-2 text-xs font-bold text-[#4e291c]">{item.name}</button>)}{!accessiblePatients.some((item) => item.access_type !== "self") && <span className="text-xs text-[#82736a]">Nenhuma criança vinculada.</span>}</div>
+                        <button type="button" onClick={() => setChildOpen(true)} className="mt-4 inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-[8px] bg-[#65331f] px-4 text-sm font-black text-white"><Plus size={16}/> Cadastrar criança</button>
+                      </section>
+                    </div>
+                  </div>
+                )}
+
+                {portalSection === "consultations" && <PortalChoicePage eyebrow="Consultas" title="O que você quer fazer?" description="Escolha uma opção. Pedir uma consulta e confirmar um horário são ações diferentes.">
+                  <PortalChoice icon={CalendarClock} title="Escolher um horário" text="Seu médico já disponibilizou horários? Entre aqui para escolher uma opção e confirmar." emphasis onClick={() => openPortalSection("followups")} />
+                  <PortalChoice icon={ClipboardPlus} title="Pedir nova consulta" text="Use quando você precisa solicitar um novo atendimento. O pedido não confirma data nem horário." onClick={() => openPortalSection("request")} />
+                  <PortalChoice icon={CheckCircle2} title="Minhas consultas" text="Veja consultas já confirmadas, retornos e histórico de atendimentos." onClick={() => openPortalSection("appointments")} />
+                  <PortalChoice icon={AlertCircle} title="Pedidos em andamento" text="Acompanhe solicitações que ainda dependem de análise ou resposta da equipe." onClick={() => openPortalSection("pending")} />
+                </PortalChoicePage>}
+
+                {portalSection === "exams" && <div className="px-5 py-7 sm:px-8 lg:px-10"><div className="mb-6 flex flex-col gap-3 border-b border-[#ddcfc2] pb-5 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-[11px] font-black uppercase tracking-[.15em] text-[#927566]">Exames</p><h2 className="mt-1 text-2xl font-bold text-[#4e291c]">Seus exames em um só lugar</h2><p className="mt-2 text-sm text-[#82736a]">Peça um novo exame ou consulte resultados que já foram liberados pela equipe.</p></div><button type="button" onClick={() => openPortalSection("exam-request")} className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[8px] bg-[#65331f] px-5 text-sm font-black text-white"><Plus size={16}/> Pedir um exame</button></div><PatientRecordsPanel key={`${selectedPassport}:exams`} passport={selectedPassport} mode="exams" onSessionExpired={handleSessionExpired}/></div>}
+
+                {portalSection === "documents" && <div className="px-5 py-7 sm:px-8 lg:px-10"><div className="mb-5 border-b border-[#ddcfc2] pb-5"><p className="text-[11px] font-black uppercase tracking-[.15em] text-[#927566]">Documentos</p><h2 className="mt-1 text-2xl font-bold text-[#4e291c]">Receitas e documentos</h2><p className="mt-2 text-sm text-[#82736a]">Aqui ficam receitas, atestados, laudos e outros documentos liberados para você.</p></div><PatientRecordsPanel key={`${selectedPassport}:documents`} passport={selectedPassport} mode="documents" onSessionExpired={handleSessionExpired}/></div>}
+
+                {portalSection === "accompaniment" && <div className="px-5 py-7 sm:px-8 lg:px-10">
+                  <SectionIntro eyebrow="Acompanhamento" title="Meu acompanhamento" text="Planejamentos, etapas e formulários enviados pela sua equipe ficam reunidos aqui."/>
+                  <div className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
+                    <section className="rounded-[18px] border border-[#ddcfc2] bg-[#f6efe7] p-5">
+                      <p className="text-[11px] font-black uppercase tracking-[.14em] text-[#927566]">Planos de cuidado</p>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        {showGestation && <button type="button" onClick={() => openPortalSection("gestation")} className="flex min-h-[96px] items-center gap-4 rounded-[14px] border border-[#ddcfc2] bg-[#fcf8f3] px-4 text-left"><Baby size={25} className="text-[#672614]"/><span className="flex-1"><strong className="block text-base text-[#4e291c]">Gestação</strong><span className="mt-1 block text-xs text-[#82736a]">Planejamento e etapas</span></span><ArrowRight size={16}/></button>}
+                        {showIVF && <button type="button" onClick={() => openPortalSection("ivf")} className="flex min-h-[96px] items-center gap-4 rounded-[14px] border border-[#ddcfc2] bg-[#fcf8f3] px-4 text-left"><HeartPulse size={25} className="text-[#672614]"/><span className="flex-1"><strong className="block text-base text-[#4e291c]">Fertilização in vitro</strong><span className="mt-1 block text-xs text-[#82736a]">Planejamento e etapas</span></span><ArrowRight size={16}/></button>}
+                        {!showGestation && !showIVF && <div className="sm:col-span-2 rounded-[14px] border border-dashed border-[#d7c8ba] px-4 py-8 text-center"><HeartPulse size={25} className="mx-auto text-[#672614]"/><p className="mt-2 text-sm font-bold text-[#4e291c]">Nenhum plano liberado</p></div>}
                       </div>
-                    ))}
+                    </section>
+                    <section className="rounded-[18px] border border-[#ddcfc2] bg-[#f4eee7] p-5">
+                      <div className="mb-4 flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#e5ded5] text-[#672614]"><ClipboardList size={19}/></span><div><p className="text-[11px] font-black uppercase tracking-[.14em] text-[#927566]">Fichas</p><h3 className="mt-1 text-lg font-bold text-[#4e291c]">Fichas do acompanhamento</h3><p className="mt-1 text-xs text-[#82736a]">Quando sua equipe solicitar uma atualização, ela aparecerá aqui.</p></div></div>
+                      <PatientFollowupFormsPanel passport={selectedPassport} onSessionExpired={handleSessionExpired}/>
+                    </section>
                   </div>
-                  <p className="mt-2 text-xs font-semibold leading-relaxed text-amber-900">O prontuário já foi localizado ou preparado pelo sistema, mas os dados clínicos só serão liberados após a validação.</p>
-                </div>
-              )}
-              {!selectedPassport && <div className="mb-3 rounded-[16px] border border-[#d6c3b0] bg-[#efe3d7] p-4">
-                <h3 className="text-base font-bold text-hpsr-text">Seu espaço no HP São Rafael</h3>
-                <p className="mt-2 text-sm font-semibold leading-relaxed text-hpsr-muted">Cadastre seus filhos e acompanhe a validação dos vínculos. Após a aprovação, selecione a criança no perfil do cabeçalho para acessar o prontuário.</p>
-                <button type="button" onClick={() => setChildOpen(true)} className="mt-3 inline-flex min-h-[42px] items-center gap-2 rounded-[12px] bg-hpsr-wine px-4 text-xs font-black text-white"><Plus size={16}/>Cadastrar filho ou filha</button>
-              </div>}
-              {selectedPassport && <div ref={portalContentRef} tabIndex={-1} className="scroll-mt-24 outline-none sm:scroll-mt-20" aria-live="polite">
-              {Boolean(followupData?.agendaAvailableCount) && portalSection === "home" && (
-                <button type="button" onClick={() => openPortalSection("followups")} className="mb-3 flex w-full items-start gap-3 rounded-[16px] border border-[#b7c3c0] bg-[linear-gradient(135deg,#e5eae5_0%,#d9e4df_100%)] p-3.5 text-left shadow-[0_6px_16px_rgba(64,87,79,.05)]">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[#537368] text-white"><BellRing size={18}/></span>
-                  <span className="min-w-0"><strong className="block text-sm font-black text-[#304c41]">Novos horários do médico</strong><span className="mt-1 block text-xs font-semibold leading-relaxed text-[#405f53]">{followupData?.agendaAvailableCount} atendimento{followupData?.agendaAvailableCount === 1 ? "" : "s"} com horários disponíveis. Veja e confirme.</span></span>
-                </button>
-              )}
-              {portalSection === "home" && (
-                <div>
-                  <div className="mb-3">
-                    <h3 className="text-base font-bold text-hpsr-text">Seu espaço no HP São Rafael</h3>
-                    <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Solicite atendimentos, escolha horários publicados e consulte seus documentos. As novidades ficam no sino; os perfis infantis, no cabeçalho.</p>
-                    <p className="mt-2 text-xs font-bold text-hpsr-wine">Prontuário: {selectedProfile?.name || patientName}</p>
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {sections.map(({ id, icon: Icon, title, subtitle }) => (
-                      <button key={id} type="button" onClick={() => openPortalSection(id)} className="group flex min-h-[82px] items-start gap-3 rounded-[15px] border border-[#ddccbb] bg-[#eee3d8] p-3 text-left transition hover:border-[#b5967f] hover:bg-[#e8d9ca] hover:shadow-[0_4px_13px_rgba(76,46,32,.06)]">
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] border border-[#dfcab9] bg-[#dfcebe] text-hpsr-wine"><Icon size={18}/></span>
-                        <span className="min-w-0">
-                          <strong className="block text-sm font-bold text-hpsr-text">{title}</strong>
-                          <span className="mt-0.5 block text-[11px] leading-snug text-hpsr-muted">{subtitle}</span>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {portalSection === "appointments" && <div className="space-y-4"><PatientFollowupSummaryPanel data={activeFollowups} loading={followupLoading} error={followupError} onOpenHours={() => openPortalSection("followups")} /><PatientAppointmentsPanel key={`${selectedPassport}:scheduled`} view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => openPortalSection("records")} /></div>}
-              {portalSection === "request" && <PatientAppointmentsPanel key={`${selectedPassport}:request`} view="request" passport={selectedPassport} hasClinicalContact={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasClinicalContact} onSessionExpired={handleSessionExpired} />}
-              {portalSection === "followups" && <PatientFollowupsPanel key={selectedPassport} data={activeFollowups} loading={followupLoading} error={followupError} passport={selectedPassport} onRefresh={() => void loadFollowups(selectedPassport, true)} />}
-              {portalSection === "exam-request" && <PatientExamRequestsPanel key={selectedPassport} passport={selectedPassport} hasClinicalContact={accessiblePatients.find((item) => item.passport === selectedPassport)?.hasClinicalContact} onSessionExpired={handleSessionExpired} />}
-              {portalSection === "gestation" && showGestation && <PatientGestationalPlansPanel passport={selectedPassport} planType="gestacional" onSessionExpired={handleSessionExpired} />}
-              {portalSection === "ivf" && showIVF && <PatientGestationalPlansPanel passport={selectedPassport} planType="in_vitro" onSessionExpired={handleSessionExpired} />}
-              {portalSection === "records" && <PatientRecordsPanel key={`${selectedPassport}:records`} passport={selectedPassport} mode={isChildProfile ? "documents" : "all"} onSessionExpired={handleSessionExpired} />}
-              {portalSection === "vaccination" && isChildProfile && <PatientRecordsPanel key={`${selectedPassport}:vaccination`} passport={selectedPassport} mode="vaccination" onSessionExpired={handleSessionExpired} />}
-              {portalSection === "pending" && <PatientAppointmentsPanel key={`${selectedPassport}:pending`} view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => openPortalSection("records")} />}
-              {portalSection === "profile" && <PatientProfilePanel onSessionExpired={handleSessionExpired} onSaved={async () => { await checkSession(); }} />}
-              </div>}
+                </div>}
+
+                {portalSection === "family" && <div className="px-5 py-7 sm:px-8 lg:px-10"><div className="border-b border-[#ddcfc2] pb-5"><p className="text-[11px] font-black uppercase tracking-[.15em] text-[#927566]">Minha família</p><h2 className="mt-1 text-2xl font-bold text-[#4e291c]">Escolha quem você está cuidando</h2><p className="mt-2 text-sm text-[#82736a]">Cada pessoa tem suas próprias consultas, exames e documentos. Ao trocar aqui, todo o Portal passa a mostrar apenas os dados dela.</p></div><div className="mt-5 divide-y divide-[#ddcfc2] border-y border-[#ddcfc2]">{accessiblePatients.map((item) => <button key={item.passport} type="button" onClick={() => goToProfile(item.passport)} className="flex w-full items-center gap-4 py-4 text-left"><span className="grid h-11 w-11 place-items-center rounded-full bg-[#eee2d5] text-[#65331f]">{item.access_type === "self" ? <UserRound size={19}/> : <Baby size={19}/>}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-[#4e291c]">{item.name}</strong><span className="mt-1 block text-xs text-[#82736a]">{item.access_type === "self" ? "Minha conta" : "Criança vinculada"}</span></span>{item.passport === selectedPassport ? <span className="text-xs font-black text-[#672614]">Selecionado</span> : <ArrowRight size={17}/>}</button>)}</div><button type="button" onClick={() => setChildOpen(true)} className="mt-5 inline-flex min-h-[44px] items-center gap-2 rounded-[8px] bg-[#65331f] px-5 text-sm font-black text-white"><Plus size={16}/> Cadastrar criança</button></div>}
+
+                {portalSection === "appointments" && <div className="px-5 py-7 sm:px-8 lg:px-10"><SectionIntro eyebrow="Consultas" title="Minhas consultas" text="Veja o que já está confirmado. Para escolher um horário novo, use “Escolher um horário”."/><div className="space-y-4"><PatientFollowupSummaryPanel data={activeFollowups} loading={followupLoading} error={followupError} onOpenHours={() => openPortalSection("followups")} /><PatientAppointmentsPanel key={`${selectedPassport}:scheduled`} view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => openPortalSection("documents")} /></div></div>}
+                {portalSection === "request" && <div className="px-5 py-7 sm:px-8 lg:px-10"><SectionIntro eyebrow="Consultas" title="Pedir nova consulta" text="Envie um pedido de atendimento. Isso não reserva nem confirma um horário; a equipe ainda precisa analisar sua solicitação."/><PatientAppointmentsPanel key={`${selectedPassport}:request`} view="request" passport={selectedPassport} hasClinicalContact={selectedProfile?.hasClinicalContact} onSessionExpired={handleSessionExpired} /></div>}
+                {portalSection === "followups" && <div className="px-5 py-7 sm:px-8 lg:px-10"><SectionIntro eyebrow="Consultas" title="Escolher um horário" text="Use esta área somente quando seu médico já tiver publicado opções de horário. Escolha uma delas para confirmar sua consulta."/><PatientFollowupsPanel key={selectedPassport} data={activeFollowups} loading={followupLoading} error={followupError} passport={selectedPassport} onRefresh={() => void loadFollowups(selectedPassport, true)} /></div>}
+                {portalSection === "exam-request" && <div className="px-5 py-7 sm:px-8 lg:px-10"><SectionIntro eyebrow="Exames" title="Pedir um exame" text="Envie sua solicitação de exame. Esta ação não cria uma consulta nem reserva horário médico."/><PatientExamRequestsPanel key={selectedPassport} passport={selectedPassport} hasClinicalContact={selectedProfile?.hasClinicalContact} onSessionExpired={handleSessionExpired} /></div>}
+                {portalSection === "gestation" && showGestation && <div className="px-5 py-7 sm:px-8 lg:px-10"><SectionIntro eyebrow="Acompanhamento" title="Gestação" text="Veja as etapas, orientações e informações que sua médica liberou para você."/><PatientGestationalPlansPanel passport={selectedPassport} planType="gestacional" onSessionExpired={handleSessionExpired} /></div>}
+                {portalSection === "ivf" && showIVF && <div className="px-5 py-7 sm:px-8 lg:px-10"><SectionIntro eyebrow="Acompanhamento" title="Fertilização in vitro" text="Acompanhe as etapas e informações liberadas pela equipe responsável."/><PatientGestationalPlansPanel passport={selectedPassport} planType="in_vitro" onSessionExpired={handleSessionExpired} /></div>}
+                {portalSection === "records" && <div className="px-5 py-7 sm:px-8 lg:px-10"><PatientRecordsPanel key={`${selectedPassport}:records`} passport={selectedPassport} mode={isChildProfile ? "documents" : "all"} onSessionExpired={handleSessionExpired} /></div>}
+                {portalSection === "vaccination" && isChildProfile && <div className="px-5 py-7 sm:px-8 lg:px-10"><SectionIntro eyebrow="Vacinação" title={`Vacinação de ${activeName}`} text="Veja a caderneta, registros aplicados e informações liberadas pela equipe."/><PatientRecordsPanel key={`${selectedPassport}:vaccination`} passport={selectedPassport} mode="vaccination" onSessionExpired={handleSessionExpired} /></div>}
+                {portalSection === "pending" && <div className="px-5 py-7 sm:px-8 lg:px-10"><SectionIntro eyebrow="Consultas" title="Pedidos em andamento" text="Acompanhe solicitações que ainda estão aguardando uma definição da equipe."/><PatientAppointmentsPanel key={`${selectedPassport}:pending`} view="pending" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => openPortalSection("documents")} /></div>}
+                {portalSection === "profile" && <div className="px-5 py-7 sm:px-8 lg:px-10"><SectionIntro eyebrow="Minha conta" title="Meus dados" text="Atualize seus dados de acesso e contato."/><PatientProfilePanel onSessionExpired={handleSessionExpired} onSaved={async () => { await checkSession(); }} /></div>}
+              </main>
+
+              <section className="mx-5 mb-5 flex flex-col gap-4 rounded-[8px] bg-[#eee6dc] px-5 py-5 sm:mx-8 sm:flex-row sm:items-center sm:justify-between lg:mx-10">
+                <div className="flex items-center gap-4"><span className="grid h-12 w-12 place-items-center rounded-full bg-[#e8dbc6] text-[#672614]"><HeartPulse size={24}/></span><div><h3 className="text-lg font-bold text-[#4e291c]">Seu acompanhamento, organizado</h3><p className="mt-1 text-sm text-[#82736a]">Planejamentos e etapas em um só lugar.</p></div></div>
+                {(showGestation || showIVF) && <button type="button" onClick={() => openPortalSection(showGestation ? "gestation" : "ivf")} className="inline-flex shrink-0 items-center gap-2 text-sm font-black text-[#672614] underline underline-offset-4">Ver meu acompanhamento <ArrowRight size={16}/></button>}
+              </section>
+            </>
+          ) : (
+            <div className="px-6 py-10 sm:px-10">
+              <p className="text-[11px] font-black uppercase tracking-[.15em] text-[#927566]">Minha família</p>
+              <h2 className="mt-1 text-2xl font-bold text-[#4e291c]">Cadastre a criança que você acompanha</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#82736a]">Depois da validação do Hospital São Rafael, você poderá acessar consultas, exames, documentos e vacinação da criança pela mesma conta.</p>
+              <button type="button" onClick={() => setChildOpen(true)} className="mt-5 inline-flex min-h-[46px] items-center gap-2 rounded-[8px] bg-[#65331f] px-5 text-sm font-black text-white"><Plus size={16}/> Cadastrar criança</button>
             </div>
-          </main>
+          )}
         </div>
         <PatientPortalHelp open={helpOpen} onOpen={() => setHelpOpen(true)} onClose={() => setHelpOpen(false)} />
-      {childOpen && (
-        <div className="hpsr-modal-tone fixed inset-0 z-[1200] flex items-end justify-center bg-[#2a0700]/55 p-0 sm:items-center sm:p-4">
-          <form onSubmit={createChild} className="flex max-h-[94dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] bg-white shadow-2xl sm:max-h-[88dvh] sm:rounded-[24px]">
-            <div className="flex items-start justify-between bg-hpsr-wine px-5 py-4 text-white">
-              <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-white/65">Fluxo pediátrico</p><h3 className="mt-1 text-xl font-black">Solicitar vínculo da criança</h3></div>
-              <button type="button" onClick={() => setChildOpen(false)} className="grid h-9 w-9 place-items-center rounded-[11px] border border-white/20 bg-white/10"><X size={17}/></button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5"><div className="grid gap-3 sm:grid-cols-2">
-              <Field label="Nome da criança"><input className="portal-input" value={childForm.name} onChange={(e)=>setChildForm((c)=>({...c,name:e.target.value}))} required /></Field>
-              <Field label="Passaporte"><input className="portal-input uppercase" value={childForm.passport} onChange={(e)=>setChildForm((c)=>({...c,passport:e.target.value.toUpperCase()}))} required /></Field>
-              <Field label="Idade da criança">
-                <div className="flex gap-2">
-                  <input inputMode="numeric" min="0" max="999" className="portal-input min-w-0 flex-1" placeholder="Ex.: 8" value={childForm.age} onChange={(e)=>setChildForm(c=>({...c,age:e.target.value.replace(/\D/g,"").slice(0,3)}))} required />
-                  <StyledSelect className="portal-input w-32" value={childForm.ageUnit} onChange={(e)=>setChildForm(c=>({...c,ageUnit:e.target.value}))}><option value="meses">meses</option><option value="anos">anos</option></StyledSelect>
-                </div>
-              </Field>
-              <Field label="Seu vínculo com a criança"><StyledSelect className="portal-input" value={childForm.relationship} onChange={(e)=>setChildForm(c=>({...c,relationship:e.target.value}))}><option>Mãe</option><option>Pai</option><option>Tutor</option><option>Responsável legal</option><option>Outro</option></StyledSelect></Field>
-              <Field label="Outro responsável (opcional)"><input className="portal-input" value={childForm.additionalGuardianName} placeholder="Nome do outro responsável" onChange={(e)=>setChildForm(c=>({...c,additionalGuardianName:e.target.value}))}/><span className="mt-1 block text-xs text-hpsr-muted">Informar o nome não concede acesso. Cada responsável deve ter sua própria conta e autorização.</span></Field>
-              <p className="sm:col-span-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] p-3 text-xs font-semibold text-hpsr-muted">Informe o passaporte único do RP. Se a criança já tem prontuário, ele será preservado. A equipe confirma o vínculo fora do sistema, pelo Discord ou durante o RP; somente a Direção libera o acesso.</p>
-            </div></div>
-            <div className="flex shrink-0 gap-3 border-t border-hpsr-border bg-[#fffaf4] p-4"><button type="button" onClick={()=>setChildOpen(false)} className="min-h-[44px] flex-1 rounded-[13px] border border-hpsr-border bg-white text-sm font-black">Cancelar</button><button disabled={busy} type="submit" className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine text-sm font-black text-white disabled:opacity-50">{busy?<Loader2 size={16} className="animate-spin"/>:<Baby size={16}/>}Enviar para validação</button></div>
-          </form>
-        </div>
-      )}
+        {childOpen && (
+          <div className="hpsr-modal-tone fixed inset-0 z-[1200] flex items-end justify-center bg-[#2a0700]/55 p-0 sm:items-center sm:p-4">
+            <form onSubmit={createChild} className="flex max-h-[94dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-[24px] bg-white shadow-2xl sm:max-h-[88dvh] sm:rounded-[24px]">
+              <div className="flex items-start justify-between bg-hpsr-wine px-5 py-4 text-white">
+                <div><p className="text-[10px] font-black uppercase tracking-[.16em] text-white/65">Minha família</p><h3 className="mt-1 text-xl font-black">Cadastrar criança</h3></div>
+                <button type="button" onClick={() => setChildOpen(false)} className="grid h-9 w-9 place-items-center rounded-[11px] border border-white/20 bg-white/10"><X size={17}/></button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5"><div className="grid gap-3 sm:grid-cols-2">
+                <Field label="Nome da criança"><input className="portal-input" value={childForm.name} onChange={(e)=>setChildForm((c)=>({...c,name:e.target.value}))} required /></Field>
+                <Field label="Passaporte"><input className="portal-input uppercase" value={childForm.passport} onChange={(e)=>setChildForm((c)=>({...c,passport:e.target.value.toUpperCase()}))} required /></Field>
+                <Field label="Idade da criança"><div className="flex gap-2"><input inputMode="numeric" min="0" max="999" className="portal-input min-w-0 flex-1" placeholder="Ex.: 8" value={childForm.age} onChange={(e)=>setChildForm(c=>({...c,age:e.target.value.replace(/\D/g,"").slice(0,3)}))} required /><StyledSelect className="portal-input w-32" value={childForm.ageUnit} onChange={(e)=>setChildForm(c=>({...c,ageUnit:e.target.value}))}><option value="meses">meses</option><option value="anos">anos</option></StyledSelect></div></Field>
+                <Field label="Seu vínculo com a criança"><StyledSelect className="portal-input" value={childForm.relationship} onChange={(e)=>setChildForm(c=>({...c,relationship:e.target.value}))}><option>Mãe</option><option>Pai</option><option>Tutor</option><option>Responsável legal</option><option>Outro</option></StyledSelect></Field>
+                <Field label="Outro responsável (opcional)"><input className="portal-input" value={childForm.additionalGuardianName} placeholder="Nome do outro responsável" onChange={(e)=>setChildForm(c=>({...c,additionalGuardianName:e.target.value}))}/><span className="mt-1 block text-xs text-hpsr-muted">Informar o nome não concede acesso. Cada responsável deve ter sua própria conta e autorização.</span></Field>
+                <p className="sm:col-span-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] p-3 text-xs font-semibold text-hpsr-muted">Se a criança já possui cadastro no hospital, os dados existentes serão preservados. A Direção confirma o vínculo antes de liberar o acesso.</p>
+              </div></div>
+              <div className="flex shrink-0 gap-3 border-t border-hpsr-border bg-[#fffaf4] p-4"><button type="button" onClick={()=>setChildOpen(false)} className="min-h-[44px] flex-1 rounded-[13px] border border-hpsr-border bg-white text-sm font-black">Cancelar</button><button disabled={busy} type="submit" className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine text-sm font-black text-white disabled:opacity-50">{busy?<Loader2 size={16} className="animate-spin"/>:<Baby size={16}/>}Enviar para validação</button></div>
+            </form>
+          </div>
+        )}
       </div>
     );
   }
@@ -631,7 +702,7 @@ export function PatientAccessPanel() {
                 <Field label="Senha"><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !busy) void login(); }} className="portal-input" placeholder="Sua senha" /></Field>
               </div>
 
-              <button onClick={login} disabled={busy || !email.trim() || !password} className="mt-6 inline-flex min-h-[52px] w-full items-center justify-center gap-2 rounded-[18px] bg-hpsr-wine px-5 text-sm font-black text-white shadow-[0_14px_30px_rgba(103,38,20,.16)] transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />} Acessar Portal</button>
+              <button onClick={login} disabled={busy || !email.trim() || !password} className="mt-6 inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[18px] bg-hpsr-wine px-5 text-sm font-black text-white shadow-[0_14px_30px_rgba(103,38,20,.16)] transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />} Acessar Portal</button>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <button onClick={recoverPassword} disabled={busy} className="min-h-[42px] rounded-[13px] border border-hpsr-border bg-white px-3 text-center text-sm font-black text-hpsr-wineLight transition hover:border-hpsr-wine/30 hover:text-hpsr-wine">Esqueci minha senha</button>
                 <button type="button" onClick={() => { clearFeedback(); setRecoveryOpen(true); }} disabled={busy} className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-[#fffaf4] px-3 text-center text-sm font-black text-hpsr-wine transition hover:border-hpsr-wine/30"><MailX size={15}/>Não acesso meu e-mail</button>
@@ -671,7 +742,7 @@ export function PatientAccessPanel() {
               <div className="mb-4 flex items-center justify-between gap-3 border-b border-hpsr-border pb-3">
                 <div>
                   <h4 className="text-base font-black text-hpsr-text">Dados do cadastro</h4>
-                  <p className="text-sm font-semibold text-hpsr-muted">{registrationType === "guardian" ? "Uma conta própria para cadastrar seus filhos, sem precisar de prontuário." : "Preencha as informações para criar sua conta de paciente."}</p>
+                  <p className="text-sm font-semibold text-hpsr-muted">{registrationType === "guardian" ? "Uma conta própria para cadastrar seus filhos, mesmo que você não seja paciente do hospital." : "Preencha as informações para criar sua conta de paciente."}</p>
                 </div>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -715,11 +786,11 @@ export function PatientAccessPanel() {
 
 function PatientPortalHelp({ open, onOpen, onClose }: { open: boolean; onOpen: () => void; onClose: () => void }) {
   const items = [
-    { icon: ClipboardPlus, title: "Solicitar consulta", text: "Peça uma consulta nova. Depois, o médico combina o dia e o horário com você." },
-    { icon: CalendarClock, title: "Horários do médico", text: "É aqui que aparecem os horários publicados pelo seu médico. Escolha e confirme um deles." },
-    { icon: HeartPulse, title: "Meus agendamentos", text: "Veja seus acompanhamentos e tudo que já foi confirmado ou combinado com os médicos." },
-    { icon: FlaskConical, title: "Solicitar exame", text: "Peça um exame. Isso não cria uma consulta." },
-    { icon: FileHeart, title: "Meu prontuário", text: "Veja exames, documentos e registros liberados para você." },
+    { icon: ClipboardPlus, title: "Pedir nova consulta", text: "Use quando você precisa de um atendimento novo. O pedido ainda não reserva data nem horário." },
+    { icon: CalendarClock, title: "Escolher um horário", text: "Use quando seu médico já publicou horários para você. Escolha uma opção para confirmar a consulta." },
+    { icon: HeartPulse, title: "Minhas consultas", text: "Veja consultas e retornos que já foram confirmados." },
+    { icon: FlaskConical, title: "Pedir um exame", text: "Envie uma solicitação de exame. Isso não cria nem agenda uma consulta." },
+    { icon: FileHeart, title: "Receitas e documentos", text: "Veja receitas, atestados, laudos e outros documentos que a equipe liberou para você." },
     { icon: AlertCircle, title: "Pendências", text: "Veja se existe algum aviso ou ajuste em andamento." },
     { icon: UserRound, title: "Meus dados", text: "Atualize seus dados de contato e sua senha." },
   ];
@@ -753,7 +824,7 @@ function PatientPortalHelp({ open, onOpen, onClose }: { open: boolean; onOpen: (
               </div>
               <div className="mt-3 rounded-[15px] border border-blue-200 bg-blue-50 px-3.5 py-3">
                 <p className="text-xs font-black text-[#304c41]">Onde vejo os horários?</p>
-                <p className="mt-1 text-[11px] font-semibold leading-relaxed text-[#405f53] sm:text-xs"><strong>Horários do médico</strong> é onde aparecem os horários que ele publicou para você escolher. Depois de confirmar, o atendimento aparece em <strong>Meus agendamentos</strong>.</p>
+                <p className="mt-1 text-[11px] font-semibold leading-relaxed text-[#405f53] sm:text-xs"><strong>Escolher um horário</strong> é para quando o médico já publicou opções para você. <strong>Pedir nova consulta</strong> é para solicitar um atendimento que ainda será analisado pela equipe.</p>
               </div>
             </div>
             <div className="shrink-0 border-t border-hpsr-border bg-white p-3 sm:p-4">
@@ -764,6 +835,18 @@ function PatientPortalHelp({ open, onOpen, onClose }: { open: boolean; onOpen: (
       )}
     </>
   );
+}
+
+function SectionIntro({ eyebrow, title, text }: { eyebrow: string; title: string; text: string }) {
+  return <div className="mb-5 border-b border-[#ddcfc2] pb-5"><p className="text-[11px] font-black uppercase tracking-[.15em] text-[#927566]">{eyebrow}</p><h2 className="mt-1 text-2xl font-bold text-[#4e291c]">{title}</h2><p className="mt-2 max-w-3xl text-sm leading-relaxed text-[#82736a]">{text}</p></div>;
+}
+
+function PortalChoicePage({ eyebrow, title, description, children }: { eyebrow: string; title: string; description: string; children: React.ReactNode }) {
+  return <div className="px-5 py-7 sm:px-8 lg:px-10"><SectionIntro eyebrow={eyebrow} title={title} text={description}/><div className="divide-y divide-[#ddcfc2] border-y border-[#ddcfc2]">{children}</div></div>;
+}
+
+function PortalChoice({ icon: Icon, title, text, onClick, emphasis = false }: { icon: LucideIcon; title: string; text: string; onClick: () => void; emphasis?: boolean }) {
+  return <button type="button" onClick={onClick} className={`flex w-full items-center gap-4 px-2 py-5 text-left transition ${emphasis ? "bg-[#f3e7df] hover:bg-[#ebddd3]" : "hover:bg-[#f5eee6]"}`}><span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${emphasis ? "bg-[#672614] text-white" : "bg-[#eee2d5] text-[#65331f]"}`}><Icon size={19}/></span><span className="min-w-0 flex-1"><strong className="block text-sm text-[#4e291c]">{title}</strong><span className="mt-1 block text-xs leading-relaxed text-[#82736a]">{text}</span></span><ArrowRight size={18} className="shrink-0 text-[#6d5143]"/></button>;
 }
 
 function Field({ label, wide, children }: { label: string; wide?: boolean; children: React.ReactNode }) {

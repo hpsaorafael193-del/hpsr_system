@@ -641,35 +641,16 @@ button:active {
   touch-action: pan-y;
 }
 
-/* Meus Pacientes ocupa somente a altura útil da viewport. O documento não
-   cresce com a carteira: cabeçalho/controles permanecem visíveis e apenas a
-   listagem interna recebe rolagem, inclusive em telas menores. */
+/* Meus Pacientes: conteúdo direto na página, sem contêiner-mãe decorativo.
+   Cabeçalhos e filtros ficam fixos; somente a carteira/histórico recebe rolagem. */
 .hpsr-patients-page {
   height: calc(100dvh - 2.4rem) !important;
   min-height: 0 !important;
   overflow: hidden !important;
 }
-
-.hpsr-patients-page > .hpsr-page-header {
-  flex: 0 0 auto;
-}
-
-.hpsr-patients-page > section:last-of-type:not(.fixed) {
-  display: flex;
-  min-height: 0 !important;
-  flex: 1 1 0%;
-  flex-direction: column;
-  overflow: hidden !important;
-}
-
-.hpsr-patients-page > section:last-of-type:not(.fixed) > div:last-child {
-  display: flex;
-  min-height: 0 !important;
-  flex: 1 1 0%;
-  flex-direction: column;
-  overflow: hidden !important;
-}
-
+.hpsr-patients-page > .hpsr-topbar,
+.hpsr-patients-page > header,
+.hpsr-patients-page > nav { flex: 0 0 auto; }
 .hpsr-patients-scroll {
   min-height: 0 !important;
   max-height: none !important;
@@ -681,11 +662,9 @@ button:active {
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
 }
-
 @media (max-width: 1023px) {
-  .hpsr-patients-page {
-    height: calc(100dvh - 1.9rem) !important;
-  }
+  .hpsr-patients-page { height: auto !important; min-height: calc(100dvh - 1.9rem) !important; overflow: visible !important; }
+  .hpsr-patients-scroll { overflow: visible !important; }
 }
 
 
@@ -1896,4 +1875,174 @@ button:active {
   .hpsr-modal-tone :is(.a4-page, .hpsr-document-sheet, [data-preserve-white="true"]) {
     background-color: #fff !important;
   }
+}
+
+/* 1.1.3 — Cards de vacinação em destaque; bege/marrom institucionais. */
+.hpsr-dashboard-shell .hpsr-vaccination-page {
+  --hpsr-vaccine-green: #785543;
+  --hpsr-vaccine-green-dark: #633d31;
+  --hpsr-vaccine-outline: #dbc9b8;
+  background: radial-gradient(ellipse at 95% 3%, rgba(194,148,118,.09), transparent 40%);
+}
+.hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-model-section {
+  background: linear-gradient(155deg, #f6efe6, #ede1d4);
+}
+.hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-model-card {
+  background: #fffaf5;
+  border-color: #deccba;
+  box-shadow: 0 2px 9px rgba(91,49,29,.025);
+}
+.hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-model-card:hover {
+  background: #fffdf9;
+  border-color: #b98d72;
+}
+.hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-model-card.is-selected {
+  background: #fff8f0;
+  border-color: #8d5444;
+  box-shadow: 0 0 0 2px rgba(125,69,53,.14);
+}
+.hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-model-card[data-vaccine-model-tone="child"].is-selected { border-color: #ac8c79; }
+.hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-model-card[data-vaccine-model-tone="male"].is-selected { border-color: #688ba5; }
+.hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-model-card[data-vaccine-model-tone="female"].is-selected { border-color: #b889a0; }
+.hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-model-card[data-vaccine-model-tone="elderly"].is-selected { border-color: #929271; }
+.hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-section-title h2,
+.hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-section-title > svg { color: #744637 !important; }
+.hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-primary-action { background: #773d36 !important; box-shadow: 0 3px 10px rgba(85,37,30,.13); }
+.hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-primary-action:not(:disabled):hover { background: #592c26 !important; }
+.hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-preview { background: linear-gradient(180deg,#f9f3eb,#efe4d8) !important; border-color:#dfcbb8 !important; }
+.hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-history-count { background:#f4e7dd; border-color:#dec6b4; color:#795242; }
+@media print { .hpsr-dashboard-shell .hpsr-vaccination-page .hpsr-vaccination-model-section { display: none !important; } }
+
+/* v1.1.4 — os dois painéis do editor ocupam a mesma linha/altura.
+   O conteúdo integral preenche a coluna até o rodapé do painel e rola por dentro.
+   No celular, as seções seguem naturalmente a altura do conteúdo. */
+@media (min-width: 1280px) {
+  .hpsr-obstetra-page .hpsr-obstetric-stage-preview { min-height: 0; align-self: stretch; }
+  .hpsr-obstetra-page .hpsr-obstetric-stage-preview > .hpsr-stage-scroll { min-height: 0; flex: 1 1 0%; overflow-y: auto; }
+}
+.hpsr-obstetra-page .hpsr-obstetric-stage-preview {
+  background: linear-gradient(155deg, #fbf0e6 0%, #f5e4d8 58%, #f6eae0 100%);
+  border-color: #dec6bb;
+}
+
+/* v1.1.16-test.27 — o conteúdo integral volta a ter rolagem interna apenas
+   quando ultrapassa uma altura confortável. Com pouco conteúdo, o bloco
+   mantém altura natural e a roda do mouse continua propagando para a página. */
+.hpsr-obstetra-page .hpsr-obstetric-stage-preview > .hpsr-stage-scroll {
+  max-height: clamp(440px, 58dvh, 640px);
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+  scrollbar-gutter: auto;
+  padding-right: 0.35rem;
+  -webkit-overflow-scrolling: touch;
+}
+@media (max-width: 767px) {
+  .hpsr-obstetra-page .hpsr-obstetric-stage-preview > .hpsr-stage-scroll {
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+}
+
+/* v1.1.6 — o painel esquerdo recupera a altura natural e não recebe
+   rolagem. Somente a coluna direita acompanha essa altura, com a lista de
+   consultas rolando por dentro e o cabeçalho sempre visível. */
+@media (min-width: 1280px) {
+  .hpsr-obstetra-page .hpsr-obstetric-editor-grid {
+    height: auto;
+    min-height: 0;
+    align-items: stretch;
+  }
+  .hpsr-obstetra-page .hpsr-obstetric-editor-grid > .hpsr-gestational-form {
+    height: auto;
+    min-height: auto;
+    overflow: visible;
+  }
+  /* O invólucro não determina a altura da linha: só o formulário esquerdo
+     define a altura natural. O painel direito preenche o espaço resultante. */
+  .hpsr-obstetra-page .hpsr-obstetric-editor-grid > .hpsr-obstetric-stage-shell {
+    position: relative;
+    min-height: 0;
+  }
+  .hpsr-obstetra-page .hpsr-obstetric-stage-shell > .hpsr-obstetric-stage-preview {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .hpsr-obstetra-page .hpsr-obstetric-stage-preview > .hpsr-stage-scroll {
+    min-height: 0;
+    flex: 1 1 0%;
+    overflow-y: auto;
+    overscroll-behavior-y: auto;
+    scrollbar-gutter: auto;
+  }
+}
+/* Menos branco nas entradas da Definição médica e das consultas: tons de bege
+   suaves, contraste suficiente e identificação de campos somente-leitura. */
+.hpsr-obstetra-page .hpsr-obstetric-editor-grid :is(input:not([type=checkbox]), textarea),
+.hpsr-obstetra-page .hpsr-obstetric-editor-grid .hpsr-planning-field select {
+  background-color: #f5e8dc;
+  border-color: #d6b9a9;
+  color: #4b281e;
+}
+.hpsr-obstetra-page .hpsr-obstetric-editor-grid :is(input:not([type=checkbox]), textarea):focus-visible {
+  background-color: #faf0e6;
+}
+.hpsr-obstetra-page .hpsr-obstetric-editor-grid input[readonly] {
+  background-color: #eee0d2;
+  border-color: #ddc6b6;
+}
+.hpsr-obstetra-page .hpsr-obstetric-editor-grid :is(input,textarea)::placeholder {
+  color: #967f74;
+}
+.hpsr-obstetra-page .hpsr-obstetric-editor-grid .hpsr-planning-step-card {
+  background-color: #f7ecdf;
+}
+
+/* Cursor de edição sempre visível nos campos de texto. O sistema não deve
+   ocultar o ponteiro/caret enquanto o usuário escreve. */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+input[type="number"],
+textarea,
+[contenteditable="true"] {
+  cursor: text !important;
+  caret-color: currentColor !important;
+}
+
+/* v1.1.16-test.16 — simplificação visual do Acompanhamento.
+   Planejamento previsto e Histórico seguem a mesma lógica da Definição médica:
+   uma única superfície externa e conteúdo direto, sem cartões aninhados. */
+.hpsr-obstetra-page #acompanhamento-conteudo,
+.hpsr-obstetra-page #acompanhamento-historico {
+  background: linear-gradient(155deg, #fbf0e6 0%, #f5e4d8 58%, #f6eae0 100%);
+  border-color: #dcb9c4;
+  box-shadow: 0 14px 34px rgba(125, 35, 29, 0.08);
+}
+.hpsr-obstetra-page #acompanhamento-conteudo .hpsr-planning-step-row,
+.hpsr-obstetra-page #acompanhamento-historico .hpsr-planning-history-row {
+  background: transparent;
+  box-shadow: none;
+}
+
+
+/* v1.1.16-test.17 — Acompanhamento em listagem vertical total.
+   Definição médica, planejamento previsto e histórico seguem um abaixo do outro.
+   O conteúdo integral usa altura natural da página e não cria coluna/scroll interno. */
+.hpsr-obstetra-page .hpsr-obstetric-editor-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+.hpsr-obstetra-page .hpsr-obstetric-editor-list #acompanhamento-conteudo {
+  position: static;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
 }

@@ -23,7 +23,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const isTraumatologyFixedPage = pathname === "/dashboard/traumatologia";
   const refreshVisual = ["/dashboard/direcao", "/dashboard/interno", "/dashboard/financeiro", "/dashboard/calculadora", "/dashboard/traumatologia", "/dashboard/banco-de-sangue"].includes(pathname);
-  const routesWithOwnTopbar = ["/dashboard", "/dashboard/prontuarios", "/dashboard/direcao", "/dashboard/interno", "/dashboard/financeiro", "/dashboard/calculadora", "/dashboard/traumatologia", "/dashboard/banco-de-sangue", "/dashboard/documentos", "/dashboard/exames", "/dashboard/convenios", "/dashboard/perfil", "/dashboard/gestao-de-leitos", "/dashboard/obstetra", "/dashboard/obstetricia", "/dashboard/vacinacao", "/dashboard/assistente-clinico", "/dashboard/parcerias", "/dashboard/agendamento", "/dashboard/equipe", "/dashboard/agendamento/pacientes", "/dashboard/agendamento/clinica" ];
+  const routesWithOwnTopbar = ["/dashboard", "/dashboard/prontuarios", "/dashboard/direcao", "/dashboard/interno", "/dashboard/financeiro", "/dashboard/calculadora", "/dashboard/traumatologia", "/dashboard/banco-de-sangue", "/dashboard/documentos", "/dashboard/exames", "/dashboard/convenios", "/dashboard/perfil", "/dashboard/gestao-de-leitos", "/dashboard/obstetra", "/dashboard/vacinacao", "/dashboard/parcerias", "/dashboard/agendamento", "/dashboard/equipe", "/dashboard/agendamento/pacientes", "/dashboard/agendamento/clinica" ];
   const hasPageTopbar = routesWithOwnTopbar.includes(pathname);
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);

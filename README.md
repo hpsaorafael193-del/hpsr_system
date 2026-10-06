@@ -45,3 +45,11 @@ Campo de responsável infantil removido da edição/geração; os vínculos auto
 
 ### v1.0.452 — Vacinação sem tabela adicional
 A caderneta agora utiliza `clinical_records` (registros `CadernetaVacinal`); aplicar somente `supabase/migrations/20261001190000_vaccination_existing_clinical_records.sql`. Confira `docs/1.0.452-caderneta-clinical-records-carimbos.md`.
+
+
+## Regras fixas de ambiente — composição visual
+
+- Toda aba interna do sistema deve manter a barra superior fina e escura (`hpsr-topbar`/`PageHeader`), no mesmo padrão visual das demais abas. Ela não é opcional em páginas novas ou redesenhadas.
+- Evitar composição de **área dentro de área dentro de área**. Cada bloco funcional deve ter, preferencialmente, um único contêiner visual principal; cabeçalhos, tabelas e listas devem continuar diretamente dentro desse bloco, sem criar cartões decorativos intermediários sem função própria.
+- Antes de criar um novo card, painel ou fundo arredondado, reutilizar a superfície já existente. Bordas, divisores e espaçamento devem ser preferidos a novos níveis de caixas.
+- Botões de atalho e cabeçalhos devem usar apenas o espaço necessário à ação e à leitura; não aumentar áreas apenas para efeito visual.

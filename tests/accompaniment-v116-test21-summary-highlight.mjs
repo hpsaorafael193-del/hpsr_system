@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const pkg = JSON.parse(readFileSync('package.json','utf8'));
+const page = readFileSync('src/app/dashboard/obstetra/page.tsx','utf8');
+assert.equal(pkg.version, '1.1.16-test.30');
+assert(page.includes('Resumo do acompanhamento'));
+assert(page.includes('text-[28px] font-black'));
+assert(page.includes('Planejamento integral'));
+assert(page.includes('Visão rápida dos principais marcos deste acompanhamento.'));
+assert(page.includes('bg-transparent'));
+assert(page.includes('border-[#dcbac4]'));
+assert(page.includes('border-[#dcbac4]'));
+assert(!page.includes('planType === "in_vitro" ? <Sparkles size={19} /> : <Baby size={19} />'));
+console.log('PASS v1.1.16-test.30: resumo destacado pela assinatura rosa, sem ícone próprio.');

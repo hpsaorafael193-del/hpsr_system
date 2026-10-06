@@ -81,6 +81,7 @@ import {
 } from "@/data/exames/adaptive-engine";
 import {
   createFinalExamDocument,
+  RenderedExamPageView,
   type AutomaticAttachment,
   type RenderAttachmentFile,
   type RenderedExamDocument,
@@ -114,29 +115,6 @@ type DoctorOption = DoctorDraft & {
 };
 
 
-
-type SavedDraft = {
-  patient: PatientDraft;
-  doctor: DoctorDraft;
-  selectedDoctorId?: string;
-  selectedExamId: string;
-  adaptiveConfig: AdaptiveExamConfiguration | null;
-  html: string;
-  protocol: string;
-  attachments?: RenderAttachmentFile[];
-  ui?: {
-    showCatalog?: boolean;
-    smartConfigOpen?: boolean;
-    catalogCategory?: string;
-    examSearch?: string;
-    attachmentEditorOpen?: boolean;
-    automaticAttachmentNotes?: string;
-  };
-  savedAt: string;
-  manualExamDateTime?: boolean;
-  examDate?: string;
-  examTime?: string;
-};
 
 type PreviewState = {
   open: boolean;
@@ -432,25 +410,7 @@ function cleanEditorHtml(html: string) {
     .trim();
 }
 
-function readDraft(): SavedDraft | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(DRAFT_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
 
-function saveDraft(draft: SavedDraft) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-}
-
-function removeDraft() {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(DRAFT_KEY);
-}
 
 function safeFileName(value: string) {
   return (
@@ -751,7 +711,6 @@ export default function ExamesPage() {
       node.innerHTML = editorHtmlRef.current;
     }
   }, []);
-  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastRange = useRef<Range | null>(null);
 
   const [patient, setPatient] = useState<PatientDraft>(emptyPatient);
@@ -825,7 +784,6 @@ export default function ExamesPage() {
     document: null,
     pageIndex: 0,
   });
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [tablePickerOpen, setTablePickerOpen] = useState(false);
   const [tableRows, setTableRows] = useState(4);
   const [tableCols, setTableCols] = useState(3);
@@ -1030,57 +988,10 @@ export default function ExamesPage() {
 
   useEffect(() => {
     setSignatureImage(currentUserProfile.signatureImage || null);
-
-    const draft = readDraft();
-    if (!draft) {
-      const firstExam = getIntelligentExamModel(selectedExamId);
-      if (firstExam)
-        setAdaptiveConfig(createInitialAdaptiveConfiguration(firstExam));
-      setProtocol(createProtocol());
-      return;
-    }
-
-    setPatient(draft.patient || emptyPatient);
-    setDoctor(draft.doctor || initialDoctor);
-    setAttachments(draft.attachments || []);
-    setAttachmentEditorOpen(Boolean(draft.ui?.attachmentEditorOpen));
-    setAutomaticAttachmentNotes(draft.ui?.automaticAttachmentNotes || "");
-    setShowCatalog(draft.ui?.showCatalog ?? true);
-    setCategoriesOpen(false);
-
-    setCatalogCategory(draft.ui?.catalogCategory || "all");
-    setExamSearch(draft.ui?.examSearch || "");
-    setSelectedDoctorId(draft.selectedDoctorId === "current-user" ? (currentUserProfile.id || "current-user") : (draft.selectedDoctorId || currentUserProfile.id || "current-user"));
-    setSelectedExamId(draft.selectedExamId || "lab_hemograma_completo");
-    const model = getIntelligentExamModel(
-      draft.selectedExamId || "lab_hemograma_completo",
-    );
-    if (model) {
-      setSelectedCategory(model.categoria);
-      setExamNameInput(model.nome);
-    }
-    setSmartConfigOpen(Boolean(model && (draft.ui?.smartConfigOpen || draft.ui?.showCatalog === false)));
-    setAdaptiveConfig(draft.adaptiveConfig || (model ? createInitialAdaptiveConfiguration(model) : null));
-    editorHtmlRef.current = draft.html || "";
-    if (editorRef.current) editorRef.current.innerHTML = draft.html || "";
-    window.requestAnimationFrame(updateEditorPageGuides);
-    setProtocol(draft.protocol || createProtocol());
-    setManualExamDateTime(Boolean(draft.manualExamDateTime));
-    setExamDate(draft.examDate || todayISO());
-    setExamTime(draft.examTime || nowHHMM());
-    setLastSavedAt(
-      draft.savedAt
-        ? new Date(draft.savedAt).toLocaleTimeString("pt-BR", {
-            hour: "2-digit",
-            minute: "2-digit",
-          })
-        : "",
-    );
-    setSaveStatus(
-      draft.savedAt
-        ? `Salvo às ${new Date(draft.savedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
-        : "Rascunho restaurado",
-    );
+    const firstExam = getIntelligentExamModel(selectedExamId);
+    if (firstExam) setAdaptiveConfig(createInitialAdaptiveConfiguration(firstExam));
+    setProtocol(createProtocol());
+    // Dados clínicos só passam a ser persistidos no Supabase após salvamento explícito.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1200,107 +1111,19 @@ export default function ExamesPage() {
     window.requestAnimationFrame(updateEditorPageGuides);
   }
 
-  function scheduleAutosave(htmlOverride?: string) {
-    setSaveStatus("Salvando...");
-    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
-    autosaveTimer.current = setTimeout(() => {
-      const html =
-        htmlOverride ?? editorRef.current?.innerHTML ?? editorHtmlRef.current;
-      const savedAt = brazilIso();
-      saveDraft({
-        patient,
-        doctor,
-        selectedDoctorId,
-        selectedExamId: selectedExam?.id || selectedExamId,
-        adaptiveConfig,
-        html,
-        protocol,
-        manualExamDateTime,
-        examDate,
-        examTime,
-        attachments,
-        ui: {
-          showCatalog,
-          smartConfigOpen,
-          catalogCategory,
-          examSearch,
-          attachmentEditorOpen,
-          automaticAttachmentNotes,
-        },
-        savedAt,
-      });
-      const time = new Date(savedAt).toLocaleTimeString("pt-BR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-      setLastSavedAt(time);
-      setSaveStatus(`Salvo às ${time}`);
-    }, 1200);
-  }
-
-  function flushDraftNow() {
-    const html = editorRef.current?.innerHTML ?? editorHtmlRef.current;
-    const savedAt = brazilIso();
-    saveDraft({
-      patient,
-      doctor,
-      selectedDoctorId,
-      selectedExamId: selectedExam?.id || selectedExamId,
-      adaptiveConfig,
-      html,
-      protocol,
-      manualExamDateTime,
-      examDate,
-      examTime,
-      attachments,
-      ui: {
-        showCatalog,
-        smartConfigOpen,
-        catalogCategory,
-        examSearch,
-        attachmentEditorOpen,
-        automaticAttachmentNotes,
-      },
-      savedAt,
-    });
+  function scheduleAutosave(_htmlOverride?: string) {
+    // Mantém apenas o estado visual de edição; não há rascunho clínico no navegador.
+    setSaveStatus("Alterações não salvas");
+    setLastSavedAt("");
   }
 
   useEffect(() => {
-    scheduleAutosave();
-    return () => {
-      if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patient, doctor, selectedDoctorId, selectedExamId, adaptiveConfig, protocol, manualExamDateTime, examDate, examTime, attachments, showCatalog, smartConfigOpen, catalogCategory, examSearch, attachmentEditorOpen, automaticAttachmentNotes]);
-
-  useEffect(() => {
-    function handlePageHide() {
-      flushDraftNow();
-    }
-
     function handleVisibilityChange() {
-      if (document.visibilityState === "hidden") flushDraftNow();
-      if (document.visibilityState !== "visible") return;
-      updateEditorPageGuides();
-      if (!smartConfigOpen) {
-        const draft = readDraft();
-        if (draft?.ui?.smartConfigOpen) {
-          setSmartConfigOpen(true);
-          setShowCatalog(draft.ui.showCatalog ?? false);
-          setCatalogCategory(draft.ui.catalogCategory || catalogCategory);
-          setExamSearch(draft.ui.examSearch || "");
-        }
-      }
+      if (document.visibilityState === "visible") updateEditorPageGuides();
     }
-
-    window.addEventListener("pagehide", handlePageHide);
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      window.removeEventListener("pagehide", handlePageHide);
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [patient, doctor, selectedDoctorId, selectedExamId, adaptiveConfig, protocol, manualExamDateTime, examDate, examTime, attachments, showCatalog, smartConfigOpen, catalogCategory, examSearch, attachmentEditorOpen, automaticAttachmentNotes]);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
 
   useEffect(() => {
     updateEditorPageGuides();
@@ -1667,7 +1490,7 @@ export default function ExamesPage() {
   function clearAll() {
     setAppDialog({
       title: "Limpar exame",
-      message: "Deseja limpar todo o exame atual? Essa ação remove o rascunho local e reinicia os dados da tela.",
+      message: "Deseja limpar todo o exame atual? Essa ação reinicia os dados ainda não salvos da tela.",
       tone: "danger",
       actions: [
         { label: "Cancelar", onClick: () => setAppDialog(null) },
@@ -1681,7 +1504,6 @@ export default function ExamesPage() {
             setSelectedDoctorId("current-user");
             setProtocol(createProtocol());
             setEditorContent("", { moveCaretToEnd: true });
-            removeDraft();
             setAttachments([]);
             setAttachmentOverrideActive(false);
             setAutomaticAttachmentRemoved(false);
@@ -1815,7 +1637,6 @@ export default function ExamesPage() {
   function openExamPreview() {
     syncEditorFromDom();
     const document = buildPreviewDocument();
-    setPreviewImage(null);
     setPreview({ open: true, document, pageIndex: 0 });
   }
 
@@ -1828,48 +1649,14 @@ export default function ExamesPage() {
       const savedAt = brazilIso();
       const html = editorRef.current?.innerHTML || editorHtmlRef.current;
 
-      try {
-        saveDraft({
-          patient,
-          doctor,
-          selectedDoctorId,
-          selectedExamId: selectedExam?.id || selectedExamId,
-          adaptiveConfig,
-          html,
-          protocol,
-          manualExamDateTime,
-          examDate,
-          examTime,
-          attachments,
-          savedAt,
-        });
-      } catch {
-        // Anexos em base64 podem ultrapassar o limite do localStorage. O exame
-        // continua sendo salvo no banco e a visualização não é bloqueada.
-        saveDraft({
-          patient,
-          doctor,
-          selectedDoctorId,
-          selectedExamId: selectedExam?.id || selectedExamId,
-          adaptiveConfig,
-          html,
-          protocol,
-          manualExamDateTime,
-          examDate,
-          examTime,
-          attachments: [],
-          savedAt,
-        });
-      }
 
       const client = createClient();
       if (!client) throw new Error("Não foi possível conectar ao banco de dados.");
       {
         const recordId = `exam-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-        const previewImages = (await Promise.all(
-          document.pages.map((_, pageIndex) => renderPreviewPage(document, pageIndex, false)),
-        )).filter((item): item is string => typeof item === "string" && item.startsWith("data:image/"));
         const payload = {
+          schemaVersion: 2,
+          examKind: "structured-exam",
           protocol,
           patient,
           doctor,
@@ -1879,8 +1666,6 @@ export default function ExamesPage() {
           examTime: document.metadata.time,
           examPerformedAt: brazilDateTimeIso(document.metadata.date, document.metadata.time),
           reportHtml: html,
-          previewImage: previewImages[0] || null,
-          previewImages,
           attachments: attachments.map(({ id, name, size }) => ({ id, name, size })),
           savedAt,
         };
@@ -1888,11 +1673,21 @@ export default function ExamesPage() {
           id: recordId,
           patient_passport: patient.passport || null,
           record_type: "Exame",
-          is_confidential: isConfidential,
-          released_at: isConfidential ? null : brazilIso(),
+          is_confidential: true,
+          released_at: null,
+          history_title: document.metadata.examName,
+          history_patient_name: patient.name || null,
+          history_doctor_name: doctor.name || null,
           payload,
         });
         if (error) throw error;
+        if (!isConfidential) {
+          const { error: releaseError } = await client.rpc("set_clinical_record_confidentiality", {
+            target_record_id: recordId,
+            confidential: false,
+          });
+          if (releaseError) throw releaseError;
+        }
       }
 
       const time = new Date(savedAt).toLocaleTimeString("pt-BR", {
@@ -1901,8 +1696,7 @@ export default function ExamesPage() {
       });
       setLastSavedAt(time);
       setSaveStatus(`Salvo às ${time}`);
-      setPreviewImage(null);
-      setPreview({ open: true, document, pageIndex: 0 });
+        setPreview({ open: true, document, pageIndex: 0 });
       registerSystemActivity({ module: "Exames", action: "Exame salvo", description: `${document.metadata.examName} salvo para ${patient.name || "paciente não informado"}.`, actor: currentUserProfile.systemName, reference: currentUserProfile.passport });
       window.dispatchEvent(new CustomEvent("hpsr:clinical-record-saved", { detail: { recordType: "Exame" } }));
       hpsrSuccess(`${document.metadata.examName} foi salvo no prontuário de ${patient.name}.`, "Exame salvo");
@@ -1922,7 +1716,6 @@ export default function ExamesPage() {
   async function renderPreviewPage(
     finalDocument: RenderedExamDocument,
     pageIndex: number,
-    download = false,
   ) {
     const page = finalDocument.pages[pageIndex];
     if (!page) return;
@@ -2384,16 +2177,14 @@ export default function ExamesPage() {
 
       await drawFooter();
 
-      const dataUrl = canvas.toDataURL("image/png");
-      if (!download) {
-        setPreviewImage(dataUrl);
-        return dataUrl;
-      }
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("O navegador não conseguiu materializar a página em PNG.");
+      const url = URL.createObjectURL(blob);
       const link = window.document.createElement("a");
       link.download = `${safeFileName(finalDocument.metadata.examName)}_${safeFileName(finalDocument.metadata.patient.name || "paciente")}_pagina_${pageIndex + 1}.png`;
-      link.href = dataUrl;
+      link.href = url;
       link.click();
-      return dataUrl;
+      window.setTimeout(() => URL.revokeObjectURL(url), 500);
     } catch (error) {
       console.error("[HPSR][Exames] Falha ao renderizar o preview PNG:", error);
       showPngError(error);
@@ -2402,19 +2193,9 @@ export default function ExamesPage() {
 
   function downloadCurrentPreviewPage() {
     if (!preview.document) return;
-    void renderPreviewPage(preview.document, preview.pageIndex, true);
+    void renderPreviewPage(preview.document, preview.pageIndex);
   }
 
-  useEffect(() => {
-    if (!preview.open || !preview.document) {
-      setPreviewImage(null);
-      return;
-    }
-    setPreviewImage(null);
-    void renderPreviewPage(preview.document, preview.pageIndex);
-    // A renderização em canvas é deliberadamente a mesma usada no PNG.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preview.open, preview.document, preview.pageIndex]);
 
   function showPngError(error?: unknown) {
     const technicalMessage = error instanceof Error ? ` Detalhe: ${error.message}` : "";
@@ -3218,17 +2999,12 @@ export default function ExamesPage() {
 
             <div className="min-h-0 flex-1 overflow-auto bg-[linear-gradient(180deg,#f4f0ed_0%,#ebe5e0_100%)] p-6">
               <div className="mx-auto w-fit">
-                {previewImage ? (
-                  <img
-                    src={previewImage}
-                    alt={`Pré-visualização fiel da página ${preview.pageIndex + 1}`}
-                    className="block h-auto w-[794px] max-w-full bg-white shadow-[0_22px_70px_rgba(71,20,9,0.22)]"
-                  />
-                ) : (
-                  <div className="flex h-[720px] w-[510px] max-w-full items-center justify-center bg-white text-sm font-bold text-hpsr-muted shadow-[0_22px_70px_rgba(71,20,9,0.22)]">
-                    Gerando pré-visualização...
-                  </div>
-                )}
+                <RenderedExamPageView
+                  page={preview.document.pages[preview.pageIndex]}
+                  metadata={preview.document.metadata}
+                  pageIndex={preview.pageIndex}
+                  totalPages={preview.document.pages.length}
+                />
               </div>
             </div>
 
