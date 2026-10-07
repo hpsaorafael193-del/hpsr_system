@@ -14,22 +14,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 12.2.1
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: 24
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Type check
-        run: npm run typecheck
+        run: pnpm run typecheck
 
       - name: Lint
-        run: npm run lint
+        run: pnpm run lint
+
+      - name: Audit current flows
+        run: pnpm run audit:current
+
+      - name: Draft and signature regressions
+        run: |
+          node tests/exam-draft-autosave-v116-test77.mjs
+          node tests/exam-draft-autosave-v116-test77.mjs --documents
+          node tests/signature-preview-cache-v116-test82.mjs
+          node tests/virtual-png-preview-v116-test88.mjs
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"

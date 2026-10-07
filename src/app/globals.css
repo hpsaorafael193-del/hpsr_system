@@ -2046,3 +2046,60 @@ textarea,
   min-height: 0;
   overflow: visible;
 }
+
+/* v1.1.16-test.82 — interface de exames; não alcança folhas de laudo ou prévias. */
+:is(.hpsr-exams-page, .hpsr-documents-page) > header { background: #f1e4d3; border-color: #dcc4ad; box-shadow: none; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside,
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > main { background: #f5eadf; border-color: #dfcbb8; border-radius: 16px; box-shadow: none; --tw-ring-shadow: 0 0 #0000; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside { padding: 16px; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside > section { background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside > section + section { border-top: 1px solid #dfcbb8; padding-top: 12px; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside > section > div:first-child { background: transparent; border-color: #dfcbb8; padding-left: 0; padding-right: 0; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside > section > div:not(:first-child) { padding-left: 0; padding-right: 0; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside div[class*="shadow-"] { box-shadow: none; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside div[class*="linear-gradient"] { background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > main > div:not(:is(.hpsr-exams-editor-viewport, .hpsr-documents-editor-viewport)) { background: #f5eadf; border-color: #dfcbb8; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) :is(.hpsr-exams-editor-viewport, .hpsr-documents-editor-viewport) { background: #ead8c3; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) :is(.hpsr-exams-editor-viewport, .hpsr-documents-editor-viewport) > div { border: 0; border-radius: 6px; box-shadow: none; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > main > div > div[class*="rounded-"] { box-shadow: none; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) button[class*="emerald"],
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) span[class*="text-[#2f634c]"] { background: #672614; color: #fff; }
+:is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-continuous-editor,
+:is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-continuous-editor * { caret-color: #111 !important; }
+:is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-continuous-editor { background: #fff; color: #171717; cursor: text; }
+:is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-continuous-editor:focus { outline: 2px solid #672614; outline-offset: 8px; }
+:is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-continuous-editor ::selection { background: #b9d6f2; color: #111; }
+
+/* v1.1.16-test.83 — creme quente da aba principal, inclusive histórico e controles.
+   Seletores limitados à interface: nenhuma regra recolore a folha ou sua prévia. */
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside :is(input, select, textarea),
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside [class~="bg-white"],
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside [class*="bg-white/"],
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > main > div:not(:is(.hpsr-exams-editor-viewport, .hpsr-documents-editor-viewport)) [class~="bg-white"],
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > main > div:not(:is(.hpsr-exams-editor-viewport, .hpsr-documents-editor-viewport)) [class*="bg-white/"] {
+  background-color: #fcf3e8; border-color: #dfcbb8;
+}
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside button[aria-pressed="true"] { background-color: #eed9c2; border-color: #bc8d70; }
+:is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-exams-history { background: #f1e4d3; border-color: #dfcbb8; box-shadow: none; }
+:is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-exams-history > div:first-child > div:last-child { background: #fcf3e8; border-color: #dfcbb8; }
+:is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-exams-history article { background: #f5eadf; border-color: #dfcbb8; box-shadow: none; }
+:is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-exams-history article:hover { background: #f9eee0; }
+:is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-exams-history article button[class~="bg-white"] { background: #fcf3e8; }
+:is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-exams-history article span[class*="emerald"] { background: #eed9c2; border-color: #dfcbb8; color: #672614; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > main > div:not(:is(.hpsr-exams-editor-viewport, .hpsr-documents-editor-viewport)) [class*="bg-[#fbfaf9]"],
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > main > div:not(:is(.hpsr-exams-editor-viewport, .hpsr-documents-editor-viewport)) [class*="bg-[#fff8f1]"],
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside [class*="bg-[#fff8f2]"] { background: #fcf3e8; border-color: #dfcbb8; }
+
+/* Rolagem encadeada: mantém alturas e overflow dos painéis originais. */
+/* Listas e janelas conservam sua rolagem; no limite o gesto continua na página. */
+.hpsr-dashboard-shell :is(.hpsr-exams-page, .hpsr-documents-page) [class*="overflow"],
+.hpsr-dashboard-shell :is(.hpsr-exams-page, .hpsr-documents-page) [class*="overscroll"] { overscroll-behavior-y: auto !important; }
+:is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-continuous-editor,
+:is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-continuous-editor * { cursor: url("/cursors/exam-pointer.svg") 2 1, default !important; }
+
+/* Campos compactos, sem alterar a altura dos painéis. */
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside :is(input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, button[class~="h-11"]) {
+ height: 36px !important; min-height: 36px !important; border-radius: 9px; padding-top: 0; padding-bottom: 0;
+}
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside [class~="space-y-4"] > :not([hidden]) ~ :not([hidden]) { margin-top: 12px; }
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) > main > div:not(:is(.hpsr-exams-editor-viewport, .hpsr-documents-editor-viewport)) { padding-top: 10px; padding-bottom: 10px; }

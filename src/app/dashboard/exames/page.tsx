@@ -68,6 +68,10 @@ import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvi
 import { normalizeXrayKey, resolveXrayAttachmentAsset } from "@/lib/xray-attachment-resolver";
 import { usePatientSelection } from "@/components/patients/PatientSelectionProvider";
 import { createClient } from "@/lib/supabase";
+import { ExamEditorCaret } from "@/components/dashboard/ExamEditorCaret";
+import { useVirtualPngPreview } from "@/lib/use-virtual-png-preview";
+import { useExamDraft } from "@/lib/use-exam-draft";
+import { normalizeSignatureImage, EXAM_SIGNATURE_IMAGE_WIDTH, EXAM_SIGNATURE_IMAGE_HEIGHT } from "@/lib/exam-signature-image";
 import { drawRichTextElement, measureRichTextElement } from "@/lib/rich-text-canvas";
 import { handleRichEditorTableKeyDown } from "@/lib/rich-editor-behavior";
 import { registerSystemActivity } from "@/lib/administrative-storage";
@@ -135,7 +139,6 @@ type AppDialogState = {
   actions: AppDialogAction[];
 } | null;
 
-const DRAFT_KEY = "hpsr-exames-continuous-editor-draft-v283";
 
 const emptyPatient: PatientDraft = {
   name: "",
@@ -703,6 +706,10 @@ export default function ExamesPage() {
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const signatureInputRef = useRef<HTMLInputElement | null>(null);
   const editorHtmlRef = useRef("");
+  const [draftHtml, setDraftHtml] = useState("");
+  const draftHydratedRef = useRef(false);
+  const draftDoctorRef = useRef("");
+  const skipAttachmentResetRef = useRef(false);
   // O editor é montado à direita depois da escolha do exame. Reaplica o HTML
   // guardado caso a primeira seleção tenha ocorrido com a área ainda desmontada.
   const bindEditor = useCallback((node: HTMLDivElement | null) => {
@@ -719,7 +726,7 @@ export default function ExamesPage() {
   const [quickPatientDraft, setQuickPatientDraft] = useState<PatientDraft>(emptyPatient);
 
   useEffect(() => {
-    if (!sharedSelectedPatient) return;
+    if (!sharedSelectedPatient || draftHydratedRef.current) return;
     setPatient(sharedSelectedPatient as PatientDraft);
   }, [sharedSelectedPatient]);
   const [appDialog, setAppDialog] = useState<AppDialogState>(null);
@@ -733,7 +740,10 @@ export default function ExamesPage() {
   const [selectedDoctorId, setSelectedDoctorId] = useState(currentUserProfile.id || "current-user");
 
   useEffect(() => {
-    setDoctor(initialDoctor);
+    if (!draftHydratedRef.current) {
+      setDoctor(initialDoctor);
+      if (selectedDoctorId === "local-dev" || selectedDoctorId === "current-user") setSelectedDoctorId(currentUserProfile.id);
+    }
     const currentOption: DoctorOption = { id: currentUserProfile.id || "current-user", name: initialDoctor.name, crm: initialDoctor.crm, role: currentUserProfile.signatureRole || currentUserProfile.role || "Médico", specialty: currentUserProfile.specialty || "", signatureImage: currentUserProfile.signatureImage || null };
     const client = createClient();
     if (!client) { setAvailableDoctors([currentOption]); return; }
@@ -784,11 +794,51 @@ export default function ExamesPage() {
     document: null,
     pageIndex: 0,
   });
+  const pngPreview = useVirtualPngPreview(preview.open, preview.document, preview.pageIndex,
+    () => preview.document ? renderPreviewPage(preview.document, preview.pageIndex) : Promise.resolve(null));
   const [tablePickerOpen, setTablePickerOpen] = useState(false);
   const [tableRows, setTableRows] = useState(4);
   const [tableCols, setTableCols] = useState(3);
   const [editorPageGuideTops, setEditorPageGuideTops] = useState<number[]>([]);
   const [editorReportPageCount, setEditorReportPageCount] = useState(1);
+
+  const draftPayload = useMemo(() => ({
+    schemaVersion: 1, patient, doctor, selectedDoctorId, selectedCategory, selectedExamId,
+    adaptiveConfig, examNameInput, protocol, manualExamDateTime, examDate, examTime,
+    signatureImage, attachments, attachmentOverrideActive, automaticAttachmentRemoved,
+    automaticAttachmentNotes, isConfidential, showCatalog, reportHtml: draftHtml,
+  }), [patient, doctor, selectedDoctorId, selectedCategory, selectedExamId, adaptiveConfig,
+    examNameInput, protocol, manualExamDateTime, examDate, examTime, signatureImage,
+    attachments, attachmentOverrideActive, automaticAttachmentRemoved,
+    automaticAttachmentNotes, isConfidential, showCatalog, draftHtml]);
+  const draftPersistence = useExamDraft(currentUserProfile.id, draftPayload, (draft) => {
+    if (draft.schemaVersion !== 1 || !getIntelligentExamModel(draft.selectedExamId)) throw new Error("Rascunho incompatível");
+    draftHydratedRef.current = true;
+    draftDoctorRef.current = draft.selectedDoctorId;
+    skipAttachmentResetRef.current = true;
+    setPatient(draft.patient || emptyPatient);
+    setDoctor(draft.doctor || initialDoctor);
+    setSelectedDoctorId(draft.selectedDoctorId);
+    setSelectedCategory(draft.selectedCategory);
+    setSelectedExamId(draft.selectedExamId);
+    setAdaptiveConfig(draft.adaptiveConfig);
+    setExamNameInput(draft.examNameInput || "");
+    setProtocol(draft.protocol || createProtocol());
+    setManualExamDateTime(Boolean(draft.manualExamDateTime));
+    setExamDate(draft.examDate || todayISO());
+    setExamTime(draft.examTime || nowHHMM());
+    setSignatureImage(draft.signatureImage || null);
+    setAttachments(Array.isArray(draft.attachments) ? draft.attachments : []);
+    setAttachmentOverrideActive(Boolean(draft.attachmentOverrideActive));
+    setAutomaticAttachmentRemoved(Boolean(draft.automaticAttachmentRemoved));
+    setAutomaticAttachmentNotes(draft.automaticAttachmentNotes || "");
+    setIsConfidential(draft.isConfidential !== false);
+    setShowCatalog(Boolean(draft.showCatalog));
+    const html = cleanEditorHtml(draft.reportHtml || "");
+    editorHtmlRef.current = html;
+    setDraftHtml(html);
+    if (editorRef.current) editorRef.current.innerHTML = html;
+  });
 
   const categories = useMemo(() => {
     const set = new Set(intelligentExamModels.map((model) => model.categoria));
@@ -848,28 +898,14 @@ export default function ExamesPage() {
     }, {});
   }, []);
 
+  const normalizeCatalogSearch = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, " ").trim();
+  const catalogIndex = useMemo(() => [...intelligentExamModels]
+    .sort((a, b) => (categoryLabels[a.categoria] || a.categoria).localeCompare(categoryLabels[b.categoria] || b.categoria, "pt-BR") || a.nome.localeCompare(b.nome, "pt-BR"))
+    .map((exam) => ({ exam, searchable: normalizeCatalogSearch(`${exam.nome} ${exam.descricao} ${exam.categoria} ${categoryLabels[exam.categoria] || ""} ${examSearchAliases[exam.id] || ""}`) })), []); // eslint-disable-line react-hooks/exhaustive-deps
   const filteredCatalog = useMemo(() => {
-    const normalizeSearch = (value: string) => value
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLocaleLowerCase("pt-BR")
-      .replace(/[^a-z0-9]+/g, " ")
-      .trim();
-    const query = normalizeSearch(examSearch);
-    return [...intelligentExamModels]
-      .sort((a, b) => {
-        const categoryCompare = (categoryLabels[a.categoria] || a.categoria).localeCompare(categoryLabels[b.categoria] || b.categoria, "pt-BR");
-        return categoryCompare || a.nome.localeCompare(b.nome, "pt-BR");
-      })
-      .filter((exam) => {
-        const matchesCategory = catalogCategory === "all" || exam.categoria === catalogCategory;
-        if (!matchesCategory) return false;
-        if (!query) return true;
-        const aliases = examSearchAliases[exam.id] || "";
-        const searchable = normalizeSearch(`${exam.nome} ${exam.descricao} ${exam.categoria} ${categoryLabels[exam.categoria] || ""} ${aliases}`);
-        return query.split(/\s+/).every((term) => searchable.includes(term));
-      });
-  }, [catalogCategory, examSearch]);
+    const terms = normalizeCatalogSearch(examSearch).split(/\s+/).filter(Boolean);
+    return catalogIndex.filter(({ exam, searchable }) => (catalogCategory === "all" || exam.categoria === catalogCategory) && terms.every((term) => searchable.includes(term))).map(({ exam }) => exam);
+  }, [catalogIndex, catalogCategory, examSearch]);
 
 
 
@@ -982,6 +1018,7 @@ export default function ExamesPage() {
   const attachmentCount = attachments.length + (effectiveAutomaticAttachment ? 1 : 0);
 
   useEffect(() => {
+    if (skipAttachmentResetRef.current) { skipAttachmentResetRef.current = false; return; }
     setAutomaticAttachmentRemoved(false);
     setAttachmentOverrideActive(false);
   }, [selectedExamId, adaptiveConfig?.adapterValue, adaptiveConfig?.profileId, adaptiveConfig?.clinicalContext]);
@@ -991,12 +1028,13 @@ export default function ExamesPage() {
     const firstExam = getIntelligentExamModel(selectedExamId);
     if (firstExam) setAdaptiveConfig(createInitialAdaptiveConfiguration(firstExam));
     setProtocol(createProtocol());
-    // Dados clínicos só passam a ser persistidos no Supabase após salvamento explícito.
+    // O rascunho privado é recuperado antes de habilitar a edição.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
 
   useEffect(() => {
+    if (draftHydratedRef.current && draftDoctorRef.current === selectedDoctorId) return;
     const selected = availableDoctors.find((item) => item.id === selectedDoctorId);
     if (!selected) return;
 
@@ -1111,8 +1149,8 @@ export default function ExamesPage() {
     window.requestAnimationFrame(updateEditorPageGuides);
   }
 
-  function scheduleAutosave(_htmlOverride?: string) {
-    // Mantém apenas o estado visual de edição; não há rascunho clínico no navegador.
+  function scheduleAutosave(htmlOverride?: string) {
+    setDraftHtml(cleanEditorHtml(htmlOverride ?? editorHtmlRef.current));
     setSaveStatus("Alterações não salvas");
     setLastSavedAt("");
   }
@@ -1323,6 +1361,7 @@ export default function ExamesPage() {
     setQuickPatientOpen(false);
   }
   function selectDoctor(id: string) {
+    draftDoctorRef.current = "";
     const selected = availableDoctors.find((item) => item.id === id);
     if (!selected) return;
     setSignatureImage(null);
@@ -1501,7 +1540,8 @@ export default function ExamesPage() {
             setAppDialog(null);
             setPatient(emptyPatient);
             setDoctor(initialDoctor);
-            setSelectedDoctorId("current-user");
+            setSelectedDoctorId(currentUserProfile.id);
+            draftDoctorRef.current = "";
             setProtocol(createProtocol());
             setEditorContent("", { moveCaretToEnd: true });
             setAttachments([]);
@@ -1645,7 +1685,7 @@ export default function ExamesPage() {
       if (!patient.passport?.trim() || !patient.name?.trim()) throw new Error("Selecione ou cadastre o paciente antes de salvar.");
       if (patient.name.trim().toLowerCase() === doctor.name.trim().toLowerCase()) throw new Error("Paciente e médico responsável não podem ser o mesmo registro.");
       syncEditorFromDom();
-      const document = buildPreviewDocument();
+      const document = preview.open && preview.document ? preview.document : buildPreviewDocument();
       const savedAt = brazilIso();
       const html = editorRef.current?.innerHTML || editorHtmlRef.current;
 
@@ -1742,76 +1782,19 @@ export default function ExamesPage() {
         image.src = src;
       });
 
-    const normalizeSignatureImage = (image: HTMLImageElement) => {
-      const sourceCanvas = document.createElement("canvas");
-      sourceCanvas.width = image.naturalWidth || image.width;
-      sourceCanvas.height = image.naturalHeight || image.height;
-      const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
-      if (!sourceContext) return image;
-      sourceContext.drawImage(image, 0, 0);
-      let pixels: ImageData;
-      try {
-        pixels = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
-      } catch (error) {
-        console.warn("[HPSR][Exames] A assinatura não pôde ser normalizada por restrição de origem e será omitida do PNG.", error);
-        return null;
-      }
-      const data = pixels.data;
-      let minX = sourceCanvas.width;
-      let minY = sourceCanvas.height;
-      let maxX = -1;
-      let maxY = -1;
-
-      for (let y = 0; y < sourceCanvas.height; y += 1) {
-        for (let x = 0; x < sourceCanvas.width; x += 1) {
-          const index = (y * sourceCanvas.width + x) * 4;
-          const red = data[index];
-          const green = data[index + 1];
-          const blue = data[index + 2];
-          const alpha = data[index + 3];
-          if (alpha === 0) continue;
-          const isNearWhite = red > 242 && green > 242 && blue > 242;
-          if (isNearWhite) {
-            data[index + 3] = 0;
-            continue;
-          }
-          if (alpha > 20) {
-            minX = Math.min(minX, x);
-            minY = Math.min(minY, y);
-            maxX = Math.max(maxX, x);
-            maxY = Math.max(maxY, y);
-          }
-        }
-      }
-      sourceContext.putImageData(pixels, 0, 0);
-      if (maxX < minX || maxY < minY) return sourceCanvas;
-
-      const padding = Math.max(6, Math.round(Math.min(sourceCanvas.width, sourceCanvas.height) * 0.025));
-      const cropX = Math.max(0, minX - padding);
-      const cropY = Math.max(0, minY - padding);
-      const cropWidth = Math.min(sourceCanvas.width - cropX, maxX - minX + 1 + padding * 2);
-      const cropHeight = Math.min(sourceCanvas.height - cropY, maxY - minY + 1 + padding * 2);
-      const croppedCanvas = document.createElement("canvas");
-      croppedCanvas.width = cropWidth;
-      croppedCanvas.height = cropHeight;
-      const croppedContext = croppedCanvas.getContext("2d");
-      if (!croppedContext) return sourceCanvas;
-      croppedContext.drawImage(sourceCanvas, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
-      return croppedCanvas;
-    };
-
     const drawImageContain = (
       image: HTMLImageElement | HTMLCanvasElement,
       x: number,
       y: number,
       width: number,
       height: number,
+      alignBottom = false,
     ) => {
       const ratio = Math.min(width / image.width, height / image.height);
       const drawWidth = image.width * ratio;
       const drawHeight = image.height * ratio;
       const drawX = x + (width - drawWidth) / 2;
-      const drawY = y + (height - drawHeight) / 2;
+      const drawY = y + (height - drawHeight) / (alignBottom ? 1 : 2);
       context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
     };
 
@@ -1861,7 +1844,7 @@ export default function ExamesPage() {
       return lines;
     };
 
-    const drawInfoCard = (label: string, value: string, x: number, y: number, width: number, height = 42) => {
+    const drawInfoCard = (label: string, value: string, x: number, y: number, width: number, height = 42, patientInfo = false) => {
       context.fillStyle = "rgba(255,255,255,0.98)";
       context.strokeStyle = "rgba(91,24,9,0.16)";
       context.lineWidth = 1;
@@ -1870,13 +1853,13 @@ export default function ExamesPage() {
       context.fill();
       context.stroke();
       context.fillStyle = "#8d665b";
-      context.font = "700 8px Arial";
-      context.fillText(label.toUpperCase(), x + 10, y + 8);
+      context.font = patientInfo ? "700 9px Arial" : height <= 32 ? "700 7px Arial" : "700 8px Arial";
+      context.fillText(label.toUpperCase(), x + 10, y + (height <= 32 ? 4 : 8));
       context.fillStyle = "#3d1710";
-      context.font = height <= 32 ? "700 10.5px Arial" : "700 11px Arial";
+      context.font = patientInfo ? (label === "Paciente" ? "700 17px Arial" : "700 16px Arial") : height <= 32 ? "700 9.5px Arial" : "700 11px Arial";
       const lines = wrapCanvasText(context, value || "-", width - 20);
-      const maxLines = height <= 32 ? 1 : height <= 40 ? 2 : 3;
-      lines.slice(0, maxLines).forEach((line, index) => context.fillText(line, x + 10, y + 19 + index * 11));
+      const maxLines = patientInfo ? 2 : height <= 32 ? 1 : height <= 40 ? 2 : 3;
+      lines.slice(0, maxLines).forEach((line, index) => context.fillText(line, x + 10, y + (patientInfo ? 26 : height <= 32 ? 14 : 21) + index * (patientInfo ? 18 : 11), width - 20));
     };
 
     const drawTechnicalRibbon = (label: string, x: number, y: number, width: number) => {
@@ -1911,20 +1894,22 @@ export default function ExamesPage() {
       }
     };
 
-    const drawInstitutionalHeader = () => {
+    const drawInstitutionalHeader = async () => {
       context.fillStyle = "rgba(255,255,255,0.97)";
       context.strokeStyle = "rgba(91,24,9,0.16)";
       context.beginPath();
-      context.roundRect(24, 24, 742, 66, 16);
+      context.roundRect(24, 18, 742, 80, 16);
       context.fill();
       context.stroke();
 
+      const logo = await loadImage("/logo-hpsr.png");
+      if (logo) drawImageContain(logo, 36, 18, 80, 80);
       context.fillStyle = "#3d1710";
       context.font = "700 16.5px Arial";
-      context.fillText("HOSPITAL SÃO RAFAEL", 42, 34);
+      context.fillText("HOSPITAL SÃO RAFAEL", 128, 34);
       context.fillStyle = "#8d665b";
       context.font = "700 8.5px Arial";
-      context.fillText("LAUDO DE EXAME · DOCUMENTO INSTITUCIONAL", 42, 58);
+      context.fillText("LAUDO DE EXAME · DOCUMENTO INSTITUCIONAL", 128, 58);
 
       drawInfoCard("Data", formatDateBR(finalDocument.metadata.date), 574, 31, 84, 25);
       drawInfoCard("Página", `${pageIndex + 1}/${finalDocument.pages.length}`, 666, 31, 86, 25);
@@ -1941,10 +1926,10 @@ export default function ExamesPage() {
       context.fillText((finalDocument.metadata.examName || "EXAME").toUpperCase(), 397, 109);
       context.textAlign = "left";
 
-      drawInfoCard("Paciente", finalDocument.metadata.patient.name || "-", 42, 138, 318, 30);
-      drawInfoCard("Passaporte", finalDocument.metadata.patient.passport || "-", 368, 138, 132, 30);
-      drawInfoCard("Idade", finalDocument.metadata.patient.age || "-", 508, 138, 82, 30);
-      drawInfoCard("Tipo sanguíneo", finalDocument.metadata.patient.bloodType || "-", 598, 138, 154, 30);
+      drawInfoCard("Paciente", finalDocument.metadata.patient.name || "-", 42, 138, 318, 70, true);
+      drawInfoCard("Passaporte", finalDocument.metadata.patient.passport || "-", 368, 138, 132, 70, true);
+      drawInfoCard("Idade", finalDocument.metadata.patient.age || "-", 508, 138, 82, 70, true);
+      drawInfoCard("Tipo sanguíneo", finalDocument.metadata.patient.bloodType || "-", 598, 138, 154, 70, true);
     };
 
     const htmlText = (node: Element) =>
@@ -2074,43 +2059,37 @@ export default function ExamesPage() {
     };
 
     const drawFooter = async () => {
-      context.fillStyle = "rgba(255,250,247,0.98)";
-      context.fillRect(42, 1018, 710, 93);
-      context.strokeStyle = "rgba(91,24,9,0.16)";
-      context.beginPath();
-      context.moveTo(42, 1018);
-      context.lineTo(752, 1018);
-      context.stroke();
-
       const signature = finalDocument.metadata.signatureImage
         ? await loadImage(finalDocument.metadata.signatureImage)
         : null;
       if (signature) {
         const normalizedSignature = normalizeSignatureImage(signature);
-        if (normalizedSignature) drawImageContain(normalizedSignature, 257, 1019, 280, 48);
+        if (normalizedSignature) drawImageContain(normalizedSignature, (794 - EXAM_SIGNATURE_IMAGE_WIDTH) / 2, 1060 - EXAM_SIGNATURE_IMAGE_HEIGHT, EXAM_SIGNATURE_IMAGE_WIDTH, EXAM_SIGNATURE_IMAGE_HEIGHT, true);
       } else {
         context.fillStyle = "#5b1809";
         context.textAlign = "center";
-        context.font = "italic 22px Georgia";
-        context.fillText(finalDocument.metadata.doctor.name || "Nome do médico", 397, 1042);
+        context.font = "italic 40px Georgia";
+        context.fillText(finalDocument.metadata.doctor.name || "Nome do médico", 397, 1005, 650);
       }
 
-      context.strokeStyle = "#5b1809";
-      context.setLineDash([2, 2]);
+      context.strokeStyle = "rgba(91,24,9,0.28)";
+      context.lineWidth = 0.5;
+      context.setLineDash([1, 3]);
       context.beginPath();
-      context.moveTo(272, 1069);
-      context.lineTo(522, 1069);
+      context.moveTo(217, 1062);
+      context.lineTo(577, 1062);
       context.stroke();
       context.setLineDash([]);
+      context.lineWidth = 1;
 
       context.fillStyle = "#5b1809";
       context.textAlign = "center";
-      context.font = "700 10px Arial";
-      context.fillText(`Dr(a). ${finalDocument.metadata.doctor.name || "Nome do médico"}`, 397, 1073);
-      context.font = "8.5px Arial";
+      context.font = "12px Arial";
+      context.fillText(`Dr(a). ${finalDocument.metadata.doctor.name || "Nome do médico"}`, 397, 1070, 650);
+      context.font = "9px Arial";
       context.fillText(`CRM: ${finalDocument.metadata.doctor.crm || "000000"}`, 397, 1086);
 
-      context.strokeStyle = "rgba(91,24,9,0.14)";
+      context.strokeStyle = "rgba(91,24,9,0.08)";
       context.beginPath();
       context.moveTo(42, 1096);
       context.lineTo(752, 1096);
@@ -2133,10 +2112,10 @@ export default function ExamesPage() {
       context.fillStyle = "#4b2118";
       context.font = "12px Arial";
 
-      drawInstitutionalHeader();
+      await drawInstitutionalHeader();
 
       if (page.type === "report") {
-        drawReportHtml(page.reportHtml || "", 42, 184, 710, 1009);
+        drawReportHtml(page.reportHtml || "", 42, 214, 710, 928);
       } else if (page.type === "auto-attachment" && page.automaticAttachment) {
         const attachment = page.automaticAttachment;
         const image = attachment.imageUrl ? await loadImage(attachment.imageUrl) : null;
@@ -2179,21 +2158,19 @@ export default function ExamesPage() {
 
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("O navegador não conseguiu materializar a página em PNG.");
-      const url = URL.createObjectURL(blob);
-      const link = window.document.createElement("a");
-      link.download = `${safeFileName(finalDocument.metadata.examName)}_${safeFileName(finalDocument.metadata.patient.name || "paciente")}_pagina_${pageIndex + 1}.png`;
-      link.href = url;
-      link.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 500);
+      return blob;
     } catch (error) {
       console.error("[HPSR][Exames] Falha ao renderizar o preview PNG:", error);
-      showPngError(error);
+      throw error;
     }
   }
 
   function downloadCurrentPreviewPage() {
-    if (!preview.document) return;
-    void renderPreviewPage(preview.document, preview.pageIndex);
+    if (!preview.document || !pngPreview.url) return;
+    const link = window.document.createElement("a");
+    link.href = pngPreview.url;
+    link.download = `${safeFileName(preview.document.metadata.examName)}_${safeFileName(preview.document.metadata.patient.name || "paciente")}_pagina_${preview.pageIndex + 1}.png`;
+    link.click();
   }
 
 
@@ -2209,6 +2186,7 @@ export default function ExamesPage() {
 
   return (
     <div className="hpsr-page hpsr-exams-page gap-4 text-hpsr-text">
+      <ExamEditorCaret />
       <div className="hpsr-topbar" />
 
       <header className="flex items-center gap-4 rounded-[22px] border border-[#e4d8cf] bg-[linear-gradient(110deg,#fff3e9_0%,#f5e5df_100%)] px-5 py-4 shadow-[0_8px_25px_rgba(42,7,0,0.04)]">
@@ -2222,7 +2200,11 @@ export default function ExamesPage() {
         </div>
       </header>
 
-      <section className="hpsr-exams-workspace grid min-h-0 flex-1 items-start gap-4 overflow-visible xl:grid-cols-[minmax(360px,420px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(400px,460px)_minmax(0,1fr)]">
+      <div className="flex items-center gap-3 text-sm text-hpsr-wine" role="status" aria-live="polite">
+        <span>{draftPersistence.status}</span>
+        {(draftPersistence.status.includes("não salvo") || draftPersistence.status.includes("Não foi possível")) && <button type="button" onClick={() => void draftPersistence.retry()} className="font-bold underline">Tentar salvar</button>}
+      </div>
+      <section aria-busy={!draftPersistence.ready} className="hpsr-exams-workspace grid min-h-0 flex-1 items-start gap-4 overflow-visible xl:grid-cols-[minmax(360px,420px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(400px,460px)_minmax(0,1fr)]">
         <aside aria-label="Formulário do exame" className="min-w-0 space-y-4 xl:overflow-y-auto xl:overscroll-contain xl:rounded-[24px] xl:border xl:border-[#dfd6c8] xl:bg-[linear-gradient(180deg,#f8eee5_0%,#f3e2de_100%)] xl:p-2 [scrollbar-gutter:stable]">
               <Panel title="Informações do exame" description="Paciente, médico responsável e assinatura.">
               <div className="space-y-4">
@@ -2918,7 +2900,7 @@ export default function ExamesPage() {
 
                 <div
                   ref={bindEditor}
-                  contentEditable
+                  contentEditable={draftPersistence.ready}
                   suppressContentEditableWarning
                   onInput={syncEditorFromDom}
                   onKeyUp={rememberSelection}
@@ -2999,12 +2981,7 @@ export default function ExamesPage() {
 
             <div className="min-h-0 flex-1 overflow-auto bg-[linear-gradient(180deg,#f4f0ed_0%,#ebe5e0_100%)] p-6">
               <div className="mx-auto w-fit">
-                <RenderedExamPageView
-                  page={preview.document.pages[preview.pageIndex]}
-                  metadata={preview.document.metadata}
-                  pageIndex={preview.pageIndex}
-                  totalPages={preview.document.pages.length}
-                />
+                {pngPreview.url ? <img src={pngPreview.url} alt={`Pré-visualização do PNG · Página ${preview.pageIndex + 1}`} width={794} height={1123} className="block max-w-full shadow-xl" /> : <p role="status" className="p-6 text-center font-semibold">{pngPreview.error || "Gerando pré-visualização…"}</p>}
               </div>
             </div>
 
@@ -3058,6 +3035,7 @@ export default function ExamesPage() {
                 <button
                   type="button"
                   onClick={downloadCurrentPreviewPage}
+                  disabled={!pngPreview.url}
                   className="inline-flex h-10 items-center gap-2 rounded-[12px] bg-hpsr-wine px-4 text-xs font-black text-white"
                 >
                   <Download size={15} /> Download PNG

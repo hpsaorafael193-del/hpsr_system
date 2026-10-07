@@ -2,20 +2,9 @@
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useMemo, useState } from "react";
-import {
-  Bone,
-  ChevronDown,
-  FlaskConical,
-  Leaf,
-  Pill,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  Stethoscope,
-  Syringe,
-  Waves,
-  Zap,
-} from "lucide-react";
+import { Bone, BookOpen, Bookmark, FileText, FlaskConical, Info,
+  Leaf, Pill, Search, Sparkles, Stethoscope, Syringe, TriangleAlert, Waves, Zap } from "lucide-react";
+import styles from "./PharmaGuideClient.module.css";
 
 type Medication = {
   category: string;
@@ -23,6 +12,8 @@ type Medication = {
   realName: string;
   use: string;
   allergyAlternative: string;
+  information?: string;
+  observations?: string;
 };
 
 const medications: Medication[] = [
@@ -310,12 +301,6 @@ function getGroupForCategory(category: string) {
   return categoryGroups.find((group) => group.categories.includes(category));
 }
 
-function getMedicationsForGroup(groupTitle: string, filteredMedications: Medication[]) {
-  const group = categoryGroups.find((item) => item.title === groupTitle);
-  if (!group) return [];
-  return filteredMedications.filter((item) => group.categories.includes(item.category));
-}
-
 function shortUse(item: Medication) {
   const replacements: Record<string, string> = {
     "Controle da glicemia em pacientes diabéticos, hiperglicemia e descompensação metabólica.": "Controle de glicose",
@@ -350,22 +335,6 @@ function shortUse(item: Medication) {
 }
 
 
-function getGroupHeight(title: string) {
-  const fixedHeights: Record<string, number> = {
-    "Hormonal / Endócrino / Fertilidade": 520,
-    "Vitaminas / Suplementos": 430,
-    "Dor / Analgésicos": 560,
-    "Calmantes / Controlados": 390,
-    "Alergia / Respiratório": 430,
-    "Gripe / Sintomas gerais": 390,
-    "Antibióticos": 390,
-    "Anti-inflamatórios": 390,
-    "Estômago / Digestivo": 520,
-  };
-
-  return fixedHeights[title] ?? 420;
-}
-
 function normalizeSearch(value: string) {
   return value
     .normalize("NFD")
@@ -374,266 +343,132 @@ function normalizeSearch(value: string) {
     .toLowerCase();
 }
 
+const badgeColors: Record<string, string> = {
+  "Hormonal / Endócrino / Fertilidade": "#ebe0f2",
+  "Dor / Analgésicos": "#f9ded9",
+  "Estômago / Digestivo": "#fae8cf",
+  "Alergia / Respiratório": "#dfefed",
+  "Gripe / Sintomas gerais": "#e6ebf4",
+  "Antibióticos": "#dfeddb",
+  "Anti-inflamatórios": "#eee0d7",
+  "Vitaminas / Suplementos": "#deebf7",
+  "Calmantes / Controlados": "#e9def0",
+};
+
 export function PharmaGuideClient() {
   const [query, setQuery] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("Todos");
-  const [selectedMedication, setSelectedMedication] = useState<Medication | null>(null);
-  const [openGroups, setOpenGroups] = useState<string[]>([]);
+  const [selectedName, setSelectedName] = useState("Analgex");
+  const [sort, setSort] = useState("asc");
+  const [marked, setMarked] = useState<string[]>([]);
+  const [alternativesOpen, setAlternativesOpen] = useState(false);
 
   const filtered = useMemo(() => {
     const normalizedQuery = normalizeSearch(query);
-
     return medications.filter((item) => {
       const group = getGroupForCategory(item.category);
+      const searchable = [group?.title, item.category, item.name, item.realName,
+        item.use, shortUse(item), item.allergyAlternative, item.information, item.observations].join(" ");
+      return (selectedGroup === "Todos" || group?.title === selectedGroup)
+        && (!normalizedQuery || normalizeSearch(searchable).includes(normalizedQuery));
+    }).sort((a, b) => (sort === "desc" ? -1 : 1) * a.name.localeCompare(b.name, "pt-BR"));
+  }, [query, selectedGroup, sort]);
 
-      const searchableContent = [
-        group?.title ?? "",
-        item.category,
-        item.name,
-        item.realName,
-        item.use,
-        shortUse(item),
-      ].join(" ");
-
-      const matchesQuery =
-        !normalizedQuery || normalizeSearch(searchableContent).includes(normalizedQuery);
-
-      const matchesGroup =
-        selectedGroup === "Todos" || Boolean(normalizedQuery) || group?.title === selectedGroup;
-
-      return matchesGroup && matchesQuery;
-    });
-  }, [query, selectedGroup]);
-
-  const visibleGroups = categoryGroups
-    .map((group) => ({
-      ...group,
-      medications: getMedicationsForGroup(group.title, filtered),
-    }))
-    .filter((group) => group.medications.length > 0);
-
-
-  function toggleGroup(title: string) {
-    setOpenGroups((current) =>
-      current.includes(title) ? current.filter((item) => item !== title) : [...current, title]
-    );
+  const selectedMedication = filtered.find((item) => item.name === selectedName) || filtered[0] || null;
+  function selectMedication(item: Medication) { setSelectedName(item.name); setAlternativesOpen(false); }
+  function toggleMark(name: string) {
+    setMarked((current) => current.includes(name) ? current.filter((item) => item !== name) : [...current, name]);
+  }
+  function categoryBadge(item: Medication) {
+    const title = getGroupForCategory(item.category)?.title || item.category;
+    return <span className={styles.badge} style={{ background: badgeColors[title] || "#eee2d8" }}>{title}</span>;
   }
 
   return (
-    <div className="hpsr-page hpsr-pharma-page flex h-[calc(100dvh-2.4rem)] min-h-0 flex-col gap-3 overflow-hidden">
-      <section className="hpsr-pharma-header shrink-0 rounded-[16px] border border-[#885548] bg-[linear-gradient(110deg,#42201c_0%,#64352d_62%,#744238_100%)] px-4 py-3 shadow-[0_5px_14px_rgba(63,29,22,0.10)]">
-        <div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-hpsr-border bg-white px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wine">
-            <Pill size={15} />
-            Guia Farmacêutico
-          </span>
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <span className={styles.headerIcon}><Pill size={26} /></span>
+        <div><h1>Guia farmacêutico</h1><p>Informações para apoiar seus atendimentos.</p></div>
+      </header>
 
-          <h1 className="mt-2 text-[clamp(1.25rem,2vw,1.75rem)] font-black leading-tight text-hpsr-text">
-            Consulta rápida de medicamentos do RP
-          </h1>
-
-          <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-hpsr-muted">
-            Medicamentos por área de uso, com nome fictício, referência real, indicação resumida e alternativa em caso de alergia.
-          </p>
+      <section className={styles.filters} aria-label="Busca e filtros de medicamentos">
+        <label className={styles.search}><Search size={21} aria-hidden="true" />
+          <input value={query} onChange={(event) => { setQuery(event.target.value); setAlternativesOpen(false); }}
+            aria-label="Buscar medicamento, referência, alergia ou dor" placeholder="Buscar medicamento, alergia, dor..." />
+        </label>
+        <div className={styles.selectWrap}>
+          <StyledSelect value={selectedGroup} onChange={(event) => { setSelectedGroup(event.target.value); setAlternativesOpen(false); }}
+            aria-label="Filtrar por grupo" className={styles.select}>
+            {groupOptions.map((item) => <option key={item} value={item}>{item}</option>)}
+          </StyledSelect>
+        </div>
+        <div className={styles.counters} aria-live="polite">
+          <span>{medications.length} medicamentos</span><span>{filtered.length} filtrados</span><span>{categoryGroups.length} grupos</span>
         </div>
       </section>
 
-      <section className="shrink-0 rounded-[16px] border border-[#d5bca7] bg-[#efe1d2] px-4 py-3">
-        <div className="grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(240px,300px)_auto] xl:items-center">
-          <label className="flex min-h-[38px] items-center gap-3 rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-4 focus-within:border-hpsr-wineLight focus-within:ring-2 focus-within:ring-hpsr-wineLight/20">
-            <Search size={17} className="text-hpsr-muted" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar medicamento, alergia, dor..."
-              className="w-full bg-transparent text-sm font-semibold text-hpsr-text outline-none placeholder:text-zinc-400"
-            />
-          </label>
-
-          <div className="relative">
-            <StyledSelect
-              value={selectedGroup}
-              onChange={(event) => setSelectedGroup(event.target.value)}
-              className="min-h-[44px] w-full appearance-none rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-4 pr-10 text-sm font-semibold text-hpsr-text outline-none focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20"
-            >
-              {groupOptions.map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </StyledSelect>
-            <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-hpsr-wine" />
+      <div className={styles.workspace}>
+        <section className={styles.listPanel} aria-label="Medicamentos">
+          <header className={styles.listHeader}>
+            <h2>Medicamentos <span>{filtered.length} itens</span></h2>
+            <label><span className="sr-only">Ordenar medicamentos</span>
+              <select aria-label="Ordenar medicamentos" value={sort} onChange={(event) => { setSort(event.target.value); setAlternativesOpen(false); }}>
+                <option value="asc">Nome A – Z</option><option value="desc">Nome Z – A</option>
+              </select>
+            </label>
+          </header>
+          <div className={styles.list}>
+            {filtered.map((item) => <div key={item.name} className={`${styles.row} ${selectedMedication?.name === item.name ? styles.selected : ""}`}>
+              <button type="button" className={styles.medicationButton} onClick={() => selectMedication(item)}
+                aria-pressed={selectedMedication?.name === item.name} aria-label={`Ver detalhes de ${item.name}`}>
+                <span className={styles.pillIcon}><Pill size={23} /></span>
+                <span className={styles.medicationName}><strong>{item.name}</strong><span>Referência: {item.realName}</span></span>
+                {categoryBadge(item)}
+              </button>
+              <button type="button" className={styles.bookmark} aria-label={`${marked.includes(item.name) ? "Desmarcar" : "Marcar"} ${item.name}`}
+                aria-pressed={marked.includes(item.name)} onClick={() => toggleMark(item.name)}>
+                <Bookmark size={21} fill={marked.includes(item.name) ? "currentColor" : "none"} />
+              </button>
+            </div>)}
+            {!filtered.length && <div className={styles.empty}><Search size={28} /><h3>Nenhum medicamento encontrado</h3><p>Tente outro nome, referência ou grupo.</p></div>}
           </div>
+        </section>
 
-          <div className="flex flex-wrap gap-2 xl:justify-end">
-            <span className="rounded-full border border-hpsr-border bg-[#fffaf4] px-3 py-1 text-[11px] font-black text-hpsr-wine">
-              {medications.length} medicamentos
-            </span>
-            <span className="rounded-full border border-hpsr-border bg-[#fffaf4] px-3 py-1 text-[11px] font-black text-hpsr-wine">
-              {filtered.length} filtrados
-            </span>
-            <span className="rounded-full border border-hpsr-border bg-[#fffaf4] px-3 py-1 text-[11px] font-black text-hpsr-wine">
-              {categoryGroups.length} grupos
-            </span>
-          </div>
-        </div>
-      </section>
-
-      <section className="min-h-0 flex-1 overflow-hidden">
-        {filtered.length > 0 ? (
-          <div className="h-full overflow-y-auto pr-2">
-            <div className="grid items-stretch gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {visibleGroups.map((group) => {
-                const Icon = group.icon;
-                const isExpanded = openGroups.includes(group.title);
-                const visibleMeds = isExpanded ? group.medications : group.medications.slice(0, 6);
-
-                return (
-                  <article
-                    key={group.title}
-                    className={`hpsr-pharma-group flex min-h-[360px] flex-col overflow-hidden rounded-[16px] border ${group.border} bg-[#eee3d8] shadow-[0_4px_14px_rgba(78,49,33,0.045)] transition hover:bg-[#f4e9df]`}
-                  >
-                    <header className={`shrink-0 border-b ${group.border} ${group.tint} px-4 py-3`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3">
-                          <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-[16px] ${group.iconTint} text-hpsr-wine`}>
-                            <Icon size={18} />
-                          </div>
-                          <div>
-                            <h2 className="text-base font-black leading-tight text-hpsr-text">
-                              {group.title}
-                            </h2>
-                            <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">{group.description}</p>
-                          </div>
-                        </div>
-
-                        <span className="shrink-0 rounded-full border border-hpsr-border bg-white/[0.86] px-3 py-1 text-[11px] font-black text-hpsr-wine">
-                          {group.medications.length}
-                        </span>
-                      </div>
-                    </header>
-
-                    <div className="flex-1 p-3">
-                      <div className="grid gap-3">
-                        {visibleMeds.map((item) => (
-                          <button
-                            key={`${item.category}-${item.name}`}
-                            type="button"
-                            onClick={() => setSelectedMedication(item)}
-                            className={`w-full rounded-[16px] border ${group.border} ${group.soft} p-3 text-left transition hover:bg-[#fffdf9]`}
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-hpsr-wineLight">
-                                  {item.realName}
-                                </p>
-                                <h3 className="mt-1 text-sm font-black text-hpsr-text">
-                                  {item.name}
-                                </h3>
-                                <p className="mt-1.5 flex items-start gap-1.5 text-xs leading-relaxed text-hpsr-muted">
-                                  <ShieldCheck size={13} className="mt-0.5 shrink-0 text-hpsr-wine" />
-                                  {shortUse(item)}
-                                </p>
-                              </div>
-
-                              <span className="mt-0.5 shrink-0 rounded-full border border-hpsr-border bg-white/75 px-2.5 py-1 text-[10px] font-bold text-hpsr-wine">
-                                {item.category}
-                              </span>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {group.medications.length > 6 && (
-                      <button
-                        type="button"
-                        onClick={() => toggleGroup(group.title)}
-                        className="mx-3 mb-3 mt-0 flex shrink-0 items-center justify-center gap-2 rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-4 py-2.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fffdf9]"
-                      >
-                        {isExpanded ? "Mostrar menos" : `Ver todos (${group.medications.length})`}
-                        <ChevronDown size={15} className={`transition ${isExpanded ? "rotate-180" : ""}`} />
-                      </button>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5 text-center">
-            <p className="text-lg font-black text-hpsr-text">Nenhum medicamento encontrado</p>
-            <p className="mt-2 text-sm text-hpsr-muted">
-              Tente buscar por outro nome, grupo, categoria ou medicamento real.
-            </p>
-          </div>
-        )}
-      </section>
-
-      {selectedMedication && (
-        <MedicationDetailsModal
-          item={selectedMedication}
-          onClose={() => setSelectedMedication(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-function MedicationDetailsModal({ item, onClose }: { item: Medication; onClose: () => void }) {
-  return (
-    <div className="hpsr-modal-tone fixed inset-0 z-[100] grid place-items-center px-4 py-3">
-      <button
-        type="button"
-        aria-label="Fechar detalhes"
-        onClick={onClose}
-        className="hpsr-modal-backdrop"
-      />
-
-      <article className="hpsr-modal-shell max-w-2xl">
-        <div className="hpsr-modal-header p-3.5">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-hpsr-wineLight">{item.category}</p>
-          <h2 className="mt-2 text-lg font-semibold text-hpsr-text">{item.name}</h2>
-          <p className="mt-1 text-sm font-bold text-hpsr-muted">
-            Medicamento real: <span className="text-hpsr-wine">{item.realName}</span>
-          </p>
-        </div>
-
-        <div className="space-y-4 p-3.5">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-hpsr-wineLight">Uso indicado</p>
-            <p className="mt-2 text-sm leading-relaxed text-hpsr-muted">{item.use}</p>
-          </div>
-
-          <div className="rounded-[16px] border border-[#d8c4af] bg-[#f2e9de] p-3.5">
-            <div className="flex items-start gap-3">
-              <ShieldCheck size={18} className="mt-0.5 shrink-0 text-hpsr-wine" />
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-hpsr-wineLight">
-                  Alternativa em alergia
-                </p>
-                <p className="mt-2 text-sm leading-relaxed text-hpsr-muted">{item.allergyAlternative}</p>
+        <article className={styles.details} aria-label="Detalhes do medicamento">
+          {selectedMedication ? <>
+            <header className={styles.detailHeader}>
+              <p className={styles.eyebrow}><Pill size={22} /> Medicamento do RP</p>
+              <div className={styles.detailTitle}>
+                <h2>{selectedMedication.name}</h2>
+                {categoryBadge(selectedMedication)}
+                <button type="button" className={styles.detailBookmark} aria-label={`${marked.includes(selectedMedication.name) ? "Desmarcar" : "Marcar"} ${selectedMedication.name}`}
+                  aria-pressed={marked.includes(selectedMedication.name)} onClick={() => toggleMark(selectedMedication.name)}>
+                  <Bookmark size={23} fill={marked.includes(selectedMedication.name) ? "currentColor" : "none"} />
+                </button>
               </div>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="mt-2 w-full rounded-[16px] bg-[linear-gradient(135deg,#672614,#74321e)] px-4 py-3 text-sm font-semibold text-white transition"
-          >
-            Fechar
-          </button>
-        </div>
-      </article>
-    </div>
-  );
-}
-
-
-function SummaryCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[16px] border border-[#d8c4af] bg-[#f1e5d9] p-3.5 transition hover:bg-[#f5eadd]">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">{label}</p>
-      <p className="mt-1 text-lg font-black text-hpsr-text">{value}</p>
+              <p className={styles.reference}>Referência: <span>{selectedMedication.realName}</span></p>
+            </header>
+            <section className={styles.detailSection}><span className={styles.sectionIcon}><FileText size={30} /></span>
+              <div><h3>Para que é utilizado</h3><p>{selectedMedication.use}</p></div>
+            </section>
+            <section className={styles.detailSection}><span className={styles.sectionIcon}><Info size={30} /></span>
+              <div><h3>Informações do medicamento</h3><p>{selectedMedication.information || `Categoria no guia: ${selectedMedication.category}.`}</p></div>
+            </section>
+            <section className={styles.detailSection}><span className={styles.sectionIcon}><FileText size={30} /></span>
+              <div><h3>Cuidados e observações</h3><p>{selectedMedication.observations || "Confira as informações e alternativas cadastradas neste guia."}</p></div>
+            </section>
+            <section className={styles.allergies}>
+              <span className={styles.warningIcon}><TriangleAlert size={34} /></span>
+              <div><h3>Alergias e alternativas</h3><p>Consulte as opções registradas para este medicamento.</p></div>
+              <button type="button" aria-expanded={alternativesOpen} aria-controls="pharma-alternatives" onClick={() => setAlternativesOpen((value) => !value)}>
+                {alternativesOpen ? "Ocultar alternativas" : "Ver alternativas"}
+              </button>
+            </section>
+            {alternativesOpen && <div id="pharma-alternatives" className={styles.alternatives} role="region" aria-label={`Alternativas de ${selectedMedication.name}`}>{selectedMedication.allergyAlternative}</div>}
+            <footer className={styles.footer}><BookOpen size={25} /><span>Guia de apoio aos atendimentos no RP.</span></footer>
+          </> : <div className={styles.empty}><Pill size={36} /><h3>Selecione um medicamento</h3><p>Os detalhes aparecerão aqui após a busca.</p></div>}
+        </article>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
-packages:
-  - .
-allowBuilds:
-  unrs-resolver: true
 overrides:
   es-to-primitive: 1.3.0
+publicHoistPattern:
+  - es-to-primitive
+allowBuilds:
+  unrs-resolver: false

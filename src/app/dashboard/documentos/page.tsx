@@ -4,7 +4,10 @@ import { brazilIso } from "@/lib/brazil-datetime";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { EditorFontSizeMenu } from "@/components/ui/EditorFontSizeMenu";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ExamEditorCaret } from "@/components/dashboard/ExamEditorCaret";
+import { useVirtualPngPreview } from "@/lib/use-virtual-png-preview";
+import { useExamDraft } from "@/lib/use-exam-draft";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlignCenter,
   AlignLeft,
@@ -536,7 +539,7 @@ function DocumentVisualPreviewPage({
         </div>
         <div className="mt-4 min-h-0 flex-1 overflow-hidden rounded-[16px] border border-[#e7ddd6] bg-white px-5 py-4 text-[10px] leading-[1.58] shadow-[0_10px_26px_rgba(42,7,0,0.035)] [&_h1]:mb-3 [&_h1]:text-[15px] [&_h1]:font-black [&_h1]:uppercase [&_h1]:tracking-[0.05em] [&_h1]:text-[#5b1809] [&_h2]:mb-2 [&_h2]:mt-3 [&_h2]:rounded-[8px] [&_h2]:border [&_h2]:border-[#e6dad2] [&_h2]:bg-[#fbf6f2] [&_h2]:px-3 [&_h2]:py-2 [&_h2]:text-[11px] [&_h2]:font-black [&_h2]:uppercase [&_h2]:tracking-[0.05em] [&_h2]:text-[#5b1809] [&_p]:mb-2.5 [&_strong]:text-[#3d1710] [&_table]:my-3 [&_table]:w-full [&_table]:border-collapse [&_td]:border [&_td]:border-[#e7ddd6] [&_td]:p-2 [&_th]:border [&_th]:border-[#e7ddd6] [&_th]:bg-[#f7eee8] [&_th]:p-2 [&_th]:text-left [&_th]:font-black [&_th]:text-[#5b1809]" dangerouslySetInnerHTML={{ __html: html }} />
         <footer className="mt-3 border-t border-[#cfb3a2] pt-2 text-center text-[8px] text-[#7a5148]">
-          {doctor.signatureImage ? <img src={doctor.signatureImage} alt="Assinatura cadastrada do médico" className="mx-auto h-[48px] w-[280px] object-contain" /> : <div className="mx-auto flex h-[48px] items-end justify-center text-[20px] italic text-[#5b1809]" style={{ fontFamily: 'Georgia, serif' }}>{doctor.name || 'Nome do médico'}</div>}
+          {doctor.signatureImage ? <div className="mx-auto flex h-[48px] w-[280px] items-end justify-center"><img src={doctor.signatureImage} alt="Assinatura cadastrada do médico" className="h-[42px] w-[240px] object-contain" /></div> : <div className="mx-auto flex h-[48px] items-end justify-center text-[20px] italic text-[#5b1809]" style={{ fontFamily: 'Georgia, serif' }}>{doctor.name || 'Nome do médico'}</div>}
           <div className="mx-auto mb-1 h-1 w-[250px] border-b border-dashed border-[#8d665b]" />
           <p className="font-black text-[#5b1809]">Dr(a). {doctor.name || 'Nome do médico'}</p>
           <p className="font-semibold">{doctor.role || 'Médico'} · CRM: {doctor.crm || '000000'}</p>
@@ -574,7 +577,7 @@ export default function DocumentsPage() {
   const [quickPatientDraft, setQuickPatientDraft] = useState<PatientDraft>(emptyPatient);
 
   useEffect(() => {
-    if (!sharedSelectedPatient) return;
+    if (!sharedSelectedPatient || restoredDoctor.current !== null) return;
     setPatient(sharedSelectedPatient as PatientDraft);
   }, [sharedSelectedPatient]);
   const [doctor, setDoctor] = useState<DoctorDraft>(initialDoctor);
@@ -599,12 +602,42 @@ export default function DocumentsPage() {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewPageHtmls, setPreviewPageHtmls] = useState<string[]>([]);
   const [previewPageIndex, setPreviewPageIndex] = useState(0);
+  const previewRenderRef = useRef<((index: number) => Promise<Blob | null>) | null>(null);
+  const previewNameRef = useRef("");
+  const pngPreview = useVirtualPngPreview(previewOpen, previewPageHtmls, previewPageIndex,
+    () => previewRenderRef.current?.(previewPageIndex) || Promise.resolve(null));
   const [savingDocument, setSavingDocument] = useState(false);
   const [editorPageGuideTops, setEditorPageGuideTops] = useState<number[]>([]);
   const [isConfidential, setIsConfidential] = useState(true);
   const [tablePickerOpen, setTablePickerOpen] = useState(false);
   const [tableRows, setTableRows] = useState(3);
   const [tableCols, setTableCols] = useState(3);
+
+  const restoredDoctor = useRef<string | null>(null);
+  const editorHtmlRef = useRef(editorHtml);
+  editorHtmlRef.current = editorHtml;
+  const bindDraftEditor = useCallback((node: HTMLDivElement | null) => {
+    editorRef.current = node;
+    if (node) node.innerHTML = editorHtmlRef.current;
+  }, []);
+  const documentDraft = useMemo(() => ({ schemaVersion: 1, patient, doctor, selectedDoctorId, selectedModelId,
+    guidedValues, catalogCategory, catalogSearch, catalogOpen, useModel, editorHtml,
+    editingRecordId, editingReleasedSnapshot, loadedIsConfidential, documentDirty, isConfidential }),
+    [patient, doctor, selectedDoctorId, selectedModelId, guidedValues, catalogCategory, catalogSearch,
+      catalogOpen, useModel, editorHtml, editingRecordId, editingReleasedSnapshot, loadedIsConfidential, documentDirty, isConfidential]);
+  const draftPersistence = useExamDraft(currentUserProfile.id, documentDraft, (draft) => {
+    if (draft.schemaVersion !== 1) throw new Error("Rascunho incompatível");
+    restoredDoctor.current = draft.selectedDoctorId;
+    setPatient(draft.patient || emptyPatient); setDoctor(draft.doctor || initialDoctor);
+    setSelectedDoctorId(draft.selectedDoctorId); setSelectedModelId(draft.selectedModelId);
+    setGuidedValues(draft.guidedValues || {}); setCatalogCategory(draft.catalogCategory || "todos");
+    setCatalogSearch(draft.catalogSearch || ""); setCatalogOpen(Boolean(draft.catalogOpen)); setUseModel(Boolean(draft.useModel));
+    setEditorHtml(draft.editorHtml || "");
+    if (editorRef.current) editorRef.current.innerHTML = draft.editorHtml || "";
+    setEditingRecordId(draft.editingRecordId || null); setEditingReleasedSnapshot(draft.editingReleasedSnapshot || null);
+    setLoadedIsConfidential(draft.loadedIsConfidential !== false); setDocumentDirty(Boolean(draft.documentDirty));
+    setIsConfidential(draft.isConfidential !== false);
+  }, "document_editor_drafts");
 
   const today = useMemo(() => new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" }), []);
   const selectedModel = useMemo(
@@ -698,6 +731,7 @@ export default function DocumentsPage() {
   }, [currentUserProfile.id, currentUserProfile.characterName, currentUserProfile.systemName, currentUserProfile.signatureName, currentUserProfile.crm, currentUserProfile.role, currentUserProfile.signatureRole, currentUserProfile.specialty, currentUserProfile.signatureImage]);
 
   useEffect(() => {
+    if (restoredDoctor.current === selectedDoctorId) return;
     const selected = availableDoctors.find((item) => item.id === selectedDoctorId);
     if (!selected) return;
 
@@ -1459,7 +1493,7 @@ export default function DocumentsPage() {
       const signature = await loadImage(signatureSource);
       if (signature) {
         const normalizedSignature = normalizeSignatureImage(signature);
-        if (normalizedSignature) drawSignatureContain(context, normalizedSignature, 257, 1019, 280, 48);
+        if (normalizedSignature) drawSignatureContain(context, normalizedSignature, 277, 1025, 240, 42);
       }
     } else {
       context.fillStyle = "#5b1809";
@@ -1499,27 +1533,23 @@ export default function DocumentsPage() {
   }
 
   async function initializePreviewPages(pages: string[]) {
+    const render = renderDocumentCanvas;
+    previewRenderRef.current = async (index) => {
+      const canvas = await render(pages[index] || "", index, pages.length);
+      return canvas ? new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png")) : null;
+    };
+    previewNameRef.current = `${safeFileName(selectedModel?.title || "documento-medico")}_${safeFileName(patient.name || "paciente")}`;
     setPreviewPageHtmls(pages);
     setPreviewPageIndex(0);
     setPreviewOpen(true);
   }
 
-  async function downloadPng() {
-    const pages = buildDocumentPages();
-    const pageHtml = pages[previewPageIndex] || pages[0] || "";
-    const canvas = await renderDocumentCanvas(pageHtml, previewPageIndex, pages.length);
-    if (!canvas) return;
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        setAppDialog({ title: "Exportação PNG", message: "Não foi possível gerar o PNG. Tente novamente.", actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });
-        return;
-      }
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = `${safeFileName(selectedModel?.title || "documento-medico")}_${safeFileName(patient.name || "paciente")}_pagina_${previewPageIndex + 1}.png`;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(link.href), 500);
-    }, "image/png");
+  function downloadPng() {
+    if (!pngPreview.url) return;
+    const link = document.createElement("a");
+    link.href = pngPreview.url;
+    link.download = `${previewNameRef.current}_pagina_${previewPageIndex + 1}.png`;
+    link.click();
   }
 
 
@@ -1723,6 +1753,7 @@ export default function DocumentsPage() {
   return (
     <>
       <div className="hpsr-page hpsr-documents-page gap-4 text-hpsr-text">
+        <ExamEditorCaret />
         <div className="hpsr-topbar" />
 
         <header className="flex items-center gap-4 rounded-[22px] border border-[#e4d8cf] bg-[linear-gradient(110deg,#fff3e9_0%,#f5e5df_100%)] px-5 py-4 shadow-[0_8px_25px_rgba(42,7,0,0.04)]">
@@ -2114,8 +2145,8 @@ export default function DocumentsPage() {
                     </div>
                   ))}
                 <div
-                  ref={editorRef}
-                  contentEditable
+                  ref={bindDraftEditor}
+                  contentEditable={draftPersistence.ready}
                   suppressContentEditableWarning
                   onInput={syncEditor}
                   onKeyUp={rememberSelection}
@@ -2132,7 +2163,7 @@ export default function DocumentsPage() {
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e9e1da] bg-[#fcfbfa] px-6 py-3.5 no-print">
-<span className="text-[11px] font-semibold text-hpsr-muted">A visibilidade no Portal pode ser ajustada diretamente no cabeçalho do editor.</span>
+<span role="status" className="text-[11px] font-semibold text-hpsr-muted">{draftPersistence.status} {(draftPersistence.status.includes("não salvo") || draftPersistence.status.includes("Não foi possível")) && <button type="button" onClick={() => void draftPersistence.retry()} className="underline">Tentar novamente</button>} · A visibilidade no Portal pode ser ajustada diretamente no cabeçalho do editor.</span>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
@@ -2186,15 +2217,7 @@ export default function DocumentsPage() {
 
             <div className="min-h-0 flex-1 overflow-auto bg-[linear-gradient(180deg,#f4f0ed_0%,#ebe5e0_100%)] p-6">
               <div className="mx-auto w-fit origin-top scale-[0.72] sm:scale-[0.78] md:scale-[0.86] xl:scale-100 shadow-[0_18px_52px_rgba(42,7,0,0.22)]">
-                <DocumentVisualPreviewPage
-                  html={previewPageHtmls[previewPageIndex] || ""}
-                  pageIndex={previewPageIndex}
-                  totalPages={previewPageHtmls.length}
-                  patient={patient}
-                  doctor={doctor}
-                  title={selectedModel?.title || "Documento médico"}
-                  today={today}
-                />
+                {pngPreview.url ? <img src={pngPreview.url} alt={`Pré-visualização do PNG · Página ${previewPageIndex + 1}`} width={794} height={1123} className="block max-w-full shadow-xl" /> : <p role="status" className="p-6 text-center font-semibold">{pngPreview.error || "Gerando pré-visualização…"}</p>}
               </div>
             </div>
 
@@ -2215,6 +2238,7 @@ export default function DocumentsPage() {
                 <button
                   type="button"
                   onClick={downloadPng}
+                  disabled={!pngPreview.url}
                   className="inline-flex h-10 items-center gap-2 rounded-[12px] bg-hpsr-wine px-4 text-xs font-black text-white hover:bg-hpsr-wineDark"
                 >
                   <Download size={15} /> Baixar PNG

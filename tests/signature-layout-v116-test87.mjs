@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { stripTypeScriptTypes } from 'node:module';
+const source = readFileSync('src/lib/exam-signature-image.ts','utf8');
+const sizes = new Function(stripTypeScriptTypes(source.split('export function normalizeSignatureImage')[0]).replaceAll('export const','const')+';return { EXAM_SIGNATURE_WIDTH, EXAM_SIGNATURE_HEIGHT, EXAM_SIGNATURE_IMAGE_WIDTH, EXAM_SIGNATURE_IMAGE_HEIGHT };')();
+assert.deepEqual(sizes,{EXAM_SIGNATURE_WIDTH:540,EXAM_SIGNATURE_HEIGHT:100,EXAM_SIGNATURE_IMAGE_WIDTH:360,EXAM_SIGNATURE_IMAGE_HEIGHT:68});
+const renderer=readFileSync('src/data/exames/final-renderer.tsx','utf8');
+assert.match(renderer,/top: 124 - EXAM_SIGNATURE_HEIGHT/);
+assert.match(renderer,/FIRST_PAGE_CAPACITY = 714/); assert.match(renderer,/CONTINUATION_PAGE_CAPACITY = 714/);
+assert.match(renderer,/top: 214/); assert.match(renderer,/height: 714/); assert.match(renderer,/top: 936/);
+assert.ok(214+714<936,'Report body stays above footer');
+const exam=readFileSync('src/app/dashboard/exames/page.tsx','utf8');
+assert.match(exam,/1060 - EXAM_SIGNATURE_IMAGE_HEIGHT, EXAM_SIGNATURE_IMAGE_WIDTH, EXAM_SIGNATURE_IMAGE_HEIGHT/);
+assert.equal(936+124,1060,'Preview and PNG use the same signature baseline');
+const doc=readFileSync('src/app/dashboard/documentos/page.tsx','utf8');
+assert.match(doc,/h-\[48px\] w-\[280px\] items-end justify-center/);
+assert.match(doc,/277, 1025, 240, 42/); assert.equal(1025+42,1019+48);
+console.log('PASS preserved signature areas, separate image sizes, baselines and report page limits');

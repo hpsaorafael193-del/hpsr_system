@@ -1,0 +1,110 @@
+.page { display:flex; flex-direction:column; gap:14px; height:calc(100dvh - 66px); min-height:640px; min-width:0; color:#451a12; font-family:Arial,sans-serif; }
+.page * { box-sizing:border-box; }
+.page button,.page input,.page select { font:inherit; }
+.page button { cursor:pointer; }
+.page button:focus-visible,.page select:focus-visible,.page input:focus-visible { outline:2px solid #a85537; outline-offset:3px; }
+.header { flex-shrink:0; display:flex; align-items:center; gap:16px; min-height:78px; padding:12px 18px; padding-right:370px; border:1px solid #744333; border-radius:14px; background:linear-gradient(110deg,#612d1c,#482016 58%,#643524); color:#fff9f3; }
+.headerIcon { display:grid; place-items:center; width:54px; height:54px; flex-shrink:0; border-radius:50%; background:#ffffff16; }
+.header h1 { margin:0; font-size:clamp(21px,2vw,30px); line-height:1.2; font-weight:800; color:#fff9f3; }
+.header p { margin:3px 0 0; font-size:16px; line-height:1.35; color:#fff0e5; }
+.filters { flex-shrink:0; display:flex; align-items:center; gap:12px; padding:12px 14px; border:1px solid #dfccbd; border-radius:15px; background:#e8dacf99; }
+.search { display:flex; align-items:center; gap:14px; flex:1; min-width:150px; height:46px; padding:0 17px; border:1px solid #e3cfc0; border-radius:16px; background:#fffaf6dc; }
+.search svg { flex-shrink:0; color:#5b1809; }
+.search input { width:100%; min-width:0; border:0; background:transparent; color:#512119; outline:none; font-size:16px; }
+.search input::placeholder { color:#9a6555; opacity:1; }
+.selectWrap { position:relative; width:200px; flex-shrink:0; }
+.select > span:last-child { background:transparent; color:#8d1c0d; }
+.page .select { width:100%; min-height:46px; padding:0 38px 0 16px; border:1px solid #e3cfc0; border-radius:13px; background:#fffaf6; appearance:none; color:#5b1809; font-size:16px; }
+.counters { display:flex; flex-shrink:0; gap:9px; }
+.counters span { display:block; white-space:nowrap; padding:8px 16px; border:1px solid #e4cfc1; border-radius:30px; background:#fff9f2cf; color:#791c10; font-size:13px; font-weight:800; }
+.workspace { display:grid; grid-template-columns:minmax(0,.44fr) minmax(0,.56fr); gap:14px; flex:1; min-height:0; padding-right:0; }
+.listPanel,.details { min-width:0; min-height:0; border:1px solid #dfd2c8; border-radius:15px; background:linear-gradient(120deg,#f6eee8aa,#f4ebe5a8); }
+.listPanel { display:flex; flex-direction:column; padding:11px 10px 14px; overflow:hidden; }
+.listHeader { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:2px 5px 13px; flex-shrink:0; }
+.listHeader h2 { margin:0; font-size:23px; font-weight:800; line-height:1.3; color:#41120c; }
+.listHeader h2 span { margin-left:8px; font-size:15px; font-weight:400; color:#986351; white-space:nowrap; }
+.listHeader select { border:0; background:transparent; color:#542318; font-size:14px; max-width:115px; }
+.list { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:auto; scrollbar-color:#c8c3bc #e5e0da; padding-right:5px; }
+.list::-webkit-scrollbar { width:11px; }
+.list::-webkit-scrollbar-track { background:#e5e0da; border-radius:12px; }
+.list::-webkit-scrollbar-thumb { background:#c8c3bc; border:2px solid #e5e0da; border-radius:12px; }
+.row { position:relative; display:flex; align-items:center; border-bottom:1px solid #e4d5c9; min-height:62px; }
+.row.selected { border-radius:11px; border-bottom-color:transparent; background:linear-gradient(100deg,#f6dcd5,#f3ded7d9); }
+.row.selected::before { content:""; position:absolute; left:0; top:2px; bottom:2px; width:4px; background:#8b180c; border-radius:6px 0 0 6px; }
+.medicationButton { display:flex; align-items:center; gap:12px; flex:1; min-width:0; align-self:stretch; padding:7px 7px 7px 12px; text-align:left; border:0; background:transparent; color:#451a12; }
+.row:hover { background:#f5e3dacc; }
+.pillIcon { display:grid; place-items:center; flex-shrink:0; width:43px; height:43px; border:1px solid #f3d6c3; border-radius:50%; background:#ffede0; color:#981b0c; }
+.medicationName { display:flex; flex-direction:column; flex:1; min-width:0; }
+.medicationName strong { font-size:16px; line-height:1.3; color:#43150e; font-weight:800; }
+.medicationName > span { font-size:13px; line-height:1.35; color:#98614f; overflow-wrap:anywhere; }
+.badge { display:inline-flex; align-items:center; justify-content:center; max-width:175px; flex-shrink:0; min-height:33px; padding:5px 14px; border:1px solid #6c332818; border-radius:25px; color:#59261c; text-align:center; font-size:12px; line-height:1.2; }
+.bookmark { display:grid; place-items:center; flex-shrink:0; width:32px; height:40px; padding:4px; margin-right:5px; border:0; background:transparent; color:#6b281a; }
+.bookmark[aria-pressed="true"],.detailBookmark[aria-pressed="true"] { color:#a63213; }
+.details { display:flex; flex-direction:column; padding:20px 19px 18px; overflow-y:auto; overscroll-behavior:contain; }
+.detailHeader { padding:0 8px 20px; border-bottom:1px solid #e2d0c1; }
+.eyebrow { display:flex; align-items:center; gap:12px; margin:0 0 12px; color:#8b180c; font-size:12px; font-weight:800; letter-spacing:1.2px; text-transform:uppercase; }
+.detailTitle { display:flex; align-items:center; gap:12px; }
+.detailTitle h2 { flex:1; min-width:0; margin:0; font-size:clamp(28px,3.2vw,46px); font-weight:800; color:#35100b; line-height:1.1; overflow-wrap:anywhere; }
+.detailTitle .badge { max-width:185px; font-size:14px; min-height:42px; padding:8px 18px; }
+.detailBookmark { display:grid; place-items:center; flex-shrink:0; width:44px; height:48px; padding:0; border:1px solid #e5d1c2; border-radius:10px; background:#fff7ef40; color:#64251b; }
+.reference { margin:10px 0 0; color:#9b6554; font-size:22px; line-height:1.3; }
+.reference span { color:#791c10; }
+.detailSection { display:flex; align-items:center; gap:17px; padding:24px 8px; border-bottom:1px solid #e2d0c1; }
+.sectionIcon { display:grid; place-items:center; flex-shrink:0; width:65px; height:65px; border-radius:50%; background:#ebded2bb; color:#4c2016; }
+.detailSection > div { flex:1; min-width:0; padding-left:22px; border-left:1px solid #dfc6b5; }
+.detailSection h3,.allergies h3 { margin:0; font-size:20px; font-weight:800; line-height:1.3; color:#3e150d; }
+.detailSection p { margin:6px 0 0; font-size:16px; line-height:1.5; color:#95614e; }
+.allergies { display:flex; align-items:center; gap:16px; margin-top:13px; padding:14px; border:1px solid #f2d5bd; border-radius:13px; background:#ffeadbd9; }
+.warningIcon { display:grid; place-items:center; flex-shrink:0; width:61px; height:61px; border-radius:50%; background:#ffdbbb; color:#b3440c; }
+.allergies > div { flex:1; min-width:0; }
+.allergies h3 { color:#861e0d; font-size:19px; }
+.allergies p { margin:5px 0 0; color:#98614f; font-size:13px; line-height:1.45; }
+.allergies button { flex-shrink:0; min-height:44px; padding:9px 14px; border:1px solid #6e2b1b; border-radius:8px; background:#fff3e7; color:#6e1c10; font-size:12px; font-weight:800; }
+.alternatives { margin-top:10px; padding:16px; border-left:3px solid #a33a17; border-radius:8px; background:#f9e1ce; color:#673221; font-size:14px; line-height:1.6; }
+.footer { display:flex; align-items:center; justify-content:flex-end; gap:17px; padding:32px 8px 4px; margin-top:auto; color:#87513d; font-size:12px; }
+.footer svg { color:#871a0c; flex-shrink:0; }
+.empty { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; min-height:220px; padding:20px; text-align:center; color:#8c5d4b; }
+.empty h3 { margin:0; color:#5b2419; font-size:18px; }
+.empty p { margin:0; font-size:14px; }
+@media (max-width:1250px) { .filters { flex-wrap:wrap; } .search { flex-basis:calc(100% - 225px); } .counters { margin-left:auto; } .badge { max-width:140px; padding:5px 9px; font-size:11px; } .listHeader h2 { font-size:20px; } .detailTitle { flex-wrap:wrap; } .detailTitle h2 { flex-basis:calc(100% - 60px); } .detailTitle .badge { order:3; } .allergies { flex-wrap:wrap; } .allergies button { margin-left:77px; } .header { padding-right:320px; } }
+@media (max-width:1023px) { .page { height:auto; min-height:calc(100dvh - 65px); } .header { padding-right:18px; padding-top:58px; } .workspace { grid-template-columns:minmax(0,.42fr) minmax(0,.58fr); min-height:620px; padding-right:0; } .listPanel { max-height:780px; } .details { max-height:780px; } .medicationButton { flex-wrap:wrap; gap:8px; } .medicationButton .badge { margin-left:51px; max-width:calc(100% - 51px); } .detailSection { gap:12px; padding:20px 0; } .sectionIcon { width:48px; height:48px; } .detailSection > div { padding-left:14px; } .detailSection h3 { font-size:18px; } }
+@media (max-width:640px) { .page { gap:12px; } .header { gap:12px; } .headerIcon { width:43px; height:43px; } .header p { font-size:13px; } .filters { gap:10px; padding:10px; } .search { flex-basis:100%; } .selectWrap { width:100%; } .counters { flex-wrap:wrap; margin:0; gap:5px; } .counters span { font-size:11px; padding:6px 9px; } .workspace { display:flex; flex-direction:column; gap:12px; padding:0; } .listPanel { height:390px; flex:none; } .details { max-height:none; overflow:visible; padding:17px 13px; } .medicationButton { flex-wrap:nowrap; } .medicationButton .badge { margin-left:0; max-width:120px; font-size:10px; } .medicationName strong { font-size:14px; } .medicationName > span { font-size:12px; } .pillIcon { width:35px; height:35px; } .medicationButton { gap:8px; padding-left:8px; } .detailTitle h2 { font-size:34px; } .allergies button { margin-left:0; } .footer { padding-top:24px; font-size:11px; } }
+
+/* v1.1.16-test.88 — hierarquia de fontes próxima às abas do sistema.
+   Apenas tipografia; ícones, campos e espaçamentos permanecem iguais. */
+.page .header h1 { font-size: 18px; }
+.page .header p { font-size: 12px; }
+.page .search input, .page .select { font-size: 12px; }
+.page .counters span { font-size: 11px; }
+.page .listHeader h2 { font-size: 16px; }
+.page .listHeader h2 span, .page .listHeader select { font-size: 12px; }
+.page .medicationName strong { font-size: 13px; }
+.page .medicationName > span { font-size: 11px; }
+.page .badge { font-size: 10px; }
+.page .eyebrow { font-size: 10px; }
+.page .detailTitle h2 { font-size: 18px; }
+.page .detailTitle .badge { font-size: 10px; }
+.page .reference { font-size: 12px; }
+.page .detailSection h3, .page .allergies h3 { font-size: 13px; }
+.page .detailSection p, .page .alternatives { font-size: 12px; }
+.page .allergies p, .page .allergies button { font-size: 11px; }
+.page .footer { font-size: 11px; }
+.page .empty h3 { font-size: 14px; }
+.page .empty p { font-size: 12px; }
+
+/* v1.1.16-test.89 — destaque por contraste e peso, sem aumentar fontes. */
+.page { font-family: var(--font-hpsr), Roboto, "Segoe UI", Arial, sans-serif; }
+.page .header h1 { font-weight: 900; letter-spacing: .01em; }
+.page .listHeader h2,
+.page .detailTitle h2,
+.page .medicationName strong,
+.page .detailSection h3 { font-weight: 900; color: #35150e; }
+.page .allergies h3 { font-weight: 900; color: #702b17; }
+.page .reference { font-weight: 600; color: #654335; }
+.page .reference span { font-weight: 800; color: #542218; }
+.page .detailSection p,
+.page .allergies p,
+.page .alternatives { font-weight: 500; color: #634134; }
+.page .medicationName > span,
+.page .listHeader h2 span { color: #705044; }
+.page .badge { font-weight: 600; color: #54291d; }

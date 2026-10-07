@@ -1,3 +1,5 @@
+import { EXAM_SIGNATURE_WIDTH, EXAM_SIGNATURE_HEIGHT } from "@/lib/exam-signature-image";
+import { ExamSignatureImage } from "@/components/dashboard/ExamSignatureImage";
 import type { CSSProperties, RefObject } from "react";
 import type { AdaptiveResolvedExam } from "./adaptive-engine";
 import { resolveXrayAttachmentAsset } from "@/lib/xray-attachment-resolver";
@@ -64,8 +66,8 @@ type ClinicalBlock = {
   weight: number;
 };
 
-const FIRST_PAGE_CAPACITY = 824;
-const CONTINUATION_PAGE_CAPACITY = 824;
+const FIRST_PAGE_CAPACITY = 714;
+const CONTINUATION_PAGE_CAPACITY = 714;
 
 const REPORT_MEASURE_CLASS = "hpsr-document-body [&_blockquote]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-[#5b1809]/35 [&_blockquote]:bg-[#fffaf4] [&_blockquote]:px-2 [&_blockquote]:py-1.5 [&_h1]:mb-2 [&_h1]:text-center [&_h1]:text-base [&_h1]:font-black [&_h1]:uppercase [&_h1]:tracking-[0.06em] [&_h1]:text-[#5b1809] [&_h2]:mb-1.5 [&_h2]:mt-3 [&_h2]:break-after-avoid [&_h2]:border-b [&_h2]:border-[#5b1809]/20 [&_h2]:pb-1 [&_h2]:text-sm [&_h2]:font-black [&_h2]:uppercase [&_h2]:tracking-[0.04em] [&_h2]:text-[#5b1809] [&_h3]:mb-1 [&_h3]:mt-2 [&_h3]:break-after-avoid [&_h3]:text-xs [&_h3]:font-black [&_h3]:text-[#5b1809] [&_li]:ml-5 [&_ol]:my-1.5 [&_p]:my-1.5 [&_table]:my-2 [&_table]:w-full [&_table]:break-inside-avoid [&_table]:border-collapse [&_td]:border [&_td]:border-[#5b1809]/20 [&_td]:px-2 [&_td]:py-1.5 [&_td]:align-top [&_th]:border [&_th]:border-[#5b1809]/25 [&_th]:bg-[#5b1809]/10 [&_th]:px-2 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-black [&_th]:text-[#5b1809] [&_ul]:my-1.5";
 
@@ -257,7 +259,7 @@ function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[]) {
   });
   document.body.appendChild(measure);
 
-  const capacities = [824, 824];
+  const capacities = [714, 714];
   const pages: string[][] = [];
   let current: string[] = [];
   let pageIndex = 0;
@@ -643,44 +645,46 @@ function ReportHtml({ html }: { html: string }) {
   );
 }
 
-function FullHeader({ metadata }: { metadata: RenderMetadata }) {
-  return (
-    <>
-      <div className="pointer-events-none absolute left-[3.55%] right-[3.55%] top-[2.1%] h-[66px] rounded-[16px] border border-[#5b1809]/15 bg-white/95" style={{ zIndex: 2 }} />
-      <img src="/logo-hpsr.png" alt="Hospital São Rafael" className="pointer-events-none absolute left-[4.8%] top-[3.1%] h-[40px] w-[40px] object-contain" draggable={false} style={{ zIndex: 3 }} />
-      <div className="pointer-events-none absolute left-[11.6%] top-[3.0%] text-[16px] font-black text-[#3d1710]" style={{ fontFamily: "Arial, sans-serif", zIndex: 3 }}>HOSPITAL SÃO RAFAEL</div>
-      <div className="pointer-events-none absolute left-[11.6%] top-[5.05%] text-[8.5px] font-black uppercase tracking-[0.12em] text-[#8d665b]" style={{ fontFamily: "Arial, sans-serif", zIndex: 3 }}>Laudo médico institucional</div>
-      <div className="pointer-events-none absolute right-[5.2%] top-[3.1%] text-right text-[9px] font-bold text-[#7a5148]" style={{ fontFamily: "Arial, sans-serif", zIndex: 3 }}>Emitido em {formatDate(metadata.date)}</div>
-      <div className="pointer-events-none absolute right-[5.2%] top-[5.0%] text-right text-[8px] font-bold text-[#8d665b]" style={{ fontFamily: "Arial, sans-serif", zIndex: 3 }}>Protocolo: {metadata.protocol || "-"}</div>
-      <div className="pointer-events-none absolute left-[5.25%] top-[8.55%] flex h-[28px] w-[89.5%] items-center justify-center rounded-[12px] border border-[#5b1809]/15 bg-[#5b1809]/[0.06] text-[12px] font-black uppercase tracking-[0.05em] text-[#5b1809]" style={{ fontFamily: "Arial, sans-serif", zIndex: 3 }}>{metadata.examName || "EXAME"}</div>
-      <div className="pointer-events-none absolute left-[5.25%] top-[12.1%] grid h-[30px] w-[89.5%] grid-cols-[2.4fr_1fr_.65fr_1.15fr] gap-1.5 text-[8px]" style={{ fontFamily: "Arial, sans-serif", zIndex: 3 }}>
-        <div className="rounded-[9px] border border-[#5b1809]/10 bg-white/95 px-2 py-1"><span className="font-black uppercase text-[#8d665b]">Paciente</span><span className="ml-1 font-bold text-[#3d1710]">{metadata.patient.name || "-"}</span></div>
-        <div className="rounded-[9px] border border-[#5b1809]/10 bg-white/95 px-2 py-1"><span className="font-black uppercase text-[#8d665b]">Passaporte</span><span className="ml-1 font-bold text-[#3d1710]">{metadata.patient.passport || "-"}</span></div>
-        <div className="rounded-[9px] border border-[#5b1809]/10 bg-white/95 px-2 py-1"><span className="font-black uppercase text-[#8d665b]">Idade</span><span className="ml-1 font-bold text-[#3d1710]">{metadata.patient.age || "-"}</span></div>
-        <div className="rounded-[9px] border border-[#5b1809]/10 bg-white/95 px-2 py-1"><span className="font-black uppercase text-[#8d665b]">Tipo sanguíneo</span><span className="ml-1 font-bold text-[#3d1710]">{metadata.patient.bloodType || "-"}</span></div>
-      </div>
-    </>
-  );
+function FullHeader({ metadata, pageIndex, totalPages }: { metadata: RenderMetadata; pageIndex: number; totalPages: number }) {
+  const info = [
+    { label: "Paciente", value: metadata.patient.name, width: 318 },
+    { label: "Passaporte", value: metadata.patient.passport, width: 132 },
+    { label: "Idade", value: metadata.patient.age, width: 82 },
+    { label: "Tipo sanguíneo", value: metadata.patient.bloodType, width: 154 },
+  ];
+  return <>
+    <div className="pointer-events-none absolute rounded-[16px] border border-[#5b1809]/15 bg-white/95" style={{ left: 24, top: 18, width: 742, height: 80, zIndex: 2 }} />
+    <img src="/logo-hpsr.png" alt="Hospital São Rafael" className="pointer-events-none absolute object-contain" draggable={false} style={{ left: 36, top: 18, width: 80, height: 80, zIndex: 3 }} />
+    <div className="pointer-events-none absolute font-bold text-[#3d1710]" style={{ left: 128, top: 34, fontSize: 16.5, lineHeight: "20px", fontFamily: "Arial, sans-serif", zIndex: 3 }}>HOSPITAL SÃO RAFAEL</div>
+    <div className="pointer-events-none absolute font-bold text-[#8d665b]" style={{ left: 128, top: 58, fontSize: 8.5, lineHeight: "10px", fontFamily: "Arial, sans-serif", zIndex: 3 }}>LAUDO DE EXAME · DOCUMENTO INSTITUCIONAL</div>
+    {[{ label: "Data", value: formatDate(metadata.date), left: 574, width: 84 }, { label: "Página", value: `${pageIndex + 1}/${totalPages}`, left: 666, width: 86 }].map((item) =>
+      <div key={item.label} className="pointer-events-none absolute rounded-[12px] border border-[#5b1809]/15 bg-white" style={{ left: item.left, top: 31, width: item.width, height: 25, fontFamily: "Arial, sans-serif", zIndex: 3 }}>
+        <span className="absolute font-bold uppercase text-[#8d665b]" style={{ left: 10, top: 4, fontSize: 7, lineHeight: "8px" }}>{item.label}</span>
+        <span className="absolute font-bold text-[#3d1710]" style={{ left: 10, top: 14, fontSize: 9.5, lineHeight: "10px" }}>{item.value}</span>
+      </div>)}
+    <div className="pointer-events-none absolute flex items-center justify-center rounded-[12px] border border-[#5b1809]/15 bg-[#5b1809]/[0.065] font-bold uppercase text-[#5b1809]" style={{ left: 42, top: 100, width: 710, height: 30, fontSize: 11.5, fontFamily: "Arial, sans-serif", zIndex: 3 }}>{metadata.examName || "EXAME"}</div>
+    <div className="pointer-events-none absolute grid" style={{ left: 42, top: 138, width: 710, height: 70, gridTemplateColumns: info.map((item) => `${item.width}px`).join(" "), gap: 8, fontFamily: "Arial, sans-serif", zIndex: 3 }}>
+      {info.map((item, index) => <div key={item.label} className="relative rounded-[12px] border border-[#5b1809]/15 bg-white">
+        <span className="absolute font-bold uppercase text-[#8d665b]" style={{ left: 10, top: 8, fontSize: 9, lineHeight: "11px" }}>{item.label}</span>
+        <span className="absolute break-words font-bold text-[#3d1710]" style={{ left: 10, right: 10, top: 26, fontSize: index === 0 ? 17 : 16, lineHeight: "18px" }}>{item.value || "-"}</span>
+      </div>)}
+    </div>
+  </>;
 }
 
 function Footer({ metadata, pageIndex, totalPages }: { metadata: RenderMetadata; pageIndex: number; totalPages: number }) {
-  return (
-    <div className="pointer-events-none absolute bottom-[12px] left-[42px] right-[42px] h-[97px] overflow-hidden border-t border-[#5b1809]/20 bg-[#fffaf4]/95 pt-2 text-[#7a5148]" style={{ fontFamily: "Arial, sans-serif", zIndex: 4 }}>
-      <div className="flex h-[58px] items-end justify-center overflow-hidden">
-        <div className="w-[52%] text-center">
-          {metadata.signatureImage ? <img src={metadata.signatureImage} alt="Assinatura cadastrada" className="mx-auto block object-contain" style={{ width: 240, height: 38, maxWidth: 240, maxHeight: 38, objectFit: "contain", mixBlendMode: "multiply", background: "transparent" }} /> : <div className="mx-auto flex h-[38px] items-end justify-center overflow-hidden text-[22px] italic text-[#5b1809]" style={{ fontFamily: "Georgia, Times New Roman, serif" }}>{metadata.doctor.name || "Nome do médico"}</div>}
-          <div className="mx-auto mt-0.5 h-px w-[68%] border-b border-dotted border-[#5b1809]" />
-          <p className="mt-1 text-[11px]"><span className="font-bold text-[#5b1809]">Dr(a).</span> {metadata.doctor.name || "Nome do médico"}</p>
-          <p className="text-[9px]"><span className="font-bold text-[#5b1809]">CRM:</span> {metadata.doctor.crm || "000000"}</p>
-        </div>
-      </div>
-      <div className="mt-1 flex items-center justify-between border-t border-[#5b1809]/20 pt-1.5 text-[8.5px]">
-        <span>Hospital São Rafael</span>
-        <span>Emitido em {formatDate(metadata.date)} · Código interno: {metadata.protocol || "-"}</span>
-        <span>Página {pageIndex + 1}/{totalPages}</span>
-      </div>
+  return <div className="pointer-events-none absolute text-[#7a5148]" style={{ left: 42, top: 936, width: 710, height: 175, fontFamily: "Arial, sans-serif", zIndex: 4 }}>
+    <div className="absolute" style={{ left: (710 - EXAM_SIGNATURE_WIDTH) / 2, top: 124 - EXAM_SIGNATURE_HEIGHT, width: EXAM_SIGNATURE_WIDTH, height: EXAM_SIGNATURE_HEIGHT }}>
+      {metadata.signatureImage ? <ExamSignatureImage source={metadata.signatureImage} /> : <div className="flex h-full items-end justify-center overflow-hidden text-[40px] italic text-[#5b1809]" style={{ fontFamily: "Georgia, Times New Roman, serif" }}>{metadata.doctor.name || "Nome do médico"}</div>}
     </div>
-  );
+    <div className="absolute border-b-[0.5px] border-dotted border-[#5b1809]/25" style={{ left: 175, top: 126, width: 360 }} />
+    <p className="absolute w-full text-center text-[#5b1809]" style={{ top: 134, margin: 0, fontSize: 12, lineHeight: "14px" }}>Dr(a). {metadata.doctor.name || "Nome do médico"}</p>
+    <p className="absolute w-full text-center text-[#5b1809]" style={{ top: 150, margin: 0, fontSize: 9, lineHeight: "11px" }}>CRM: {metadata.doctor.crm || "000000"}</p>
+    <div className="absolute w-full border-t border-[#5b1809]/10" style={{ top: 160 }} />
+    <div className="absolute flex w-full items-center justify-between" style={{ top: 165, fontSize: 8, lineHeight: "10px" }}>
+      <span>Hospital São Rafael</span><span>Emitido em {formatDate(metadata.date)} · Código: {metadata.protocol || "-"}</span><span>Página {pageIndex + 1}/{totalPages}</span>
+    </div>
+  </div>;
 }
 
 function AutoAttachmentContent({ attachment }: { attachment: AutomaticAttachment }) {
@@ -749,10 +753,10 @@ export function RenderedExamPageView({
 }) {
   const contentStyle: CSSProperties = {
     position: "absolute",
-    left: "5.25%",
-    top: "16.0%",
-    width: "89.5%",
-    height: "73.5%",
+    left: 42,
+    top: 214,
+    width: 710,
+    height: 714,
     overflow: "hidden",
     fontSize: 12,
     lineHeight: 1.42,
@@ -765,7 +769,7 @@ export function RenderedExamPageView({
     <div ref={refNode} data-page-index={pageIndex} className="hpsr-render-page relative h-[1123px] w-[794px] overflow-hidden bg-white shadow-[0_20px_48px_rgba(42,7,0,0.18)] ring-1 ring-black/5" style={{ position: "relative", width: 794, height: 1123, overflow: "hidden", background: "#fff" }}>
       <div className="pointer-events-none absolute inset-0 bg-[#fffdfb]" style={{ zIndex: 0 }} />
       <img src="/logo-hpsr.png" alt="Marca d’água do Hospital São Rafael" className="pointer-events-none absolute left-1/2 top-[42%] h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 select-none object-contain opacity-[0.045]" draggable={false} style={{ zIndex: 0 }} />
-      <FullHeader metadata={metadata} />
+      <FullHeader metadata={metadata} pageIndex={pageIndex} totalPages={totalPages} />
       <div className="absolute overflow-hidden" style={contentStyle}>
         {page.type === "report" && <ReportHtml html={page.reportHtml || ""} />}
         {page.type === "auto-attachment" && page.automaticAttachment && <AutoAttachmentContent attachment={page.automaticAttachment} />}
