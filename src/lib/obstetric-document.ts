@@ -70,7 +70,7 @@ const INDIVIDUAL_LAYOUTS = {
     height: 1086,
     doctor: { x: 159, y: 179, width: 495 },
     patient: { x: 132, y: 211, width: 522 },
-    passport: { x: 132, y: 246, width: 522 },
+    passport: { x: 202, y: 250, width: 477 },
     identityStyle: {
       doctor: { fontSize: 20, minSize: 12, weight: 500, color: "#9b6a55", family: "Georgia, 'Times New Roman', serif", tracking: 0 },
       patient: { fontSize: 22, minSize: 13, weight: 600, color: "#8a4b35", family: "Georgia, 'Times New Roman', serif", tracking: 0 },
@@ -89,7 +89,7 @@ const INDIVIDUAL_LAYOUTS = {
     height: 1086,
     doctor: { x: 208, y: 180, width: 452 },
     patient: { x: 132, y: 211, width: 528 },
-    passport: { x: 132, y: 246, width: 528 },
+    passport: { x: 202, y: 250, width: 477 },
     identityStyle: {
       doctor: { fontSize: 20, minSize: 12, weight: 500, color: "#9b6a55", family: "Georgia, 'Times New Roman', serif", tracking: 0 },
       patient: { fontSize: 22, minSize: 13, weight: 600, color: "#8a4b35", family: "Georgia, 'Times New Roman', serif", tracking: 0 },
