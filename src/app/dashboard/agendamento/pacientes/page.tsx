@@ -797,7 +797,7 @@ function HistoryLinkCard({ row, patient, doctor }: { row: HistoryRow; patient?: 
   const name = patient?.name || `Paciente ${row.patient_passport}`;
   return (
     <article className="rounded-[14px] border border-[#c9aa94] bg-[#e4d1c1] px-4 py-3.5">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="truncate text-sm font-black text-hpsr-text">{name}</p>
@@ -809,7 +809,7 @@ function HistoryLinkCard({ row, patient, doctor }: { row: HistoryRow; patient?: 
             <span className="text-hpsr-wine">{row.specialty}</span>
           </div>
         </div>
-        <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[520px]">
+        <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[520px]">
           <Detail icon={<CalendarClock size={13} />} label="Início" value={formatStartedAt(row.started_at)} />
           <Detail icon={<History size={13} />} label="Encerramento" value={formatStartedAt(row.ended_at)} />
           <Detail icon={<UserRoundX size={13} />} label="Motivo" value={row.end_reason} />

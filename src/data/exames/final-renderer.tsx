@@ -1,3 +1,4 @@
+import { measureExamReportHtml } from "@/lib/exam-page-canvas";
 import { EXAM_SIGNATURE_WIDTH, EXAM_SIGNATURE_HEIGHT } from "@/lib/exam-signature-image";
 import { ExamSignatureImage } from "@/components/dashboard/ExamSignatureImage";
 import type { CSSProperties, RefObject } from "react";
@@ -84,7 +85,7 @@ function splitByEditorPageBreaks(html: string) {
     .filter(Boolean);
 }
 
-function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity: number) {
+function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity: number, measureHeight: (html: string) => number | null = measureExamReportHtml) {
   const wrapper = document.createElement("div");
   wrapper.innerHTML = html;
   const root = wrapper.firstElementChild as HTMLElement | null;
@@ -156,7 +157,7 @@ function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity
         const candidate = buildFragment(start, mid);
         measure.innerHTML = candidate;
         applyCanvasEquivalentMeasurementStyles(measure);
-        if (measure.scrollHeight <= capacity) {
+        if ((measureHeight(measure.innerHTML) ?? measure.scrollHeight) <= capacity) {
           best = mid;
           low = mid + 1;
         } else {
@@ -238,7 +239,7 @@ function applyCanvasEquivalentMeasurementStyles(root: HTMLDivElement) {
   });
 }
 
-function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[]) {
+function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[], options?: { measureHeight: (html: string) => number | null; capacity: number }) {
   if (typeof window === "undefined" || typeof document === "undefined") return null;
 
   const measure = document.createElement("div");
@@ -259,7 +260,8 @@ function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[]) {
   });
   document.body.appendChild(measure);
 
-  const capacities = [714, 714];
+  const capacities = [options?.capacity ?? 714, options?.capacity ?? 714];
+  const measureHeight = options?.measureHeight || measureExamReportHtml;
   const pages: string[][] = [];
   let current: string[] = [];
   let pageIndex = 0;
@@ -269,7 +271,7 @@ function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[]) {
   const renderedHeight = (html: string) => {
     measure.innerHTML = html;
     applyCanvasEquivalentMeasurementStyles(measure);
-    return measure.scrollHeight;
+    return measureHeight(html) ?? measure.scrollHeight;
   };
   const fitsCurrentPage = (html: string) => renderedHeight(html) <= currentCapacity() + 1;
 
@@ -289,7 +291,7 @@ function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[]) {
       const currentHtml = current.join("");
       const remainingCapacity = Math.max(0, currentCapacity() - renderedHeight(currentHtml));
       if (remainingCapacity >= 28) {
-        const fragments = splitOversizedHtmlBlock(block.html, measure, remainingCapacity);
+        const fragments = splitOversizedHtmlBlock(block.html, measure, remainingCapacity, measureHeight);
         if (fragments.length > 1) {
           let consumed = 0;
           for (let index = 0; index < fragments.length; index += 1) {
@@ -323,7 +325,7 @@ function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[]) {
         continue;
       }
 
-      const fragments = splitOversizedHtmlBlock(block.html, measure, currentCapacity());
+      const fragments = splitOversizedHtmlBlock(block.html, measure, currentCapacity(), measureHeight);
       if (fragments.length > 1) {
         queue.unshift(...fragments.map((fragment) => ({
           html: fragment,
@@ -473,7 +475,7 @@ function mergeConclusionWithText(blocks: ClinicalBlock[]) {
   return output;
 }
 
-export function splitClinicalReportHtmlIntoPages(html: string, signatureImage?: string | null) {
+export function splitClinicalReportHtmlIntoPages(html: string, signatureImage?: string | null, options?: { measureHeight: (html: string) => number | null; capacity: number }) {
   const body = stripInstitutionalShell(html, signatureImage);
   const segments = splitByEditorPageBreaks(body);
   const sourceSegments = segments.length ? segments : [body];
@@ -486,7 +488,7 @@ export function splitClinicalReportHtmlIntoPages(html: string, signatureImage?: 
       return;
     }
 
-    const renderedPages = splitClinicalBlocksByRenderedHeight(blocks);
+    const renderedPages = splitClinicalBlocksByRenderedHeight(blocks, options);
     if (renderedPages) {
       allPages.push(...renderedPages.map((page) => page.join("")));
       return;
@@ -666,7 +668,7 @@ function FullHeader({ metadata, pageIndex, totalPages }: { metadata: RenderMetad
     <div className="pointer-events-none absolute grid" style={{ left: 42, top: 138, width: 710, height: 70, gridTemplateColumns: info.map((item) => `${item.width}px`).join(" "), gap: 8, fontFamily: "Arial, sans-serif", zIndex: 3 }}>
       {info.map((item, index) => <div key={item.label} className="relative rounded-[12px] border border-[#5b1809]/15 bg-white">
         <span className="absolute font-bold uppercase text-[#8d665b]" style={{ left: 10, top: 8, fontSize: 9, lineHeight: "11px" }}>{item.label}</span>
-        <span className="absolute break-words font-bold text-[#3d1710]" style={{ left: 10, right: 10, top: 26, fontSize: index === 0 ? 17 : 16, lineHeight: "18px" }}>{item.value || "-"}</span>
+        <span className="absolute break-words font-bold text-[#3d1710]" style={{ left: 10, right: 10, top: 26, fontSize: index === 0 ? 13 : 12, lineHeight: "18px" }}>{item.value || "-"}</span>
       </div>)}
     </div>
   </>;
@@ -675,7 +677,7 @@ function FullHeader({ metadata, pageIndex, totalPages }: { metadata: RenderMetad
 function Footer({ metadata, pageIndex, totalPages }: { metadata: RenderMetadata; pageIndex: number; totalPages: number }) {
   return <div className="pointer-events-none absolute text-[#7a5148]" style={{ left: 42, top: 936, width: 710, height: 175, fontFamily: "Arial, sans-serif", zIndex: 4 }}>
     <div className="absolute" style={{ left: (710 - EXAM_SIGNATURE_WIDTH) / 2, top: 124 - EXAM_SIGNATURE_HEIGHT, width: EXAM_SIGNATURE_WIDTH, height: EXAM_SIGNATURE_HEIGHT }}>
-      {metadata.signatureImage ? <ExamSignatureImage source={metadata.signatureImage} /> : <div className="flex h-full items-end justify-center overflow-hidden text-[40px] italic text-[#5b1809]" style={{ fontFamily: "Georgia, Times New Roman, serif" }}>{metadata.doctor.name || "Nome do médico"}</div>}
+      {metadata.signatureImage && <ExamSignatureImage source={metadata.signatureImage} />}
     </div>
     <div className="absolute border-b-[0.5px] border-dotted border-[#5b1809]/25" style={{ left: 175, top: 126, width: 360 }} />
     <p className="absolute w-full text-center text-[#5b1809]" style={{ top: 134, margin: 0, fontSize: 12, lineHeight: "14px" }}>Dr(a). {metadata.doctor.name || "Nome do médico"}</p>

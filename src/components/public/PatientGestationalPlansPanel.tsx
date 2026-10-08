@@ -99,6 +99,7 @@ export function PatientGestationalPlansPanel({ passport, onSessionExpired, planT
     let cancelled = false;
     const generated: string[] = [];
     if (!previewEntries.length) { setPreviewUrls({}); return; }
+    setPreviewUrls({});
     setPreviewBusy(true);
     void (async () => {
       const next: Record<string, string> = {};
@@ -126,15 +127,15 @@ export function PatientGestationalPlansPanel({ passport, onSessionExpired, planT
     const key = `${plan.id}:${item?.id || "integral"}`;
     setGenerating(key);
     try {
-      const blob = await renderPlanBlob(plan, passport, item);
-      const url = URL.createObjectURL(blob);
+      const url = previewUrls[key];
+      if (!url) throw new Error("Aguarde a pré-visualização ficar pronta antes de baixar.");
       const link = document.createElement("a");
       link.href = url;
       link.download = `planejamento-${plan.plan_type}-${item ? `${plan.plan_type === "in_vitro" ? "etapa" : "consulta"}-${item.step_number}` : "integral"}.png`;
       document.body.append(link);
       link.click();
       link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+      // The preview effect owns this URL and its cleanup.
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível gerar o PNG solicitado.");
     } finally {
@@ -197,7 +198,7 @@ export function PatientGestationalPlansPanel({ passport, onSessionExpired, planT
             <div className="p-4 sm:p-5">
               {currentItem && <section className="mb-5"><div className="mb-3 flex items-end justify-between gap-3"><div><p className="text-[11px] font-black uppercase tracking-[.14em] text-[#927566]">{plan.plan_type === "in_vitro" ? "Etapa atual" : "Consulta atual"}</p><h4 className="mt-1 text-base font-bold text-[#4e291c]">{currentItem.marker || currentItem.title || `${plan.plan_type === "in_vitro" ? "Etapa" : "Consulta"} ${currentItem.step_number}`}</h4><p className="mt-1 text-xs text-[#82736a]">{dateText(currentItem.planned_date)}</p></div></div><div className="rounded-[16px] border border-[#d9c7b7] bg-white p-2 shadow-[0_12px_28px_rgba(70,43,29,.06)]">{currentItem.dynamic_available ? (currentPreview ? <img src={currentPreview} alt="Planejamento da consulta atual" className="mx-auto block h-auto max-h-[680px] w-full object-contain"/> : <div className="flex min-h-[280px] items-center justify-center text-sm font-semibold text-[#82736a]"><Loader2 size={18} className="mr-2 animate-spin"/> Preparando planejamento atual...</div>) : currentItem.png_url ? <img src={currentItem.png_url} alt="Planejamento da consulta atual" className="mx-auto block h-auto max-h-[680px] w-full object-contain"/> : <p className="py-8 text-center text-xs text-[#82736a]">Visualização indisponível.</p>}</div></section>}
 
-              {(plan.dynamic_available || plan.png_url) && <details className="rounded-[14px] border border-[#d9c7b7] bg-[#fbf7f1]"><summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-black text-[#65331f]"><span>Ver planejamento integral</span><Eye size={16}/></summary><div className="border-t border-[#d9c7b7] p-3">{plan.dynamic_available ? (integralPreview ? <img src={integralPreview} alt={`Planejamento ${plan.plan_type === "in_vitro" ? "de fertilização in vitro" : "gestacional"}`} className="mx-auto block h-auto max-h-[680px] w-full object-contain"/> : <div className="flex min-h-[320px] items-center justify-center text-sm font-semibold text-[#82736a]"><Loader2 size={18} className="mr-2 animate-spin"/> Preparando visualização...</div>) : plan.png_url ? <img src={plan.png_url} alt="Planejamento integral" className="mx-auto block h-auto max-h-[680px] w-full object-contain"/> : null}<div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-xs font-semibold text-[#82736a]">O planejamento integral aparece somente quando foi liberado pela equipe médica. Nenhuma imagem nova é salva no banco.</p>{plan.dynamic_available ? <button type="button" disabled={generating !== ""} onClick={() => void downloadDynamicPng(plan)} className="inline-flex min-h-[40px] items-center gap-2 rounded-[8px] border border-[#6b3a26] px-3 text-xs font-black text-[#65331f] disabled:opacity-50"><Download size={15}/>{generating === integralKey ? "Gerando..." : "Baixar PNG"}</button> : null}</div></div></details>}
+              {(plan.dynamic_available || plan.png_url) && <details className="rounded-[14px] border border-[#d9c7b7] bg-[#fbf7f1]"><summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-black text-[#65331f]"><span>Ver planejamento integral</span><Eye size={16}/></summary><div className="border-t border-[#d9c7b7] p-3">{plan.dynamic_available ? (integralPreview ? <img src={integralPreview} alt={`Planejamento ${plan.plan_type === "in_vitro" ? "de fertilização in vitro" : "gestacional"}`} className="mx-auto block h-auto max-h-[680px] w-full object-contain"/> : <div className="flex min-h-[320px] items-center justify-center text-sm font-semibold text-[#82736a]"><Loader2 size={18} className="mr-2 animate-spin"/> Preparando visualização...</div>) : plan.png_url ? <img src={plan.png_url} alt="Planejamento integral" className="mx-auto block h-auto max-h-[680px] w-full object-contain"/> : null}<div className="mt-3 flex flex-wrap items-center justify-between gap-3"><p className="text-xs font-semibold text-[#82736a]">O planejamento integral aparece somente quando foi liberado pela equipe médica. Nenhuma imagem nova é salva no banco.</p>{plan.dynamic_available ? <button type="button" disabled={generating !== "" || !integralPreview} onClick={() => void downloadDynamicPng(plan)} className="inline-flex min-h-[40px] items-center gap-2 rounded-[8px] border border-[#6b3a26] px-3 text-xs font-black text-[#65331f] disabled:opacity-50"><Download size={15}/>{generating === integralKey ? "Gerando..." : "Baixar PNG"}</button> : null}</div></div></details>}
 
               {plan.individuals?.length > 0 && (
                 <div className="mt-6 border-t border-[#ddcfc2] pt-5">
@@ -210,7 +211,7 @@ export function PatientGestationalPlansPanel({ passport, onSessionExpired, planT
                         <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#e9e1d8] text-sm font-black text-[#672614]">{item.step_number}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-[#4e291c]">{item.marker || item.title || `${plan.plan_type === "in_vitro" ? "Etapa" : "Consulta"} ${item.step_number}`}</strong><span className="mt-0.5 block text-xs text-[#82736a]">{dateText(item.planned_date)}</span></span><Eye size={16} className="text-[#672614]"/></summary>
                         <div className="border-t border-[#ddcfc2] p-3">
                           {item.dynamic_available ? (preview ? <img src={preview} alt={`${plan.plan_type === "in_vitro" ? "Etapa" : "Consulta"} ${item.step_number}`} className="mx-auto block h-auto max-h-[640px] w-full object-contain"/> : <div className="flex min-h-[240px] items-center justify-center text-xs text-[#82736a]"><Loader2 size={16} className="mr-2 animate-spin"/> Preparando visualização...</div>) : item.png_url ? <img src={item.png_url} alt={`${plan.plan_type === "in_vitro" ? "Etapa" : "Consulta"} ${item.step_number}`} className="mx-auto block h-auto max-h-[640px] w-full object-contain"/> : <p className="py-6 text-center text-xs text-[#82736a]">Visualização indisponível.</p>}
-                          {item.dynamic_available && <div className="mt-3 text-right"><button type="button" disabled={generating !== ""} onClick={() => void downloadDynamicPng(plan, item)} className="inline-flex min-h-[38px] items-center gap-2 rounded-[8px] border border-[#6b3a26] px-3 text-xs font-black text-[#65331f] disabled:opacity-50"><Download size={14}/>{generating === key ? "Gerando..." : "Baixar PNG"}</button></div>}
+                          {item.dynamic_available && <div className="mt-3 text-right"><button type="button" disabled={generating !== "" || !preview} onClick={() => void downloadDynamicPng(plan, item)} className="inline-flex min-h-[38px] items-center gap-2 rounded-[8px] border border-[#6b3a26] px-3 text-xs font-black text-[#65331f] disabled:opacity-50"><Download size={14}/>{generating === key ? "Gerando..." : "Baixar PNG"}</button></div>}
                         </div>
                       </details>;
                     })}

@@ -456,6 +456,7 @@ export async function renderIntegralPlanningCanvas({ kind, patient, passport, do
   const source = await loadImage(layout.src);
   if (source.naturalWidth !== layout.width || source.naturalHeight !== layout.height) throw new Error("As dimensões do modelo integral não correspondem ao mapeamento aprovado.");
 
+  await document.fonts.ready;
   const canvas = document.createElement("canvas");
   canvas.width = layout.width;
   canvas.height = layout.height;
@@ -507,6 +508,7 @@ export async function renderIndividualPlanningCanvas({ kind, patient, passport, 
   const source = await loadImage(layout.src);
   if (source.naturalWidth !== layout.width || source.naturalHeight !== layout.height) throw new Error("As dimensões do modelo individual não correspondem ao mapeamento aprovado.");
 
+  await document.fonts.ready;
   const canvas = document.createElement("canvas");
   canvas.width = layout.width;
   canvas.height = layout.height;

@@ -227,7 +227,7 @@ export default function FinancePage() {
       <section className="min-w-0 rounded-[18px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f8eddf_0%,#eddbc7_100%)] p-4 shadow-[0_9px_24px_rgba(78,40,19,0.06)]">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hpsr-border pb-4">
           <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[15px] bg-hpsr-wine text-white"><Handshake size={20}/></span><div><h2 className="font-black text-hpsr-text">Histórico de convênios</h2><p className="text-sm text-hpsr-muted">Planos adicionados automaticamente ao Financeiro no momento do cadastro.</p></div></div>
-          <label className="flex min-h-[42px] min-w-[280px] items-center gap-3 rounded-[15px] border border-hpsr-border bg-[#fffaf4] px-3"><Search size={17} className="text-hpsr-muted"/><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar no histórico" className="w-full bg-transparent text-sm font-semibold outline-none"/></label>
+          <label className="flex min-h-[42px] w-full min-w-0 sm:w-auto sm:min-w-[280px] items-center gap-3 rounded-[15px] border border-hpsr-border bg-[#fffaf4] px-3"><Search size={17} className="text-hpsr-muted"/><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar no histórico" className="w-full bg-transparent text-sm font-semibold outline-none"/></label>
         </div>
         <div className="mt-4 max-h-[520px] overflow-y-auto pr-1">
           <div className="grid gap-3">

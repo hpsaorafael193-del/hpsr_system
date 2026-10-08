@@ -1,5 +1,6 @@
 "use client";
 
+import { preserveOriginalAsset } from "@/lib/clinical-render-snapshot";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Check, Download, Eye, Loader2, Minus, Plus, RefreshCw, Search, ShieldCheck, Syringe, Trash2, UserRound } from "lucide-react";
@@ -140,6 +141,7 @@ function loadCanvasImage(src: string) {
     image.src = src;
   });
   canvasImageCache.set(src, pending);
+  if (canvasImageCache.size > 32) canvasImageCache.delete(canvasImageCache.keys().next().value!);
   return pending;
 }
 
@@ -155,6 +157,7 @@ export async function renderVaccinationCard({
   observations,
   page,
 }: VaccinationCardRenderArgs) {
+  await document.fonts.ready;
   const definition = getVaccinationCardDefinition(group, adultVariant);
   const pageApps = definition.official ? applications : applications.slice(page * definition.slots.length, (page + 1) * definition.slots.length);
   const assigned = assignApplicationsToSlots(pageApps, definition);
@@ -493,6 +496,8 @@ function getPreviewMetrics(
   return { previewWidth, previewHeight };
 }
 
+export function vaccinationPreviewKey(value: Record<string, unknown>) { return JSON.stringify(value); }
+
 export function CardPreview({
   group,
   adultVariant,
@@ -505,6 +510,7 @@ export function CardPreview({
   page,
   zoom,
   viewport,
+  onReady,
 }: {
   group: VaccinationGroup;
   adultVariant: AdultCardVariant;
@@ -517,9 +523,11 @@ export function CardPreview({
   page: number;
   zoom: number;
   viewport?: { width: number; height: number };
+  onReady?: (canvas: HTMLCanvasElement, key: string) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const renderVersionRef = useRef(0);
+  const onReadyRef = useRef(onReady); onReadyRef.current = onReady;
   const { previewWidth, previewHeight } = getPreviewMetrics(group, adultVariant, zoom, viewport);
 
   useEffect(() => {
@@ -536,6 +544,7 @@ export function CardPreview({
         if (!ctx) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(offscreen, 0, 0);
+        onReadyRef.current?.(offscreen, vaccinationPreviewKey({ group, adultVariant, applications, patientName, passport, birthDate, doctorName, observations, page }));
       })
       .catch(() => {
         // A falha de prévia não deve quebrar a página; o export mantém tratamento próprio.
@@ -571,6 +580,7 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
   const [page, setPage] = useState(0);
   const [previewZoom, setPreviewZoom] = useState(100);
   const previewViewportRef = useRef<HTMLDivElement>(null);
+  const displayedCanvasRef = useRef<{ canvas: HTMLCanvasElement; key: string } | null>(null);
   const [previewViewport, setPreviewViewport] = useState({ width: 0, height: 0 });
   const [availableDoctors, setAvailableDoctors] = useState<DoctorOption[]>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState("");
@@ -897,7 +907,8 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
     return saved;
   }
 
-  function buildReleasedCardSnapshot(doctor: DoctorOption) {
+  async function buildReleasedCardSnapshot(doctor: DoctorOption) {
+    const preservedApplications = await Promise.all(groupHistory.map(async application => ({ ...application, signatureImage: await preserveOriginalAsset(application.signatureImage, true) })));
     return {
       schemaVersion: 1,
       cardModel: modelKey,
@@ -908,7 +919,7 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
       birthDate,
       doctorName: doctor.name,
       observations: normalizeVaccinationObservations(observations).trim(),
-      applications: groupHistory.map((application) => ({
+      applications: preservedApplications.map((application) => ({
         id: application.id,
         patientPassport: application.patientPassport,
         patientName: application.patientName,
@@ -946,7 +957,7 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
     try {
       const card = await saveCardMetadata(patientPassport.trim().toUpperCase(), selectedDoctor);
       await updateCardFields(card, {
-        releasedSnapshot: buildReleasedCardSnapshot(selectedDoctor),
+        releasedSnapshot: await buildReleasedCardSnapshot(selectedDoctor),
         publishedPath: null,
         publishedPaths: [],
       }, true);
@@ -968,11 +979,12 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
   }
 
   async function saveApplication() {
+    const applicationDate = group === "crianca" ? brazilDate() : date;
     const normalizedName = patientName.trim();
     const normalizedPassport = patientPassport.trim().toUpperCase();
     if (!normalizedName || !normalizedPassport) return void hpsrAlert("Informe nome e passaporte do paciente.", "Paciente obrigatório");
     if (group === "crianca" && !birthDate) return void hpsrAlert("Informe a data de nascimento da criança.", "Data de nascimento obrigatória");
-    if (!vaccine.trim() || (group !== "crianca" && !dose) || !date) return void hpsrAlert(group === "crianca" ? "Informe a faixa etária e a data da etapa." : "Informe vacina, dose e data da aplicação.", "Preenchimento incompleto");
+    if (!vaccine.trim() || (group !== "crianca" && !dose) || !applicationDate) return void hpsrAlert(group === "crianca" ? "Selecione a faixa etária." : "Informe vacina, dose e data da aplicação.", "Preenchimento incompleto");
     if (!selectedDoctor) return void hpsrAlert("Selecione o médico responsável pela aplicação.", "Médico obrigatório");
     if (!selectedDoctor.crm || selectedDoctor.crm === "—") return void hpsrAlert("O médico responsável precisa ter CRM cadastrado para gerar o carimbo.", "CRM obrigatório");
     const targetSlot = findVaccinationSlot(def, vaccine, group === "crianca" ? "Etapa completa" : dose);
@@ -1007,16 +1019,19 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
     // Aplicação é o dado clínico principal. Um problema com o PNG não pode perder a dose.
     const id = crypto.randomUUID();
     const now = brazilIso();
+    let preservedSignature: string | null;
+    try { preservedSignature = await preserveOriginalAsset(selectedDoctor.signatureImage, true); }
+    catch (error) { setSaving(false); return void hpsrAlert(error instanceof Error ? error.message : "Não foi possível preservar a assinatura.", "Aplicação não salva"); }
     const payload = {
       title: group === "crianca" ? `Vacinação infantil · ${vaccine.trim()} · etapa concluída` : `Vacinação · ${vaccine.trim()} · ${dose}`,
-      summary: group === "crianca" ? `Etapa ${vaccine.trim()} concluída · ${formatDate(date)}` : `${vaccine.trim()} · ${dose} · ${formatDate(date)}`,
+      summary: group === "crianca" ? `Etapa ${vaccine.trim()} concluída · ${formatDate(applicationDate)}` : `${vaccine.trim()} · ${dose} · ${formatDate(applicationDate)}`,
       patient: { name: normalizedName, passport: normalizedPassport, birthDate },
       patientName: normalizedName,
       patientPassport: normalizedPassport,
-      vaccine: { name: vaccine.trim(), dose: group === "crianca" ? "Etapa completa" : dose, date, lot: resolvedLot, slotId: targetSlot.id, group, adultVariant: group === "adulto" ? adultVariant : undefined },
+      vaccine: { name: vaccine.trim(), dose: group === "crianca" ? "Etapa completa" : dose, date: applicationDate, lot: resolvedLot, slotId: targetSlot.id, group, adultVariant: group === "adulto" ? adultVariant : undefined },
       vaccinationCardId: displayedCard?.id || null,
       observations: observations.trim(),
-      doctor: { name: selectedDoctor.name, crm: selectedDoctor.crm, signatureImage: selectedDoctor.signatureImage },
+      doctor: { name: selectedDoctor.name, crm: selectedDoctor.crm, signatureImage: preservedSignature },
       doctorName: selectedDoctor.name,
       doctorCrm: selectedDoctor.crm,
       cardModel: group === "adulto" ? `adulto-${adultVariant}` : group,
@@ -1041,9 +1056,9 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
     selectPatient(normalizedPassport);
     const updatedApplications = [...groupHistory, {
       id, patientPassport: normalizedPassport, patientName: normalizedName, group,
-      adultVariant, vaccine: vaccine.trim(), dose: group === "crianca" ? "Etapa completa" : dose, date, lot: resolvedLot,
+      adultVariant, vaccine: vaccine.trim(), dose: group === "crianca" ? "Etapa completa" : dose, date: applicationDate, lot: resolvedLot,
       doctorName: selectedDoctor.name, doctorCrm: selectedDoctor.crm,
-      signatureImage: selectedDoctor.signatureImage, createdAt: now, createdBy: profile.id, slotId: targetSlot.id,
+      signatureImage: preservedSignature, createdAt: now, createdBy: profile.id, slotId: targetSlot.id,
     } as VaccinationApplication];
     try {
       await saveCardMetadata(normalizedPassport, selectedDoctor);
@@ -1080,19 +1095,10 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
     if (!normalizedName || !normalizedPassport) return void hpsrAlert("Informe nome e passaporte do paciente antes de gerar a caderneta.", "Paciente obrigatório");
     if (group === "crianca" && !birthDate) return void hpsrAlert("Informe a data de nascimento da criança antes de gerar a caderneta.", "Data de nascimento obrigatória");
     try {
-      const canvas = document.createElement("canvas");
-      await renderVaccinationCard({
-        canvas,
-        group,
-        adultVariant,
-        applications: groupHistory,
-        patientName: normalizedName,
-        passport: normalizedPassport,
-        birthDate,
-              doctorName: selectedDoctor?.name || "",
-        observations,
-        page,
-      });
+      const key = vaccinationPreviewKey({ group, adultVariant, applications: groupHistory, patientName: normalizedName, passport: normalizedPassport, birthDate, doctorName: selectedDoctor?.name || "", observations, page });
+      const displayed = displayedCanvasRef.current;
+      if (!displayed || displayed.key !== key) throw new Error("Aguarde a pré-visualização atualizada antes de baixar.");
+      const canvas = displayed.canvas;
       const anchor = document.createElement("a");
       const safeName = normalizedName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
       anchor.download = `caderneta-vacinacao-${safeName || normalizedPassport}-p${page + 1}.png`;
@@ -1221,7 +1227,7 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
                 </label>}
               </div>
               <div className="grid items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                <label className="block text-xs font-black text-hpsr-muted">{group === "crianca" ? "Data da etapa" : "Data da aplicação"}<input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputClass} mt-1`} /></label>
+                {group !== "crianca" && <label className="block text-xs font-black text-hpsr-muted">Data da aplicação<input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputClass} mt-1`} /></label>}
                 <p className="hpsr-vaccination-lot-notice flex min-h-[44px] items-center gap-2 rounded-[12px] border px-3 py-2 text-[11px] font-semibold leading-snug"><Check size={15} className="shrink-0"/>{group === "crianca" ? "Etapa registrada como um único atendimento, sem doses individuais." : "Lote gerado automaticamente e registrado no histórico."}</p>
               </div>
               <label className="block text-xs font-black text-hpsr-muted">Médico responsável <span className="font-medium text-hpsr-muted">(perfil logado por padrão)</span>
@@ -1268,7 +1274,7 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
                   className={`w-full overflow-auto hpsr-vaccination-preview rounded-[17px] border border-hpsr-border/70 bg-gradient-to-b from-[#fbf8f4] to-[#f5eee7] p-3 ${group === "crianca" ? "h-[390px] 2xl:h-full" : "h-[340px] 2xl:h-full"}`}
                 >
                   <div className="grid min-h-full place-items-center justify-items-center">
-                    <CardPreview group={group} adultVariant={adultVariant} applications={groupHistory} patientName={patientName.trim()} passport={patientPassport.trim().toUpperCase()} birthDate={birthDate} doctorName={selectedDoctor?.name || ""} observations={observations} page={page} zoom={previewZoom} viewport={previewViewport} />
+                    <CardPreview group={group} adultVariant={adultVariant} applications={groupHistory} patientName={patientName.trim()} passport={patientPassport.trim().toUpperCase()} birthDate={birthDate} doctorName={selectedDoctor?.name || ""} observations={observations} page={page} zoom={previewZoom} viewport={previewViewport} onReady={(canvas, key) => { displayedCanvasRef.current = { canvas, key }; }} />
                   </div>
                 </div>
               ) : <div ref={previewViewportRef} className={`grid w-full place-items-center hpsr-vaccination-preview rounded-[17px] border border-dashed border-hpsr-border bg-gradient-to-b from-[#fffaf5] to-[#f8f1ea] px-6 text-center text-sm font-bold text-hpsr-muted ${group === "crianca" ? "h-[390px] 2xl:h-full" : "h-[340px] 2xl:h-full"}`}>Informe nome e passaporte para gerar a caderneta.</div>}

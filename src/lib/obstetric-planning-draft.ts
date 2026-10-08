@@ -4,6 +4,8 @@ import { isDateOnly, normalizePlanningSteps, planningKey, type PlanningKind, typ
 export type ObstetricPlanningDraft = {
   version: 2;
   selectedPassport: string;
+  donorPassport?: string;
+  fivProjectId?: string;
   planType: PlanningKind;
   startDate: string;
   endDate: string;
@@ -40,6 +42,8 @@ export function parseObstetricDraft(raw: string | null): ObstetricPlanningDraft 
     return {
       version: 2,
       selectedPassport: draft.selectedPassport.slice(0, 80),
+      donorPassport: typeof draft.donorPassport === "string" ? draft.donorPassport.slice(0,80) : "",
+      fivProjectId: typeof draft.fivProjectId === "string" && /^[0-9a-f-]{36}$/i.test(draft.fivProjectId) ? draft.fivProjectId : "",
       planType,
       startDate: draft.startDate,
       endDate: draft.endDate,

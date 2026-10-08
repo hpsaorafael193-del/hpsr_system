@@ -1,4 +1,5 @@
 "use client";
+import { SavedClinicalSheet } from "@/components/dashboard/SavedClinicalSheet";
 
 import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 import { formatCityPhoneNumber, formatPhoneDisplay, normalizeDiscordId, isValidCityPhone, isValidDiscordId } from "@/lib/phone";
@@ -192,6 +193,7 @@ export default function RecordsPage() {
     title: string;
     recordType: "Exame" | "Documento";
     reportHtml: string;
+    renderPayload?: Record<string, any>;
     previewImages: string[];
     patientName: string;
     doctorName: string;
@@ -770,6 +772,7 @@ export default function RecordsPage() {
       recordType: event.type,
       reportHtml: String(payload.reportHtml || payload.documentHtml || payload.finalHtml || payload.html || payload.editorHtml || ""),
       previewImages,
+      renderPayload: payload,
       patientName: String(payload.patient?.name || selectedPatient?.name || "Paciente"),
       doctorName: String(payload.doctor?.name || event.doctor || "Equipe médica"),
       savedAt: String(payload.savedAt || data.created_at || event.date || ""),
@@ -794,14 +797,6 @@ export default function RecordsPage() {
           link.remove();
         }, index * 250);
       });
-      return;
-    }
-
-    if (examViewer.recordType === "Exame") {
-      void hpsrAlert(
-        "Este exame foi salvo sem uma prévia PNG. Registros novos são salvos com a imagem e podem ser baixados normalmente em PNG.",
-        "PNG indisponível neste registro"
-      );
       return;
     }
 
@@ -1818,7 +1813,7 @@ function SavedExamViewer({
   onClose,
   onDownload,
 }: {
-  exam: { open: boolean; loading: boolean; title: string; recordType: "Exame" | "Documento"; reportHtml: string; previewImages: string[]; patientName: string; doctorName: string; savedAt: string };
+  exam: { open: boolean; loading: boolean; title: string; recordType: "Exame" | "Documento"; renderPayload?: Record<string, any>; reportHtml: string; previewImages: string[]; patientName: string; doctorName: string; savedAt: string };
   onClose: () => void;
   onDownload: () => void;
 }) {
@@ -1832,13 +1827,15 @@ function SavedExamViewer({
             <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{exam.patientName} · {exam.doctorName}{exam.savedAt ? ` · ${new Date(exam.savedAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : ""}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" disabled={exam.loading} onClick={onDownload} className="inline-flex h-10 items-center gap-2 rounded-[13px] border border-hpsr-border bg-[#fff8f0] px-3 text-xs font-black text-hpsr-wine disabled:opacity-50"><Download size={15} /> {exam.previewImages.length ? (exam.previewImages.length > 1 ? "Baixar PNGs" : "Baixar PNG") : "Baixar"}</button>
+            {!exam.renderPayload && <button type="button" disabled={exam.loading} onClick={onDownload} className="inline-flex h-10 items-center gap-2 rounded-[13px] border border-hpsr-border bg-[#fff8f0] px-3 text-xs font-black text-hpsr-wine disabled:opacity-50"><Download size={15} /> {exam.previewImages.length ? (exam.previewImages.length > 1 ? "Baixar PNGs" : "Baixar PNG") : "Baixar"}</button>}
             <button type="button" onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-[13px] border border-hpsr-border bg-white text-hpsr-wine"><X size={18} /></button>
           </div>
         </header>
         <div className="min-h-0 flex-1 overflow-auto p-3 sm:p-5">
           {exam.loading ? (
             <div className="flex min-h-full items-center justify-center"><div className="text-center"><LoaderCircle className="mx-auto animate-spin text-hpsr-wine" size={30} /><p className="mt-3 text-sm font-black text-hpsr-text">Carregando registro...</p></div></div>
+          ) : exam.renderPayload ? (
+            <SavedClinicalSheet payload={exam.renderPayload} recordType={exam.recordType} savedAt={exam.savedAt} title={exam.title} />
           ) : exam.previewImages.length ? (
             <div className="mx-auto grid max-w-[900px] gap-5">{exam.previewImages.map((src, index) => <figure key={`${src.slice(0, 40)}-${index}`} className="overflow-hidden rounded-[10px] bg-white shadow-[0_12px_40px_rgba(42,7,0,.18)]"><img src={src} alt={`Página ${index + 1} do registro`} className="block h-auto w-full" /><figcaption className="border-t border-hpsr-border px-3 py-2 text-center text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Página {index + 1}</figcaption></figure>)}</div>
           ) : exam.reportHtml ? (

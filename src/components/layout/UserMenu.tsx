@@ -439,7 +439,7 @@ export function UserMenu() {
         aria-haspopup="menu"
       >
         <div className={cn("relative flex h-8 w-8 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#672614,#74321e,#a67a5f)] text-white", unreadNotificationCount > 0 && "ring-2 ring-red-500 ring-offset-2 ring-offset-white animate-pulse")}><UserRound size={18} />{unreadNotificationCount > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-white bg-red-600 px-1 text-[8px] font-black leading-none text-white">{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</div>
-        <div className="hidden min-w-0 text-left sm:block"><p className="truncate text-xs font-semibold text-hpsr-text">{currentUserProfile.systemName}</p></div>
+        <div className="hidden min-w-0 max-w-[160px] text-left sm:block"><p className="truncate text-xs font-semibold text-hpsr-text">{currentUserProfile.systemName}</p></div>
         <span className={cn("hidden items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold md:inline-flex", statusClass)}>
           <Circle size={7} className={cn("fill-current text-current")} />{clock.status}
         </span>

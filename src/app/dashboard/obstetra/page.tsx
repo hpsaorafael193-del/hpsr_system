@@ -12,6 +12,7 @@ import { canAccessObstetra, canManageReproductivePlan } from "@/lib/obstetra-acc
 import { canManageGestationalVaccination } from "@/lib/gestational-vaccination-access";
 import { VaccinationWorkspace } from "@/components/vaccination/VaccinationWorkspace";
 import { FollowupIntakeFormManager } from "@/components/dashboard/FollowupIntakeFormManager";
+import { fivStepsForPatient, mergeFivProjectSteps, validateFivParticipants, type FivRole } from "@/lib/fiv-project";
 import { renderIndividualPlanningCanvas, renderIntegralPlanningCanvas } from "@/lib/obstetric-document";
 import {
   createPlanningSuggestion,
@@ -44,6 +45,8 @@ type PlanningDocumentVersion = {
 };
 
 type ObstetricPlan = {
+  fiv_project_id?: string | null;
+  fiv_role?: FivRole | null;
   id: string;
   patient_name: string;
   patient_passport: string;
@@ -59,6 +62,7 @@ type ObstetricPlan = {
   total_consultations: number | null;
   status: string;
   created_at: string;
+  updated_at: string;
   schedule_confirmed_at: string | null;
   planning_document_path: string | null;
   planning_released_document_path: string | null;
@@ -67,6 +71,7 @@ type ObstetricPlan = {
 };
 
 type FollowupOccurrence = {
+  fiv_step_id?: string | null;
   id: string;
   plan_id: string;
   doctor_id: string;
@@ -99,7 +104,7 @@ type FollowupReport = {
   private_draft?: string;
 };
 
-type PreviewState = { canvas: HTMLCanvasElement; signature: string };
+type PreviewState = { canvas: HTMLCanvasElement; donorCanvas?: HTMLCanvasElement; signature: string };
 type HistoryTimelineEvent = { at: string; title: string; detail?: string };
 type PendingIndividualAction = { type: "switch"; occurrenceId: string } | { type: "close" } | null;
 type AccompanimentWorkspaceView = "planning" | "vaccination";
@@ -185,6 +190,9 @@ function ObstetricianWorkspace() {
     if (["ginecologia", "ginecologista"].includes(specialty) && canManageReproductivePlan(profile.role, profile.specialty, "in_vitro")) setPlanType("in_vitro");
     if (["obstetra", "obstetricia", "obstetrica"].includes(specialty) && canManageReproductivePlan(profile.role, profile.specialty, "gestacional")) setPlanType("gestacional");
   }, [selectPatient, selectedPassport, profile.role, profile.specialty]);
+  const [donorPassport, setDonorPassport] = useState("");
+  const [fivProjectId, setFivProjectId] = useState("");
+  const [releaseDonorOnSave, setReleaseDonorOnSave] = useState(false);
   const [planType, setPlanType] = useState<PlanningKind>(() => canManageReproductivePlan(profile.role, profile.specialty, "gestacional") ? "gestacional" : "in_vitro");
   const [workspaceView, setWorkspaceView] = useState<AccompanimentWorkspaceView>("planning");
   const [startDate, setStartDate] = useState("");
@@ -232,17 +240,21 @@ function ObstetricianWorkspace() {
   const restoredDraftFor = useRef("");
   const lastDraftSnapshot = useRef("");
 
+  const donorPatient = patients.find(patient => patient.passport === donorPassport) || null;
+  const projectPlans = plans.filter(plan => plan.fiv_project_id && plan.fiv_project_id === fivProjectId);
   const doctorName = profile.systemName || profile.characterName || "";
   const scheduleKey = planningKey(planType, startDate, endDate);
   const scheduleConfirmed = Boolean(confirmedKey && confirmedKey === scheduleKey && confirmedSteps.length);
   const manageablePlans = useMemo(() => plans.filter((plan) => canManageReproductivePlan(profile.role, profile.specialty, plan.plan_type)), [plans, profile.role, profile.specialty]);
   const contextPlans = useMemo(() => manageablePlans.filter((plan) => plan.plan_type === planType), [manageablePlans, planType]);
+  const primaryPlans = manageablePlans.filter(plan => plan.fiv_role !== "doadora" || !manageablePlans.some(other => other.fiv_project_id === plan.fiv_project_id && other.fiv_role === "gestante"));
   const filteredHistoryPlans = useMemo(() => {
     const query = historySearch.trim().toLocaleLowerCase("pt-BR");
     return manageablePlans.filter((plan) => {
+      if (plan.fiv_role === "doadora" && manageablePlans.some(other => other.fiv_project_id === plan.fiv_project_id && other.fiv_role === "gestante")) return false;
       if (historyTypeFilter !== "all" && plan.plan_type !== historyTypeFilter) return false;
       if (!query) return true;
-      return [plan.patient_name, plan.patient_passport, plan.start_date, plan.end_date || "", planTypeLabel(plan.plan_type)]
+      return [plan.patient_name, plan.patient_passport, ...manageablePlans.filter(other => other.fiv_project_id && other.fiv_project_id === plan.fiv_project_id).flatMap(other => [other.patient_name, other.patient_passport]), plan.start_date, plan.end_date || "", planTypeLabel(plan.plan_type)]
         .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(query));
     });
   }, [manageablePlans, historySearch, historyTypeFilter]);
@@ -265,7 +277,7 @@ function ObstetricianWorkspace() {
     }
     return endDate;
   }, [planType, confirmedSteps, endDate]);
-  const currentIntegralSignature = useMemo(() => JSON.stringify({ planType, startDate, endDate, patient: selectedPatient?.passport || "", doctorName, planningNotes, confirmedSteps, editingPlanId }), [planType, startDate, endDate, selectedPatient?.passport, doctorName, planningNotes, confirmedSteps, editingPlanId]);
+  const currentIntegralSignature = useMemo(() => JSON.stringify({ planType, startDate, endDate, patient: selectedPatient?.passport || "", patientName: selectedPatient?.name || "", donorPassport, donorName: donorPatient?.name || "", doctorName, planningNotes, confirmedSteps, editingPlanId }), [planType, startDate, endDate, selectedPatient?.passport, selectedPatient?.name, donorPassport, donorPatient?.name, doctorName, planningNotes, confirmedSteps, editingPlanId]);
   const readyIntegralPreview = integralPreview?.signature === currentIntegralSignature ? integralPreview : null;
 
   const individualStep = useMemo(() => {
@@ -299,6 +311,8 @@ function ObstetricianWorkspace() {
   const draft = useMemo<ObstetricPlanningDraft>(() => ({
     version: 2,
     selectedPassport,
+    donorPassport,
+    fivProjectId,
     planType,
     startDate,
     endDate,
@@ -306,7 +320,7 @@ function ObstetricianWorkspace() {
     editingPlanId,
     confirmedKey: scheduleConfirmed ? confirmedKey : "",
     confirmedSteps: scheduleConfirmed ? confirmedSteps : [],
-  }), [selectedPassport, planType, startDate, endDate, planningNotes, editingPlanId, confirmedKey, confirmedSteps, scheduleConfirmed]);
+  }), [selectedPassport, donorPassport, fivProjectId, planType, startDate, endDate, planningNotes, editingPlanId, confirmedKey, confirmedSteps, scheduleConfirmed]);
   const draftSnapshot = useMemo(() => JSON.stringify(draft), [draft]);
 
   useEffect(() => {
@@ -320,6 +334,8 @@ function ObstetricianWorkspace() {
         setStartDate(saved.startDate);
         setEndDate(saved.endDate);
         setPlanningNotes(saved.planningNotes);
+        setDonorPassport(saved.donorPassport || "");
+        setFivProjectId(saved.fivProjectId || "");
         setEditingPlanId(saved.editingPlanId);
         setConfirmedKey(saved.confirmedKey);
         setConfirmedSteps(saved.confirmedSteps);
@@ -396,6 +412,9 @@ function ObstetricianWorkspace() {
 
     if (nextPassport !== selectedPassport) selectPatient(nextPassport);
     setEditingPlanId("");
+    setDonorPassport("");
+    setFivProjectId("");
+    setReleaseDonorOnSave(false);
     setStartDate("");
     setEndDate("");
     setPlanningNotes("");
@@ -426,6 +445,9 @@ function ObstetricianWorkspace() {
     setWorkspaceView("planning");
     setPlanType(next);
     setEditingPlanId("");
+    setDonorPassport("");
+    setFivProjectId("");
+    setReleaseDonorOnSave(false);
     setStartDate("");
     setEndDate("");
     setPlanningNotes("");
@@ -553,13 +575,20 @@ function ObstetricianWorkspace() {
     const client = createClient();
     if (!client) return;
     const { data, error: historyError } = await client.from("clinical_followup_plans")
-      .select("id,doctor_id,doctor_name,patient_name,patient_passport,specialty,start_date,end_date,planning_notes,consultation_schedule,portal_released_at,total_consultations,status,created_at,plan_type,schedule_confirmed_at,planning_document_path,planning_released_document_path,planning_released_snapshot,planning_document_versions")
+      .select("id,doctor_id,doctor_name,patient_name,patient_passport,specialty,start_date,end_date,planning_notes,consultation_schedule,portal_released_at,total_consultations,status,created_at,updated_at,plan_type,schedule_confirmed_at,planning_document_path,planning_released_document_path,planning_released_snapshot,planning_document_versions,fiv_project_id,fiv_role")
       .eq("doctor_id", profile.id).in("plan_type", ["gestacional", "in_vitro"]).order("created_at", { ascending: false }).limit(50);
     if (historyError) {
       setError(historyError.message);
       return;
     }
-    const normalized = (data || []).map((plan) => ({ ...plan, consultation_schedule: normalizePlanningSteps(plan.plan_type as PlanningKind, plan.consultation_schedule) })) as ObstetricPlan[];
+    let records = data || [];
+    const projectIds = [...new Set(records.map(plan => plan.fiv_project_id).filter(Boolean))];
+    if (projectIds.length) {
+      const { data: partners, error: partnerError } = await client.from("clinical_followup_plans").select("id,doctor_id,doctor_name,patient_name,patient_passport,specialty,start_date,end_date,planning_notes,consultation_schedule,portal_released_at,total_consultations,status,created_at,updated_at,plan_type,schedule_confirmed_at,planning_document_path,planning_released_document_path,planning_released_snapshot,planning_document_versions,fiv_project_id,fiv_role").eq("doctor_id", profile.id).in("fiv_project_id", projectIds);
+      if (partnerError) { setError(partnerError.message); return; }
+      records = [...new Map([...records, ...(partners || [])].map(plan => [plan.id, plan])).values()];
+    }
+    const normalized = records.map((plan) => ({ ...plan, consultation_schedule: normalizePlanningSteps(plan.plan_type as PlanningKind, plan.consultation_schedule) })) as ObstetricPlan[];
     setPlans(normalized);
     if (preselectId) setSelectedPlanId(preselectId);
   }
@@ -569,7 +598,7 @@ function ObstetricianWorkspace() {
     const client = createClient();
     if (!client) return [] as FollowupOccurrence[];
     const { data, error: occurrenceError } = await client.from("clinical_followup_occurrences")
-      .select("id,plan_id,doctor_id,patient_name,patient_passport,specialty,planned_date,status,appointment_id,slot_id,step_number,rp_marker,step_title,planned_text,evolution_text,medical_observation_text,conduct_text,followup_report,individual_document_path,individual_released_document_path,individual_released_snapshot,individual_document_versions,individual_released_at")
+      .select("id,plan_id,doctor_id,patient_name,patient_passport,specialty,planned_date,status,appointment_id,slot_id,step_number,rp_marker,step_title,planned_text,evolution_text,medical_observation_text,conduct_text,followup_report,individual_document_path,individual_released_document_path,individual_released_snapshot,individual_document_versions,individual_released_at,fiv_step_id")
       .eq("plan_id", planId).eq("doctor_id", profile.id).order("step_number", { ascending: true }).order("planned_date", { ascending: true });
     if (occurrenceError) { setError(occurrenceError.message); return [] as FollowupOccurrence[]; }
     const rows = (data || []) as FollowupOccurrence[];
@@ -589,8 +618,16 @@ function ObstetricianWorkspace() {
     if (reason) return setError(reason);
     setBusy(true);
     try {
-      const canvas = await renderIntegralPlanningCanvas({ kind: planType, patient: selectedPatient.name, passport: selectedPatient.passport, doctor: doctorName, steps: confirmedSteps, referenceDate: endDate });
-      setIntegralPreview({ canvas, signature: currentIntegralSignature });
+      const participantError = planType === "in_vitro" ? validateFivParticipants(selectedPatient.passport, donorPassport, confirmedSteps) : "";
+      if (participantError) throw new Error(participantError);
+      if (planType === "in_vitro" && donorPassport && !donorPatient) throw new Error("Selecione a doadora no cadastro para conferir sua prévia.");
+      const steps = planType === "in_vitro" ? confirmedSteps.map(step => ({ ...step, fiv_recipient: step.fiv_recipient || "gestante" as const, fiv_step_id: step.fiv_step_id || crypto.randomUUID() })) : confirmedSteps;
+      if (planType === "in_vitro") setConfirmedSteps(steps);
+      const canvas = await renderIntegralPlanningCanvas({ kind: planType, patient: selectedPatient.name, passport: selectedPatient.passport, doctor: doctorName, steps: planType === "in_vitro" ? fivStepsForPatient(steps,"gestante") : steps, referenceDate: endDate });
+      const donorCanvas = planType === "in_vitro" && donorPatient ? await renderIntegralPlanningCanvas({ kind: planType, patient: donorPatient.name, passport: donorPatient.passport, doctor: doctorName, steps: fivStepsForPatient(steps,"doadora"), referenceDate: endDate }) : undefined;
+      const signature = JSON.stringify({ ...JSON.parse(currentIntegralSignature), confirmedSteps: steps });
+      setIntegralPreview({ canvas, donorCanvas, signature });
+      setReleaseDonorOnSave(false);
       setReleaseIntegralOnSave(false);
       setIntegralModalOpen(true);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Não foi possível gerar a prévia integral."); }
@@ -666,6 +703,31 @@ function ObstetricianWorkspace() {
       if (!(await hasRequiredPatientLink(planType, selectedPatient.passport))) throw new Error(`É necessário existir um vínculo ativo de ${planType === "in_vitro" ? "Ginecologia" : "Obstetrícia"} entre esta paciente e a médica antes de criar o planejamento.`);
       const previous = editingPlanId ? plans.find((plan) => plan.id === editingPlanId) : undefined;
       if (editingPlanId && (!previous || previous.patient_passport !== selectedPatient.passport || previous.plan_type !== planType)) throw new Error("A edição deve manter a paciente e a modalidade do planejamento original.");
+      if (planType === "in_vitro") {
+        const participantError = validateFivParticipants(selectedPatient.passport, donorPassport, confirmedSteps);
+        if (participantError) throw new Error(participantError);
+        if (donorPassport && !(await hasRequiredPatientLink("in_vitro", donorPassport))) throw new Error("A doadora precisa de vínculo ativo de Ginecologia com esta médica.");
+        const projectId = fivProjectId || previous?.fiv_project_id || previous?.id || crypto.randomUUID();
+        setFivProjectId(projectId);
+        const members = plans.filter(plan => plan.id === editingPlanId || plan.fiv_project_id === projectId);
+        const { data, error: saveError } = await client.rpc("save_fiv_patient_project", {
+          p_project_id: projectId, p_plan_id: editingPlanId || null,
+          p_gestante: selectedPatient.passport, p_doadora: donorPassport || null,
+          p_doctor_name: doctorName, p_start: startDate, p_end: endDate,
+          p_notes: planningNotes.trim() || null, p_steps: confirmedSteps,
+          p_release_gestante: releaseIntegralOnSave, p_release_doadora: releaseDonorOnSave,
+          p_expected_versions: Object.fromEntries(members.map(plan => [plan.id, plan.updated_at])),
+        });
+        if (saveError) throw saveError;
+        if (!data?.gestante_plan_id) throw new Error("O projeto FIV não foi confirmado. Confira o histórico antes de repetir.");
+        setIntegralModalOpen(false); setReleaseIntegralOnSave(false); setReleaseDonorOnSave(false);
+        setEditingPlanId(data.gestante_plan_id); setSelectedPlanId(data.gestante_plan_id);
+        setFivProjectId(data.project_id);
+        setMessage("Projeto FIV salvo. Cada paciente tem apenas suas etapas e sua liberação independente.");
+        try { sessionStorage.removeItem(obstetricDraftKey(profile.id)); } catch { /* optional */ }
+        await Promise.all([loadHistory(data.gestante_plan_id), loadOccurrences(data.gestante_plan_id)]);
+        return;
+      }
       const now = new Date().toISOString();
       const payload = {
         doctor_id: profile.id,
@@ -681,7 +743,7 @@ function ObstetricianWorkspace() {
         planning_notes: planningNotes.trim() || null,
         consultation_schedule: confirmedSteps.map((step) => ({ ...step, description: step.planned_text || step.description || "" })),
         total_consultations: confirmedSteps.length,
-        total_weeks: planType === "in_vitro" ? 5 : 40,
+        total_weeks: 40,
         schedule_confirmed_at: now,
         status: previous?.status || "Ativo",
         updated_at: now,
@@ -791,13 +853,18 @@ function ObstetricianWorkspace() {
     window.setTimeout(() => setHistoryShortcutActive(false), 1400);
   }
 
-  function beginEditing(plan: ObstetricPlan) {
+  function beginEditing(input: ObstetricPlan) {
+    const members = input.fiv_project_id ? plans.filter(plan => plan.fiv_project_id === input.fiv_project_id) : [input];
+    const plan = members.find(item => item.fiv_role === "gestante") || input;
+    setDonorPassport(members.find(item => item.fiv_role === "doadora")?.patient_passport || "");
+    setFivProjectId(plan.fiv_project_id || "");
+    setReleaseDonorOnSave(false);
     selectPatient(plan.patient_passport);
     setPlanType(plan.plan_type);
     setStartDate(plan.start_date);
     setEndDate(plan.end_date || "");
     setPlanningNotes(plan.planning_notes || "");
-    const steps = normalizePlanningSteps(plan.plan_type, plan.consultation_schedule || []);
+    const steps = plan.fiv_project_id ? mergeFivProjectSteps(members) : normalizePlanningSteps(plan.plan_type, plan.consultation_schedule || []);
     const key = planningKey(plan.plan_type, plan.start_date, plan.end_date || "");
     setSuggestion(null);
     setConfirmedKey(key);
@@ -850,14 +917,15 @@ function ObstetricianWorkspace() {
   }
 
   async function deletePlan(plan: ObstetricPlan) {
-    if (!(await hpsrConfirm(`Excluir o planejamento ${planTypeLabel(plan.plan_type)} de ${plan.patient_name}? Consultas já realizadas permanecem no histórico clínico.`, "Excluir planejamento"))) return;
+    if (!(await hpsrConfirm(plan.fiv_project_id ? "Excluir este projeto FIV e os planejamentos de suas participantes? Atendimentos já realizados permanecem no histórico clínico." : `Excluir o planejamento ${planTypeLabel(plan.plan_type)} de ${plan.patient_name}? Consultas já realizadas permanecem no histórico clínico.`, "Excluir planejamento"))) return;
     const client = createClient();
     if (!client) return;
     setBusy(true); setError("");
     try {
-      const { error: rpcError } = await client.rpc("delete_clinical_followup_plan", { p_plan_id: plan.id });
+      const { error: rpcError } = await client.rpc(plan.fiv_project_id ? "delete_fiv_patient_project" : "delete_clinical_followup_plan", plan.fiv_project_id ? { p_project_id: plan.fiv_project_id } : { p_plan_id: plan.id });
       if (rpcError) throw rpcError;
       setSelectedPlanId("");
+      if (editingPlanId === plan.id || fivProjectId === plan.fiv_project_id) { setEditingPlanId(""); setFivProjectId(""); setDonorPassport(""); setIntegralPreview(null); }
       setMessage("Planejamento removido. O vínculo médico-paciente não foi alterado.");
       await loadHistory();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Não foi possível excluir o planejamento."); }
@@ -926,7 +994,11 @@ function ObstetricianWorkspace() {
     await loadOccurrences(plan.id);
   }
 
-  async function openIndividualEditorAtStep(plan: ObstetricPlan, stepNumber: number) {
+  async function openIndividualEditorAtStep(source: ObstetricPlan, stepNumber: number) {
+    const projectStep = confirmedSteps.find(step => step.number === stepNumber);
+    const plan = source.fiv_project_id ? plans.find(item => item.fiv_project_id === source.fiv_project_id && item.fiv_role === (projectStep?.fiv_recipient || "gestante")) || source : source;
+    const localStep = projectStep?.fiv_step_id ? (plan.consultation_schedule || []).find(step => step.fiv_step_id === projectStep.fiv_step_id)?.number : stepNumber;
+    stepNumber = localStep || stepNumber;
     if (busy) return;
     setSelectedPlanId(plan.id);
     setIndividualBaseline("");
@@ -1106,6 +1178,10 @@ function ObstetricianWorkspace() {
       if (clinicalError) throw clinicalError;
       if (!savedClinicalRecord?.id) throw new Error("O atendimento foi salvo no planejamento, mas o registro clínico não foi confirmado no prontuário. Confira o histórico antes de repetir a operação.");
 
+      if (selectedPlan.fiv_project_id === fivProjectId && selectedOccurrence.fiv_step_id) {
+        setConfirmedSteps(current => current.map(step => step.fiv_step_id === selectedOccurrence.fiv_step_id ? { ...step, planned_text: individualPlanned, description: individualPlanned } : step));
+        setIntegralPreview(null);
+      }
       setIndividualBaseline(individualFormSnapshot);
       setMessage(releaseToPatient
         ? `${selectedPlan.plan_type === "in_vitro" ? "Etapa" : "Consulta"} ${individualStep.number} salva e nova versão liberada para a paciente.`
@@ -1146,7 +1222,7 @@ function ObstetricianWorkspace() {
     <div className="hpsr-topbar" aria-hidden="true" />
 
     <section className="hpsr-obstetric-overview rounded-[22px] border border-[#e1c9b8] bg-[linear-gradient(120deg,#f8ecdf_0%,#f4e3d7_100%)] p-5 shadow-sm">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <div className="hpsr-obstetric-icon hpsr-obstetric-icon-hero grid h-12 w-12 shrink-0 place-items-center rounded-[16px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white">
             {workspaceView === "vaccination" ? <Syringe size={22} /> : planType === "in_vitro" ? <Sparkles size={22} /> : <HeartPulse size={22} />}
@@ -1157,7 +1233,7 @@ function ObstetricianWorkspace() {
             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-hpsr-muted">{workspaceView === "vaccination" ? "Registre e acompanhe a vacinação gestacional dentro do mesmo espaço de acompanhamento." : "As semanas são marcadores do RP. O cálculo usa apenas o calendário real e nunca converte esses marcadores em semanas reais."}</p>
           </div>
         </div>
-        <div className={`grid gap-2 sm:grid-cols-2 lg:min-w-[440px] ${canManageGestationalVaccination(profile.role, profile.specialty) ? "xl:grid-cols-3" : ""}`} aria-label="Alternar acompanhamento">
+        <div className={`grid gap-2 sm:grid-cols-2 xl:min-w-[440px] ${canManageGestationalVaccination(profile.role, profile.specialty) ? "xl:grid-cols-3" : ""}`} aria-label="Alternar acompanhamento">
           {canManageReproductivePlan(profile.role, profile.specialty, "gestacional") && <button type="button" aria-pressed={planType === "gestacional" && workspaceView === "planning"} onClick={() => changePlanType("gestacional")} className={`rounded-[16px] border px-4 py-3 text-left transition ${planType === "gestacional" && workspaceView === "planning" ? "border-hpsr-wine bg-hpsr-wine text-white shadow-sm" : "border-[#ddc1b1] bg-[#f5e5d9] text-hpsr-text hover:border-[#bc8c78]"}`}><p className={`text-[9px] font-black uppercase tracking-[.12em] ${planType === "gestacional" && workspaceView === "planning" ? "text-white/75" : "text-hpsr-wineLight"}`}>Acompanhamento</p><p className="mt-1 text-sm font-black leading-tight">Gestacional</p></button>}
           {canManageGestationalVaccination(profile.role, profile.specialty) && <button type="button" aria-pressed={workspaceView === "vaccination"} onClick={showVaccinationView} className={`rounded-[16px] border px-4 py-3 text-left transition ${workspaceView === "vaccination" ? "border-hpsr-wine bg-hpsr-wine text-white shadow-sm" : "border-[#ddc1b1] bg-[#f5e5d9] text-hpsr-text hover:border-[#bc8c78]"}`}><p className={`text-[9px] font-black uppercase tracking-[.12em] ${workspaceView === "vaccination" ? "text-white/75" : "text-hpsr-wineLight"}`}>Gestação</p><p className="mt-1 text-sm font-black leading-tight">Vacinação gestacional</p></button>}
           {canManageReproductivePlan(profile.role, profile.specialty, "in_vitro") && <button type="button" aria-pressed={planType === "in_vitro" && workspaceView === "planning"} onClick={() => changePlanType("in_vitro")} className={`rounded-[16px] border px-4 py-3 text-left transition ${planType === "in_vitro" && workspaceView === "planning" ? "border-hpsr-wine bg-hpsr-wine text-white shadow-sm" : "border-[#ddc1b1] bg-[#f5e5d9] text-hpsr-text hover:border-[#bc8c78]"}`}><p className={`text-[9px] font-black uppercase tracking-[.12em] ${planType === "in_vitro" && workspaceView === "planning" ? "text-white/75" : "text-hpsr-wineLight"}`}>Acompanhamento</p><p className="mt-1 text-sm font-black leading-tight">Fertilização in vitro</p></button>}
@@ -1174,21 +1250,30 @@ function ObstetricianWorkspace() {
 
         <div className="mt-5 grid gap-6 xl:grid-cols-[minmax(0,1040px)_minmax(240px,320px)] xl:items-stretch xl:justify-between">
           <div className="grid min-w-0 gap-5">
-          <div className="grid max-w-[1080px] gap-3 xl:grid-cols-[minmax(320px,560px)_minmax(260px,400px)] xl:items-end">
+          <div className={`grid max-w-[1080px] gap-3 ${planType === "in_vitro" ? "md:grid-cols-2" : "xl:grid-cols-[minmax(320px,560px)_minmax(260px,400px)]"} items-end`}>
+            <div className={planType === "in_vitro" ? "md:col-span-2" : ""}>
             <Field label="Planejamento ativo" hint={editingPlanId ? "Troque rapidamente entre acompanhamentos já salvos." : "Comece um novo planejamento ou carregue um registro existente."}>
               <StyledSelect value={editingPlanId} onChange={(event) => { const nextId = event.target.value; if (!nextId) { openNewPlanningModal(); return; } const plan = manageablePlans.find((item) => item.id === nextId); if (plan) beginEditing(plan); }} searchable disabled={busy}>
                 <option value="">Novo planejamento · ainda não salvo</option>
-                {manageablePlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.patient_name} · {planTypeLabel(plan.plan_type)} · {formatDate(plan.start_date)}</option>)}
+                {primaryPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.patient_name} · {planTypeLabel(plan.plan_type)} · {formatDate(plan.start_date)}</option>)}
               </StyledSelect>
             </Field>
-            <Field label="Paciente" hint={editingPlanId ? "Trocar de paciente inicia um novo planejamento e preserva o atual." : "Nome e passaporte são preenchidos automaticamente."}>
+            </div>
+            <Field label={planType === "in_vitro" ? "Paciente gestante" : "Paciente"} hint={editingPlanId ? "Trocar de paciente inicia um novo planejamento e preserva o atual." : "Nome e passaporte são preenchidos automaticamente."}>
               <StyledSelect value={selectedPassport} onChange={(event) => switchPlanningPatient(event.target.value)} searchable disabled={loading || busy}>
                 <option value="">{loading ? "Carregando pacientes..." : "Selecionar paciente"}</option>
                 {patients.map((patient) => <option key={patient.passport} value={patient.passport}>{patient.name} · {patient.passport}</option>)}
               </StyledSelect>
             </Field>
-          </div>
 
+          {planType === "in_vitro" && <Field label="Paciente doadora · opcional" hint="Selecione quando houver doadora. Em cada etapa, indique a paciente atendida.">
+            <StyledSelect value={donorPassport} searchable disabled={busy || Boolean(projectPlans.find(plan => plan.fiv_role === "doadora"))} onChange={event => { setDonorPassport(event.target.value); setIntegralPreview(null); }}>
+              <option value="">Sem paciente doadora</option>
+              {patients.filter(patient => patient.passport !== selectedPassport).map(patient => <option key={patient.passport} value={patient.passport}>{patient.name} · {patient.passport}</option>)}
+            </StyledSelect>
+          </Field>}
+          </div>
+          {projectPlans.length > 0 && <div className="grid gap-3 md:grid-cols-2">{projectPlans.map(member => <div key={member.id} className="border-t border-[#ddc1b1] pt-3"><p className="text-sm font-black">{member.fiv_role === "doadora" ? "Doadora" : "Gestante"} · {member.patient_name}</p><div className="mt-2 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => void openIndividualEditor(member)} className="rounded-lg border border-hpsr-wine px-3 py-2 text-xs font-bold text-hpsr-wine">Editar etapas desta paciente</button><button type="button" disabled={busy || Boolean(member.portal_released_at)} onClick={() => void releaseCurrentIntegral(member)} className="rounded-lg bg-hpsr-wine px-3 py-2 text-xs font-bold text-white disabled:opacity-50">{member.portal_released_at ? "Integral liberado" : "Liberar integral"}</button></div></div>)}</div>}
           <div className="flex min-h-6 flex-wrap items-center gap-2 text-xs">
             <span className={`rounded-full px-2.5 py-1 font-black ${editingPlan ? "bg-[#ead7ca] text-hpsr-wine" : "bg-[#efe3d8] text-hpsr-text"}`}>{editingPlan ? "Editando registro salvo" : "Novo planejamento"}</span>
             <span className="text-hpsr-muted">{editingPlan ? `${editingPlan.patient_name} · ${planTypeLabel(editingPlan.plan_type)} · iniciado em ${formatDate(editingPlan.start_date)}` : "Os dados abaixo serão usados para criar um novo planejamento."}</span>
@@ -1196,9 +1281,9 @@ function ObstetricianWorkspace() {
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,360px)_150px_minmax(210px,300px)_minmax(220px,300px)]"><Field label="Nome do paciente"><input className={`${inputClass} bg-[#f8efe5]`} value={selectedPatient?.name || ""} readOnly /></Field><Field label="Passaporte"><input className={`${inputClass} bg-[#f8efe5]`} value={selectedPatient?.passport || ""} readOnly /></Field><Field label="Médico responsável"><input className={`${inputClass} bg-[#f8efe5]`} value={doctorName} readOnly /></Field><Field label="Acompanhamento"><input className={`${inputClass} bg-[#f8efe5]`} value={planType === "in_vitro" ? "Fertilização in vitro — FIV" : "Acompanhamento gestacional"} readOnly /></Field></div>
 
-          <div className="grid gap-3 xl:grid-cols-[200px_200px_minmax(300px,1fr)] xl:items-start"><Field label="Data inicial" hint="O dia da semana desta data será preservado na sugestão."><input className={inputClass} type="date" value={startDate} onChange={(event) => changeStartDate(event.target.value)} /></Field><Field label="Data final · referência" hint={planType === "in_vitro" ? "Referência do planejamento FIV; não cria uma sexta etapa." : "Referência prevista para o parto; não cria consulta extra."}><input className={inputClass} type="date" min={startDate || undefined} value={endDate} onChange={(event) => changeEndDate(event.target.value)} /></Field><div className="flex flex-wrap items-start gap-2 xl:pt-[22px]"><button type="button" disabled={!startDate || !endDate || busy} onClick={() => void handleSuggestSchedule()} className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] border border-hpsr-wine bg-white px-4 text-sm font-black text-hpsr-wine disabled:opacity-50"><CalendarDays size={17} />Sugerir cronograma</button>{suggestion?.valid && suggestion.key === scheduleKey && !scheduleConfirmed && <button type="button" disabled={busy} onClick={confirmSuggestion} className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white"><CheckCircle2 size={17} />Confirmar sugestão</button>}</div></div>
+          <div className="grid gap-3 xl:grid-cols-[200px_200px_minmax(300px,1fr)] xl:items-start"><Field label="Data inicial" hint="O dia da semana desta data será preservado na sugestão."><input className={inputClass} type="date" value={startDate} onChange={(event) => changeStartDate(event.target.value)} /></Field><Field label="Data final · referência" hint={planType === "in_vitro" ? "Referência do planejamento FIV; não cria uma sexta etapa." : "Referência prevista para o parto; não cria consulta extra."}><input className={inputClass} type="date" min={startDate || undefined} value={endDate} onChange={(event) => changeEndDate(event.target.value)} /></Field><div className="flex flex-wrap items-start gap-2 xl:pt-[22px]"><button type="button" disabled={!startDate || !endDate || busy} onClick={() => void handleSuggestSchedule()} className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] border border-hpsr-wine bg-white px-4 text-sm font-black text-hpsr-wine disabled:opacity-50"><CalendarDays size={17} />Sugerir cronograma</button></div></div>
 
-          {(suggestion && suggestion.key === scheduleKey) && <div className={`border-t pt-3 ${suggestion.valid ? "border-emerald-200" : "border-amber-200"}`}><p className="text-sm font-black text-hpsr-text">{planType === "in_vitro" ? `${suggestion.steps.length} etapas sugeridas` : `${suggestion.foundCount} de ${suggestion.expectedCount} consultas sugeridas`}</p><p className="mt-1 text-xs leading-relaxed text-hpsr-muted">{suggestion.warning || `Cronograma sugerido em ${suggestion.targetWeekdayLabel}, seguindo o dia da semana da data inicial.`}</p><div className="mt-2 flex flex-wrap gap-1.5">{suggestion.candidateDates.map((date) => <span key={date} className="rounded-full border border-[#dec4b5] bg-[#fff8f3] px-2.5 py-1 text-xs font-bold text-hpsr-text">{formatDate(date)}</span>)}</div>{scheduleAvailabilityNote && <p className="mt-3 text-xs font-bold leading-relaxed text-amber-900">{scheduleAvailabilityNote}</p>}</div>}
+          {(suggestion && suggestion.key === scheduleKey) && <div className={`border-t pt-3 ${suggestion.valid ? "border-emerald-200" : "border-amber-200"}`}><p className="text-sm font-black text-hpsr-text">{planType === "in_vitro" ? `${suggestion.steps.length} etapas sugeridas` : `${suggestion.foundCount} de ${suggestion.expectedCount} consultas sugeridas`}</p><p className="mt-1 text-xs leading-relaxed text-hpsr-muted">{suggestion.warning || `Cronograma sugerido em ${suggestion.targetWeekdayLabel}, seguindo o dia da semana da data inicial.`}</p><div className="mt-3 flex flex-wrap items-center gap-3"><div className="flex min-w-0 flex-wrap gap-1.5">{suggestion.candidateDates.map((date) => <span key={date} className="rounded-full border border-[#dec4b5] bg-[#fff8f3] px-2.5 py-1 text-xs font-bold text-hpsr-text">{formatDate(date)}</span>)}</div>{suggestion?.valid && suggestion.key === scheduleKey && !scheduleConfirmed && <button type="button" disabled={busy} onClick={confirmSuggestion} className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white"><CheckCircle2 size={17} />Confirmar sugestão</button>}</div>{scheduleAvailabilityNote && <p className="mt-3 text-xs font-bold leading-relaxed text-amber-900">{scheduleAvailabilityNote}</p>}</div>}
           {scheduleConfirmed && <div className="border-t border-emerald-200 pt-3 text-sm font-bold text-emerald-800"><CheckCircle2 size={16} className="mr-2 inline" />Cronograma confirmado pela médica. Nenhuma consulta foi criada no Agendamento.{confirmedAdvisories.length > 0 && <p className="mt-2 text-xs font-semibold leading-relaxed text-amber-800">{confirmedAdvisories.join(" ")} São apenas orientações: você pode salvar exatamente o cronograma definido.</p>}</div>}
 
           <div className="max-w-[760px]"><Field label="Observações gerais" hint="Registro interno do planejamento; não substitui os campos individuais."><textarea className={`${textAreaClass} min-h-[120px]`} maxLength={4000} value={planningNotes} onChange={(event) => { setPlanningNotes(event.target.value); setIntegralPreview(null); }} placeholder="Observações gerais da médica sobre o planejamento" /></Field></div>
@@ -1258,8 +1343,8 @@ function ObstetricianWorkspace() {
 
       <div className="min-w-0">
       <section id="acompanhamento-conteudo" className="hpsr-planning-panel hpsr-gestational-form hpsr-obstetric-stage-preview min-w-0 rounded-[24px] border border-[#ad7665] p-4 shadow-[0_14px_34px_rgba(125,35,29,0.08)] sm:p-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="flex shrink-0 items-center gap-3"><div className="hpsr-obstetric-icon grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><CalendarDays size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Consultas do planejamento</p><h3 className="text-lg font-black text-hpsr-text">Gerencie as consultas e libere o que for necessário</h3><p className="text-sm text-hpsr-muted">Use editar para abrir cada consulta em modal. A prévia integral fica disponível na Definição médica e também pode ser reaberta por aqui.</p></div></div><div className="flex flex-wrap gap-2"><button type="button" disabled={busy || !scheduleConfirmed || !selectedPatient} onClick={() => readyIntegralPreview ? setIntegralModalOpen(true) : void generateIntegralPreview()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[12px] border border-hpsr-wine bg-hpsr-wine px-3.5 text-xs font-black text-white transition hover:opacity-90 disabled:opacity-50"><Eye size={15} />Ver integral</button></div></div>
-        {scheduleConfirmed ? <div className="mt-5 overflow-hidden rounded-[18px] border border-[#dec8bb] bg-[#fffaf7]"><div className="overflow-x-auto"><table className="min-w-full border-collapse text-sm"><thead><tr className="border-b border-[#e4d1c5] bg-[#f8efe7] text-left"><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Consulta</th><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Semana</th><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Data prevista</th><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Conteúdo</th><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Ações</th></tr></thead><tbody>{confirmedSteps.map((step, index) => { const occurrence = occurrences.find((item) => (item.step_number || 0) === step.number); const released = Boolean(occurrence?.individual_released_at); return <tr key={`${step.number}-${index}`} className="border-b border-[#eddccf] last:border-b-0"><td className="px-4 py-3 font-black text-hpsr-text">{planType === "in_vitro" ? `Etapa ${step.number}` : `Consulta ${step.number}`}</td><td className="px-4 py-3 font-semibold text-hpsr-text">{step.marker || "—"}</td><td className="px-4 py-3 font-semibold text-hpsr-text">{formatDate(step.date)}</td><td className="px-4 py-3 text-hpsr-muted">{(step.planned_text || "").trim() || "Conteúdo não preenchido"}</td><td className="px-4 py-3"><div className="flex flex-wrap gap-2">{occurrence ? <button type="button" onClick={() => editingPlan && void openIndividualEditorAtStep(editingPlan, step.number)} className="inline-flex min-h-[34px] items-center justify-center gap-1 rounded-[10px] border border-hpsr-wine bg-hpsr-wine px-3 text-xs font-black text-white transition hover:opacity-90"><Eye size={12} />Editar</button> : <span className="inline-flex min-h-[34px] items-center rounded-[10px] border border-dashed border-[#d7b6a6] px-3 text-[11px] font-bold text-hpsr-muted">Salve o planejamento</span>}{released && <span className="inline-flex min-h-[34px] items-center rounded-[10px] border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-black text-emerald-800">Liberada</span>}</div></td></tr>;})}</tbody></table></div></div> : <div className="mt-5 flex flex-1 flex-col items-center justify-center border-t border-[#d9c1b4] px-2 py-10 text-center"><CalendarDays size={28} className="mx-auto text-[#b87a91]" /><p className="mt-3 font-black text-hpsr-text">Aguardando confirmação</p><p className="mt-1 text-sm text-hpsr-muted">Informe o período, peça a sugestão e confirme. Depois disso as consultas aparecerão aqui para edição individual.</p></div>}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="flex shrink-0 items-center gap-3"><div className="hpsr-obstetric-icon grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><CalendarDays size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Consultas do planejamento</p><h3 className="text-lg font-black text-hpsr-text">Gerencie as consultas e libere o que for necessário</h3><p className="text-sm text-hpsr-muted">Use editar para abrir cada consulta em modal. A prévia integral fica disponível na Definição médica e também pode ser reaberta por aqui.</p></div></div><div className="flex flex-wrap gap-2">{planType === "in_vitro" && scheduleConfirmed && <button type="button" disabled={busy || confirmedSteps.length >= 40} onClick={addConfirmedStep} className="rounded-lg border border-hpsr-wine px-3 py-2 text-xs font-bold text-hpsr-wine">Adicionar etapa</button>}<button type="button" disabled={busy || !scheduleConfirmed || !selectedPatient} onClick={() => readyIntegralPreview ? setIntegralModalOpen(true) : void generateIntegralPreview()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[12px] border border-hpsr-wine bg-hpsr-wine px-3.5 text-xs font-black text-white transition hover:opacity-90 disabled:opacity-50"><Eye size={15} />Ver integral</button></div></div>
+        {scheduleConfirmed ? <div className="mt-5 overflow-hidden rounded-[18px] border border-[#dec8bb] bg-[#fffaf7]"><div className="overflow-x-auto"><table className="min-w-full border-collapse text-sm"><thead><tr className="border-b border-[#e4d1c5] bg-[#f8efe7] text-left"><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Consulta</th><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Semana</th><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Data prevista</th><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Conteúdo</th><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Ações</th></tr></thead><tbody>{confirmedSteps.map((step, index) => { const participantPlan = editingPlan?.fiv_project_id ? plans.find(plan => plan.fiv_project_id === editingPlan.fiv_project_id && plan.fiv_role === (step.fiv_recipient || "gestante")) : editingPlan; const participantStep = participantPlan?.consultation_schedule?.find(item => step.fiv_step_id ? item.fiv_step_id === step.fiv_step_id : item.number === step.number); const hasSavedStep = Boolean(participantStep); const occurrence = occurrences.find((item) => item.plan_id === participantPlan?.id && (item.step_number || 0) === (participantStep?.number || step.number)); const released = Boolean(occurrence?.individual_released_at); return <tr key={`${step.number}-${index}`} className="border-b border-[#eddccf] last:border-b-0"><td className="px-4 py-3 font-black text-hpsr-text">{planType === "in_vitro" ? `Etapa ${step.number}` : `Consulta ${step.number}`}</td><td className="px-4 py-3 font-semibold text-hpsr-text">{step.marker || "—"}</td><td className="px-4 py-3 font-semibold text-hpsr-text">{planType === "in_vitro" ? <input aria-label={`Data da etapa ${step.number}`} className={inputClass} type="date" value={step.date} onChange={event => updateConfirmedStep(index,{date:event.target.value})} disabled={busy} /> : formatDate(step.date)}</td><td className="px-4 py-3 text-hpsr-muted">{planType === "in_vitro" && <StyledSelect aria-label={`Paciente da etapa ${step.number}`} value={step.fiv_recipient || "gestante"} disabled={busy || hasSavedStep} onChange={event => updateConfirmedStep(index,{fiv_recipient:event.target.value as FivRole})}><option value="gestante">Gestante · {selectedPatient?.name}</option>{donorPatient && <option value="doadora">Doadora · {donorPatient.name}</option>}</StyledSelect>}{planType === "in_vitro" ? <textarea aria-label={`Conteúdo da etapa ${step.number}`} className={`${textAreaClass} mt-2 min-h-[100px] min-w-[240px]`} value={step.planned_text} maxLength={3600} disabled={busy} onChange={event => updateConfirmedStep(index,{planned_text:event.target.value})} /> : (step.planned_text || "").trim() || "Conteúdo não preenchido"}</td><td className="px-4 py-3"><div className="flex flex-wrap gap-2">{planType === "in_vitro" && !hasSavedStep && <button type="button" disabled={busy} onClick={() => removeConfirmedStep(index)} className="text-xs font-bold text-hpsr-wine">Remover etapa</button>}{(occurrence || hasSavedStep) ? <button type="button" onClick={() => editingPlan && void openIndividualEditorAtStep(editingPlan, step.number)} className="inline-flex min-h-[34px] items-center justify-center gap-1 rounded-[10px] border border-hpsr-wine bg-hpsr-wine px-3 text-xs font-black text-white transition hover:opacity-90"><Eye size={12} />Editar</button> : <span className="inline-flex min-h-[34px] items-center rounded-[10px] border border-dashed border-[#d7b6a6] px-3 text-[11px] font-bold text-hpsr-muted">Salve o planejamento</span>}{released && <span className="inline-flex min-h-[34px] items-center rounded-[10px] border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-black text-emerald-800">Liberada</span>}</div></td></tr>;})}</tbody></table></div></div> : <div className="mt-5 flex flex-1 flex-col items-center justify-center border-t border-[#d9c1b4] px-2 py-10 text-center"><CalendarDays size={28} className="mx-auto text-[#b87a91]" /><p className="mt-3 font-black text-hpsr-text">Aguardando confirmação</p><p className="mt-1 text-sm text-hpsr-muted">Informe o período, peça a sugestão e confirme. Depois disso as consultas aparecerão aqui para edição individual.</p></div>}
       </section>
       </div>
     </div>
@@ -1267,7 +1352,7 @@ function ObstetricianWorkspace() {
     <section id="acompanhamento-historico" className={`hpsr-planning-panel hpsr-gestational-history scroll-mt-5 rounded-[24px] border p-4 shadow-sm transition-[box-shadow,border-color] duration-500 sm:p-5 ${historyShortcutActive ? "border-hpsr-wine shadow-[0_0_0_3px_rgba(125,35,29,0.10),0_14px_34px_rgba(125,35,29,0.10)]" : ""}`}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3"><div className="hpsr-obstetric-icon grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><History size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Acompanhamentos salvos</p><h3 className="text-lg font-black text-hpsr-text">Histórico de planejamentos</h3><p className="text-sm text-hpsr-muted">Linha do tempo das alterações do planejamento. A edição acontece somente na Definição médica acima.</p></div></div>
-        <span className="w-fit rounded-full border border-[#d8b9a9] bg-[#f5e8dc] px-3 py-1.5 text-xs font-black text-hpsr-wine">{manageablePlans.length} {manageablePlans.length === 1 ? "planejamento" : "planejamentos"}</span>
+        <span className="w-fit rounded-full border border-[#d8b9a9] bg-[#f5e8dc] px-3 py-1.5 text-xs font-black text-hpsr-wine">{primaryPlans.length} {primaryPlans.length === 1 ? "planejamento" : "planejamentos"}</span>
       </div>
       {manageablePlans.length > 0 && <div className="mt-4 flex max-w-[900px] flex-col gap-3 md:flex-row md:items-center"><div className="relative min-w-0 flex-1 md:max-w-[520px]"><Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-hpsr-wineLight" /><input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} className={`${inputClass} pl-10`} placeholder="Buscar paciente, passaporte, data ou modalidade" aria-label="Buscar no histórico de planejamentos" /></div><div className="flex flex-wrap gap-1.5" aria-label="Filtrar histórico por modalidade"><button type="button" aria-pressed={historyTypeFilter === "all"} onClick={() => setHistoryTypeFilter("all")} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${historyTypeFilter === "all" ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-[#d2b7a8] bg-transparent text-hpsr-wine hover:bg-[#f2dfd2]"}`}>Todos</button>{canManageReproductivePlan(profile.role, profile.specialty, "gestacional") && <button type="button" aria-pressed={historyTypeFilter === "gestacional"} onClick={() => setHistoryTypeFilter("gestacional")} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${historyTypeFilter === "gestacional" ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-[#d2b7a8] bg-transparent text-hpsr-wine hover:bg-[#f2dfd2]"}`}>Gestacional</button>}{canManageReproductivePlan(profile.role, profile.specialty, "in_vitro") && <button type="button" aria-pressed={historyTypeFilter === "in_vitro"} onClick={() => setHistoryTypeFilter("in_vitro")} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${historyTypeFilter === "in_vitro" ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-[#d2b7a8] bg-transparent text-hpsr-wine hover:bg-[#f2dfd2]"}`}>FIV</button>}</div></div>}
       {manageablePlans.length === 0 ? <div className="mt-5 border-t border-[#d9c1b4] pt-6 text-sm font-semibold text-hpsr-muted">Nenhum planejamento criado por esta médica.</div> : filteredHistoryPlans.length === 0 ? <div className="mt-5 border-t border-[#d9c1b4] pt-6 text-sm font-semibold text-hpsr-muted">Nenhum planejamento corresponde aos filtros atuais.</div> : <div className="mt-5 divide-y divide-[#d9c1b4] border-t border-[#d9c1b4]">{filteredHistoryPlans.map((plan) => { const events = historyTimeline[plan.id] || []; const expanded = expandedHistoryPlanId === plan.id; return <article key={plan.id} className="py-4 first:pt-4 last:pb-0"><button type="button" onClick={() => void toggleHistoryTimeline(plan)} className="flex w-full flex-col gap-3 text-left lg:flex-row lg:items-start lg:justify-between"><div className="min-w-0"><p className="truncate font-black text-hpsr-text">{plan.patient_name}</p><div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"><span className="font-black text-hpsr-wine">{planTypeLabel(plan.plan_type)}</span><span className="text-hpsr-muted">{formatDate(plan.start_date)} → referência {formatDate(plan.end_date)}</span><span className="text-hpsr-muted">Passaporte {plan.patient_passport}</span></div></div><div className="flex items-center gap-2"><span className="rounded-full bg-[#ead7ca] px-2 py-1 text-[10px] font-black text-hpsr-wine">{plan.status}</span><span className="text-xs font-black text-hpsr-wine">{expanded ? "Fechar linha do tempo" : "Ver linha do tempo"}</span></div></button>{expanded && <div className="mt-4 rounded-[16px] border border-[#dfc8bb] bg-[#fff8f3] p-4">{historyTimelineLoading === plan.id ? <div className="flex items-center gap-2 text-sm font-bold text-hpsr-muted"><Loader2 size={15} className="animate-spin" />Carregando histórico...</div> : events.length ? <div className="space-y-0">{events.map((event, index) => <div key={`${event.at}-${index}`} className="relative grid grid-cols-[18px_1fr] gap-3 pb-4 last:pb-0"><div className="relative"><span className="absolute left-[6px] top-2 h-2.5 w-2.5 rounded-full bg-hpsr-wine" />{index < events.length - 1 && <span className="absolute left-[10px] top-5 h-[calc(100%-8px)] w-px bg-[#d9bdae]" />}</div><div><p className="text-xs font-black text-hpsr-text">{event.title}</p><p className="mt-0.5 text-[11px] font-semibold text-hpsr-wine">{formatDateTime(event.at)}</p>{event.detail && <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">{event.detail}</p>}</div></div>)}</div> : <p className="text-sm text-hpsr-muted">Nenhuma movimentação registrada além da criação do planejamento.</p>}</div>}</article>; })}</div>}
@@ -1298,7 +1383,7 @@ function ObstetricianWorkspace() {
       {pendingIndividualAction && <div className="absolute inset-0 z-20 grid place-items-center bg-[rgba(42,7,0,.72)] backdrop-blur-[1px] p-4"><div className="w-full max-w-[460px] rounded-[18px] border border-[#d5b7a4] bg-[#f9efe6] p-5 shadow-[0_20px_60px_rgba(62,21,12,.26)]"><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Alterações não salvas</p><h3 className="mt-1 text-lg font-black text-hpsr-text">O que deseja fazer antes de continuar?</h3><p className="mt-2 text-sm leading-relaxed text-hpsr-muted">A consulta atual possui alterações que ainda não foram gravadas.</p><div className="mt-5 grid gap-2 sm:grid-cols-3"><button type="button" disabled={busy} onClick={() => void savePendingIndividualAndContinue()} className="rounded-[11px] bg-hpsr-wine px-3 py-2.5 text-xs font-black text-white disabled:opacity-40">Salvar e continuar</button><button type="button" disabled={busy} onClick={() => continuePendingIndividualAction()} className="rounded-[11px] border border-[#c9aa97] bg-white px-3 py-2.5 text-xs font-black text-hpsr-wine disabled:opacity-40">Descartar</button><button type="button" disabled={busy} onClick={() => setPendingIndividualAction(null)} className="rounded-[11px] border border-[#d8c3b7] bg-[#f3e5da] px-3 py-2.5 text-xs font-black text-hpsr-text disabled:opacity-40">Cancelar</button></div></div></div>}
     </div></div>, document.body)}
 
-    {readyIntegralPreview && integralModalOpen && typeof document !== "undefined" && createPortal(<div className="hpsr-modal-tone fixed inset-0 z-[220] flex items-center justify-center bg-[rgba(42,7,0,.78)] backdrop-blur-[2px] p-2 sm:p-5"><button type="button" className="absolute inset-0" aria-label="Fechar" onClick={() => !busy && setIntegralModalOpen(false)} /><div className="relative flex max-h-[94dvh] w-full max-w-[1160px] flex-col overflow-hidden rounded-[22px] border border-[#d5b7a4] bg-[#f9efe6] shadow-[0_24px_80px_rgba(62,21,12,.28)]"><header className="relative flex items-center justify-between gap-3 border-b border-[#ddc6b7] bg-[linear-gradient(120deg,#f8eadf_0%,#f4e2d5_100%)] px-4 py-3 before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:bg-hpsr-wine"><div><p className="text-[10px] font-black uppercase tracking-[.15em] text-hpsr-wineLight">Modelo integral aprovado</p><h2 className="text-lg font-black text-hpsr-text">{planTypeLabel(planType)} · conferência</h2></div><button type="button" disabled={busy} onClick={() => setIntegralModalOpen(false)} className="grid h-10 w-10 place-items-center rounded-[12px] border border-[#d3b39d] bg-white text-hpsr-wine"><X size={18} /></button></header><div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5"><CanvasPreviewSurface source={readyIntegralPreview.canvas} label="Prévia do planejamento integral" /></div><footer className="border-t border-[#ddc6b7] bg-[#f4e4d8] p-4">{editingPlan && <div className="mb-3 rounded-[14px] border border-[#d7bba6] bg-[#fff8f3] p-3"><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-black text-hpsr-text">Consultas individuais</p><p className="mt-0.5 text-xs text-hpsr-muted">Abra uma consulta para editar, gerar a prévia individual e decidir a liberação separadamente.</p></div><span className="rounded-full border border-[#d8b9a9] bg-[#f5e8dc] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{confirmedSteps.length} {planType === "in_vitro" ? "etapas" : "consultas"}</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{confirmedSteps.map((step) => { const occurrence = occurrences.find((item) => Number(item.step_number || 0) === step.number); const released = Boolean(occurrence?.individual_released_at); return <button key={`integral-step-${step.number}`} type="button" disabled={!occurrence || busy} onClick={() => { setIntegralModalOpen(false); if (editingPlan) void openIndividualEditorAtStep(editingPlan, step.number); }} className={`flex min-h-[48px] items-center justify-between gap-3 rounded-[11px] border px-3 text-left text-xs font-black transition disabled:opacity-45 ${released ? "border-[#b8cdbf] bg-[#eef5f0] text-[#315b43]" : "border-[#d7b6a6] bg-white text-hpsr-wine hover:border-hpsr-wine"}`}><span>{planType === "in_vitro" ? `Etapa ${step.number}` : `Consulta ${step.number}`}</span><span className="text-[10px]">{released ? "Liberada" : occurrence ? "Editar / liberar" : "Salve primeiro"}</span></button>;})}</div></div>}<div className="flex flex-col gap-2 rounded-[14px] border border-[#d7bba6] bg-[#f3e1d0] p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-black text-hpsr-text">Liberar planejamento integral para a paciente</p><p className="text-xs text-hpsr-muted">Independente das liberações individuais.</p></div><button type="button" role="switch" aria-checked={releaseIntegralOnSave} onClick={() => setReleaseIntegralOnSave((value) => !value)} className={`relative h-8 w-14 rounded-full border-2 ${releaseIntegralOnSave ? "border-[#73362b] bg-hpsr-wine" : "border-[#c6a895] bg-[#e2d0c2]"}`}><span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${releaseIntegralOnSave ? "left-[26px]" : "left-0.5"}`} /></button></div><div className="mt-3 flex flex-wrap justify-end gap-2"><button type="button" disabled={busy} onClick={() => setIntegralModalOpen(false)} className="rounded-[12px] border border-[#c9aa97] px-4 py-2 text-sm font-bold text-hpsr-wine">Voltar</button><button type="button" onClick={() => void downloadCanvasPng(readyIntegralPreview.canvas, `planejamento-${planType}.png`).catch((caught) => setError(caught instanceof Error ? caught.message : "Não foi possível gerar o PNG solicitado."))} className="rounded-[12px] border border-hpsr-wine px-4 py-2 text-sm font-bold text-hpsr-wine">Baixar PNG</button><button type="button" disabled={busy} onClick={() => void saveIntegralPlan()} className="inline-flex items-center gap-2 rounded-[12px] bg-hpsr-wine px-5 py-2 text-sm font-black text-white disabled:opacity-50">{busy && <Loader2 size={16} className="animate-spin" />}{busy ? "Salvando..." : editingPlanId ? "Salvar atualização" : "Salvar planejamento"}</button></div></footer></div></div>, document.body)}
+    {readyIntegralPreview && integralModalOpen && typeof document !== "undefined" && createPortal(<div className="hpsr-modal-tone fixed inset-0 z-[220] flex items-center justify-center bg-[rgba(42,7,0,.78)] backdrop-blur-[2px] p-2 sm:p-5"><button type="button" className="absolute inset-0" aria-label="Fechar" onClick={() => !busy && setIntegralModalOpen(false)} /><div className="relative flex max-h-[94dvh] w-full max-w-[1160px] flex-col overflow-hidden rounded-[22px] border border-[#d5b7a4] bg-[#f9efe6] shadow-[0_24px_80px_rgba(62,21,12,.28)]"><header className="relative flex items-center justify-between gap-3 border-b border-[#ddc6b7] bg-[linear-gradient(120deg,#f8eadf_0%,#f4e2d5_100%)] px-4 py-3 before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:bg-hpsr-wine"><div><p className="text-[10px] font-black uppercase tracking-[.15em] text-hpsr-wineLight">Modelo integral aprovado</p><h2 className="text-lg font-black text-hpsr-text">{planTypeLabel(planType)} · conferência</h2></div><button type="button" disabled={busy} onClick={() => setIntegralModalOpen(false)} className="grid h-10 w-10 place-items-center rounded-[12px] border border-[#d3b39d] bg-white text-hpsr-wine"><X size={18} /></button></header><div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5"><p className="mb-2 text-sm font-black">{planType === "in_vitro" ? `Gestante · ${selectedPatient?.name}` : "Planejamento integral"}</p><CanvasPreviewSurface source={readyIntegralPreview.canvas} label="Prévia do planejamento integral" />{readyIntegralPreview.donorCanvas && <><p className="mb-2 mt-5 text-sm font-black">Doadora · {donorPatient?.name}</p><CanvasPreviewSurface source={readyIntegralPreview.donorCanvas} label="Prévia do planejamento da doadora" /></>}</div><footer className="border-t border-[#ddc6b7] bg-[#f4e4d8] p-4">{editingPlan && <div className="mb-3 rounded-[14px] border border-[#d7bba6] bg-[#fff8f3] p-3"><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-black text-hpsr-text">Consultas individuais</p><p className="mt-0.5 text-xs text-hpsr-muted">Abra uma consulta para editar, gerar a prévia individual e decidir a liberação separadamente.</p></div><span className="rounded-full border border-[#d8b9a9] bg-[#f5e8dc] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{confirmedSteps.length} {planType === "in_vitro" ? "etapas" : "consultas"}</span></div><div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{confirmedSteps.map((step) => { const occurrence = occurrences.find((item) => Number(item.step_number || 0) === step.number); const released = Boolean(occurrence?.individual_released_at); return <button key={`integral-step-${step.number}`} type="button" disabled={!occurrence || busy} onClick={() => { setIntegralModalOpen(false); if (editingPlan) void openIndividualEditorAtStep(editingPlan, step.number); }} className={`flex min-h-[48px] items-center justify-between gap-3 rounded-[11px] border px-3 text-left text-xs font-black transition disabled:opacity-45 ${released ? "border-[#b8cdbf] bg-[#eef5f0] text-[#315b43]" : "border-[#d7b6a6] bg-white text-hpsr-wine hover:border-hpsr-wine"}`}><span>{planType === "in_vitro" ? `Etapa ${step.number}` : `Consulta ${step.number}`}</span><span className="text-[10px]">{released ? "Liberada" : occurrence ? "Editar / liberar" : "Salve primeiro"}</span></button>;})}</div></div>}{readyIntegralPreview.donorCanvas && <label className="mb-3 flex items-center gap-2 rounded-[14px] border border-[#d7bba6] bg-[#f3e1d0] p-3 text-sm font-bold"><input type="checkbox" checked={releaseDonorOnSave} onChange={event => setReleaseDonorOnSave(event.target.checked)} disabled={busy} />Liberar planejamento integral da doadora</label>}<div className="flex flex-col gap-2 rounded-[14px] border border-[#d7bba6] bg-[#f3e1d0] p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-black text-hpsr-text">{planType === "in_vitro" ? "Liberar planejamento integral da gestante" : "Liberar planejamento integral para a paciente"}</p><p className="text-xs text-hpsr-muted">Independente das liberações individuais.</p></div><button type="button" role="switch" aria-checked={releaseIntegralOnSave} onClick={() => setReleaseIntegralOnSave((value) => !value)} className={`relative h-8 w-14 rounded-full border-2 ${releaseIntegralOnSave ? "border-[#73362b] bg-hpsr-wine" : "border-[#c6a895] bg-[#e2d0c2]"}`}><span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${releaseIntegralOnSave ? "left-[26px]" : "left-0.5"}`} /></button></div><div className="mt-3 flex flex-wrap justify-end gap-2"><button type="button" disabled={busy} onClick={() => setIntegralModalOpen(false)} className="rounded-[12px] border border-[#c9aa97] px-4 py-2 text-sm font-bold text-hpsr-wine">Voltar</button><button type="button" onClick={() => void downloadCanvasPng(readyIntegralPreview.canvas, `planejamento-${planType}${planType === "in_vitro" ? "-gestante" : ""}.png`).catch((caught) => setError(caught instanceof Error ? caught.message : "Não foi possível gerar o PNG solicitado."))} className="rounded-[12px] border border-hpsr-wine px-4 py-2 text-sm font-bold text-hpsr-wine">Baixar PNG</button>{readyIntegralPreview.donorCanvas && <button type="button" onClick={() => void downloadCanvasPng(readyIntegralPreview.donorCanvas!, "planejamento-fiv-doadora.png").catch(caught => setError(caught instanceof Error ? caught.message : "Falha ao baixar a prévia."))} className="rounded-[12px] border border-hpsr-wine px-4 py-2 text-sm font-bold text-hpsr-wine">Baixar PNG da doadora</button>}<button type="button" disabled={busy} onClick={() => void saveIntegralPlan()} className="inline-flex items-center gap-2 rounded-[12px] bg-hpsr-wine px-5 py-2 text-sm font-black text-white disabled:opacity-50">{busy && <Loader2 size={16} className="animate-spin" />}{busy ? "Salvando..." : editingPlanId ? "Salvar atualização" : "Salvar planejamento"}</button></div></footer></div></div>, document.body)}
 
     {readyIndividualPreview && individualModalOpen && typeof document !== "undefined" && createPortal(<div className="hpsr-modal-tone fixed inset-0 z-[230] flex items-center justify-center bg-[rgba(42,7,0,.78)] backdrop-blur-[2px] p-2 sm:p-5"><button type="button" className="absolute inset-0" aria-label="Fechar" onClick={() => !busy && setIndividualModalOpen(false)} /><div className="relative flex max-h-[94dvh] w-full max-w-[1160px] flex-col overflow-hidden rounded-[22px] border border-[#d5b7a4] bg-[#f9efe6] shadow-[0_24px_80px_rgba(62,21,12,.28)]"><header className="relative flex items-center justify-between gap-3 border-b border-[#ddc6b7] bg-[linear-gradient(120deg,#f8eadf_0%,#f4e2d5_100%)] px-4 py-3 before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:bg-hpsr-wine"><div><p className="text-[10px] font-black uppercase tracking-[.15em] text-hpsr-wineLight">Modelo individual aprovado</p><h2 className="text-lg font-black text-hpsr-text">{selectedPlan?.plan_type === "in_vitro" ? "Etapa" : "Consulta"} {individualStep?.number || ""} · conferência</h2></div><button type="button" disabled={busy} onClick={() => setIndividualModalOpen(false)} className="grid h-10 w-10 place-items-center rounded-[12px] border border-[#d3b39d] bg-white text-hpsr-wine"><X size={18} /></button></header><div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5"><CanvasPreviewSurface source={readyIndividualPreview.canvas} label="Prévia da consulta individual" /></div><footer className="border-t border-[#ddc6b7] bg-[#f4e4d8] p-4"><div className="flex flex-col gap-2 rounded-[14px] border border-[#d7bba6] bg-[#f3e1d0] p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-black text-hpsr-text">Liberar esta {selectedPlan?.plan_type === "in_vitro" ? "etapa" : "consulta"} individual</p><p className="text-xs text-hpsr-muted">A paciente recebe somente esta versão, sem liberar automaticamente o plano integral ou as outras consultas.</p></div><button type="button" role="switch" aria-checked={releaseIndividualOnSave} onClick={() => setReleaseIndividualOnSave((value) => !value)} className={`relative h-8 w-14 rounded-full border-2 ${releaseIndividualOnSave ? "border-[#73362b] bg-hpsr-wine" : "border-[#c6a895] bg-[#e2d0c2]"}`}><span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow ${releaseIndividualOnSave ? "left-[26px]" : "left-0.5"}`} /></button></div><div className="mt-3 flex flex-wrap justify-end gap-2"><button type="button" disabled={busy} onClick={() => setIndividualModalOpen(false)} className="rounded-[12px] border border-[#c9aa97] px-4 py-2 text-sm font-bold text-hpsr-wine">Voltar</button><button type="button" onClick={() => void downloadCanvasPng(readyIndividualPreview.canvas, `${selectedPlan?.plan_type === "in_vitro" ? "etapa" : "consulta"}-${individualStep?.number || "individual"}.png`).catch((caught) => setError(caught instanceof Error ? caught.message : "Não foi possível gerar o PNG solicitado."))} className="rounded-[12px] border border-hpsr-wine px-4 py-2 text-sm font-bold text-hpsr-wine">Baixar PNG</button><button type="button" disabled={busy} onClick={() => void saveIndividual()} className="inline-flex items-center gap-2 rounded-[12px] bg-hpsr-wine px-5 py-2 text-sm font-black text-white disabled:opacity-50">{busy && <Loader2 size={16} className="animate-spin" />}{busy ? "Salvando..." : `Salvar ${selectedPlan?.plan_type === "in_vitro" ? "etapa" : "consulta"}`}</button></div></footer></div></div>, document.body)}
   </div>;

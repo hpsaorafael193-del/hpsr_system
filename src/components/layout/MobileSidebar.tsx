@@ -50,7 +50,7 @@ export function MobileSidebar({ onOpenSystemInfo, hasPendingAppointmentRequest =
       </div>
 
       {open && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+        <div className="fixed inset-0 z-[100] lg:hidden">
           <button className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} aria-label="Fechar menu" />
           <aside className="absolute left-0 top-0 h-full w-[min(86vw,360px)] overflow-y-auto bg-[linear-gradient(180deg,#672614_0%,#5d2012_46%,#2a0700_100%)] p-4 text-white shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
@@ -63,7 +63,7 @@ export function MobileSidebar({ onOpenSystemInfo, hasPendingAppointmentRequest =
                   <p className="text-xs text-orange-100/70">Sistema Clínico</p>
                 </div>
               </div>
-              <button onClick={() => setOpen(false)} className="rounded-xl bg-white/10 p-3 text-white"><X size={20} /></button>
+              <button aria-label="Fechar barra lateral" onClick={() => setOpen(false)} className="rounded-xl bg-white/10 p-3 text-white"><X size={20} /></button>
             </div>
 
             <nav className="space-y-6">

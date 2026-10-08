@@ -1,4 +1,5 @@
 "use client";
+import { SavedClinicalSheet } from "@/components/dashboard/SavedClinicalSheet";
 
 import { useEffect, useMemo, useState } from "react";
 import { Clock3, Eye, EyeOff, PencilLine, Search, Trash2, X } from "lucide-react";
@@ -17,6 +18,7 @@ type HistoryItem = {
 
 type PreviewState = {
   title: string;
+  payload?: Record<string, any>;
   html?: string;
   images?: string[];
 } | null;
@@ -122,6 +124,7 @@ export function ClinicalHistoryPanel({ recordType, comfortable = false, onEdit }
         : [];
     setPreview({
       title: item.title,
+      payload,
       html: String(payload.reportHtml || payload.documentHtml || ""),
       images,
     });
@@ -201,7 +204,7 @@ export function ClinicalHistoryPanel({ recordType, comfortable = false, onEdit }
               <button type="button" onClick={() => setPreview(null)} className="rounded-full border border-hpsr-border bg-white p-2 text-hpsr-wine"><X size={18} /></button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto bg-[#f4f0ed] p-4 sm:p-6">
-              {preview.images?.length ? (
+              {preview.payload ? <SavedClinicalSheet payload={preview.payload} recordType={recordType} title={preview.title} /> : preview.images?.length ? (
                 <div className="space-y-4">{preview.images.map((image, index) => <img key={index} src={image} alt={`Página ${index + 1}`} className="mx-auto block w-full max-w-[794px] bg-white shadow-xl" />)}</div>
               ) : preview.html ? (
                 <div className="mx-auto max-w-[794px] bg-white p-8 shadow-xl" dangerouslySetInnerHTML={{ __html: preview.html }} />

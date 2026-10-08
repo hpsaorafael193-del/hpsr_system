@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from 'node:fs';
 
 const read = (path) => readFileSync(path, 'utf8');
 const pkg = JSON.parse(read('package.json'));
-assert.equal(pkg.version, '1.1.16-test.90');
+assert.equal(pkg.version, '1.1.16-test.98');
 
 const rules = read('SYSTEM_ENVIRONMENT_RULES.md');
 assert(rules.includes('barra fina escura'));
@@ -54,4 +54,4 @@ assert(patientLinks.includes('appointmentManagementStatus: "Sem resposta"'));
 assert(patientLinks.includes('.update({ status: "Arquivado", updated_at: endedAt })'));
 
 assert(existsSync('tests/portal-audit.mjs'));
-console.log('PASS release audit v1.1.16-test.90');
+console.log('PASS release audit v1.1.16-test.98');

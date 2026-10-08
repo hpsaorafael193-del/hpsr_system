@@ -108,3 +108,23 @@
 .page .medicationName > span,
 .page .listHeader h2 span { color: #705044; }
 .page .badge { font-weight: 600; color: #54291d; }
+
+/* Responsividade: preserva fontes, espaçamentos e visual do desktop. */
+.medicationName strong { overflow-wrap: anywhere; }
+.list, .details { overscroll-behavior-y: auto; }
+@media (min-width: 641px) and (max-width: 1150px) {
+  .page { height: auto; min-height: 0; }
+  .header { padding-top: 58px; padding-right: 18px; }
+  .workspace { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .listPanel { height: 420px; max-height: none; }
+  .details { max-height: none; overflow: visible; }
+}
+@media (max-width: 640px) {
+  .filters { flex-wrap: wrap; }
+  .search { flex: 1 1 100%; min-width: 0; }
+  .selectWrap { width: auto; flex: 1 1 160px; min-width: 0; }
+  .counters { flex-wrap: wrap; }
+  .page .search input, .page .select { font-size: 16px; }
+  .medicationButton .badge { flex-shrink: 1; max-width: 35%; overflow-wrap: anywhere; }
+  .listHeader { flex-wrap: wrap; }
+}

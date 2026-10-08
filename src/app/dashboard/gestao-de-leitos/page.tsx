@@ -262,7 +262,7 @@ export default function BedsPage() {
     <div className="hpsr-page hpsr-beds-page gap-3">
       <div className="hpsr-topbar" />
       <section className="overflow-hidden rounded-[18px] border border-[#d5bea8] bg-[#ecdfd1] shadow-[0_14px_34px_rgba(42,7,0,0.06)]">
-        <div className="grid gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#e9d8c8_0%,#e5d0bd_100%)] px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="grid gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#e9d8c8_0%,#e5d0bd_100%)] px-4 py-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
           <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[16px] bg-[#efe0d2] text-hpsr-wine">
               <BedDouble size={24} />
@@ -300,7 +300,7 @@ export default function BedsPage() {
           </div>
         </div>
 
-        <div className="grid gap-3 px-4 py-3 sm:grid-cols-2 xl:grid-cols-6">
+        <div className="grid gap-3 px-4 py-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           <BedMetric label="Total de leitos" value={String(beds.length)} tone="neutral" />
           <BedMetric label="Ocupados" value={String(occupiedCount)} tone="occupied" />
           <BedMetric label="Reavaliação pendente" value={String(pendingReviewCount)} tone="pending" />
@@ -311,7 +311,7 @@ export default function BedsPage() {
       </section>
 
       <section className="min-h-0 flex-1 overflow-hidden rounded-[18px] border border-[#d3bba5] bg-[#e9dbc9] p-3">
-        <div className="grid h-full auto-rows-fr gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-6">
+        <div className="grid h-full auto-rows-fr gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
           {beds.map((bed, index) => {
             const occupied = bed.status === "ocupado";
             const menuOpen = openMenu === bed.id;

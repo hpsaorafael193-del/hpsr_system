@@ -550,7 +550,7 @@ export default function InsurancePage() {
         <div className="pointer-events-none absolute -bottom-32 left-20 h-72 w-72 rounded-full bg-white/10" />
         <div className="pointer-events-none absolute bottom-0 right-[35%] h-24 w-72 rotate-[-12deg] rounded-full bg-white/5 blur-xl" />
 
-        <div className="relative z-10 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(390px,540px)] lg:items-center">
+        <div className="relative z-10 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(390px,540px)] xl:items-center">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.14em]">
               <HeartHandshake size={15} />

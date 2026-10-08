@@ -1,7 +1,7 @@
 export const EXAM_SIGNATURE_WIDTH = 540;
 export const EXAM_SIGNATURE_HEIGHT = 100;
-export const EXAM_SIGNATURE_IMAGE_WIDTH = 360;
-export const EXAM_SIGNATURE_IMAGE_HEIGHT = 68;
+export const EXAM_SIGNATURE_IMAGE_WIDTH = 260;
+export const EXAM_SIGNATURE_IMAGE_HEIGHT = 50;
 
 export function normalizeSignatureImage(image: HTMLImageElement) {
       const sourceCanvas = document.createElement("canvas");

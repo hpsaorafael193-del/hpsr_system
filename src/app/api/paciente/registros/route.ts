@@ -78,6 +78,20 @@ function safeRecord(record: any) {
       (visiblePayload.documentTitle ? `<section><h2>${String(visiblePayload.documentTitle)}</h2>${visiblePayload.patient?.name ? `<p><strong>Paciente:</strong> ${String(visiblePayload.patient.name)}</p>` : ""}${visiblePayload.doctor?.name ? `<p><strong>Médico responsável:</strong> ${String(visiblePayload.doctor.name)}</p>` : ""}<p>${String(visiblePayload.summary || "O documento foi salvo, mas o conteúdo formatado não foi incluído neste registro antigo.")}</p></section>` : "") ||
       (record.record_type === "Vacina" && visiblePayload.vaccine ? `<section><h2>${String(visiblePayload.title || "Registro de vacinação")}</h2><p><strong>Vacina:</strong> ${String(visiblePayload.vaccine.name || "—")}</p><p><strong>Dose:</strong> ${String(visiblePayload.vaccine.dose || "—")}</p><p><strong>Data:</strong> ${String(visiblePayload.vaccine.date || "—")}</p>${visiblePayload.vaccine.lot ? `<p><strong>Lote:</strong> ${String(visiblePayload.vaccine.lot)}</p>` : ""}${visiblePayload.doctor?.name ? `<p><strong>Médico responsável:</strong> ${String(visiblePayload.doctor.name)}${visiblePayload.doctor?.crm ? ` · CRM ${String(visiblePayload.doctor.crm)}` : ""}</p>` : ""}</section>` : "")
     ),
+    renderPayload: ["exame", "documento"].includes(String(record.record_type || "").toLowerCase()) ? {
+      renderSnapshot: visiblePayload.renderSnapshot ? sanitizeRenderSnapshot(visiblePayload.renderSnapshot) : undefined,
+      patient: visiblePayload.patient,
+      doctor: visiblePayload.doctor,
+      examName: visiblePayload.examName,
+      documentTitle: visiblePayload.documentTitle,
+      examDate: visiblePayload.examDate,
+      examTime: visiblePayload.examTime,
+      protocol: visiblePayload.protocol,
+      savedAt: visiblePayload.savedAt,
+      reportHtml: sanitizeClinicalHtml(visiblePayload.reportHtml || visiblePayload.documentHtml || visiblePayload.finalHtml || visiblePayload.html || ""),
+      previewImages: visiblePayload.previewImages,
+      previewImage: visiblePayload.previewImage,
+    } : undefined,
     previewImage: typeof visiblePayload.previewImage === "string" ? visiblePayload.previewImage : null,
     previewImages: Array.isArray(visiblePayload.previewImages)
       ? visiblePayload.previewImages.filter((item: unknown) => typeof item === "string" && item.startsWith("data:image/"))
@@ -196,4 +210,12 @@ export async function GET(request: NextRequest) {
     console.error("[patient-portal] records", error);
     return NextResponse.json({ error: "Não foi possível carregar os registros liberados." }, { status: 500 });
   }
+}
+
+function sanitizeRenderSnapshot(snapshot: any) {
+  const copy = JSON.parse(JSON.stringify(snapshot));
+  if (copy.kind === "exam" && Array.isArray(copy.document?.pages)) {
+    copy.document.pages = copy.document.pages.map((page: any) => ({ ...page, ...(typeof page.reportHtml === "string" ? { reportHtml: sanitizeClinicalHtml(page.reportHtml) } : {}) }));
+  } else if (copy.kind === "document" && Array.isArray(copy.pages)) copy.pages = copy.pages.map((html: string) => sanitizeClinicalHtml(html));
+  return copy;
 }
