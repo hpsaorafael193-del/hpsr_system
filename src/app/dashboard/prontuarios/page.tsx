@@ -1839,7 +1839,7 @@ function SavedExamViewer({
           ) : exam.previewImages.length ? (
             <div className="mx-auto grid max-w-[900px] gap-5">{exam.previewImages.map((src, index) => <figure key={`${src.slice(0, 40)}-${index}`} className="overflow-hidden rounded-[10px] bg-white shadow-[0_12px_40px_rgba(42,7,0,.18)]"><img src={src} alt={`Página ${index + 1} do registro`} className="block h-auto w-full" /><figcaption className="border-t border-hpsr-border px-3 py-2 text-center text-[10px] font-black uppercase tracking-[.12em] text-hpsr-muted">Página {index + 1}</figcaption></figure>)}</div>
           ) : exam.reportHtml ? (
-            <div className="mx-auto min-h-[900px] max-w-[900px] overflow-hidden rounded-[10px] bg-white shadow-[0_12px_40px_rgba(42,7,0,.18)]"><iframe title={exam.title} srcDoc={exam.reportHtml} className="h-[1100px] w-full border-0 bg-white" /></div>
+            <SavedClinicalSheet payload={{ reportHtml: exam.reportHtml, patient: { name: exam.patientName }, doctor: { name: exam.doctorName }, savedAt: exam.savedAt, title: exam.title }} recordType={exam.recordType} savedAt={exam.savedAt} title={exam.title} />
           ) : (
             <div className="flex min-h-full items-center justify-center"><EmptyState text="O conteúdo completo deste registro não está disponível." /></div>
           )}

@@ -48,6 +48,34 @@ function safeVaccinationSnapshot(payload: any) {
     applications,
   };
 }
+
+function vaccinationModel(payload: any) {
+  const model = String(payload?.cardModel || payload?.vaccine?.group || "");
+  const group = model.startsWith("adulto") ? "adulto" : model;
+  if (!["adulto", "crianca", "gestante", "idoso"].includes(group)) return null;
+  const adultVariant = model.includes("feminino") || payload?.vaccine?.adultVariant === "feminino" ? "feminino" : "masculino";
+  return { group, adultVariant, key: group === "adulto" ? `adulto-${adultVariant}` : group };
+}
+function releasedApplicationsSnapshot(records: any[], passport: string, model: NonNullable<ReturnType<typeof vaccinationModel>>) {
+  const matching = records.filter(record => record.patient_passport === passport && !record.is_confidential && record.released_at && vaccinationModel(record.payload)?.key === model.key);
+  if (!matching.length) return null;
+  const latest = matching.slice().sort((a,b) => String(b.released_at).localeCompare(String(a.released_at)))[0].payload;
+  return safeVaccinationSnapshot({ releasedSnapshot: {
+    schemaVersion: 1, cardModel: model.key, group: model.group, adultVariant: model.adultVariant,
+    patientName: latest.patient?.name || latest.patientName || "Paciente", passport,
+    birthDate: latest.patient?.birthDate || "", doctorName: latest.doctor?.name || latest.doctorName || "Equipe médica",
+    observations: latest.observations || "",
+    applications: matching.map(record => {
+      const payload = record.payload;
+      return { id: record.id, patientPassport: passport, patientName: payload.patient?.name || payload.patientName,
+        vaccine: payload.vaccine?.name, dose: payload.vaccine?.dose, date: payload.vaccine?.date, lot: payload.vaccine?.lot,
+        slotId: payload.vaccine?.slotId, doctorName: payload.doctor?.name || payload.doctorName,
+        doctorCrm: payload.doctor?.crm || payload.doctorCrm, signatureImage: payload.doctor?.signatureImage,
+        createdAt: record.created_at };
+    }),
+  } });
+}
+
 function resolveRecordDate(payload: any, fallback: string) {
   const performedAt = String(payload?.examPerformedAt || "").trim();
   if (performedAt) return performedAt;
@@ -163,12 +191,32 @@ export async function GET(request: NextRequest) {
         .maybeSingle();
       if (error) throw error;
       if (!record) return NextResponse.json({ error: "Registro não encontrado." }, { status: 404 });
+      if (record.record_type === "Vacina") {
+        const model = vaccinationModel(record.payload);
+        if (!model) return NextResponse.json({ error: "Este registro antigo não identifica o modelo da caderneta. A equipe médica precisa conferir e liberar a caderneta completa." }, { status: 422 });
+        const { data: releasedCards, error: releasedCardsError } = await patientSession.supabase.from("clinical_records")
+          .select("id,payload,released_at,updated_at").eq("patient_passport", targetPassport)
+          .eq("record_type", "CadernetaVacinal").eq("is_confidential", false).not("released_at", "is", null);
+        if (releasedCardsError) throw releasedCardsError;
+        const officialCard = (releasedCards || []).find((card: any) => safeVaccinationSnapshot(card.payload)?.cardModel === model.key);
+        if (officialCard) return NextResponse.json({ ok: true, record: { ...safeRecord(record), title: "Caderneta de vacinação",
+          html: undefined, previewImage: null, previewImages: [], createdAt: officialCard.released_at, updatedAt: officialCard.updated_at,
+          vaccinationCard: safeVaccinationSnapshot(officialCard.payload) } });
+        const { data: applications, error: applicationsError } = await patientSession.supabase.from("clinical_records")
+          .select("id,patient_passport,payload,created_at,released_at,is_confidential")
+          .eq("patient_passport", targetPassport).eq("record_type", "Vacina")
+          .eq("is_confidential", false).not("released_at", "is", null).order("created_at", { ascending: true });
+        if (applicationsError) throw applicationsError;
+        return NextResponse.json({ ok: true, record: { ...safeRecord(record), title: "Caderneta de vacinação",
+          html: undefined, previewImage: null, previewImages: [],
+          vaccinationCard: releasedApplicationsSnapshot(applications || [], targetPassport, model) } });
+      }
       return NextResponse.json({ ok: true, record: safeRecord(record) });
     }
 
     const { data, error } = await patientSession.supabase
       .from("clinical_records")
-      .select("id,record_type,created_at,updated_at,is_confidential,released_at,title:payload->>title,exam_name:payload->>examName,released_exam_name:payload->releasedSnapshot->>examName,document_title:payload->>documentTitle,released_document_title:payload->releasedSnapshot->>documentTitle,doctor_name:payload->doctor->>name,released_doctor_name:payload->releasedSnapshot->doctor->>name,doctor_name_flat:payload->>doctorName,protocol:payload->>protocol,released_protocol:payload->releasedSnapshot->>protocol,exam_date:payload->>examDate,released_exam_date:payload->releasedSnapshot->>examDate,exam_time:payload->>examTime,released_exam_time:payload->releasedSnapshot->>examTime,exam_performed_at:payload->>examPerformedAt,released_exam_performed_at:payload->releasedSnapshot->>examPerformedAt")
+      .select("payload,patient_passport,id,record_type,created_at,updated_at,is_confidential,released_at,title:payload->>title,exam_name:payload->>examName,released_exam_name:payload->releasedSnapshot->>examName,document_title:payload->>documentTitle,released_document_title:payload->releasedSnapshot->>documentTitle,doctor_name:payload->doctor->>name,released_doctor_name:payload->releasedSnapshot->doctor->>name,doctor_name_flat:payload->>doctorName,protocol:payload->>protocol,released_protocol:payload->releasedSnapshot->>protocol,exam_date:payload->>examDate,released_exam_date:payload->releasedSnapshot->>examDate,exam_time:payload->>examTime,released_exam_time:payload->releasedSnapshot->>examTime,exam_performed_at:payload->>examPerformedAt,released_exam_performed_at:payload->releasedSnapshot->>examPerformedAt")
       .eq("patient_passport", targetPassport)
       .in("record_type", ["Exame", "Documento", "Vacina"])
       .eq("is_confidential", false)
@@ -180,9 +228,10 @@ export async function GET(request: NextRequest) {
     const records = (data || []).map((record: any) => ({
       id: record.id,
       type: record.record_type,
+      cardModel: record.record_type === "Vacina" ? vaccinationModel(record.payload)?.key : null,
       title: ["Documento", "documento"].includes(String(record.record_type || ""))
         ? (record.released_document_title || record.document_title || record.title || record.record_type)
-        : (record.released_exam_name || record.exam_name || record.document_title || record.title || record.record_type),
+        : record.record_type === "Vacina" && vaccinationModel(record.payload) ? "Caderneta de vacinação" : (record.released_exam_name || record.exam_name || record.document_title || record.title || record.record_type),
       doctor: record.released_doctor_name || record.doctor_name || record.doctor_name_flat || "Equipe médica",
       createdAt: record.released_exam_performed_at || record.exam_performed_at || (record.released_exam_date ? `${record.released_exam_date}T${record.released_exam_time || "00:00"}:00-03:00` : record.exam_date ? `${record.exam_date}T${record.exam_time || "00:00"}:00-03:00` : record.created_at),
       updatedAt: record.released_at || record.updated_at,
@@ -202,10 +251,18 @@ export async function GET(request: NextRequest) {
       .filter((card: any) => Boolean(safeVaccinationSnapshot(card.payload)) || (typeof card.payload?.publishedPath === "string" && card.payload.publishedPath.startsWith(`${card.id}/publish-`)))
       .map((card: any) => ({
       id: `vaccination-card:${card.id}`,
+      cardModel: safeVaccinationSnapshot(card.payload)?.cardModel || card.payload?.cardModel,
       type: "Vacina", title: card.payload?.cardModel === "gestante" ? "Caderneta de vacinação gestacional" : "Caderneta de vacinação", doctor: String(card.payload?.doctorName || "Equipe médica"),
       createdAt: card.released_at, updatedAt: card.updated_at, protocol: null, isConfidential: false,
     }));
-    return NextResponse.json({ ok: true, records: [...publishedCards, ...records] });
+    const models = new Set(publishedCards.map((card: any) => card.cardModel));
+    const visible = records.filter((record: any) => {
+      if (record.type !== "Vacina" || !record.cardModel) return true;
+      if (models.has(record.cardModel)) return false;
+      models.add(record.cardModel);
+      return true;
+    });
+    return NextResponse.json({ ok: true, records: [...publishedCards, ...visible].map(({ cardModel: _model, ...record }: any) => record) });
   } catch (error) {
     console.error("[patient-portal] records", error);
     return NextResponse.json({ error: "Não foi possível carregar os registros liberados." }, { status: 500 });
