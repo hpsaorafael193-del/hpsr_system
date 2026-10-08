@@ -85,7 +85,7 @@ function splitByEditorPageBreaks(html: string) {
     .filter(Boolean);
 }
 
-function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity: number, measureHeight: (html: string) => number | null = measureExamReportHtml) {
+function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity: number, measureHeight: (html: string) => number | null = measureExamReportHtml): string[] {
   const wrapper = document.createElement("div");
   wrapper.innerHTML = html;
   const root = wrapper.firstElementChild as HTMLElement | null;
@@ -93,11 +93,36 @@ function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity
 
   const tag = root.tagName.toLowerCase();
 
+  // A conclusão inclui título e texto em um único bloco. Divida somente o
+  // texto, mantendo o título junto da primeira parte que couber nesta folha.
+  if (wrapper.children.length > 1) {
+    const children = Array.from(wrapper.children);
+    const prefix = children[0].outerHTML;
+    const tail = children.slice(1).map(child => child.outerHTML).join("");
+    const prefixHeight = measureHeight(prefix) ?? 36;
+    if (capacity > prefixHeight + 28) {
+      const pieces = splitOversizedHtmlBlock(tail, measure, capacity - prefixHeight, measureHeight);
+      if (pieces.length > 1) return [prefix + pieces[0], ...pieces.slice(1)];
+    }
+    return [html];
+  }
+
   if (tag === "table") {
     const thead = root.querySelector("thead")?.outerHTML || "";
     const rows = Array.from(root.querySelectorAll("tbody tr"));
     if (!rows.length) return [html];
-    return rows.map((row) => `<table class="hpsr-exam-table">${thead}<tbody>${row.outerHTML}</tbody></table>`);
+    const buildTable = (items: Element[]) => `<table class="hpsr-exam-table">${thead}<tbody>${items.map(row => row.outerHTML).join("")}</tbody></table>`;
+    let count = 0;
+    for (let index = 0; index < rows.length; index += 1) {
+      const candidate = buildTable(rows.slice(0, index + 1));
+      measure.innerHTML = candidate;
+      applyCanvasEquivalentMeasurementStyles(measure);
+      if ((measureHeight(candidate) ?? measure.scrollHeight) > capacity) break;
+      count = index + 1;
+    }
+    return count > 0 && count < rows.length
+      ? [buildTable(rows.slice(0, count)), buildTable(rows.slice(count))]
+      : [html];
   }
 
   if (tag === "ul" || tag === "ol") {
@@ -157,7 +182,7 @@ function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity
         const candidate = buildFragment(start, mid);
         measure.innerHTML = candidate;
         applyCanvasEquivalentMeasurementStyles(measure);
-        if ((measureHeight(measure.innerHTML) ?? measure.scrollHeight) <= capacity) {
+        if ((measureHeight(candidate) ?? measure.scrollHeight) <= capacity) {
           best = mid;
           low = mid + 1;
         } else {
@@ -273,7 +298,7 @@ function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[], options?: 
     applyCanvasEquivalentMeasurementStyles(measure);
     return measureHeight(html) ?? measure.scrollHeight;
   };
-  const fitsCurrentPage = (html: string) => renderedHeight(html) <= currentCapacity() + 1;
+  const fitsCurrentPage = (html: string) => renderedHeight(html) <= currentCapacity();
 
   try {
     while (queue.length) {
@@ -451,8 +476,8 @@ function parseClinicalBlocks(html: string) {
   const raw = clean.match(/<(h[1-3]|p|table|ul|ol|blockquote|div)[^>]*>[\s\S]*?<\/\1>|<hr[^>]*>/gi) || [clean];
   return raw
     .flatMap((block) => {
-      if (/^<table[\s>]/i.test(block)) return splitLongTable(block);
-      if (/^<(ul|ol)[\s>]/i.test(block)) return splitLongList(block);
+      if (/^<table[\s>]/i.test(block)) return typeof document === "undefined" ? splitLongTable(block) : [block];
+      if (/^<(ul|ol)[\s>]/i.test(block)) return typeof document === "undefined" ? splitLongList(block) : [block];
       return [block];
     })
     .filter((block) => textOnly(block) || /<(table|br|hr)[\s>]/i.test(block))

@@ -410,7 +410,7 @@ export async function renderVaccinationCard({
   }
   if (definition.notes && observations.trim()) {
     const notes = group === "crianca" && page === 1
-      ? { x: 150, y: 960, width: 1128, lineHeight: 36, fontSize: 19, maxLines: 3, continuationX: 150, continuationWidth: 1128, lineYs: [960, 996, 1032], baselineOffset: -5 }
+      ? { x: 161, y: 960, width: 1147, lineHeight: 36, fontSize: 19, maxLines: 3, continuationX: 161, continuationWidth: 1147, lineYs: [960, 996, 1032], baselineOffset: -1 }
       : definition.notes;
     const manualLines = normalizeVaccinationObservations(observations).replace(/\r/g, "").split("\n");
     ctx.save();

@@ -103,28 +103,32 @@ export const genetico_sexagem_fetalModel: IntelligentExamModel = {
       "label": "Resultado",
       "opcoes": [
         {
-          "valor": "presenca_cromossomo_y",
-          "label": "Sexo fetal masculino"
+          "valor": "feminino",
+          "label": "Sexagem feminina"
         },
         {
-          "valor": "ausencia_cromossomo_y",
-          "label": "Sexo fetal feminino"
-        },
-        {
-          "valor": "presenca_y_gestacao_multipla",
-          "label": "Gestação múltipla, sexo fetais feminino e masculino"
-        },
-        {
-          "valor": "presenca_y_gestacao_multipla",
-          "label": "Gestação múltipla, sexo fetais masculino"
-        },
-        {
-          "valor": "ausencia_y_gestacao_multipla",
-          "label": "Gestação múltipla, sexo fetais feminino"
+          "valor": "masculino",
+          "label": "Sexagem masculina"
         },
         {
           "valor": "inconclusivo",
-          "label": "Resultado inconclusivo devido a limitações técnicas ou baixa fração fetal"
+          "label": "Inconclusivo · sexo não identificado"
+        },
+        {
+          "valor": "gemelar_masculino_feminino",
+          "label": "Gêmeos · masculino e feminino"
+        },
+        {
+          "valor": "gemelar_feminino_masculino",
+          "label": "Gêmeos · feminino e masculino"
+        },
+        {
+          "valor": "gemelar_masculino_masculino",
+          "label": "Gêmeos · masculino e masculino"
+        },
+        {
+          "valor": "gemelar_feminino_feminino",
+          "label": "Gêmeos · feminino e feminino"
         }
       ],
       "referencia": "Detecção do cromossomo Y"
@@ -155,28 +159,32 @@ export const genetico_sexagem_fetalModel: IntelligentExamModel = {
       "label": "Impressão",
       "opcoes": [
         {
-          "valor": "masculino",
-          "label": "Sexo masculino identificado"
-        },
-        {
           "valor": "feminino",
-          "label": "Sexo feminino identificado"
+          "label": "Sexagem feminina"
         },
         {
-          "valor": "masculino_feminino_gemelar",
-          "label": "Presença de ambos os sexos masculino e feminino"
-        },
-        {
-          "valor": "provavel_feminino_gemelar",
-          "label": "Provável gestação feminina (sem detecção de Y)"
-        },
-        {
-          "valor": "provavel_masculino_gemelar",
-          "label": "Provável gestação masculina (com detecção de Y)"
+          "valor": "masculino",
+          "label": "Sexagem masculina"
         },
         {
           "valor": "inconclusivo",
-          "label": "Resultado inconclusivo"
+          "label": "Inconclusivo · sexo não identificado"
+        },
+        {
+          "valor": "gemelar_masculino_feminino",
+          "label": "Gêmeos · masculino e feminino"
+        },
+        {
+          "valor": "gemelar_feminino_masculino",
+          "label": "Gêmeos · feminino e masculino"
+        },
+        {
+          "valor": "gemelar_masculino_masculino",
+          "label": "Gêmeos · masculino e masculino"
+        },
+        {
+          "valor": "gemelar_feminino_feminino",
+          "label": "Gêmeos · feminino e feminino"
         }
       ],
       "referencia": "Conclusão do exame"
@@ -208,80 +216,137 @@ export const genetico_sexagem_fetalModel: IntelligentExamModel = {
   ],
   "profiles": [
     {
-      "id": "normal",
-      "name": "Normal",
-      "status": "normal",
-      "description": "Parâmetros dentro das referências disponíveis.",
-      "resultSummary": "Sexagem Fetal com Método: PCR em tempo real para sequências do cromossomo Y; Idade gestacional: 9 semanas; Tipo de gestação: Gestação única.",
-      "interpretation": "Os parâmetros mensurados — Método: PCR em tempo real para sequências do cromossomo Y; Idade gestacional: 9 semanas; Tipo de gestação: Gestação única; Corionicidade / Zigosidade: Não aplicável em gestação única — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
-      "conclusion": "Sexagem Fetal com parâmetros compatíveis com o padrão esperado, incluindo Método: PCR em tempo real para sequências do cromossomo Y; Idade gestacional: 9 semanas.",
+      "id": "feminino",
+      "name": "Sexagem feminina",
+      "status": "contextual",
+      "description": "Sexo fetal feminino",
+      "resultSummary": "Sequências do cromossomo Y não detectadas",
       "results": {
         "metodo": "PCR em tempo real para sequências do cromossomo Y",
-        "idade_gestacional": "9 semanas",
+        "idade_gestacional": "A informar",
         "tipo_gestacao": "Gestação única",
         "corionicidade": "Não aplicável em gestação única",
-        "vitalidade_fetal": "Embrião/feto com atividade cardíaca documentada",
+        "vitalidade_fetal": "Não avaliada por este exame",
+        "confiabilidade": "Amostra adequada, controles analíticos válidos",
         "resultado": "Sequências do cromossomo Y não detectadas",
-        "confiabilidade": "Amostra adequada para análise molecular",
-        "impressao": "Resultado compatível com sexo fetal feminino"
-      }
+        "impressao": "Sexo fetal feminino"
+      },
+      "interpretation": "O resultado molecular é compatível com sexo fetal feminino, considerando adequação da amostra e validade dos controles analíticos.",
+      "conclusion": "Sexo fetal feminino."
     },
     {
-      "id": "alterado",
-      "name": "Alterado",
-      "status": "alterado",
-      "description": "Um ou mais parâmetros fora da referência.",
-      "resultSummary": "Sexagem Fetal: Vitalidade fetal (USG): Atividade cardíaca documentada por ultrassonografia; Resultado: Sequências do cromossomo Y detectadas; Confiabilidade da amostra: Amostra adequada, controle interno válido.",
-      "interpretation": "Os resultados principais (Vitalidade fetal (USG): Atividade cardíaca documentada por ultrassonografia; Resultado: Sequências do cromossomo Y detectadas; Confiabilidade da amostra: Amostra adequada, controle interno válido) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
-      "conclusion": "Sexagem Fetal com padrão alterado, documentado por Vitalidade fetal (USG): Atividade cardíaca documentada por ultrassonografia; Resultado: Sequências do cromossomo Y detectadas.",
+      "id": "masculino",
+      "name": "Sexagem masculina",
+      "status": "contextual",
+      "description": "Sexo fetal masculino",
+      "resultSummary": "Sequências do cromossomo Y detectadas",
       "results": {
         "metodo": "PCR em tempo real para sequências do cromossomo Y",
-        "idade_gestacional": "9 semanas",
+        "idade_gestacional": "A informar",
         "tipo_gestacao": "Gestação única",
         "corionicidade": "Não aplicável em gestação única",
-        "vitalidade_fetal": "Atividade cardíaca documentada por ultrassonografia",
+        "vitalidade_fetal": "Não avaliada por este exame",
+        "confiabilidade": "Amostra adequada, controles analíticos válidos",
         "resultado": "Sequências do cromossomo Y detectadas",
-        "confiabilidade": "Amostra adequada, controle interno válido",
-        "impressao": "Resultado compatível com sexo fetal masculino"
-      }
+        "impressao": "Sexo fetal masculino"
+      },
+      "interpretation": "O resultado molecular é compatível com sexo fetal masculino, considerando adequação da amostra e validade dos controles analíticos.",
+      "conclusion": "Sexo fetal masculino."
     },
     {
-      "id": "indefinido",
-      "name": "Indefinido / limítrofe",
+      "id": "inconclusivo",
+      "name": "Inconclusivo · sexo não identificado",
       "status": "indefinido",
-      "description": "Alteração discreta ou inconclusiva.",
-      "resultSummary": "Sexagem Fetal: Resultado: Inconclusivo por baixa fração de DNA fetal; Confiabilidade da amostra: Fração fetal abaixo do limite técnico para conclusão segura.",
-      "interpretation": "Os principais resultados (Resultado: Inconclusivo por baixa fração de DNA fetal; Confiabilidade da amostra: Fração fetal abaixo do limite técnico para conclusão segura) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
-      "conclusion": "Sexagem Fetal com resultado limítrofe/inespecífico, destacando-se Resultado: Inconclusivo por baixa fração de DNA fetal; Confiabilidade da amostra: Fração fetal abaixo do limite técnico para conclusão segura.",
+      "description": "Sexo fetal não identificado",
+      "resultSummary": "Não foi possível determinar a presença ou ausência de sequências do cromossomo Y",
       "results": {
         "metodo": "PCR em tempo real para sequências do cromossomo Y",
-        "idade_gestacional": "9 semanas",
+        "idade_gestacional": "A informar",
         "tipo_gestacao": "Gestação única",
         "corionicidade": "Não aplicável em gestação única",
-        "vitalidade_fetal": "Embrião/feto com atividade cardíaca documentada",
-        "resultado": "Inconclusivo por baixa fração de DNA fetal",
-        "confiabilidade": "Fração fetal abaixo do limite técnico para conclusão segura",
-        "impressao": "Sexagem fetal inconclusiva; recomenda-se nova amostra conforme idade gestacional"
-      }
+        "vitalidade_fetal": "Não avaliada por este exame",
+        "confiabilidade": "Limitação técnica ou fração fetal insuficiente para conclusão",
+        "resultado": "Não foi possível determinar a presença ou ausência de sequências do cromossomo Y",
+        "impressao": "Sexo fetal não identificado"
+      },
+      "interpretation": "A análise não permitiu determinar o sexo fetal. Recomenda-se nova avaliação conforme adequação da amostra e protocolo analítico.",
+      "conclusion": "Sexo fetal não identificado."
     },
     {
-      "id": "personalizado",
-      "name": "Personalizado",
-      "status": "personalizado",
-      "description": "Modelo livre para ajuste médico.",
-      "resultSummary": "Sexagem Fetal: modelo personalizado preparado para edição dos resultados.",
-      "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
-      "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",
+      "id": "gemelar_masculino_feminino",
+      "name": "Gêmeos · masculino e feminino",
+      "status": "contextual",
+      "description": "Feto 1 masculino; feto 2 feminino",
+      "resultSummary": "Masculino e feminino",
       "results": {
-        "metodo": "PCR em tempo real para sequências do cromossomo Y",
-        "idade_gestacional": "9 semanas",
-        "tipo_gestacao": "Gestação única",
-        "corionicidade": "Não aplicável em gestação única",
-        "vitalidade_fetal": "Embrião/feto com atividade cardíaca documentada",
-        "resultado": "Sequências do cromossomo Y não detectadas",
-        "confiabilidade": "Amostra adequada para análise molecular",
-        "impressao": "A definir pelo médico conforme os dados inseridos"
-      }
+        "metodo": "Registro de sexagem gemelar no contexto do RP",
+        "idade_gestacional": "A informar",
+        "tipo_gestacao": "Gestação gemelar",
+        "corionicidade": "A informar conforme avaliação obstétrica",
+        "vitalidade_fetal": "Não avaliada por este exame",
+        "confiabilidade": "Amostra adequada, controles analíticos válidos",
+        "resultado": "Masculino e feminino",
+        "impressao": "Feto 1 masculino; feto 2 feminino"
+      },
+      "interpretation": "Combinação de sexos selecionada para o cenário de RP. A pesquisa isolada de cromossomo Y em sangue materno não distingue masculino/masculino de masculino/feminino nem atribui sexo a cada feto.",
+      "conclusion": "Feto 1 masculino; feto 2 feminino. Combinação registrada no contexto do RP."
+    },
+    {
+      "id": "gemelar_feminino_masculino",
+      "name": "Gêmeos · feminino e masculino",
+      "status": "contextual",
+      "description": "Feto 1 feminino; feto 2 masculino",
+      "resultSummary": "Feminino e masculino",
+      "results": {
+        "metodo": "Registro de sexagem gemelar no contexto do RP",
+        "idade_gestacional": "A informar",
+        "tipo_gestacao": "Gestação gemelar",
+        "corionicidade": "A informar conforme avaliação obstétrica",
+        "vitalidade_fetal": "Não avaliada por este exame",
+        "confiabilidade": "Amostra adequada, controles analíticos válidos",
+        "resultado": "Feminino e masculino",
+        "impressao": "Feto 1 feminino; feto 2 masculino"
+      },
+      "interpretation": "Combinação de sexos selecionada para o cenário de RP. A pesquisa isolada de cromossomo Y em sangue materno não distingue masculino/masculino de masculino/feminino nem atribui sexo a cada feto.",
+      "conclusion": "Feto 1 feminino; feto 2 masculino. Combinação registrada no contexto do RP."
+    },
+    {
+      "id": "gemelar_masculino_masculino",
+      "name": "Gêmeos · masculino e masculino",
+      "status": "contextual",
+      "description": "Ambos os fetos masculinos",
+      "resultSummary": "Masculino e masculino",
+      "results": {
+        "metodo": "Registro de sexagem gemelar no contexto do RP",
+        "idade_gestacional": "A informar",
+        "tipo_gestacao": "Gestação gemelar",
+        "corionicidade": "A informar conforme avaliação obstétrica",
+        "vitalidade_fetal": "Não avaliada por este exame",
+        "confiabilidade": "Amostra adequada, controles analíticos válidos",
+        "resultado": "Masculino e masculino",
+        "impressao": "Ambos os fetos masculinos"
+      },
+      "interpretation": "Combinação de sexos selecionada para o cenário de RP. A pesquisa isolada de cromossomo Y em sangue materno não distingue masculino/masculino de masculino/feminino nem atribui sexo a cada feto.",
+      "conclusion": "Ambos os fetos masculinos. Combinação registrada no contexto do RP."
+    },
+    {
+      "id": "gemelar_feminino_feminino",
+      "name": "Gêmeos · feminino e feminino",
+      "status": "contextual",
+      "description": "Ambos os fetos femininos",
+      "resultSummary": "Feminino e feminino",
+      "results": {
+        "metodo": "Registro de sexagem gemelar no contexto do RP",
+        "idade_gestacional": "A informar",
+        "tipo_gestacao": "Gestação gemelar",
+        "corionicidade": "A informar conforme avaliação obstétrica",
+        "vitalidade_fetal": "Não avaliada por este exame",
+        "confiabilidade": "Amostra adequada, controles analíticos válidos",
+        "resultado": "Feminino e feminino",
+        "impressao": "Ambos os fetos femininos"
+      },
+      "interpretation": "Combinação de sexos selecionada para o cenário de RP. A pesquisa isolada de cromossomo Y em sangue materno não distingue masculino/masculino de masculino/feminino nem atribui sexo a cada feto.",
+      "conclusion": "Ambos os fetos femininos. Combinação registrada no contexto do RP."
     }
   ],
   "variables": [
@@ -337,7 +402,7 @@ export const genetico_sexagem_fetalModel: IntelligentExamModel = {
         "visibleByDefault": true
       }
     ],
-    "defaultProfileId": "normal"
+    "defaultProfileId": "feminino"
   },
   "documentModel": {
     "template": "institutional-a4",
@@ -478,14 +543,14 @@ export const genetico_sexagem_fetalModel: IntelligentExamModel = {
   ],
   "tables": [],
   "interpretation": {
-    "normal": "Resultados de Sexagem Fetal compatíveis com os valores e padrões de referência aplicáveis ao método.",
-    "altered": "Sexagem Fetal com alteração objetiva em um ou mais parâmetros, devendo a interpretação considerar o padrão específico demonstrado no laudo.",
-    "undefined": "Sexagem Fetal com variações discretas ou limítrofes, sem definição clínica isolada."
+    "normal": "O resultado molecular é compatível com sexo fetal feminino, considerando adequação da amostra e validade dos controles analíticos.",
+    "altered": "O resultado molecular é compatível com sexo fetal masculino, considerando adequação da amostra e validade dos controles analíticos.",
+    "undefined": "A análise não permitiu determinar o sexo fetal. Recomenda-se nova avaliação conforme adequação da amostra e protocolo analítico."
   },
   "conclusion": {
-    "normal": "Sexagem Fetal sem alterações significativas nos parâmetros avaliados.",
-    "altered": "Sexagem Fetal alterado conforme resultados objetivos descritos.",
-    "undefined": "Sexagem Fetal com resultado limítrofe/inconclusivo, conforme parâmetros descritos."
+    "normal": "Sexo fetal feminino.",
+    "altered": "Sexo fetal masculino.",
+    "undefined": "Sexo fetal não identificado."
   },
   "attachments": {
     "enabled": false,

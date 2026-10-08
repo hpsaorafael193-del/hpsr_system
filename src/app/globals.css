@@ -2062,7 +2062,7 @@ textarea,
 :is(.hpsr-exams-workspace, .hpsr-documents-workspace) :is(.hpsr-exams-editor-viewport, .hpsr-documents-editor-viewport) { background: #ead8c3; }
 :is(.hpsr-exams-workspace, .hpsr-documents-workspace) :is(.hpsr-exams-editor-viewport, .hpsr-documents-editor-viewport) > div { border: 0; border-radius: 6px; box-shadow: none; }
 :is(.hpsr-exams-workspace, .hpsr-documents-workspace) > main > div > div[class*="rounded-"] { box-shadow: none; }
-:is(.hpsr-exams-workspace, .hpsr-documents-workspace) button[class*="emerald"],
+:is(.hpsr-exams-workspace, .hpsr-documents-workspace) button[class*="bg-emerald"],
 :is(.hpsr-exams-workspace, .hpsr-documents-workspace) span[class*="text-[#2f634c]"] { background: #672614; color: #fff; }
 :is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-continuous-editor,
 :is(.hpsr-exams-page, .hpsr-documents-page) .hpsr-continuous-editor * { caret-color: #111 !important; }
@@ -2103,3 +2103,7 @@ textarea,
 }
 :is(.hpsr-exams-workspace, .hpsr-documents-workspace) > aside [class~="space-y-4"] > :not([hidden]) ~ :not([hidden]) { margin-top: 12px; }
 :is(.hpsr-exams-workspace, .hpsr-documents-workspace) > main > div:not(:is(.hpsr-exams-editor-viewport, .hpsr-documents-editor-viewport)) { padding-top: 10px; padding-bottom: 10px; }
+
+/* Estado explícito do controle de sigilo, independente das cores de hover. */
+.hpsr-exams-workspace .hpsr-exam-confidentiality button[aria-pressed="false"] { background-color: transparent; color: #806556; }
+.hpsr-exams-workspace .hpsr-exam-confidentiality button[aria-pressed="true"] { background-color: #672614; color: #fff; }

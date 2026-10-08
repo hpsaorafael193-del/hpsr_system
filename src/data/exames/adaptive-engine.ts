@@ -264,7 +264,9 @@ function resolvedClinicalContext(model: IntelligentExamModel, configuration: Ada
 }
 
 function profileForClinicalContext(model: IntelligentExamModel, configuration: AdaptiveExamConfiguration, clinicalContext: string) {
-  const selected = model.profiles.find((item) => item.id === configuration.profileId);
+  const legacySexProfile: Record<string, string> = { normal: "feminino", alterado: "masculino", indefinido: "inconclusivo", personalizado: "feminino" };
+  const profileId = model.id === "genetico_sexagem_fetal" ? legacySexProfile[configuration.profileId] || configuration.profileId : configuration.profileId;
+  const selected = model.profiles.find((item) => item.id === profileId);
   const defaultId = model.editorModel.defaultProfileId;
   if (selected && selected.id !== defaultId && selected.id !== "normal") return selected;
 
@@ -1827,6 +1829,7 @@ function contextualProtocolNarrative(resolved: AdaptiveResolvedExam, kind: "inte
 }
 
 function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  if (resolved.model.id === "genetico_sexagem_fetal") return resolved.profile.interpretation;
   // Exceção expressa do projeto: não alterar o comportamento do Raio-X.
   if (resolved.model.id === "img_raio_x_unico") return legacyTechnicalInterpretation(resolved, rows);
 
@@ -1847,6 +1850,7 @@ function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][
 }
 
 function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  if (resolved.model.id === "genetico_sexagem_fetal") return resolved.profile.conclusion;
   // Exceção expressa do projeto: não alterar o comportamento do Raio-X.
   if (resolved.model.id === "img_raio_x_unico") return legacyTechnicalConclusion(resolved, rows);
 
@@ -1866,6 +1870,7 @@ function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
 }
 
 function resultSummaryFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  if (resolved.model.id === "genetico_sexagem_fetal") return resolved.profile.resultSummary;
   const { model, profile } = resolved;
   const informative = rows.filter((row) => row[0] && row[1] && !isGenericResult(row[1]));
   if (!informative.length) return profile.resultSummary;

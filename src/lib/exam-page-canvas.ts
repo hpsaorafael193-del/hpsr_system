@@ -296,7 +296,7 @@ export function drawExamReportHtml(context: CanvasRenderingContext2D, html: stri
       const blocks = Array.from(wrapper.children);
       context.textBaseline = "top";
       for (const block of blocks) {
-        if (y > maxY - 24) break;
+        if (y >= maxY) break;
         const tag = block.tagName.toLowerCase();
         if (/^h[1-3]$/.test(tag)) {
           const headingSize = tag === "h1" ? 12.5 : 11;

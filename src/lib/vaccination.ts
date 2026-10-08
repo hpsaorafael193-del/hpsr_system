@@ -215,12 +215,12 @@ export function getVaccinationCardDefinition(group: VaccinationGroup, adultVaria
   const base = { width: 1448, height: 1086 };
   if (group === "crianca") return {
     ...base, template: "/vacinacao/caderneta-crianca-p1-v117.png", slots: childSlots, identity: childIdentity,
-    notes: { x: 432, y: 962, width: 842, lineHeight: 32, fontSize: 20, maxLines: 3, continuationX: 202, continuationWidth: 1072, lineYs: [962, 994, 1026], baselineOffset: -5 }, official: true,
+    notes: { x: 454, y: 994, width: 850, lineHeight: 32, fontSize: 20, maxLines: 3, continuationX: 215, continuationWidth: 1089, lineYs: [994, 1026, 1057], baselineOffset: -1 }, official: true,
   };
-  if (group === "gestante") return { width: 1445, height: 1089, template: "/vacinacao/caderneta-gestante.png", slots: pregnantSlots, identity: pregnantIdentity, notes: { x: 292, y: 927, width: 985, lineHeight: 47, fontSize: 22, maxLines: 3, continuationX: 38, continuationWidth: 1239, lineYs: [927, 974, 1020], baselineOffset: -6 }, official: true };
+  if (group === "gestante") return { width: 1445, height: 1089, template: "/vacinacao/caderneta-gestante.png", slots: pregnantSlots, identity: pregnantIdentity, notes: { x: 292, y: 927, width: 985, lineHeight: 47, fontSize: 22, maxLines: 3, continuationX: 38, continuationWidth: 1239, lineYs: [927, 974, 1020], baselineOffset: -1 }, official: true };
   if (group === "idoso") return {
     ...base, template: "/vacinacao/caderneta-idoso-v117.png", slots: elderlySlots, identity: elderlyIdentity,
-    notes: { x: 258, y: 949, width: 1015, lineHeight: 37, fontSize: 20, maxLines: 3, continuationX: 56, continuationWidth: 1190, lineYs: [949, 986, 1023], baselineOffset: -5 }, official: true,
+    notes: { x: 282, y: 949, width: 991, lineHeight: 37, fontSize: 20, maxLines: 3, continuationX: 56, continuationWidth: 1190, lineYs: [949, 986, 1023], baselineOffset: -1 }, official: true,
   };
   return {
     ...base,
@@ -228,8 +228,8 @@ export function getVaccinationCardDefinition(group: VaccinationGroup, adultVaria
     slots: adultVariant === "feminino" ? adultFemaleSlots : adultMaleSlots,
     identity: adultVariant === "feminino" ? adultFemaleIdentity : adultMaleIdentity,
     notes: adultVariant === "feminino"
-      ? { x: 260, y: 975, width: 1025, lineHeight: 37, fontSize: 20, maxLines: 3, continuationX: 42, continuationWidth: 1243, lineYs: [975, 1012, 1048], baselineOffset: -5 }
-      : { x: 260, y: 972, width: 1025, lineHeight: 29, fontSize: 20, maxLines: 3, continuationX: 42, continuationWidth: 1243, lineYs: [972, 1000, 1030], baselineOffset: -5 }, official: true,
+      ? { x: 286, y: 975, width: 1005, lineHeight: 37, fontSize: 20, maxLines: 3, continuationX: 42, continuationWidth: 1213, lineYs: [975, 1012, 1048], baselineOffset: -1 }
+      : { x: 273, y: 972, width: 1040, lineHeight: 29, fontSize: 20, maxLines: 3, continuationX: 42, continuationWidth: 1213, lineYs: [972, 1000, 1030], baselineOffset: -1 }, official: true,
   };
 }
 

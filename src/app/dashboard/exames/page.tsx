@@ -1451,6 +1451,10 @@ export default function ExamesPage() {
       const base = current || createInitialAdaptiveConfiguration(selectedExam);
       const next = { ...base, ...partial };
       const modelForSelection = resolveIntelligentExamModel(selectedExam, next.adapterValue);
+      if (modelForSelection.id === "genetico_sexagem_fetal") {
+        const legacySexProfile: Record<string, string> = { normal: "feminino", alterado: "masculino", indefinido: "inconclusivo", personalizado: "feminino" };
+        next.profileId = legacySexProfile[next.profileId] || next.profileId;
+      }
       if (!modelForSelection.profiles.some((profile) => profile.id === next.profileId)) {
         const fallback = modelForSelection.profiles.find((profile) => profile.id === modelForSelection.editorModel.defaultProfileId)
           || modelForSelection.profiles.find((profile) => profile.id === "normal")
@@ -2340,10 +2344,10 @@ export default function ExamesPage() {
                   )}
                 </div>
 
-                <div className="inline-flex h-9 items-center gap-1 rounded-[11px] border border-[#e2d8cf] bg-[#fbfaf9] p-1">
+                <div className="hpsr-exam-confidentiality inline-flex h-9 items-center gap-1 rounded-[11px] border border-[#e2d8cf] bg-[#fbfaf9] p-1">
                   <ShieldCheck size={14} className="ml-1.5 text-hpsr-wine" />
-                  <button type="button" onClick={() => setIsConfidential(true)} className={`h-7 rounded-[8px] px-2.5 text-[12px] font-black transition ${isConfidential ? "bg-hpsr-wine text-white" : "text-hpsr-muted hover:text-hpsr-wine"}`}>Sigilo</button>
-                  <button type="button" onClick={() => setIsConfidential(false)} className={`h-7 rounded-[8px] px-2.5 text-[12px] font-black transition ${!isConfidential ? "bg-emerald-600 text-white" : "text-hpsr-muted hover:text-emerald-700"}`}>Portal liberado</button>
+                  <button type="button" onClick={() => setIsConfidential(true)} aria-pressed={isConfidential} className={`h-7 rounded-[8px] px-2.5 text-[12px] font-black transition ${isConfidential ? "bg-hpsr-wine text-white" : "text-hpsr-muted hover:text-hpsr-wine"}`}>Sigilo</button>
+                  <button type="button" onClick={() => setIsConfidential(false)} aria-pressed={!isConfidential} className={`h-7 rounded-[8px] px-2.5 text-[12px] font-black transition ${!isConfidential ? "bg-emerald-600 text-white" : "text-hpsr-muted hover:text-emerald-700"}`}>Portal liberado</button>
                 </div>
               </div>
             </div>
