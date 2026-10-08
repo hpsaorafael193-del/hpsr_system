@@ -1139,8 +1139,8 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
       </section>}
 
       <div className="grid items-stretch gap-3 2xl:grid-cols-[470px_minmax(0,1fr)]">
-        <aside className="space-y-3 2xl:h-full">
-          <section className="hpsr-vaccination-panel rounded-[18px] border border-[#d8c8b6] bg-[#f1e9df] p-4 shadow-soft">
+        <aside className="min-w-0 2xl:flex 2xl:flex-col">
+          <section className="hpsr-vaccination-panel rounded-[18px] border border-[#d8c8b6] bg-[#f1e9df] p-4 shadow-soft 2xl:flex-1">
             <div className="hpsr-vaccination-section-title flex items-center gap-2"><Syringe size={18} className="text-hpsr-wine"/><h2 className="font-black text-hpsr-text">{mode === "gestational" ? "Registrar vacinação gestacional" : "Registrar vacina"}</h2></div>
             <div className="mt-4 space-y-3">
               <h3 className="hpsr-vaccination-field-heading">Paciente e modelo</h3>
@@ -1208,13 +1208,14 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
               </div>
               <p className="hpsr-vaccination-tip rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-[10px] font-semibold leading-relaxed text-hpsr-muted">Se o passaporte ainda não existir no prontuário, o cadastro mínimo do paciente será criado automaticamente quando a vacina for registrada.</p>
               <div className="rounded-[12px] border border-[#ddcbb9] bg-[#fcf8f3] px-3 py-2 text-xs font-bold text-[#754c3b]">Modelo selecionado: {selectedModelLabel}. <span className="font-medium text-hpsr-muted">Use os cartões no início da página para trocar.</span></div>
-              <h3 className="hpsr-vaccination-field-heading">{group === "crianca" ? "Registro da faixa etária" : "Aplicação"}</h3>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <h3 className="hpsr-vaccination-field-heading">Aplicação</h3>
+              <div className="grid items-end gap-2 sm:grid-cols-2">
                 <label className="block text-xs font-black text-hpsr-muted">{group === "crianca" ? "Faixa etária" : "Vacina"}
                   <StyledSelect value={vaccine} onChange={(e) => { setVaccine(e.target.value); setDose(nextDose(e.target.value)); }} className={`${inputClass} mt-1`}>
                     {vaccineOptions.map((option) => <option key={option.name} value={option.name}>{option.name}</option>)}
                   </StyledSelect>
                 </label>
+                {group === "crianca" && <p className="hpsr-vaccination-lot-notice flex min-h-[44px] items-center gap-2 rounded-[12px] border px-3 py-2 text-[11px] font-semibold leading-snug"><Check size={15} className="shrink-0"/>Etapa registrada como um único atendimento, sem doses individuais.</p>}
                 {group !== "crianca" && <label className="block text-xs font-black text-hpsr-muted">Dose
                   <StyledSelect value={dose} onChange={(e) => setDose(e.target.value)} className={`${inputClass} mt-1`}>
                     {(selectedVaccine?.doses || []).map((item) => {
@@ -1226,10 +1227,10 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
                   <span className="mt-1 block text-[10px] font-semibold leading-relaxed text-hpsr-muted">As doses já registradas ficam indisponíveis. O sistema sugere o próximo espaço livre da vacina.</span>
                 </label>}
               </div>
-              <div className="grid items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                {group !== "crianca" && <label className="block text-xs font-black text-hpsr-muted">Data da aplicação<input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputClass} mt-1`} /></label>}
-                <p className="hpsr-vaccination-lot-notice flex min-h-[44px] items-center gap-2 rounded-[12px] border px-3 py-2 text-[11px] font-semibold leading-snug"><Check size={15} className="shrink-0"/>{group === "crianca" ? "Etapa registrada como um único atendimento, sem doses individuais." : "Lote gerado automaticamente e registrado no histórico."}</p>
-              </div>
+              {group !== "crianca" && <div className="grid items-end gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+                <label className="block text-xs font-black text-hpsr-muted">Data da aplicação<input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputClass} mt-1`} /></label>
+                <p className="hpsr-vaccination-lot-notice flex min-h-[44px] items-center gap-2 rounded-[12px] border px-3 py-2 text-[11px] font-semibold leading-snug"><Check size={15} className="shrink-0"/>Lote gerado automaticamente e registrado no histórico.</p>
+              </div>}
               <label className="block text-xs font-black text-hpsr-muted">Médico responsável <span className="font-medium text-hpsr-muted">(perfil logado por padrão)</span>
                 <StyledSelect value={selectedDoctorId} onChange={(e) => setSelectedDoctorId(e.target.value)} className={`${inputClass} mt-1`}>
                   {availableDoctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name}</option>)}
@@ -1243,12 +1244,12 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
               </label>
               <button type="button" onClick={() => void updateObservations()} disabled={publishing || saving || !patientPassport.trim()} className="hpsr-vaccination-outline-action w-full rounded-[12px] border px-3 py-2 text-xs font-black disabled:opacity-50">Criar / atualizar caderneta</button>
               <div className="hpsr-vaccination-stamp-note flex items-start gap-2 rounded-[12px] border border-[#b7d9d3] bg-[#f3f2eb] p-3 text-xs font-semibold leading-relaxed text-[#42685f]"><ShieldCheck size={17} className="mt-0.5 shrink-0"/><span>O carimbo é preenchido automaticamente com os dados do perfil de <strong>{selectedDoctor?.name || "médico selecionado"}</strong> e aplicado {group === "crianca" ? "uma vez por faixa etária" : "no espaço correto da dose"}.</span></div>
-              <button type="button" onClick={() => void saveApplication()} disabled={saving || publishing || !patientName.trim() || !patientPassport.trim() || Boolean(findVaccinationSlot(def, vaccine, group === "crianca" ? "Etapa completa" : dose) && activeAssignments.has(findVaccinationSlot(def, vaccine, group === "crianca" ? "Etapa completa" : dose)!.id))} className="flex min-h-[46px] w-full items-center justify-center gap-2 hpsr-vaccination-primary-action rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">{saving ? <Loader2 size={16} className="animate-spin"/> : <Syringe size={16}/>}{group === "crianca" ? "Concluir faixa etária" : "Registrar e aplicar na caderneta"}</button>
+              <button type="button" onClick={() => void saveApplication()} disabled={saving || publishing || !patientName.trim() || !patientPassport.trim() || Boolean(findVaccinationSlot(def, vaccine, group === "crianca" ? "Etapa completa" : dose) && activeAssignments.has(findVaccinationSlot(def, vaccine, group === "crianca" ? "Etapa completa" : dose)!.id))} className="flex min-h-[46px] w-full items-center justify-center gap-2 hpsr-vaccination-primary-action rounded-[14px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">{saving ? <Loader2 size={16} className="animate-spin"/> : <Syringe size={16}/>}Aplicar vacina</button>
             </div>
           </section>
         </aside>
 
-        <main className="min-w-0 space-y-3 2xl:flex 2xl:h-full 2xl:min-h-0 2xl:flex-col 2xl:space-y-0 2xl:gap-3">
+        <main className="min-w-0 2xl:flex 2xl:min-h-0 2xl:flex-col">
           <section className="hpsr-vaccination-panel rounded-[20px] border border-[#d8c8b6] bg-[#f1e9df] p-4 shadow-soft print:border-0 print:p-0 print:shadow-none 2xl:flex 2xl:min-h-0 2xl:flex-1 2xl:flex-col">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2 print:hidden">
               <div className="hpsr-vaccination-section-title"><h2 className="font-black text-hpsr-text">Caderneta gerada</h2><p className="text-xs font-semibold text-hpsr-muted">O histórico é a fonte de verdade; a caderneta é montada automaticamente.</p></div>
@@ -1282,7 +1283,9 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
             {pageCount > 1 && <div className="mt-3 flex justify-center gap-2 print:hidden"><button disabled={page===0} onClick={()=>setPage(p=>Math.max(0,p-1))} className="rounded-[10px] border border-hpsr-border px-3 py-2 text-xs font-black disabled:opacity-40">Anterior</button><button disabled={page>=pageCount-1} onClick={()=>setPage(p=>Math.min(pageCount-1,p+1))} className="rounded-[10px] border border-hpsr-border px-3 py-2 text-xs font-black disabled:opacity-40">Próxima</button></div>}
           </section>
 
-          <section className="hpsr-vaccination-panel flex h-[190px] flex-col rounded-[20px] border border-[#d8c8b6] bg-[#f1e9df] p-4 shadow-soft print:hidden 2xl:shrink-0">
+        </main>
+
+          <section className="hpsr-vaccination-panel flex h-[190px] flex-col rounded-[20px] border border-[#d8c8b6] bg-[#f1e9df] p-4 shadow-soft print:hidden 2xl:col-span-2">
             <div className="flex shrink-0 items-center justify-between gap-3">
               <div className="hpsr-vaccination-section-title"><h2 className="font-black text-hpsr-text">Histórico de vacinação</h2><p className="mt-0.5 text-[10px] font-semibold text-hpsr-muted">Registros do paciente selecionado</p></div>
               <span className="hpsr-vaccination-history-count rounded-full border border-hpsr-border bg-[#fff8f3] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{history.length} {history.length === 1 ? "registro" : "registros"}</span>
@@ -1294,7 +1297,6 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
               }) : <p className="rounded-[14px] border border-dashed border-[#d6c0a9] bg-[#eee0d0] p-4 text-center text-sm font-semibold text-hpsr-muted">Nenhuma vacina registrada para este paciente.</p>}
             </div>
           </section>
-        </main>
       </div>
       {previewExpanded && (
         <div className="hpsr-modal-tone fixed inset-0 z-[120] flex items-center justify-center bg-[#251a18]/80 p-3" role="dialog" aria-modal="true" aria-label="Caderneta ampliada" onMouseDown={(event) => { if (event.target === event.currentTarget) setPreviewExpanded(false); }}>

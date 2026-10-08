@@ -100,8 +100,9 @@ export function PatientRecordsPanel({ onSessionExpired, passport, mode = "all" }
   const visibleRecords = useMemo(() => {
     const scoped = mode === "vaccination" ? records.filter((record) => record.type.toLowerCase().includes("vacina"))
       : mode === "exams" ? records.filter((record) => record.type.toLowerCase().includes("exame"))
-      : mode === "documents" ? records.filter((record) => !record.type.toLowerCase().includes("vacina") && !record.type.toLowerCase().includes("exame")) : records;
+      : mode === "documents" ? records.filter((record) => !record.type.toLowerCase().includes("exame")) : records;
     if (activeType === "Todos" || mode !== "all") return scoped;
+    if (activeType === "Documento") return scoped.filter((record) => !record.type.toLowerCase().includes("exame"));
     return scoped.filter((record) => record.type.toLowerCase().includes(activeType.toLowerCase()));
   }, [activeType, records, mode]);
 

@@ -4,7 +4,7 @@ import { getValidPatientSession, normalizePassport } from "@/lib/patient-portal/
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Notice = { id: string; passport: string; kind: "exam" | "document" | "appointment" | "reschedule" | "guardian" | "followup_form"; title: string; description: string; at: string; section: "records" | "appointments" | "pending" | "exam-request" | "vaccination" | "home" | "accompaniment" };
+type Notice = { id: string; passport: string; kind: "exam" | "document" | "appointment" | "reschedule" | "guardian" | "followup_form"; title: string; description: string; at: string; section: "documents" | "records" | "appointments" | "pending" | "exam-request" | "vaccination" | "home" | "accompaniment" };
 
 // Retorna somente avisos de prontuários ligados à sessão verificada no servidor.
 // A leitura clínica continua condicionada às rotas de cada prontuário.
@@ -91,9 +91,9 @@ export async function GET(request: NextRequest) {
       if (!["Exame", "Documento", "Vacina", "CadernetaVacinal"].includes(type)) continue;
       notices.push({ id: `record:${r.id}:${r.released_at}`, passport: r.patient_passport,
         kind: type === "Exame" ? "exam" : "document",
-        title: type === "Exame" ? "Exame liberado" : type.includes("Vacina") ? "Vacinação atualizada" : "Documento liberado",
+        title: type === "Exame" ? "Exame liberado" : type === "CadernetaVacinal" ? "Caderneta de vacinação liberada" : type.includes("Vacina") ? "Vacinação atualizada" : "Documento liberado",
         description: "Um novo registro foi disponibilizado pelo hospital.", at: r.released_at || "",
-        section: type.includes("Vacina") && childPassports.has(normalizePassport(r.patient_passport)) ? "vaccination" : "records" });
+        section: type === "CadernetaVacinal" ? "documents" : type.includes("Vacina") && childPassports.has(normalizePassport(r.patient_passport)) ? "vaccination" : "records" });
     }
     notices.sort((a,b) => (b.at || "").localeCompare(a.at || ""));
     return NextResponse.json({ ok: true, notices: notices.slice(0, 120) }, { headers: { "Cache-Control": "private, no-store" } });
