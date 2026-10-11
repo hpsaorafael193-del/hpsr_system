@@ -1,10 +1,13 @@
 "use client";
 
+import styles from "./time-clock-report.module.css";
+
 import { brazilDateTimeInput, brazilIso } from "@/lib/brazil-datetime";
 
+import { CorrectTimeClockModal, parsePointDateTime } from "@/components/dashboard/CorrectTimeClockModal";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState } from "react";
-import { Activity, Clock3, Download, History, RefreshCw, ShieldCheck, Square, UsersRound } from "lucide-react";
+import { Activity, BarChart3, Clock3, Eye, Pencil, Search, List, Download, History, RefreshCw, ShieldCheck, Square, UsersRound } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { hpsrPrompt } from "@/components/ui/HpsrDialogProvider";
 
@@ -17,15 +20,22 @@ const emptyData: ReportData = { entries: [], reports: [], audit: [], currentRank
 
 export function TimeClockAdministrativeReport() {
   const [data, setData] = useState<ReportData>(emptyData);
+  const [correction, setCorrection] = useState<{ userId: string; id: string } | null | undefined>(undefined);
+  const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [closedSearch, setClosedSearch] = useState("");
+  const [showAllClosed, setShowAllClosed] = useState(false);
+  const [showAllAudit, setShowAllAudit] = useState(false);
+  const [consultedMonth, setConsultedMonth] = useState("");
+  const [detail, setDetail] = useState<Entry | null>(null);
   const [selectedMonth, setSelectedMonth] = useState("");
   const [liveAnchorMs, setLiveAnchorMs] = useState(() => Date.now());
   const [liveNowMs, setLiveNowMs] = useState(() => Date.now());
 
   async function load() {
     const client = createClient();
-    if (!client) return;
+    if (!client) { setError("Conexão indisponível. Tente novamente."); setLoading(false); return; }
     setLoading(true); setError("");
     const result = await client.rpc("get_time_clock_admin_report");
     if (result.error) setError("Não foi possível carregar os relatórios de ponto. Aplique a migration mais recente.");
@@ -52,7 +62,7 @@ export function TimeClockAdministrativeReport() {
     const timer = window.setInterval(() => setLiveNowMs(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
-  const selectedReport = useMemo(() => data.reports.find((item) => item.monthStart === selectedMonth), [data.reports, selectedMonth]);
+  const selectedReport = useMemo(() => data.reports.find((item) => item.monthStart === consultedMonth), [data.reports, consultedMonth]);
   const openEntries = useMemo(() => data.entries.filter((entry) => !entry.closedAt), [data.entries]);
   const closedEntries = useMemo(() => data.entries.filter((entry) => Boolean(entry.closedAt)), [data.entries]);
   const liveElapsedSeconds = Math.max(0, Math.floor((liveNowMs - liveAnchorMs) / 1000));
@@ -71,7 +81,7 @@ export function TimeClockAdministrativeReport() {
       "Ajustar encerramento do ponto"
     );
     if (!value) return;
-    const parsed = new Date(value);
+    const parsed = new Date(parsePointDateTime(value));
     if (Number.isNaN(parsed.getTime())) { setError("Horário de encerramento inválido."); return; }
     const client = createClient();
     if (!client) return;
@@ -93,52 +103,45 @@ export function TimeClockAdministrativeReport() {
     const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `ranking-ponto-${selectedReport.monthStart}.csv`; a.click(); URL.revokeObjectURL(url);
   }
 
-  return <section className="space-y-4">
-    <div className="rounded-[22px] border border-white/80 bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.06)] sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-hpsr-wine text-white"><Clock3 size={20}/></span>
-          <div><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Controle de jornada</p><h2 className="font-black text-hpsr-text">Relatórios de ponto</h2><p className="text-xs text-hpsr-muted">Acompanhe pontos ativos, ranking mensal e registros encerrados.</p></div>
-        </div>
-        <button type="button" onClick={() => void load()} disabled={loading} className="flex min-h-10 items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine disabled:opacity-60"><RefreshCw size={15} className={loading ? "animate-spin" : ""}/> Atualizar</button>
-      </div>
-      {error && <p className="mt-3 rounded-[13px] bg-red-50 px-3 py-2 text-xs font-bold text-red-700">{error}</p>}
-    </div>
+  const correctionStaff = Array.from(new Map([...data.currentRanking, ...data.entries].map(item => [item.userId, { userId: item.userId, user: item.user }])).values()).sort((a,b) => a.user.localeCompare(b.user,"pt-BR"));
 
-    <div className="rounded-[22px] border border-red-100 bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.05)] sm:p-5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-red-50 text-red-700"><Activity size={18}/></span><div><h3 className="text-sm font-black text-hpsr-text">Pontos em aberto</h3><p className="text-xs text-hpsr-muted">Profissionais que ainda estão em serviço ou com jornada não finalizada.</p></div></div>
-        <span className="rounded-full bg-red-50 px-3 py-1.5 text-xs font-black text-red-700">{openEntries.length} em aberto</span>
+  const filteredClosed = closedEntries.filter(entry => entry.user.toLocaleLowerCase("pt-BR").includes(closedSearch.trim().toLocaleLowerCase("pt-BR")));
+  return <section className={styles.report}>
+    {correction !== undefined && <CorrectTimeClockModal staff={correctionStaff} initial={correction || undefined} onClose={() => setCorrection(undefined)} onSaved={async () => { await load(); setNotice("Ponto corrigido com sucesso. Os totais foram atualizados."); }} />}
+    {detail && <PointDetails entry={detail} onClose={()=>setDetail(null)} onCorrect={()=>{setCorrection({userId:detail.userId,id:detail.id});setDetail(null);}}/>}
+    {notice && <p role="status" className={styles.notice}>{notice}</p>}
+    {error && <p role="alert" className={styles.error}>{error}</p>}
+    <div className={styles.topGrid}>
+      <div className={styles.panel}>
+        <div className={styles.header}><span className={styles.icon}><Clock3 size={24}/></span><div><h2>Pontos abertos</h2><p>{loading ? "Carregando registros..." : `${openEntries.length} registros em andamento`}</p></div><div className={styles.actions}><button title="Atualizar pontos" aria-label="Atualizar pontos" disabled={loading} onClick={()=>void load()}><RefreshCw size={16} className={loading ? "animate-spin" : ""}/></button><button disabled={loading} onClick={()=>{setNotice("");setCorrection(null);}}><Pencil size={16}/>Corrigir ponto</button></div></div>
+        <div className={styles.tableScroll}><table><thead><tr><th>Médico</th><th>Entrada</th><th>Tempo em serviço</th><th>Status</th><th>Ação</th></tr></thead><tbody>{openEntries.map(entry=><tr key={entry.id}><td><Person name={entry.user}/></td><td>{formatDateTime(entry.openedAt)}</td><td className={styles.duration}>{formatDuration(liveSecondsForEntry(entry))}</td><td><span className={styles.status} data-active={entry.status === "Em serviço"}>{entry.status}</span></td><td><button disabled={loading} onClick={()=>void setClosedAt(entry)}><Square size={12}/>Encerrar ponto</button></td></tr>)}{!openEntries.length && <tr><td colSpan={5}><Empty text={loading ? "Carregando pontos..." : "Nenhum ponto aberto no momento."}/></td></tr>}</tbody></table></div>
       </div>
-      <div className="grid gap-3 lg:grid-cols-2">
-        {openEntries.map((entry) => <div key={entry.id} className="rounded-[16px] border border-red-100 bg-[#fffafa] p-4">
-          <div className="flex items-start justify-between gap-3"><div><p className="text-sm font-black text-hpsr-text">{entry.user}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">Entrada: {formatDateTime(entry.openedAt)}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">Situação: {entry.status}</p></div><span className="rounded-[11px] bg-white px-3 py-2 text-sm font-black tabular-nums text-hpsr-wine shadow-sm">{formatDuration(liveSecondsForEntry(entry))}</span></div>
-          <button type="button" onClick={() => void setClosedAt(entry)} disabled={loading} className="mt-4 flex min-h-10 w-full items-center justify-center gap-2 rounded-[12px] bg-red-700 px-3 text-xs font-black text-white disabled:opacity-50"><Square size={13}/> Encerrar ponto</button>
-        </div>)}
-        {!openEntries.length && <div className="lg:col-span-2"><Empty text="Nenhum ponto aberto no momento."/></div>}
-      </div>
-    </div>
-
-    <div className="grid gap-4 xl:grid-cols-[1.1fr_.9fr]">
-      <div className="rounded-[22px] border border-hpsr-border bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.05)] sm:p-5">
-        <div className="mb-4 flex items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-[#fff2e8] text-hpsr-wine"><UsersRound size={18}/></span><div><h3 className="text-sm font-black text-hpsr-text">Ranking do mês atual</h3><p className="text-xs text-hpsr-muted">Todos os profissionais aprovados aparecem, inclusive com 0h.</p></div></div><span className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Atualização ao vivo</span></div>
+      <div className={styles.panel}>
+        <div className={styles.header}><BarChart3 size={27}/><div><h2>Ranking do mês</h2><p>{new Intl.DateTimeFormat("pt-BR",{month:"long",year:"numeric",timeZone:"America/Sao_Paulo"}).format(new Date(liveNowMs))} · ao vivo</p></div></div>
         <RankingList ranking={liveCurrentRanking}/>
-      </div>
-      <div className="rounded-[22px] border border-hpsr-border bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.05)] sm:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2"><History size={17} className="text-hpsr-wine"/><div><h3 className="text-sm font-black text-hpsr-text">Rankings arquivados</h3><p className="text-xs text-hpsr-muted">Meses já encerrados.</p></div></div><div className="flex min-w-[220px] gap-2"><StyledSelect value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}><option value="">Nenhum mês fechado</option>{data.reports.map((item) => <option key={item.monthStart} value={item.monthStart}>{formatMonth(item.monthStart)}</option>)}</StyledSelect><button onClick={exportReport} disabled={!selectedReport} className="rounded-[12px] border border-hpsr-border bg-white p-2.5 text-hpsr-wine disabled:opacity-40" title="Exportar ranking"><Download size={16}/></button></div></div>
-        {selectedReport ? <RankingList ranking={selectedReport.ranking}/> : <Empty text="Nenhum ranking mensal arquivado."/>}
+        <div className={styles.archive}><h3><History size={17}/>Rankings arquivados</h3><div className={styles.archiveControls}><StyledSelect value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)}><option value="">Selecionar mês</option>{data.reports.map(item=><option key={item.monthStart} value={item.monthStart}>{formatMonth(item.monthStart)}</option>)}</StyledSelect><button disabled={!selectedMonth} onClick={()=>setConsultedMonth(selectedMonth)}><Search size={16}/>Consultar</button></div>{selectedReport && <><div className={styles.archiveTitle}><strong>{formatMonth(selectedReport.monthStart)}</strong><button onClick={exportReport}><Download size={15}/>Exportar ranking</button></div><RankingList ranking={selectedReport.ranking}/></>}{!data.reports.length && <p className={styles.archiveEmpty}>Nenhum ranking mensal arquivado.</p>}</div>
       </div>
     </div>
-
-    <div className="grid gap-4 xl:grid-cols-[1.25fr_.75fr]">
-      <div className="rounded-[22px] border border-hpsr-border bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.05)] sm:p-5"><h3 className="mb-3 text-sm font-black text-hpsr-text">Pontos encerrados recentemente</h3><div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">{closedEntries.map((entry) => <div key={entry.id} className="grid gap-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3 sm:grid-cols-[1fr_auto] sm:items-center"><div><p className="text-xs font-black text-hpsr-text">{entry.user}</p><p className="mt-1 text-[11px] text-hpsr-muted">Entrada {formatDateTime(entry.openedAt)} · encerramento {formatDateTime(entry.closedAt)}</p></div><div className="flex items-center gap-2"><span className="text-xs font-black tabular-nums text-hpsr-wine">{formatDuration(entry.workedSeconds)}</span><button type="button" onClick={() => void setClosedAt(entry)} disabled={loading} className="rounded-[9px] border border-hpsr-border bg-white px-2 py-1.5 text-[10px] font-black text-hpsr-wine disabled:opacity-50">Editar encerramento</button></div></div>)}{!closedEntries.length && <Empty text="Nenhum ponto encerrado."/>}</div></div>
-      <div className="rounded-[22px] border border-hpsr-border bg-white p-4 shadow-[0_12px_30px_rgba(79,42,21,0.05)] sm:p-5"><div className="mb-3 flex items-center gap-2"><ShieldCheck size={16} className="text-hpsr-wine"/><h3 className="text-sm font-black text-hpsr-text">Auditoria administrativa</h3></div><div className="max-h-[360px] space-y-2 overflow-y-auto pr-1">{data.audit.map((item) => <div key={item.id} className="rounded-[12px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5"><p className="text-xs font-black text-hpsr-text">{item.action}</p><p className="mt-1 text-[11px] text-hpsr-muted">{item.actor || "Administrador"} · {item.target || "Profissional"}</p>{item.reason && <p className="mt-1 text-[11px] text-hpsr-muted">{item.reason}</p>}</div>)}{!data.audit.length && <Empty text="Nenhuma intervenção administrativa registrada."/>}</div></div>
+    <div className={styles.panel}>
+      <div className={styles.header}><span className={styles.icon}><Clock3 size={24}/></span><div><h2>Pontos encerrados recentemente</h2><p>Últimos registros finalizados no sistema</p></div><div className={styles.actions}><label className={styles.search}><Search size={17}/><input aria-label="Buscar médico nos pontos encerrados" value={closedSearch} onChange={e=>setClosedSearch(e.target.value)} placeholder="Buscar médico..."/></label><button aria-expanded={showAllClosed} onClick={()=>setShowAllClosed(!showAllClosed)}><List size={16}/>{showAllClosed ? "Ver recentes" : "Ver todos"}</button></div></div>
+      <div className={styles.tableScroll}><table><thead><tr><th>Médico</th><th>Entrada</th><th>Saída</th><th>Duração</th><th>Detalhes</th><th>Correção</th></tr></thead><tbody>{filteredClosed.slice(0,showAllClosed ? undefined : 5).map(entry=><tr key={entry.id}><td><Person name={entry.user}/></td><td>{formatDateTime(entry.openedAt)}</td><td>{formatDateTime(entry.closedAt)}</td><td className={styles.duration}>{formatDuration(entry.workedSeconds)}</td><td><button onClick={()=>setDetail(entry)}><Eye size={15}/>Ver detalhes</button></td><td><button disabled={loading} onClick={()=>{setNotice("");setCorrection({userId:entry.userId,id:entry.id});}}><Pencil size={14}/>Corrigir ponto</button></td></tr>)}{!filteredClosed.length && <tr><td colSpan={6}><Empty text="Nenhum ponto encerrado encontrado."/></td></tr>}</tbody></table></div>
+    </div>
+    <div className={styles.panel}>
+      <div className={styles.header}><span className={styles.icon}><ShieldCheck size={24}/></span><div><h2>Auditoria do sistema</h2><p>Histórico de alterações nos registros de ponto</p></div><button className={styles.headerButton} aria-expanded={showAllAudit} onClick={()=>setShowAllAudit(!showAllAudit)}><List size={16}/>{showAllAudit ? "Ver recentes" : "Ver auditoria completa"}</button></div>
+      <div className={styles.tableScroll}><table><thead><tr><th>Data e hora</th><th>Responsável</th><th>Ação</th><th>Médico vinculado</th><th>Motivo</th></tr></thead><tbody>{data.audit.slice(0,showAllAudit ? undefined : 5).map(item=><tr key={item.id}><td>{formatDateTime(item.createdAt)}</td><td><Person name={item.actor || "Administrador"}/></td><td>{item.action}</td><td><Person name={item.target || "Profissional"}/></td><td className={styles.reason}>{item.reason || "—"}</td></tr>)}{!data.audit.length && <tr><td colSpan={5}><Empty text="Nenhuma intervenção administrativa registrada."/></td></tr>}</tbody></table></div>
     </div>
   </section>;
 }
 
-function RankingList({ ranking }: { ranking: Ranking[] }) { return <div className="max-h-64 space-y-2 overflow-y-auto pr-1">{ranking.map((row) => <div key={row.userId} className="grid grid-cols-[42px_1fr_auto] items-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5"><span className="text-sm font-black text-hpsr-wine">{row.position}º</span><span className="truncate text-xs font-black text-hpsr-text">{row.user}</span><span className="text-xs font-black tabular-nums text-hpsr-wine">{formatDuration(row.workedSeconds)}</span></div>)}{!ranking.length && <Empty text="Nenhuma hora contabilizada neste período."/>}</div>; }
-function Empty({ text }: { text: string }) { return <p className="rounded-[12px] border border-dashed border-hpsr-border px-3 py-5 text-center text-xs text-hpsr-muted">{text}</p>; }
+function Person({name}:{name:string}) { return <span className={styles.person}><UsersRound size={16}/>{name}</span>; }
+function PointDetails({entry,onClose,onCorrect}:{entry:Entry;onClose:()=>void;onCorrect:()=>void}) {
+ const [element,setElement]=useState<HTMLDialogElement|null>(null);
+ useEffect(()=>{if(element && !element.open)element.showModal();},[element]);
+ return <dialog ref={setElement} onCancel={onClose} className={styles.dialog}><h2>Detalhes do ponto</h2><dl>{[["Médico",entry.user],["Entrada",formatDateTime(entry.openedAt)],["Saída",formatDateTime(entry.closedAt)],["Tempo contabilizado",formatDuration(entry.workedSeconds)],["Status",entry.status]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><div className={styles.actions}><button onClick={onCorrect}><Pencil size={15}/>Corrigir ponto</button><button autoFocus onClick={onClose}>Fechar</button></div></dialog>;
+}
+
+function RankingList({ ranking }: { ranking: Ranking[] }) { return <div className={styles.ranking}>{ranking.map(row=><div key={row.userId}><span className={styles.position} data-position={row.position}>{row.position}</span><Person name={row.user}/><strong>{formatDuration(row.workedSeconds)}</strong></div>)}{!ranking.length && <Empty text="Nenhuma hora contabilizada neste período."/>}</div>; }
+function Empty({ text }: { text: string }) { return <p className={styles.empty}>{text}</p>; }
 function normalizeNumbers(item: any) { return { ...item, position: Number(item.position || 0), workedSeconds: Number(item.workedSeconds || 0) }; }
 function formatDuration(seconds: number) { const safe = Math.max(0, Math.floor(seconds || 0)); const h = Math.floor(safe / 3600); const m = Math.floor((safe % 3600) / 60); return `${h}h ${String(m).padStart(2, "0")}min`; }
 function toLocalDateTimeInput(value: string) {

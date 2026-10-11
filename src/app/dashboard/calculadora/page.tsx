@@ -2,7 +2,7 @@
 
 import { brazilIso } from "@/lib/brazil-datetime";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   BadgePercent,
   RotateCcw,
@@ -17,7 +17,6 @@ import {
   PackagePlus,
   Plus,
   ReceiptText,
-  Download,
   Search,
   ShieldCheck,
   Stethoscope,
@@ -225,6 +224,14 @@ export default function CalculatorPage() {
   const [isPmSale, setIsPmSale] = useState(false);
   const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
   const [draftHydrated, setDraftHydrated] = useState(false);
+  const [savingReceipt, setSavingReceipt] = useState(false);
+  const [receiptPreview, setReceiptPreview] = useState<string | null>(null);
+  const receiptDialog = useRef<HTMLDialogElement>(null);
+  const receiptSaving = useRef(false);
+
+  useEffect(() => {
+    if (receiptPreview && !receiptDialog.current?.open) receiptDialog.current?.showModal();
+  }, [receiptPreview]);
 
   useEffect(() => {
     try {
@@ -357,7 +364,7 @@ export default function CalculatorPage() {
     return receipt;
   }
 
-  function downloadReceipt(receipt: FinancialReceipt) {
+  function renderReceiptPreview(receipt: FinancialReceipt): string | null {
     const width = 1240;
     const rowHeight = 54;
     const height = Math.max(1580, 1000 + receipt.items.length * rowHeight);
@@ -365,7 +372,7 @@ export default function CalculatorPage() {
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d");
-    if (!context) return;
+    if (!context) return null;
 
     context.fillStyle = "#fffdf9";
     context.fillRect(0, 0, width, height);
@@ -458,20 +465,37 @@ export default function CalculatorPage() {
     context.font = "500 15px Arial";
     context.fillText("O registro original permanece disponível na área Financeiro.", 70, height - 45);
 
-    const anchor = document.createElement("a");
-    anchor.download = `recibo-${receipt.number}.png`;
-    anchor.href = canvas.toDataURL("image/png");
-    anchor.click();
+    return canvas.toDataURL("image/png");
   }
 
-  async function generateAndDownloadReceipt() {
-    const receipt = await createReceipt();
-    if (!receipt) return;
-    downloadReceipt(receipt);
+  async function generateReceipt() {
+    if (receiptSaving.current) return;
+    receiptSaving.current = true;
+    setSavingReceipt(true);
+    try {
+      const receipt = await createReceipt();
+      if (!receipt) return;
+      const preview = renderReceiptPreview(receipt);
+      if (preview) setReceiptPreview(preview);
+      else await hpsrAlert("Recibo salvo com sucesso. Para baixar, acesse a aba Financeiro.", "Recibo salvo");
+    } catch {
+      await hpsrAlert("Não foi possível concluir a geração do recibo. Confira a aba Financeiro antes de tentar novamente.", "Falha ao gerar recibo");
+    } finally {
+      receiptSaving.current = false;
+      setSavingReceipt(false);
+    }
   }
 
   return (
     <div className="hpsr-page hpsr-calculadora-page gap-0 xl:h-[calc(100dvh-2.4rem)] xl:min-h-0 xl:overflow-hidden">
+      <dialog ref={receiptDialog} onClose={() => setReceiptPreview(null)} aria-label="Recibo salvo" className="m-auto max-h-[90dvh] w-[min(94vw,760px)] overflow-y-auto rounded-2xl bg-[#fffaf4] p-4 text-hpsr-text backdrop:bg-black/50">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-black">Recibo salvo</h2>
+          <button type="button" onClick={() => receiptDialog.current?.close()} className="rounded-xl border border-hpsr-border px-3 py-2 text-sm font-bold">Fechar</button>
+        </div>
+        <p className="mb-3 text-sm">Recibo salvo com sucesso. Para baixar, acesse a aba Financeiro.</p>
+        {receiptPreview && <img src={receiptPreview} alt="Visualização do recibo salvo" className="h-auto w-full" />}
+      </dialog>
       <PageHeader
         eyebrow="Ferramentas"
         title="Calculadora"
@@ -731,12 +755,12 @@ export default function CalculatorPage() {
             <div className="grid gap-2 border-t border-[#d6baa3] bg-[#ead6c3] p-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
               <button
                 type="button"
-                onClick={() => void generateAndDownloadReceipt()}
-                disabled={!selectedItems.length}
+                onClick={() => void generateReceipt()}
+                disabled={!selectedItems.length || savingReceipt}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-[14px] bg-hpsr-wine px-4 py-3 text-sm font-black text-white transition hover:bg-hpsr-wineLight disabled:cursor-not-allowed disabled:opacity-45"
               >
-                <Download size={16} />
-                Gerar recibo
+                <ReceiptText size={16} />
+                {savingReceipt ? "Salvando recibo…" : "Gerar recibo"}
               </button>
               <button
                 type="button"
@@ -747,7 +771,7 @@ export default function CalculatorPage() {
                 Limpar seleção
               </button>
               <p className="text-center text-[9px] font-semibold leading-relaxed text-hpsr-muted sm:col-span-2 xl:col-span-1 2xl:col-span-2">
-                O recibo é salvo no histórico financeiro após a confirmação.
+                O recibo é salvo no sistema. Para baixar, acesse a aba Financeiro.
               </p>
             </div>
           </section>

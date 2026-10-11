@@ -1,8 +1,10 @@
 "use client";
 
+import styles from "./overview.module.css";
+
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useEffect, useMemo, useState } from "react";
-import { Activity, CalendarDays, ClipboardCheck, Database, Download, FlaskConical, PieChart, Search, ShieldCheck, Stethoscope, UserPlus, Users, WalletCards } from "lucide-react";
+import { Activity, CalendarDays, ClipboardCheck, Database, Download, Eye, Filter, RotateCcw, FlaskConical, PieChart, Search, ShieldCheck, Stethoscope, UserPlus, Users, WalletCards } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { type SystemActivity } from "@/lib/administrative-storage";
 import { createClient } from "@/lib/supabase";
@@ -25,6 +27,10 @@ export default function DirectionPage() {
   const [receipts, setReceipts] = useState<GenericRecord[]>([]);
   const [teamMembers, setTeamMembers] = useState<AdministrativeMember[]>([]);
   const [search, setSearch] = useState("");
+  const [activityFilters, setActivityFilters] = useState({ module: "all", action: "all", from: "", to: "" });
+  const [appliedFilters, setAppliedFilters] = useState(activityFilters);
+  const [activityPage, setActivityPage] = useState(1);
+  const [selectedActivity, setSelectedActivity] = useState<SystemActivity | null>(null);
   const [reportPeriod, setReportPeriod] = useState("all");
   const [activityChartFilter, setActivityChartFilter] = useState<"modules" | "plans" | "exams" | "services">("modules");
   const [exportingReport, setExportingReport] = useState(false);
@@ -106,8 +112,18 @@ export default function DirectionPage() {
 
   const unified = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return periodActivities.filter((item)=>!q || [item.module,item.action,item.description,item.actor,item.reference].join(" ").toLowerCase().includes(q));
-  }, [periodActivities, search]);
+    return periodActivities.filter((item)=> {
+      const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(item.createdAt));
+      return (!q || [item.module,item.action,item.description,item.actor,item.reference].join(" ").toLowerCase().includes(q))
+        && (appliedFilters.module === "all" || item.module === appliedFilters.module)
+        && (appliedFilters.action === "all" || item.action === appliedFilters.action)
+        && (!appliedFilters.from || day >= appliedFilters.from) && (!appliedFilters.to || day <= appliedFilters.to);
+    });
+  }, [periodActivities, search, appliedFilters]);
+  useEffect(() => setActivityPage(1), [search, appliedFilters, reportPeriod]);
+  const pageCount = Math.max(1, Math.ceil(unified.length / 20));
+  const currentPage = Math.min(activityPage, pageCount);
+  const visibleActivities = unified.slice((currentPage - 1) * 20, currentPage * 20);
 
   const periodStart = useMemo(() => getPeriodStart(reportPeriod), [reportPeriod]);
   const periodReceipts = useMemo(
@@ -279,11 +295,11 @@ export default function DirectionPage() {
     }
   }
 
-  return <div className="hpsr-page hpsr-warm-page hpsr-direction-page gap-3 lg:h-[calc(100dvh-2.4rem)] lg:min-h-0 lg:overflow-hidden">
+  return <div className={`hpsr-page hpsr-warm-page hpsr-direction-page gap-3 lg:h-[calc(100dvh-2.4rem)] lg:min-h-0 lg:overflow-hidden ${`${styles.overview} ${reportSection === "activities" ? styles.activities : ""}`}`}>
     <PageHeader eyebrow="Administração" title="Relatórios" description="Acompanhe os principais indicadores por área, sem misturar todas as informações na mesma visão." />
 
-    <section className="!flex-none shrink-0 overflow-hidden rounded-[20px] border border-[#d7bfab] bg-[linear-gradient(135deg,#f4ebdf_0%,#ebdfd1_100%)] shadow-[0_10px_26px_rgba(79,42,21,0.055)]">
-      <div className="hpsr-dark-section-header hpsr-direction-primary-header flex flex-col gap-3 border-b border-[#a6786b]/50 bg-[linear-gradient(110deg,#3f1d1b,#613128_64%,#744239)] px-4 py-3.5 xl:flex-row xl:items-center xl:justify-between">
+    <section className={`${styles.reportShell} !flex-none shrink-0 overflow-hidden rounded-[20px] border border-[#d7bfab] bg-[linear-gradient(135deg,#f4ebdf_0%,#ebdfd1_100%)] shadow-[0_10px_26px_rgba(79,42,21,0.055)]`}>
+      <div className={`${styles.hero} hpsr-dark-section-header hpsr-direction-primary-header flex flex-col gap-3 border-b border-[#a6786b]/50 bg-[linear-gradient(110deg,#3f1d1b,#613128_64%,#744239)] px-4 py-3.5 xl:flex-row xl:items-center xl:justify-between`}>
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Database size={18}/></span>
           <div className="min-w-0"><h2 className="text-sm font-black text-hpsr-text">Central de relatórios</h2><p className="text-xs text-hpsr-muted">{periodLabel} · {periodActivities.length} atividades analisadas</p></div>
@@ -293,51 +309,63 @@ export default function DirectionPage() {
           <button type="button" onClick={handleExportReport} disabled={exportingReport} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 text-xs font-black text-white transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60"><Download size={15}/> {exportingReport ? "Gerando..." : "Exportar relatório"}</button>
         </div>
       </div>
-      <div className="grid gap-2 bg-[#eee0d0] p-2 sm:grid-cols-3">
+      <div className={`${styles.navigation} grid gap-2 bg-[#eee0d0] p-2 sm:grid-cols-3`}>
         <ReportNavButton active={reportSection === "overview"} onClick={()=>setReportSection("overview")} icon={<PieChart size={16}/>} title="Visão geral" description="Indicadores e distribuição" />
         <ReportNavButton active={reportSection === "activities"} onClick={()=>setReportSection("activities")} icon={<Activity size={16}/>} title="Atividades" description="Linha do tempo e solicitações" />
         <ReportNavButton active={reportSection === "time"} onClick={()=>setReportSection("time")} icon={<CalendarDays size={16}/>} title="Ponto" description="Jornada e fechamentos" />
       </div>
     </section>
 
-    <div className="grid shrink-0 flex-none auto-rows-min gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    {reportSection === "overview" && <div className={`${styles.metrics} grid shrink-0 flex-none auto-rows-min gap-3 sm:grid-cols-2 xl:grid-cols-4`}>
       <Stat icon={<Activity size={18}/>} label="Atividades no período" value={String(periodActivities.length)}/>
       <Stat icon={<UserPlus size={18}/>} label="Cadastros pendentes" value={String(pendingRegistrations)}/>
       <Stat icon={<CalendarDays size={18}/>} label="Agendas pendentes" value={String(pendingAppointments)}/>
       <Stat icon={<WalletCards size={18}/>} label="Receita registrada" value={formatMoney(periodRevenue)}/>
-    </div>
+    </div>}
 
     <div className="hpsr-page-scroll min-h-0 flex-1 overscroll-contain pr-1" style={{ overflowY: "auto", overflowX: "hidden" }}>
       <div className="min-h-full pb-3">
-        {reportSection === "overview" && <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]">
+        {reportSection === "overview" && <div className={`${styles.main} grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]`}>
           <ActivityPiePanel filter={activityChartFilter} onFilterChange={setActivityChartFilter} datasets={{ modules: analytics.moduleRanking, plans: analytics.planRanking, exams: analytics.examRanking, services: analytics.serviceRanking }} />
-          <aside className="grid content-start gap-3">
-            <div className="rounded-[18px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] p-4 shadow-[0_10px_26px_rgba(79,42,21,0.05)]"><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Estrutura</p><div className="mt-3 grid gap-2"><MiniMetric label="Equipe cadastrada" value={String(teamMembers.length)} icon={<Users size={15}/>} /><MiniMetric label="Candidaturas em fluxo" value={String(pendingApplications)} icon={<ClipboardCheck size={15}/>} /><MiniMetric label="Recibos registrados" value={String(receiptCount)} icon={<WalletCards size={15}/>} /></div></div>
+          <aside className={`${styles.sidebar} grid content-start gap-3`}>
+            <div className={`${styles.structure} rounded-[18px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] p-4 shadow-[0_10px_26px_rgba(79,42,21,0.05)]`}><p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight"><ClipboardCheck size={19}/>Estrutura</p><div className="mt-3 grid gap-2"><MiniMetric label="Equipe cadastrada" value={String(teamMembers.length)} icon={<Users size={15}/>} /><MiniMetric label="Candidaturas em fluxo" value={String(pendingApplications)} icon={<ClipboardCheck size={15}/>} /><MiniMetric label="Recibos registrados" value={String(receiptCount)} icon={<WalletCards size={15}/>} /></div></div>
             <Summary title="Governança" icon={<ShieldCheck size={17}/>} items={["Histórico centralizado no Supabase", "Solicitações públicas consolidadas", "Recibos vinculados ao Financeiro", "Registros compartilhados entre usuários autorizados"]}/>
           </aside>
         </div>}
 
-        {reportSection === "activities" && <section className="grid min-h-[560px] gap-3 xl:grid-cols-[minmax(0,1fr)_350px]">
-          <div className="flex min-h-[560px] flex-col overflow-hidden rounded-[20px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] p-4 shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hpsr-border pb-3"><div className="flex items-center gap-3"><span className="flex h-10 w-10 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Activity size={19}/></span><div><h2 className="font-black text-hpsr-text">Atividades do sistema</h2><p className="text-xs text-hpsr-muted">Linha do tempo consolidada · até 150 registros</p></div></div><label className="flex min-h-[40px] w-full min-w-0 items-center gap-2 rounded-[13px] border border-hpsr-border bg-[#fffaf4] px-3 sm:w-auto sm:min-w-[270px]"><Search size={16} className="text-hpsr-muted"/><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar atividade" className="w-full bg-transparent text-xs font-semibold outline-none"/></label></div>
-            <div className="mt-3 grid min-h-0 flex-1 content-start gap-2 overflow-y-auto overscroll-contain rounded-[12px] bg-[#ecdfd0] pr-2">{unified.slice(0,150).map((item)=><ActivityRow key={item.id} item={item}/>)}{!unified.length&&<div className="rounded-[15px] border border-dashed border-hpsr-border p-8 text-center text-sm text-hpsr-muted">Nenhuma atividade registrada.</div>}</div>
+        {reportSection === "activities" && <section className={styles.activityLayout}>
+          <form className={styles.activityToolbar} onSubmit={(e)=>{e.preventDefault(); setAppliedFilters(activityFilters);}}>
+            <label className={styles.activitySearch}><Search size={19}/><input aria-label="Buscar atividades" value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar por médico, paciente ou atividade..."/></label>
+            <label>Módulo<StyledSelect value={activityFilters.module} onChange={(e)=>setActivityFilters({...activityFilters,module:e.target.value})}><option value="all">Todos os módulos</option>{Array.from(new Set(periodActivities.map(item=>item.module))).sort().map(value=><option key={value}>{value}</option>)}</StyledSelect></label>
+            <label>Tipo<StyledSelect value={activityFilters.action} onChange={(e)=>setActivityFilters({...activityFilters,action:e.target.value})}><option value="all">Todas as ações</option>{Array.from(new Set(periodActivities.map(item=>item.action))).sort().map(value=><option key={value}>{value}</option>)}</StyledSelect></label>
+            <label>De<input type="date" value={activityFilters.from} max={activityFilters.to || undefined} onChange={(e)=>setActivityFilters({...activityFilters,from:e.target.value})}/></label>
+            <label>Até<input type="date" value={activityFilters.to} min={activityFilters.from || undefined} onChange={(e)=>setActivityFilters({...activityFilters,to:e.target.value})}/></label>
+            <button type="submit"><Filter size={17}/>Aplicar filtros</button><button type="button" className={styles.clearFilters} onClick={()=>{const empty={module:"all",action:"all",from:"",to:""};setActivityFilters(empty);setAppliedFilters(empty);setSearch("");}}><RotateCcw size={17}/>Limpar</button>
+          </form>
+          <div className={styles.historyPanel}>
+            <div className={styles.historyHeader}><span><PieChart size={24}/></span><div><h2>Histórico de atividades</h2><p>Ações registradas nos módulos do sistema.</p></div><strong>{unified.length} registros</strong></div>
+            <div className={styles.tableScroll}><table className={styles.activityTable}><thead><tr><th>Data e hora</th><th>Responsável</th><th>Atividade</th><th>Módulo</th><th>Detalhes</th></tr></thead><tbody>
+              {visibleActivities.map((item,index)=>{const day=formatDateTime(item.createdAt).split(",")[0];const previous=index ? formatDateTime(visibleActivities[index-1].createdAt).split(",")[0] : null;return <ActivityTableEntry key={item.id} item={item} day={day !== previous ? day : undefined} onDetails={()=>setSelectedActivity(item)}/>;})}
+              {!unified.length && <tr><td colSpan={5} className={styles.emptyHistory}>Nenhuma atividade encontrada para os filtros selecionados.</td></tr>}
+            </tbody></table></div>
+            <div className={styles.pagination}><span>{unified.length ? (currentPage-1)*20+1 : 0} – {Math.min(currentPage*20,unified.length)} de {unified.length} registros</span><div><button disabled={currentPage===1} onClick={()=>setActivityPage(currentPage-1)}>Anterior</button><strong>{currentPage} / {pageCount}</strong><button disabled={currentPage===pageCount} onClick={()=>setActivityPage(currentPage+1)}>Próxima</button></div></div>
           </div>
-          <aside className="grid content-start gap-3"><Summary title="Solicitações de cadastro" icon={<UserPlus size={17}/>} items={staffRequests.map((item)=>`${item.name || "Profissional"} — ${item.status || "Pendente"}`)}/><Summary title="Candidaturas" icon={<ClipboardCheck size={17}/>} items={applications.slice(0, 5).map((item)=>`${item.name || "Candidato"} · Passaporte: ${item.passport || "Não informado"} — ${item.status || "Em análise"}`)} actionLabel="Ver histórico" onAction={() => setApplicationHistoryOpen(true)} totalCount={applications.length}/></aside>
         </section>}
 
         {reportSection === "time" && <TimeClockAdministrativeReport />}
       </div>
     </div>
+    {selectedActivity && <ActivityDetails item={selectedActivity} onClose={()=>setSelectedActivity(null)}/>}
     {applicationHistoryOpen && <ApplicationHistoryModal items={applications} onClose={() => setApplicationHistoryOpen(false)} />}
   </div>;
 }
 
 function ReportNavButton({ active, onClick, icon, title, description }: { active: boolean; onClick: () => void; icon: React.ReactNode; title: string; description: string }) {
-  return <button type="button" onClick={onClick} className={`flex items-center gap-3 rounded-[14px] px-3.5 py-3 text-left transition ${active ? "bg-white text-hpsr-wine shadow-sm ring-1 ring-hpsr-border" : "text-hpsr-muted hover:bg-white/60"}`}><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] ${active ? "bg-hpsr-wine text-white" : "bg-white text-hpsr-wine"}`}>{icon}</span><span className="min-w-0"><span className="block text-xs font-black">{title}</span><span className="mt-0.5 block truncate text-[10px] font-semibold opacity-75">{description}</span></span></button>;
+  return <button type="button" onClick={onClick} aria-pressed={active} className={`${styles.navButton} flex items-center gap-3 rounded-[14px] px-3.5 py-3 text-left transition ${active ? "bg-white text-hpsr-wine shadow-sm ring-1 ring-hpsr-border" : "text-hpsr-muted hover:bg-white/60"}`}><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] ${active ? "bg-hpsr-wine text-white" : "bg-white text-hpsr-wine"}`}>{icon}</span><span className="min-w-0"><span className="block text-xs font-black">{title}</span><span className="mt-0.5 block truncate text-[10px] font-semibold opacity-75">{description}</span></span></button>;
 }
 
 function MiniMetric({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
-  return <div className="flex items-center justify-between gap-3 rounded-[13px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5"><span className="flex min-w-0 items-center gap-2 text-xs font-bold text-hpsr-muted"><span className="text-hpsr-wine">{icon}</span><span className="truncate">{label}</span></span><strong className="text-sm font-black text-hpsr-text">{value}</strong></div>;
+  return <div className={`${styles.miniMetric} flex items-center justify-between gap-3 rounded-[13px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5`}><span className="flex min-w-0 items-center gap-2 text-xs font-bold text-hpsr-muted"><span className="text-hpsr-wine">{icon}</span><span className="truncate">{label}</span></span><strong className="text-sm font-black text-hpsr-text">{value}</strong></div>;
 }
 
 function getPeriodStart(period: string) {
@@ -359,7 +387,7 @@ function formatMoney(value: number) {
 }
 
 function Stat({icon,label,value}:{icon:React.ReactNode;label:string;value:string}) {
-  return <div className="min-h-[74px] self-start rounded-[17px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] px-3.5 py-3 shadow-[0_8px_22px_rgba(79,42,21,0.05)]">
+  return <div className={`${styles.stat} min-h-[74px] self-start rounded-[17px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] px-3.5 py-3 shadow-[0_8px_22px_rgba(79,42,21,0.05)]`}>
     <div className="flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-2.5"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] bg-[#fff1e5] text-hpsr-wine">{icon}</span><p className="truncate text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{label}</p></div>
       <span className="shrink-0 truncate text-lg font-black text-hpsr-text xl:text-xl">{value}</span>
@@ -389,7 +417,7 @@ function ActivityPiePanel({
   const remainder = rawItems.slice(7).reduce((sum, [, value]) => sum + value, 0);
   const items = remainder > 0 ? [...primary, ["Outros", remainder] as [string, number]] : primary;
   const total = items.reduce((sum, [, value]) => sum + value, 0);
-  const colors = ["#6f2412", "#8f3e25", "#b25f3f", "#d58a68", "#e9b79b", "#8f6f5d", "#c8a894", "#ead7c7"];
+  const colors = ["#672614", "#613128", "#875447", "#a47863", "#bd9880", "#70574f", "#b5957d", "#d3b8a4"];
   let cursor = 0;
   const gradient = total > 0
     ? `conic-gradient(${items.map(([, value], index) => {
@@ -397,38 +425,38 @@ function ActivityPiePanel({
         cursor += (value / total) * 100;
         return `${colors[index % colors.length]} ${start}% ${cursor}%`;
       }).join(", ")})`
-    : "conic-gradient(#ead7c7 0 100%)";
+    : "conic-gradient(#d3b8a4 0 100%)";
   const selected = filterMeta[filter];
 
-  return <section className="shrink-0 overflow-hidden rounded-[22px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] shadow-[0_12px_30px_rgba(79,42,21,0.06)]">
-    <div className="flex flex-col gap-3 border-b border-hpsr-border px-4 py-4 xl:flex-row xl:items-center xl:justify-between">
+  return <section className={`${styles.activityPanel} shrink-0 overflow-hidden rounded-[22px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] shadow-[0_12px_30px_rgba(79,42,21,0.06)]`}>
+    <div className={`${styles.panelHeader} flex flex-col gap-3 border-b border-hpsr-border px-4 py-4 xl:flex-row xl:items-center xl:justify-between`}>
       <div className="flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><PieChart size={19}/></span>
-        <div><h2 className="font-black text-hpsr-text">Painel de atividades</h2><p className="text-xs text-hpsr-muted">Um único gráfico para analisar os principais grupos do relatório.</p></div>
+        <div><h2 className="font-black text-hpsr-text">Painel de atividades</h2><p className="text-xs text-hpsr-muted">Distribuição dos registros no período.</p></div>
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className={`${styles.filters} grid grid-cols-2 gap-2 sm:grid-cols-4`}>
         {(Object.keys(filterMeta) as ActivityChartFilter[]).map((key) => {
           const item = filterMeta[key];
           const active = filter === key;
-          return <button key={key} type="button" onClick={() => onFilterChange(key)} className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[12px] border px-3 text-xs font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white shadow-sm" : "border-hpsr-border bg-[#fffaf4] text-hpsr-text hover:border-hpsr-wine/40"}`}>{item.icon}{item.label}</button>;
+          return <button key={key} type="button" onClick={() => onFilterChange(key)} aria-pressed={active} className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[12px] border px-3 text-xs font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white shadow-sm" : "border-hpsr-border bg-[#fffaf4] text-hpsr-text hover:border-hpsr-wine/40"}`}>{item.icon}{item.label}</button>;
         })}
       </div>
     </div>
 
-    <div className="grid gap-5 p-5 lg:grid-cols-[minmax(280px,.8fr)_minmax(0,1.2fr)] lg:items-center">
+    <div className={`${styles.chartBody} grid gap-5 p-5 lg:grid-cols-[minmax(280px,.8fr)_minmax(0,1.2fr)] lg:items-center`}>
       <div className="flex flex-col items-center justify-center">
-        <div className="relative grid h-[250px] w-[250px] place-items-center rounded-full shadow-[0_18px_36px_rgba(79,42,21,0.10)]" style={{ background: gradient }}>
-          <div className="grid h-[132px] w-[132px] place-items-center rounded-full border border-hpsr-border bg-white text-center shadow-inner">
+        <div role="img" aria-label={`${selected.title}: ${total} registros. Distribuição detalhada ao lado.`} className={`${styles.donut} relative grid h-[250px] w-[250px] place-items-center rounded-full shadow-[0_18px_36px_rgba(79,42,21,0.10)]`} style={{ background: gradient }}>
+          <div className={`${styles.donutCenter} grid h-[132px] w-[132px] place-items-center rounded-full border border-hpsr-border bg-white text-center shadow-inner`}>
             <div><p className="text-3xl font-black text-hpsr-text">{total}</p><p className="mt-1 text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Registros</p></div>
           </div>
         </div>
       </div>
 
       <div className="min-w-0">
-        <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Visualização atual</p>
+        
         <h3 className="mt-1 text-xl font-black text-hpsr-text">{selected.title}</h3>
         <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">{selected.description}</p>
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className={`${styles.legend} mt-4 grid gap-2 sm:grid-cols-2`}>
           {items.map(([label, value], index) => {
             const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
             return <div key={`${label}-${index}`} className="flex min-w-0 items-center gap-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5">
@@ -453,8 +481,17 @@ function ActivityRow({ item }: { item: SystemActivity }) {
 }
 
 function Summary({title,icon,items,actionLabel,onAction,totalCount}:{title:string;icon:React.ReactNode;items:string[];actionLabel?:string;onAction?:()=>void;totalCount?:number}) {
-  return <section className="rounded-[18px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] p-3.5 shadow-[0_10px_26px_rgba(79,42,21,0.05)]">
+  return <section className={`${styles.summary} rounded-[18px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] p-3.5 shadow-[0_10px_26px_rgba(79,42,21,0.05)]`}>
     <div className="flex items-center justify-between gap-2 border-b border-hpsr-border pb-2.5"><div className="flex min-w-0 items-center gap-2 text-hpsr-wine">{icon}<h3 className="truncate text-sm font-black text-hpsr-text">{title}</h3></div><div className="flex items-center gap-2">{actionLabel && onAction && <button type="button" onClick={onAction} className="rounded-[10px] border border-hpsr-border bg-white px-2 py-1 text-[9px] font-black text-hpsr-wine">{actionLabel}</button>}<span className="shrink-0 rounded-full bg-[#fff1e5] px-2 py-0.5 text-[9px] font-black text-hpsr-wine">{totalCount ?? items.length}</span></div></div>
     <div className="mt-2.5 grid content-start gap-1.5">{items.map((item,index)=><div key={`${item}-${index}`} className="min-h-[34px] rounded-[11px] border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-[11px] font-semibold leading-[1.35] text-hpsr-muted" title={item}>{item}</div>)}{!items.length&&<p className="py-4 text-center text-xs text-hpsr-muted">Nenhum registro disponível.</p>}</div>
   </section>;
+}
+
+function ActivityTableEntry({item,day,onDetails}:{item:SystemActivity;day?:string;onDetails:()=>void}) {
+ return <>{day && <tr className={styles.dayRow}><th colSpan={5}><CalendarDays size={16}/>{day}</th></tr>}<tr><td>{formatDateTime(item.createdAt)}</td><td><span className={styles.cellContent}><Users size={16}/>{item.actor || "Não informado"}</span></td><td>{item.action}</td><td><span className={styles.moduleBadge}>{item.module}</span></td><td><button className={styles.detailsButton} onClick={onDetails}><Eye size={16}/>Ver detalhes</button></td></tr></>;
+}
+function ActivityDetails({item,onClose}:{item:SystemActivity;onClose:()=>void}) {
+ const [element,setElement]=useState<HTMLDialogElement|null>(null);
+ useEffect(()=>{if(element && !element.open) element.showModal();},[element]);
+ return <dialog ref={setElement} onCancel={onClose} className={styles.detailsDialog}><h2>Detalhes da atividade</h2><dl>{[["Data e hora",formatDateTime(item.createdAt)],["Responsável",item.actor || "Não informado"],["Atividade",item.action],["Módulo",item.module],["Descrição",item.description],["Referência",item.reference || "Não informado"]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><button autoFocus onClick={onClose}>Fechar</button></dialog>;
 }
