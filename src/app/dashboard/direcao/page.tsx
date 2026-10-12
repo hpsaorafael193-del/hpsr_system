@@ -493,5 +493,5 @@ function ActivityTableEntry({item,day,onDetails}:{item:SystemActivity;day?:strin
 function ActivityDetails({item,onClose}:{item:SystemActivity;onClose:()=>void}) {
  const [element,setElement]=useState<HTMLDialogElement|null>(null);
  useEffect(()=>{if(element && !element.open) element.showModal();},[element]);
- return <dialog ref={setElement} onCancel={onClose} className={styles.detailsDialog}><h2>Detalhes da atividade</h2><dl>{[["Data e hora",formatDateTime(item.createdAt)],["Responsável",item.actor || "Não informado"],["Atividade",item.action],["Módulo",item.module],["Descrição",item.description],["Referência",item.reference || "Não informado"]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><button autoFocus onClick={onClose}>Fechar</button></dialog>;
+ return <dialog ref={setElement} onCancel={onClose} className={`hpsr-modal-tone ${styles.detailsDialog}`}><h2>Detalhes da atividade</h2><dl>{[["Data e hora",formatDateTime(item.createdAt)],["Responsável",item.actor || "Não informado"],["Atividade",item.action],["Módulo",item.module],["Descrição",item.description],["Referência",item.reference || "Não informado"]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><button autoFocus onClick={onClose}>Fechar</button></dialog>;
 }

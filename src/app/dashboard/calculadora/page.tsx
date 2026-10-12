@@ -488,7 +488,7 @@ export default function CalculatorPage() {
 
   return (
     <div className="hpsr-page hpsr-calculadora-page gap-0 xl:h-[calc(100dvh-2.4rem)] xl:min-h-0 xl:overflow-hidden">
-      <dialog ref={receiptDialog} onClose={() => setReceiptPreview(null)} aria-label="Recibo salvo" className="m-auto max-h-[90dvh] w-[min(94vw,760px)] overflow-y-auto rounded-2xl bg-[#fffaf4] p-4 text-hpsr-text backdrop:bg-black/50">
+      <dialog ref={receiptDialog} onClose={() => setReceiptPreview(null)} aria-label="Recibo salvo" className="hpsr-modal-tone m-auto max-h-[90dvh] w-[min(94vw,760px)] overflow-y-auto rounded-2xl bg-[#fffaf4] p-4 text-hpsr-text backdrop:bg-black/50">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 className="text-lg font-black">Recibo salvo</h2>
           <button type="button" onClick={() => receiptDialog.current?.close()} className="rounded-xl border border-hpsr-border px-3 py-2 text-sm font-bold">Fechar</button>

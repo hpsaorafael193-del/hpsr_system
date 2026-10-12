@@ -10,7 +10,7 @@ import { defaultPlanningContent } from "@/lib/obstetric-default-content";
 export type PlanningKind = "gestacional" | "in_vitro";
 
 export type PlanningStep = {
-  fiv_recipient?: "gestante" | "doadora";
+  fiv_recipient?: "gestante" | "doadora" | "ambas";
   fiv_step_id?: string;
   fiv_order?: number;
   number: number;
@@ -112,7 +112,7 @@ export function createPlanningSuggestion(kind:PlanningKind, initial:string, fina
 
 export function normalizePlanningStep(step:Partial<PlanningStep>,kind:PlanningKind,index:number):PlanningStep {
   const plannedText=typeof step.planned_text==="string"?step.planned_text:typeof step.description==="string"?step.description:"";
-  return { ...(kind === "in_vitro" ? { fiv_recipient: step.fiv_recipient === "doadora" ? "doadora" as const : "gestante" as const, ...(step.fiv_step_id ? { fiv_step_id: step.fiv_step_id } : {}), ...(step.fiv_order ? { fiv_order: step.fiv_order } : {}) } : {}),number:index+1,title:typeof step.title==="string"&&step.title.trim()?step.title.trim():defaultTitle(kind,index),description:plannedText,planned_text:plannedText,marker:typeof step.marker==="string"&&step.marker.trim()?step.marker.trim():defaultMarker(kind,index),week:typeof step.week==="number"&&Number.isFinite(step.week)?step.week:defaultWeek(kind,index),date:typeof step.date==="string"?step.date:""};
+  return { ...(kind === "in_vitro" ? { fiv_recipient: step.fiv_recipient === "ambas" ? "ambas" as const : step.fiv_recipient === "doadora" ? "doadora" as const : "gestante" as const, ...(step.fiv_step_id ? { fiv_step_id: step.fiv_step_id } : {}), ...(step.fiv_order ? { fiv_order: step.fiv_order } : {}) } : {}),number:index+1,title:typeof step.title==="string"&&step.title.trim()?step.title.trim():defaultTitle(kind,index),description:plannedText,planned_text:plannedText,marker:typeof step.marker==="string"&&step.marker.trim()?step.marker.trim():defaultMarker(kind,index),week:typeof step.week==="number"&&Number.isFinite(step.week)?step.week:defaultWeek(kind,index),date:typeof step.date==="string"?step.date:""};
 }
 export function normalizePlanningSteps(kind:PlanningKind,steps:unknown):PlanningStep[]{ if(!Array.isArray(steps)) return []; return steps.map((step,index)=>normalizePlanningStep((step||{}) as Partial<PlanningStep>,kind,index)); }
 
@@ -120,7 +120,8 @@ export function normalizePlanningSteps(kind:PlanningKind,steps:unknown):Planning
 export function validatePlanningSteps(kind:PlanningKind,steps:PlanningStep[],initial?:string,finalDate?:string){
   if(!steps.length) return "Inclua pelo menos uma consulta/etapa no planejamento.";
   if(steps.some(step=>!isDateOnly(step.date))) return "Informe uma data válida para cada consulta/etapa.";
-  if(new Set(steps.map(step=>kind === "in_vitro" ? `${step.fiv_recipient || "gestante"}:${step.date}` : step.date)).size!==steps.length) return "Há consultas/etapas com a mesma data. Defina datas distintas antes de salvar.";
+  const patientDates=steps.flatMap(step=>kind === "in_vitro" ? (step.fiv_recipient === "ambas" ? ["gestante","doadora"] : [step.fiv_recipient || "gestante"]).map(role=>`${role}:${step.date}`) : [step.date]);
+  if(new Set(patientDates).size!==patientDates.length) return "Há consultas/etapas com a mesma data. Defina datas distintas antes de salvar.";
   if(initial && !isDateOnly(initial)) return "Informe uma data inicial válida.";
   if(finalDate && !isDateOnly(finalDate)) return "Informe uma data final de referência válida.";
   return "";

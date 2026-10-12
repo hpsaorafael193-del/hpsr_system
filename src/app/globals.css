@@ -1809,73 +1809,339 @@ button:active {
    antigos com estilos locais. Escopo explícito impede alterações em páginas,
    cabeçalhos, menus flutuantes e nos documentos/PNGs visualizados. */
 .hpsr-modal-tone {
-  --hpsr-modal-surface: #efe3d7;
-  --hpsr-modal-surface-soft: #f3e9df;
-  --hpsr-modal-surface-inset: #ead9c8;
-  --hpsr-modal-edge: #d1baa6;
+  --hpsr-modal-surface: #ead9c8;
+  --hpsr-modal-surface-soft: #f0e2d5;
+  --hpsr-modal-surface-inset: #e3cdb8;
+  --hpsr-modal-edge: #c8a992;
 }
-
-/* A estrutura de dimensão, scroll e posicionamento de cada modal é mantida. */
+/* A paleta atua apenas na interface; folhas e anexos mantêm suas cores. */
+dialog.hpsr-modal-tone,
 .hpsr-modal-tone .hpsr-modal-shell,
-.hpsr-modal-tone .hpsr-modal-motion {
-  background-color: var(--hpsr-modal-surface);
-  border-color: var(--hpsr-modal-edge);
+.hpsr-modal-tone .hpsr-modal-motion,
+.hpsr-modal-tone > :is(div,section,article,form):not([class*="absolute"]):not([class*="fixed"]):not([class*="pointer-events-none"]):not(.a4-page):not(.a4-page *):not(.hpsr-document-sheet):not(.hpsr-document-sheet *):not([data-preserve-white="true"]):not([data-preserve-white="true"] *) {
+  background-color: var(--hpsr-modal-surface) !important;
+  border-color: var(--hpsr-modal-edge) !important;
 }
-
-/* Painel principal de cada sobreposição, inclusive modais com estilos locais. */
-.hpsr-modal-tone > :is(div, section, article, form):not([class*="absolute"]):not([class*="fixed"]):not([class*="pointer-events-none"]) {
-  background-color: var(--hpsr-modal-surface);
-  border-color: var(--hpsr-modal-edge);
-}
-
-/* Diálogos customizados: superfícies que antes eram branco puro ou
-   creme muito claro, sem alterar folhas A4, imagens ou PDFs embutidos. */
-.hpsr-modal-tone :is(div, section, article, form, header, footer, aside):not(.a4-page):not(.a4-page *):not(.hpsr-document-sheet):not(.hpsr-document-sheet *):not([data-preserve-white="true"]):is(
-  [class~="bg-white"],
-  [class~="bg-[#fffaf4]"],
-  [class~="bg-[#fffdfb]"],
+.hpsr-modal-tone :is(div,section,article,form,header,footer,aside,fieldset):not(.a4-page):not(.a4-page *):not(.hpsr-document-sheet):not(.hpsr-document-sheet *):not([data-preserve-white="true"]):not([data-preserve-white="true"] *):is(
+  [class~="bg-white"], [class~="bg-hpsr-paper"], [class~="bg-hpsr-cream"], [class~="bg-hpsr-bg"],
+  [class~="bg-[#dcc3b2]"],
+  [class~="bg-[#dcc4b4]"],
+  [class~="bg-[#dec8b8]"],
+  [class~="bg-[#dfc3b0]"],
+  [class~="bg-[#dfc9b9]"],
+  [class~="bg-[#dfc9ba]"],
+  [class~="bg-[#dfcabb]"],
+  [class~="bg-[#dfcbbb]"],
+  [class~="bg-[#dfccbd]"],
+  [class~="bg-[#e0cbbb]"],
+  [class~="bg-[#e1ccbc]"],
+  [class~="bg-[#e2d0c2]"],
+  [class~="bg-[#e4d1c1]"],
+  [class~="bg-[#e5d1bc]"],
+  [class~="bg-[#e5d1bf]"],
+  [class~="bg-[#e5d1c2]"],
+  [class~="bg-[#e5d3c5]"],
+  [class~="bg-[#e5ded5]"],
+  [class~="bg-[#e6d5c7]"],
+  [class~="bg-[#e6d6c8]"],
+  [class~="bg-[#e7d3c4]"],
+  [class~="bg-[#e7d5c7]"],
+  [class~="bg-[#e8d5c4]"],
+  [class~="bg-[#e8d6c6]"],
+  [class~="bg-[#e8dbc6]"],
+  [class~="bg-[#e9d7c6]"],
+  [class~="bg-[#e9d7cb]"],
+  [class~="bg-[#e9d8c8]"],
+  [class~="bg-[#e9d8c9]"],
+  [class~="bg-[#e9d9c9]"],
+  [class~="bg-[#e9d9cc]"],
+  [class~="bg-[#e9dace]"],
+  [class~="bg-[#e9dbc9]"],
+  [class~="bg-[#e9dbce]"],
+  [class~="bg-[#e9ded2]"],
+  [class~="bg-[#e9e0d6]"],
+  [class~="bg-[#e9e1d8]"],
+  [class~="bg-[#ead6c3]"],
+  [class~="bg-[#ead7c4]"],
+  [class~="bg-[#ead7ca]"],
+  [class~="bg-[#ead8c8]"],
+  [class~="bg-[#ead8c9]"],
+  [class~="bg-[#ead8cb]"],
+  [class~="bg-[#ead9cd]"],
+  [class~="bg-[#eadacc]"],
+  [class~="bg-[#eadacd]"],
+  [class~="bg-[#eadbce]"],
+  [class~="bg-[#eadccd]"],
+  [class~="bg-[#eaddcd]"],
+  [class~="bg-[#eaded3]"],
+  [class~="bg-[#eadfd4]"],
+  [class~="bg-[#eadfd6]"],
+  [class~="bg-[#eadfd7]"],
+  [class~="bg-[#ebddd3]"],
+  [class~="bg-[#ecd6c3]"],
+  [class~="bg-[#ecdfd1]"],
+  [class~="bg-[#edd9cc]"],
+  [class~="bg-[#eee0d0]"],
+  [class~="bg-[#eee1d4]"],
+  [class~="bg-[#eee1d5]"],
+  [class~="bg-[#eee2d5]"],
+  [class~="bg-[#eee2d6]"],
+  [class~="bg-[#eee3d7]"],
+  [class~="bg-[#eee3d8]"],
+  [class~="bg-[#eee3dc]"],
+  [class~="bg-[#eee4dc]"],
+  [class~="bg-[#eee5dc]"],
+  [class~="bg-[#eee6dc]"],
+  [class~="bg-[#efd8cc]"],
+  [class~="bg-[#efd9d4]"],
+  [class~="bg-[#efdecd]"],
+  [class~="bg-[#efe0d2]"],
+  [class~="bg-[#efe0d5]"],
+  [class~="bg-[#efe1d5]"],
+  [class~="bg-[#efe3d6]"],
+  [class~="bg-[#efe3d7]"],
+  [class~="bg-[#efe3d8]"],
+  [class~="bg-[#f0d7c9]"],
+  [class~="bg-[#f0ded2]"],
+  [class~="bg-[#f0dfce]"],
+  [class~="bg-[#f0e2d3]"],
+  [class~="bg-[#f0e2d4]"],
+  [class~="bg-[#f0e4d7]"],
+  [class~="bg-[#f0e7dd]"],
+  [class~="bg-[#f1ded0]"],
+  [class~="bg-[#f1dfcb]"],
+  [class~="bg-[#f1dfcd]"],
+  [class~="bg-[#f1dfd4]"],
+  [class~="bg-[#f1e2d7]"],
+  [class~="bg-[#f1e3d8]"],
+  [class~="bg-[#f1e4d3]"],
+  [class~="bg-[#f1e4d5]"],
+  [class~="bg-[#f1e5d8]"],
+  [class~="bg-[#f1e5d9]"],
+  [class~="bg-[#f1e6da]"],
+  [class~="bg-[#f1e6db]"],
+  [class~="bg-[#f1e9df]"],
+  [class~="bg-[#f1eee2]"],
+  [class~="bg-[#f2dfd2]"],
+  [class~="bg-[#f2dfd4]"],
+  [class~="bg-[#f2e2d4]"],
+  [class~="bg-[#f2e2d7]"],
+  [class~="bg-[#f2e3d3]"],
+  [class~="bg-[#f2e4d5]"],
+  [class~="bg-[#f2e5d8]"],
+  [class~="bg-[#f2e7de]"],
+  [class~="bg-[#f2e8dc]"],
+  [class~="bg-[#f2e8de]"],
+  [class~="bg-[#f2e8e1]"],
+  [class~="bg-[#f2e9df]"],
+  [class~="bg-[#f2e9e3]"],
+  [class~="bg-[#f2ebe3]"],
+  [class~="bg-[#f2ebe5]"],
+  [class~="bg-[#f2ece7]"],
+  [class~="bg-[#f2ede2]"],
+  [class~="bg-[#f3e1d0]"],
+  [class~="bg-[#f3e3d2]"],
+  [class~="bg-[#f3e3d7]"],
+  [class~="bg-[#f3e4d5]"],
+  [class~="bg-[#f3e4d6]"],
+  [class~="bg-[#f3e4d8]"],
+  [class~="bg-[#f3e4d9]"],
+  [class~="bg-[#f3e5da]"],
+  [class~="bg-[#f3e6d8]"],
+  [class~="bg-[#f3e6d9]"],
+  [class~="bg-[#f3e6db]"],
+  [class~="bg-[#f3e7da]"],
+  [class~="bg-[#f3e7dc]"],
+  [class~="bg-[#f3e7df]"],
+  [class~="bg-[#f3ece4]"],
+  [class~="bg-[#f3f0e7]"],
+  [class~="bg-[#f3f2eb]"],
+  [class~="bg-[#f4e3cf]"],
+  [class~="bg-[#f4e3d9]"],
+  [class~="bg-[#f4e4d8]"],
+  [class~="bg-[#f4e5d9]"],
+  [class~="bg-[#f4e6d2]"],
+  [class~="bg-[#f4e6d8]"],
+  [class~="bg-[#f4e6dc]"],
+  [class~="bg-[#f4e7d9]"],
+  [class~="bg-[#f4e8db]"],
+  [class~="bg-[#f4e8df]"],
+  [class~="bg-[#f4e9df]"],
+  [class~="bg-[#f4ece3]"],
+  [class~="bg-[#f4ede7]"],
+  [class~="bg-[#f4eee7]"],
+  [class~="bg-[#f4f0ed]"],
+  [class~="bg-[#f5dfd7]"],
+  [class~="bg-[#f5e1d9]"],
+  [class~="bg-[#f5e4da]"],
+  [class~="bg-[#f5e5d9]"],
+  [class~="bg-[#f5e6d8]"],
+  [class~="bg-[#f5e7d8]"],
+  [class~="bg-[#f5e7de]"],
+  [class~="bg-[#f5e7e5]"],
+  [class~="bg-[#f5e8dc]"],
+  [class~="bg-[#f5e8e1]"],
+  [class~="bg-[#f5e9d8]"],
+  [class~="bg-[#f5e9dc]"],
+  [class~="bg-[#f5e9dd]"],
+  [class~="bg-[#f5eadd]"],
+  [class~="bg-[#f5eadf]"],
+  [class~="bg-[#f5ebe0]"],
+  [class~="bg-[#f5ebe1]"],
+  [class~="bg-[#f5ece3]"],
+  [class~="bg-[#f5ece7]"],
+  [class~="bg-[#f5ede5]"],
+  [class~="bg-[#f5eee6]"],
+  [class~="bg-[#f5eee7]"],
+  [class~="bg-[#f6ded6]"],
+  [class~="bg-[#f6e5da]"],
+  [class~="bg-[#f6e8dc]"],
+  [class~="bg-[#f6e9e0]"],
+  [class~="bg-[#f6eade]"],
+  [class~="bg-[#f6ecdf]"],
+  [class~="bg-[#f6ece7]"],
+  [class~="bg-[#f6eee5]"],
+  [class~="bg-[#f6eee8]"],
+  [class~="bg-[#f6efe3]"],
+  [class~="bg-[#f6efe7]"],
+  [class~="bg-[#f7e8e1]"],
+  [class~="bg-[#f7e8e4]"],
+  [class~="bg-[#f7e9df]"],
+  [class~="bg-[#f7eadf]"],
+  [class~="bg-[#f7ebde]"],
+  [class~="bg-[#f7ebe2]"],
+  [class~="bg-[#f7ebe3]"],
+  [class~="bg-[#f7ebe8]"],
+  [class~="bg-[#f7ecdf]"],
+  [class~="bg-[#f7ece4]"],
+  [class~="bg-[#f7ede3]"],
+  [class~="bg-[#f7ede4]"],
+  [class~="bg-[#f7ede5]"],
+  [class~="bg-[#f7eee4]"],
+  [class~="bg-[#f7eee5]"],
+  [class~="bg-[#f7eee6]"],
+  [class~="bg-[#f7eee7]"],
+  [class~="bg-[#f7eee8]"],
+  [class~="bg-[#f7eee9]"],
+  [class~="bg-[#f7efe6]"],
+  [class~="bg-[#f7efe7]"],
+  [class~="bg-[#f7efe8]"],
+  [class~="bg-[#f7f0e7]"],
+  [class~="bg-[#f7f0e8]"],
+  [class~="bg-[#f7f2ea]"],
+  [class~="bg-[#f7f4f2]"],
+  [class~="bg-[#f8ecdf]"],
+  [class~="bg-[#f8ece3]"],
+  [class~="bg-[#f8eee4]"],
+  [class~="bg-[#f8eee5]"],
+  [class~="bg-[#f8eee6]"],
+  [class~="bg-[#f8eee7]"],
+  [class~="bg-[#f8efe5]"],
+  [class~="bg-[#f8efe7]"],
+  [class~="bg-[#f8efea]"],
+  [class~="bg-[#f8f0e6]"],
+  [class~="bg-[#f8f0e8]"],
+  [class~="bg-[#f8f2eb]"],
+  [class~="bg-[#f8f3ec]"],
+  [class~="bg-[#f8f5f2]"],
+  [class~="bg-[#f8f6ef]"],
+  [class~="bg-[#f8f7ef]"],
+  [class~="bg-[#f9e8e2]"],
+  [class~="bg-[#f9eada]"],
+  [class~="bg-[#f9ece6]"],
+  [class~="bg-[#f9efe4]"],
+  [class~="bg-[#f9efe6]"],
+  [class~="bg-[#f9f0df]"],
+  [class~="bg-[#f9f1e7]"],
+  [class~="bg-[#f9f3ed]"],
+  [class~="bg-[#fae9df]"],
+  [class~="bg-[#faf0ed]"],
+  [class~="bg-[#faf3ea]"],
+  [class~="bg-[#faf4ed]"],
+  [class~="bg-[#faf7f4]"],
+  [class~="bg-[#fbf3ed]"],
+  [class~="bg-[#fbf4ec]"],
+  [class~="bg-[#fbf4ee]"],
+  [class~="bg-[#fbf5ed]"],
+  [class~="bg-[#fbf6f1]"],
+  [class~="bg-[#fbf6f2]"],
+  [class~="bg-[#fbf7f1]"],
+  [class~="bg-[#fbf8f5]"],
+  [class~="bg-[#fbfaf9]"],
+  [class~="bg-[#fcf5ed]"],
   [class~="bg-[#fcf6ee]"],
+  [class~="bg-[#fcf6ef]"],
+  [class~="bg-[#fcf7f1]"],
+  [class~="bg-[#fcf8f3]"],
+  [class~="bg-[#fcfbfa]"],
+  [class~="bg-[#fdf3ec]"],
+  [class~="bg-[#fdfaf7]"],
+  [class~="bg-[#ffead8]"],
+  [class~="bg-[#fff1e0]"],
+  [class~="bg-[#fff1e5]"],
+  [class~="bg-[#fff1e8]"],
+  [class~="bg-[#fff2e4]"],
+  [class~="bg-[#fff2ea]"],
+  [class~="bg-[#fff3e3]"],
+  [class~="bg-[#fff3e8]"],
+  [class~="bg-[#fff3e9]"],
+  [class~="bg-[#fff4e8]"],
+  [class~="bg-[#fff4ea]"],
+  [class~="bg-[#fff4ec]"],
+  [class~="bg-[#fff5ef]"],
+  [class~="bg-[#fff6f1]"],
+  [class~="bg-[#fff7ed]"],
+  [class~="bg-[#fff7ee]"],
+  [class~="bg-[#fff7ef]"],
+  [class~="bg-[#fff7f1]"],
+  [class~="bg-[#fff7f5]"],
+  [class~="bg-[#fff8ef]"],
   [class~="bg-[#fff8f0]"],
-  [class~="bg-[#fff8f3]"]
+  [class~="bg-[#fff8f1]"],
+  [class~="bg-[#fff8f2]"],
+  [class~="bg-[#fff8f3]"],
+  [class~="bg-[#fff8f4]"],
+  [class~="bg-[#fff9f2]"],
+  [class~="bg-[#fff9f3]"],
+  [class~="bg-[#fff9f5]"],
+  [class~="bg-[#fffaf3]"],
+  [class~="bg-[#fffaf4]"],
+  [class~="bg-[#fffaf5]"],
+  [class~="bg-[#fffaf6]"],
+  [class~="bg-[#fffaf7]"],
+  [class~="bg-[#fffafa]"],
+  [class~="bg-[#fffbf4]"],
+  [class~="bg-[#fffbf5]"],
+  [class~="bg-[#fffcf8]"],
+  [class~="bg-[#fffdf9]"],
+  [class~="bg-[#fffdfa]"],
+  [class~="bg-[#fffdfb]"],
+  [class~="bg-[#fffef9]"]
 ) {
-  background-color: var(--hpsr-modal-surface-soft);
+  background-color: var(--hpsr-modal-surface-soft) !important;
+  border-color: var(--hpsr-modal-edge);
 }
-.hpsr-modal-tone :is(div, section, article, form, header, footer, aside):not(.a4-page):not(.a4-page *):not(.hpsr-document-sheet):not(.hpsr-document-sheet *):is(
-  [class~="bg-white/90"],
-  [class~="bg-white/95"],
-  [class~="bg-white/80"],
-  [class~="bg-white/85"],
-  [class~="bg-[#fffdfb]/95"],
-  [class~="bg-[#fffaf4]/95"]
-) {
-  background-color: rgb(239 227 215 / .96);
+.hpsr-modal-tone :is(div,section,article,form,header,footer,aside):not(.a4-page):not(.a4-page *):not(.hpsr-document-sheet):not(.hpsr-document-sheet *):not([data-preserve-white="true"]):not([data-preserve-white="true"] *):is([class~="bg-white/90"],[class~="bg-white/95"],[class~="bg-white/80"],[class~="bg-white/85"],[class~="bg-[#fffdfb]/95"],[class~="bg-[#fffaf4]/95"]) {
+  background-color: rgb(234 217 200 / .96) !important;
 }
-/* Os gradientes de creme quase branco dos modais antigos também recebem
-   o tom novo; cabeçalhos vinho e avisos de risco ficam intactos. */
-.hpsr-modal-tone :is(div, section, article, form, header, footer):not(.a4-page):not(.a4-page *):not(.hpsr-document-sheet):not(.hpsr-document-sheet *)[class*="bg-[linear-gradient"][class*="#fff"] {
-  background-image: linear-gradient(135deg, #f0e2d3, #e7d4c1);
+/* Gradientes claros recebem a mesma base bege; cabeçalhos vinho continuam vinho. */
+.hpsr-modal-tone :is(div,section,article,form,header,footer):not(.a4-page):not(.a4-page *):not(.hpsr-document-sheet):not(.hpsr-document-sheet *):not([data-preserve-white="true"]):not([data-preserve-white="true"] *)[class*="bg-[linear-gradient"]:is([class*="#fff"],[class*="#f8e"],[class*="#f4e"],[class*="#f7e"]) {
+  background-image: linear-gradient(155deg,#f3e5d8,#ead9c8 58%,#efdfd2) !important;
 }
-.hpsr-modal-tone :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
-  background-color: #f8f0e7;
-  border-color: #d3bdab;
+.hpsr-modal-tone :is(input,select,textarea):not(.a4-page):not(.a4-page *):not(.hpsr-document-sheet):not(.hpsr-document-sheet *):not([data-preserve-white="true"]):not([data-preserve-white="true"] *):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]) {
+  background-color: #f5e8dc !important;
+  border-color: #c8a992 !important;
+  color:#4b281e;
 }
-.hpsr-modal-tone button[class~="bg-white"]:not([class*="text-white"]),
-.hpsr-modal-tone button[class~="bg-[#fffaf4]"] {
-  background-color: #f3e7dc;
-  border-color: #d3bdab;
+.hpsr-modal-tone :is(input,textarea)[readonly]:not(.a4-page):not(.a4-page *):not(.hpsr-document-sheet):not(.hpsr-document-sheet *):not([data-preserve-white="true"]):not([data-preserve-white="true"] *) { background-color:#eee0d2 !important; }
+.hpsr-modal-tone button:not(.a4-page):not(.a4-page *):not(.hpsr-document-sheet):not(.hpsr-document-sheet *):not([data-preserve-white="true"]):not([data-preserve-white="true"] *):is([class~="bg-white"],[class~="bg-[#fffaf4]"],[class~="bg-[#fffaf6]"],[class~="bg-[#fff8f3]"],[class~="bg-[#fffaf7]"],[class~="bg-[#f5e8dc]"]) {
+  background-color:#eee0d2 !important;
+  border-color:#c8a992;
 }
-.hpsr-modal-tone :is(.hpsr-modal-header, [class~="border-hpsr-border"]) {
-  border-color: #d4bfad;
-}
-/* Preserva branco documental onde a cor é parte do anexo clínico. */
-.hpsr-modal-tone :is(.a4-page, .hpsr-document-sheet, [data-preserve-white="true"]) {
-  background-color: #fff !important;
-}
-@media print {
-  .hpsr-modal-tone :is(.a4-page, .hpsr-document-sheet, [data-preserve-white="true"]) {
-    background-color: #fff !important;
-  }
-}
+.hpsr-modal-tone :is(.hpsr-modal-header,[class~="border-hpsr-border"]):not(.a4-page):not(.a4-page *):not(.hpsr-document-sheet):not(.hpsr-document-sheet *):not([data-preserve-white="true"]):not([data-preserve-white="true"] *) { border-color:#c8a992; }
+dialog.hpsr-modal-tone::backdrop { background:rgba(42,7,0,.55); }
+.hpsr-modal-tone :is(.a4-page,.hpsr-document-sheet,[data-preserve-white="true"]) { background-color:#fff !important; }
+@media print { .hpsr-modal-tone :is(.a4-page,.hpsr-document-sheet,[data-preserve-white="true"]) { background-color:#fff !important; } }
 
 /* 1.1.3 — Cards de vacinação em destaque; bege/marrom institucionais. */
 .hpsr-dashboard-shell .hpsr-vaccination-page {
@@ -2107,3 +2373,6 @@ textarea,
 /* Estado explícito do controle de sigilo, independente das cores de hover. */
 .hpsr-exams-workspace .hpsr-exam-confidentiality button[aria-pressed="false"] { background-color: transparent; color: #806556; }
 .hpsr-exams-workspace .hpsr-exam-confidentiality button[aria-pressed="true"] { background-color: #672614; color: #fff; }
+
+/* Cobertura dos gradientes claros usados por todos os modais. */
+.hpsr-modal-tone :is(div,section,article,form,header,footer):not(.a4-page):not(.a4-page *):not(.hpsr-document-sheet):not(.hpsr-document-sheet *):not([data-preserve-white="true"]):not([data-preserve-white="true"] *):is([class~="bg-[linear-gradient(110deg,#fff3e9_0%,#f5e5df_100%)]"],[class~="bg-[linear-gradient(110deg,#fff8ed_0%,#f5e9e5_100%)]"],[class~="bg-[linear-gradient(118deg,#eddfd1_0%,#f6eee5_66%,#e9d8ca_100%)]"],[class~="bg-[linear-gradient(120deg,#f8eadf_0%,#f4e2d5_100%)]"],[class~="bg-[linear-gradient(120deg,#f8ecdf_0%,#f4e3d7_100%)]"],[class~="bg-[linear-gradient(135deg,#e2c9ba,#ecddd3)]"],[class~="bg-[linear-gradient(135deg,#e8d2c5,#f0e2d8)]"],[class~="bg-[linear-gradient(135deg,#e9d8c8_0%,#e5d0bd_100%)]"],[class~="bg-[linear-gradient(135deg,#ead5c8,#f2e5dc)]"],[class~="bg-[linear-gradient(135deg,#ead6ca,#f4e8df)]"],[class~="bg-[linear-gradient(135deg,#ebd8c5_0%,#f2e5d8_100%)]"],[class~="bg-[linear-gradient(135deg,#f4ebdf_0%,#ebdfd1_100%)]"],[class~="bg-[linear-gradient(135deg,#f6e8da_0%,#ebd4c0_100%)]"],[class~="bg-[linear-gradient(135deg,#f9ece6_0%,#fff9f4_100%)]"],[class~="bg-[linear-gradient(135deg,#fff8f1_0%,#fffdf9_100%)]"],[class~="bg-[linear-gradient(135deg,#fff8f3_0%,#fffdfb_100%)]"],[class~="bg-[linear-gradient(135deg,#fff9df_0%,#fff4cc_100%)]"],[class~="bg-[linear-gradient(135deg,#fff9e8_0%,#fff3d6_100%)]"],[class~="bg-[linear-gradient(135deg,#fffaf4,#fff)]"],[class~="bg-[linear-gradient(135deg,#fffaf4_0%,#f1dfcd_100%)]"],[class~="bg-[linear-gradient(135deg,#fffaf4_0%,#f3e5d8_100%)]"],[class~="bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)]"],[class~="bg-[linear-gradient(135deg,#fffaf4_0%,#f6eadc_58%,#ead8c6_100%)]"],[class~="bg-[linear-gradient(135deg,#fffaf4_0%,#f7eadc_55%,#f2e3d0_100%)]"],[class~="bg-[linear-gradient(135deg,#fffaf4_0%,#fff2e6_100%)]"],[class~="bg-[linear-gradient(135deg,#fffaf4_0%,#ffffff_62%,#f7eee4_100%)]"],[class~="bg-[linear-gradient(135deg,#fffdf9_0%,#f4e7dc_100%)]"],[class~="bg-[linear-gradient(135deg,#fffdf9_0%,#fff7ee_58%,#f2e0cf_100%)]"],[class~="bg-[linear-gradient(135deg,#fffdf9_0%,#fff7ef_100%)]"],[class~="bg-[linear-gradient(135deg,#ffffff_0%,#fffaf4_45%,#f1dfcd_100%)]"],[class~="bg-[linear-gradient(145deg,#ead7c5_0%,#e4ccb7_100%)]"],[class~="bg-[linear-gradient(145deg,#fff9f0_0%,#f5e9e5_100%)]"],[class~="bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)]"],[class~="bg-[linear-gradient(155deg,#f8eddf_0%,#eddbc7_100%)]"],[class~="bg-[linear-gradient(165deg,#f5e9dd_0%,#efdfcf_100%)]"],[class~="bg-[linear-gradient(170deg,#ecd9c7_0%,#ddc4af_100%)]"],[class~="bg-[linear-gradient(170deg,#f4e5d3_0%,#f0dfcd_100%)]"],[class~="bg-[linear-gradient(170deg,#fff9f4_0%,#f7e8e4_100%)]"],[class~="bg-[linear-gradient(180deg,#ead4c0_0%,#e5cbb5_100%)]"],[class~="bg-[linear-gradient(180deg,#eee3d7_0px,#f5efe7_88px,#f5efe7_100%)]"],[class~="bg-[linear-gradient(180deg,#f2e6d8_0%,#e9d6c4_100%)]"],[class~="bg-[linear-gradient(180deg,#f3eee8_0%,#eee5e1_100%)]"],[class~="bg-[linear-gradient(180deg,#f4f0ed_0%,#ebe5e0_100%)]"],[class~="bg-[linear-gradient(180deg,#f5e5dd_0%,#f1e6dc_100%)]"],[class~="bg-[linear-gradient(180deg,#f8eee5_0%,#f3e2de_100%)]"],[class~="bg-[linear-gradient(180deg,#f8f1e8_0%,#f4ebe0_100%)]"],[class~="bg-[linear-gradient(180deg,#fffaf4_0%,#f5e8dc_100%)]"],[class~="bg-[linear-gradient(180deg,#fffaf4_0%,#fff6ee_100%)]"],[class~="bg-[linear-gradient(180deg,#ffffff_0%,#fffaf4_100%)]"],[class~="bg-[linear-gradient(180deg,#ffffff_0%,#fffaf5_100%)]"]) { background-image:linear-gradient(155deg,#f3e5d8,#ead9c8 58%,#efdfd2)!important; }

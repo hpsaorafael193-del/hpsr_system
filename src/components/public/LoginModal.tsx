@@ -302,7 +302,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
       role="dialog"
       aria-modal="true"
       aria-labelledby="medical-login-title"
-      className="fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3"
+      className="hpsr-modal-tone fixed inset-0 z-[99999] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3"
     >
       <button
         type="button"

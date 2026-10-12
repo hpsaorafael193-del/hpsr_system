@@ -15,8 +15,8 @@ type Entry = { id: string; userId: string; user: string; openedAt: string; close
 type Ranking = { position: number; userId: string; user: string; workedSeconds: number };
 type Report = { monthStart: string; ranking: Ranking[]; totalUsers: number; totalWorkedSeconds: number; closedAt: string };
 type Audit = { id: string; actor?: string; target?: string; action: string; reason?: string; createdAt: string };
-type ReportData = { entries: Entry[]; reports: Report[]; audit: Audit[]; currentRanking: Ranking[]; serverNow?: string };
-const emptyData: ReportData = { entries: [], reports: [], audit: [], currentRanking: [], serverNow: undefined };
+type ReportData = { entries: Entry[]; reports: Report[]; audit: Audit[]; currentRanking: Ranking[]; activeStaff: {userId:string;user:string}[]; serverNow?: string };
+const emptyData: ReportData = { entries: [], reports: [], audit: [], currentRanking: [], activeStaff: [], serverNow: undefined };
 
 export function TimeClockAdministrativeReport() {
   const [data, setData] = useState<ReportData>(emptyData);
@@ -46,6 +46,7 @@ export function TimeClockAdministrativeReport() {
         reports: Array.isArray(raw.reports) ? raw.reports.map((item: any) => ({ ...item, totalUsers: Number(item.totalUsers || 0), totalWorkedSeconds: Number(item.totalWorkedSeconds || 0), ranking: Array.isArray(item.ranking) ? item.ranking.map(normalizeNumbers) : [] })) : [],
         audit: Array.isArray(raw.audit) ? raw.audit : [],
         currentRanking: Array.isArray(raw.currentRanking) ? raw.currentRanking.map(normalizeNumbers) : [],
+        activeStaff: Array.isArray(raw.activeStaff) ? raw.activeStaff : [],
         serverNow: typeof raw.serverNow === "string" ? raw.serverNow : undefined,
       };
       const receivedAt = Date.now();
@@ -103,11 +104,11 @@ export function TimeClockAdministrativeReport() {
     const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `ranking-ponto-${selectedReport.monthStart}.csv`; a.click(); URL.revokeObjectURL(url);
   }
 
-  const correctionStaff = Array.from(new Map([...data.currentRanking, ...data.entries].map(item => [item.userId, { userId: item.userId, user: item.user }])).values()).sort((a,b) => a.user.localeCompare(b.user,"pt-BR"));
+  const correctionStaff = data.activeStaff;
 
   const filteredClosed = closedEntries.filter(entry => entry.user.toLocaleLowerCase("pt-BR").includes(closedSearch.trim().toLocaleLowerCase("pt-BR")));
   return <section className={styles.report}>
-    {correction !== undefined && <CorrectTimeClockModal staff={correctionStaff} initial={correction || undefined} onClose={() => setCorrection(undefined)} onSaved={async () => { await load(); setNotice("Ponto corrigido com sucesso. Os totais foram atualizados."); }} />}
+    {correction !== undefined && <CorrectTimeClockModal staff={correctionStaff} initial={correction || undefined} onClose={() => setCorrection(undefined)} onSaved={async () => { setNotice("Correção salva. Todos os períodos foram registrados."); try { await load(); } catch { setError("A correção foi salva, mas não foi possível recarregar a lista. Clique em Atualizar."); setLoading(false); } }} />}
     {detail && <PointDetails entry={detail} onClose={()=>setDetail(null)} onCorrect={()=>{setCorrection({userId:detail.userId,id:detail.id});setDetail(null);}}/>}
     {notice && <p role="status" className={styles.notice}>{notice}</p>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
@@ -137,7 +138,7 @@ function Person({name}:{name:string}) { return <span className={styles.person}><
 function PointDetails({entry,onClose,onCorrect}:{entry:Entry;onClose:()=>void;onCorrect:()=>void}) {
  const [element,setElement]=useState<HTMLDialogElement|null>(null);
  useEffect(()=>{if(element && !element.open)element.showModal();},[element]);
- return <dialog ref={setElement} onCancel={onClose} className={styles.dialog}><h2>Detalhes do ponto</h2><dl>{[["Médico",entry.user],["Entrada",formatDateTime(entry.openedAt)],["Saída",formatDateTime(entry.closedAt)],["Tempo contabilizado",formatDuration(entry.workedSeconds)],["Status",entry.status]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><div className={styles.actions}><button onClick={onCorrect}><Pencil size={15}/>Corrigir ponto</button><button autoFocus onClick={onClose}>Fechar</button></div></dialog>;
+ return <dialog ref={setElement} onCancel={onClose} className={`hpsr-modal-tone ${styles.dialog}`}><h2>Detalhes do ponto</h2><dl>{[["Médico",entry.user],["Entrada",formatDateTime(entry.openedAt)],["Saída",formatDateTime(entry.closedAt)],["Tempo contabilizado",formatDuration(entry.workedSeconds)],["Status",entry.status]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><div className={styles.actions}><button onClick={onCorrect}><Pencil size={15}/>Corrigir ponto</button><button autoFocus onClick={onClose}>Fechar</button></div></dialog>;
 }
 
 function RankingList({ ranking }: { ranking: Ranking[] }) { return <div className={styles.ranking}>{ranking.map(row=><div key={row.userId}><span className={styles.position} data-position={row.position}>{row.position}</span><Person name={row.user}/><strong>{formatDuration(row.workedSeconds)}</strong></div>)}{!ranking.length && <Empty text="Nenhuma hora contabilizada neste período."/>}</div>; }
