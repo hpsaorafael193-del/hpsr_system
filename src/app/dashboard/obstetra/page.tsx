@@ -1,6 +1,8 @@
 "use client";
 
-import { Baby, CalendarDays, CheckCircle2, ClipboardList, Eye, FileImage, HeartPulse, History, Loader2, Plus, RefreshCcw, Search, Sparkles, Syringe, Trash2, X } from "lucide-react";
+import planningStyles from "./planning-consultations.module.css";
+import {ManualRefreshButton,useManualRefresh} from "@/lib/manual-data-refresh";
+import { Baby, CalendarDays, CheckCircle2, ClipboardList, Eye, FileImage, HeartPulse, History, Loader2, Plus, RefreshCcw, Search, Sparkles, Share2, Pencil, Syringe, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -201,6 +203,8 @@ function ObstetricianWorkspace() {
   const [suggestion, setSuggestion] = useState<PlanningSuggestion | null>(null);
   const [confirmedKey, setConfirmedKey] = useState("");
   const [confirmedSteps, setConfirmedSteps] = useState<PlanningStep[]>([]);
+  const [stageDraftEditor,setStageDraftEditor]=useState<number|null>(null);
+  const reviewedFivVersions=useRef<Record<string,string>>({});
   const [editingPlanId, setEditingPlanId] = useState("");
   const [plans, setPlans] = useState<ObstetricPlan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState("");
@@ -570,7 +574,12 @@ function ObstetricianWorkspace() {
     return (data || []).some((link) => linkMatchesPlan(kind, String(link.specialty || "")));
   }
 
-  async function loadHistory(preselectId?: string) {
+  useManualRefresh("planning",async()=>{
+    await loadHistory();
+    if(selectedPlanId && !individualEditorOpen)await loadOccurrences(selectedPlanId);
+  },busy || individualEditorOpen || stageDraftEditor !== null);
+
+  async function loadHistory(preselectId?: string,reviewVersions=false) {
     if (!profile.id) return;
     const client = createClient();
     if (!client) return;
@@ -590,6 +599,7 @@ function ObstetricianWorkspace() {
     }
     const normalized = records.map((plan) => ({ ...plan, consultation_schedule: normalizePlanningSteps(plan.plan_type as PlanningKind, plan.consultation_schedule) })) as ObstetricPlan[];
     setPlans(normalized);
+    if(reviewVersions) reviewedFivVersions.current=Object.fromEntries(normalized.map(plan=>[plan.id,plan.updated_at]));
     if (preselectId) setSelectedPlanId(preselectId);
   }
 
@@ -716,7 +726,7 @@ function ObstetricianWorkspace() {
           p_doctor_name: doctorName, p_start: startDate, p_end: endDate,
           p_notes: planningNotes.trim() || null, p_steps: confirmedSteps,
           p_release_gestante: releaseIntegralOnSave, p_release_doadora: releaseDonorOnSave,
-          p_expected_versions: Object.fromEntries(members.map(plan => [plan.id, plan.updated_at])),
+          p_expected_versions: Object.fromEntries(members.map(plan => [plan.id, editingPlanId ? reviewedFivVersions.current[plan.id] || plan.updated_at : plan.updated_at])),
         });
         if (saveError) throw saveError;
         if (!data?.gestante_plan_id) throw new Error("O projeto FIV não foi confirmado. Confira o histórico antes de repetir.");
@@ -725,7 +735,7 @@ function ObstetricianWorkspace() {
         setFivProjectId(data.project_id);
         setMessage("Projeto FIV salvo. Cada paciente tem apenas suas etapas e sua liberação independente.");
         try { sessionStorage.removeItem(obstetricDraftKey(profile.id)); } catch { /* optional */ }
-        await Promise.all([loadHistory(data.gestante_plan_id), loadOccurrences(data.gestante_plan_id)]);
+        await Promise.all([loadHistory(data.gestante_plan_id,true), loadOccurrences(data.gestante_plan_id)]);
         return;
       }
       const now = new Date().toISOString();
@@ -856,6 +866,7 @@ function ObstetricianWorkspace() {
   function beginEditing(input: ObstetricPlan) {
     const members = input.fiv_project_id ? plans.filter(plan => plan.fiv_project_id === input.fiv_project_id) : [input];
     const plan = members.find(item => item.fiv_role === "gestante") || input;
+    reviewedFivVersions.current=Object.fromEntries(members.map(member=>[member.id,member.updated_at]));
     setDonorPassport(members.find(item => item.fiv_role === "doadora")?.patient_passport || "");
     setFivProjectId(plan.fiv_project_id || "");
     setReleaseDonorOnSave(false);
@@ -1196,7 +1207,7 @@ function ObstetricianWorkspace() {
         : selectedOccurrence.individual_released_at
           ? `${selectedPlan.plan_type === "in_vitro" ? "Etapa" : "Consulta"} ${individualStep.number} salva. A paciente continua vendo a última versão explicitamente liberada.`
           : `${selectedPlan.plan_type === "in_vitro" ? "Etapa" : "Consulta"} ${individualStep.number} salva. A liberação individual permanece independente.`);
-      await Promise.all([loadHistory(selectedPlan.id), loadOccurrences(selectedPlan.id)]);
+      await Promise.all([loadHistory(selectedPlan.id,true), loadOccurrences(selectedPlan.id)]);
       return true;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível salvar a consulta individual.");
@@ -1350,10 +1361,28 @@ function ObstetricianWorkspace() {
       </section>
 
       <div className="min-w-0">
-      <section id="acompanhamento-conteudo" className="hpsr-planning-panel hpsr-gestational-form hpsr-obstetric-stage-preview min-w-0 rounded-[24px] border border-[#ad7665] p-4 shadow-[0_14px_34px_rgba(125,35,29,0.08)] sm:p-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="flex shrink-0 items-center gap-3"><div className="hpsr-obstetric-icon grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><CalendarDays size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Consultas do planejamento</p><h3 className="text-lg font-black text-hpsr-text">Gerencie as consultas e libere o que for necessário</h3><p className="text-sm text-hpsr-muted">Use editar para abrir cada consulta em modal. A prévia integral fica disponível na Definição médica e também pode ser reaberta por aqui.</p></div></div><div className="flex flex-wrap gap-2">{planType === "in_vitro" && scheduleConfirmed && <button type="button" disabled={busy || confirmedSteps.length >= 40} onClick={addConfirmedStep} className="rounded-lg border border-hpsr-wine px-3 py-2 text-xs font-bold text-hpsr-wine">Adicionar etapa</button>}<button type="button" disabled={busy || !scheduleConfirmed || !selectedPatient} onClick={() => readyIntegralPreview ? setIntegralModalOpen(true) : void generateIntegralPreview()} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[12px] border border-hpsr-wine bg-hpsr-wine px-3.5 text-xs font-black text-white transition hover:opacity-90 disabled:opacity-50"><Eye size={15} />Ver integral</button></div></div>
-        {planType === "in_vitro" && scheduleConfirmed && donorPatient && <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#ddc1b1] pt-3"><div><p className="text-sm font-bold">Gestante: {fivStepsForPatient(confirmedSteps,"gestante").length} etapas · Doadora: {fivStepsForPatient(confirmedSteps,"doadora").length} etapas</p><p className="mt-1 text-xs text-hpsr-muted">Em cada etapa, selecione Gestante, Doadora ou Ambas. Cada paciente recebe somente as etapas destinadas a ela.</p></div><button type="button" disabled={busy} onClick={()=>{setConfirmedSteps(current=>current.map(step=>projectPlans.some(plan=>plan.consultation_schedule?.some(saved=>saved.fiv_step_id && saved.fiv_step_id === step.fiv_step_id)) ? step : {...step,fiv_recipient:"ambas" as const}));setIntegralPreview(null);setError("");}} className="rounded-lg border border-hpsr-wine px-3 py-2 text-xs font-bold text-hpsr-wine">Compartilhar etapas novas com ambas</button></div>}
-        {scheduleConfirmed ? <div className="mt-5 overflow-hidden rounded-[18px] border border-[#dec8bb] bg-[#fffaf7]"><div className="overflow-x-auto"><table className="min-w-full border-collapse text-sm"><thead><tr className="border-b border-[#e4d1c5] bg-[#f8efe7] text-left"><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Consulta</th><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Semana</th><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Data prevista</th><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Conteúdo</th><th className="px-4 py-3 text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Ações</th></tr></thead><tbody>{confirmedSteps.map((step, index) => { const participantPlan = editingPlan?.fiv_project_id ? plans.find(plan => plan.fiv_project_id === editingPlan.fiv_project_id && plan.fiv_role === (step.fiv_recipient === "ambas" ? "gestante" : step.fiv_recipient || "gestante")) : editingPlan; const participantStep = participantPlan?.consultation_schedule?.find(item => step.fiv_step_id ? item.fiv_step_id === step.fiv_step_id : item.number === step.number); const hasSavedStep = Boolean(participantStep); const occurrence = occurrences.find((item) => item.plan_id === participantPlan?.id && (item.step_number || 0) === (participantStep?.number || step.number)); const released = Boolean(occurrence?.individual_released_at); return <tr key={`${step.number}-${index}`} className="border-b border-[#eddccf] last:border-b-0"><td className="px-4 py-3 font-black text-hpsr-text">{planType === "in_vitro" ? `Etapa ${step.number}` : `Consulta ${step.number}`}</td><td className="px-4 py-3 font-semibold text-hpsr-text">{step.marker || "—"}</td><td className="px-4 py-3 font-semibold text-hpsr-text">{planType === "in_vitro" ? <input aria-label={`Data da etapa ${step.number}`} className={inputClass} type="date" value={step.date} onChange={event => updateConfirmedStep(index,{date:event.target.value})} disabled={busy} /> : formatDate(step.date)}</td><td className="px-4 py-3 text-hpsr-muted">{planType === "in_vitro" && <StyledSelect aria-label={`Paciente da etapa ${step.number}`} value={step.fiv_recipient || "gestante"} disabled={busy || hasSavedStep} onChange={event => updateConfirmedStep(index,{fiv_recipient:event.target.value as FivRecipient})}><option value="gestante">Gestante · {selectedPatient?.name}</option>{donorPatient && <><option value="doadora">Doadora · {donorPatient.name}</option><option value="ambas">Ambas · gestante e doadora</option></>}</StyledSelect>}{planType === "in_vitro" ? <textarea aria-label={`Conteúdo da etapa ${step.number}`} className={`${textAreaClass} mt-2 min-h-[100px] min-w-[240px]`} value={step.planned_text} maxLength={3600} disabled={busy} onChange={event => updateConfirmedStep(index,{planned_text:event.target.value})} /> : (step.planned_text || "").trim() || "Conteúdo não preenchido"}</td><td className="px-4 py-3"><div className="flex flex-wrap gap-2">{planType === "in_vitro" && !hasSavedStep && <button type="button" disabled={busy} onClick={() => removeConfirmedStep(index)} className="text-xs font-bold text-hpsr-wine">Remover etapa</button>}{(occurrence || hasSavedStep) ? <button type="button" onClick={() => participantPlan && void openIndividualEditorAtStep(participantPlan, participantStep?.number || step.number)} className="inline-flex min-h-[34px] items-center justify-center gap-1 rounded-[10px] border border-hpsr-wine bg-hpsr-wine px-3 text-xs font-black text-white transition hover:opacity-90"><Eye size={12} />{step.fiv_recipient === "ambas" ? "Editar gestante" : "Editar"}</button> : <span className="inline-flex min-h-[34px] items-center rounded-[10px] border border-dashed border-[#d7b6a6] px-3 text-[11px] font-bold text-hpsr-muted">Salve o planejamento</span>}{step.fiv_recipient === "ambas" && editingPlan?.fiv_project_id && (()=>{const donorPlan=plans.find(plan=>plan.fiv_project_id === editingPlan.fiv_project_id && plan.fiv_role === "doadora");const donorStep=donorPlan?.consultation_schedule?.find(item=>item.fiv_step_id === step.fiv_step_id);return donorPlan && donorStep ? <button type="button" onClick={()=>void openIndividualEditorAtStep(donorPlan,donorStep.number)} className="inline-flex min-h-[34px] items-center justify-center gap-1 rounded-[10px] border border-hpsr-wine px-3 text-xs font-black text-hpsr-wine"><Eye size={12}/>Editar doadora</button> : null;})()}{released && <span className="inline-flex min-h-[34px] items-center rounded-[10px] border border-emerald-200 bg-emerald-50 px-3 text-[11px] font-black text-emerald-800">{step.fiv_recipient === "ambas" ? "Gestante liberada" : "Liberada"}</span>}</div></td></tr>;})}</tbody></table></div></div> : <div className="mt-5 flex flex-1 flex-col items-center justify-center border-t border-[#d9c1b4] px-2 py-10 text-center"><CalendarDays size={28} className="mx-auto text-[#b87a91]" /><p className="mt-3 font-black text-hpsr-text">Aguardando confirmação</p><p className="mt-1 text-sm text-hpsr-muted">Informe o período, peça a sugestão e confirme. Depois disso as consultas aparecerão aqui para edição individual.</p></div>}
+      <section id="acompanhamento-conteudo" className={`hpsr-planning-panel hpsr-gestational-form hpsr-obstetric-stage-preview ${planningStyles.workspace}`}>
+        <div className={planningStyles.header}>
+          <div className={planningStyles.heading}><span className={planningStyles.icon}><CalendarDays size={24}/></span><div><p>Consultas do planejamento</p><h3>Consultas e etapas do planejamento</h3><span>Organize as etapas e edite cada consulta individualmente.</span></div></div>
+          <div className={planningStyles.toolbar}><ManualRefreshButton scope="planning"/>{planType === "in_vitro" && scheduleConfirmed && <button type="button" disabled={busy || confirmedSteps.length >= 40} onClick={addConfirmedStep}><Plus size={17}/>Adicionar etapa</button>}<button type="button" className={planningStyles.primary} disabled={busy || !scheduleConfirmed || !selectedPatient} onClick={()=>readyIntegralPreview ? setIntegralModalOpen(true) : void generateIntegralPreview()}><Eye size={17}/>Ver integral</button></div>
+        </div>
+        {planType === "in_vitro" && scheduleConfirmed && donorPatient && <div className={planningStyles.participants}><div className={planningStyles.participantInfo}><strong>Gestante: {fivStepsForPatient(confirmedSteps,"gestante").length} etapas</strong><strong>Doadora: {fivStepsForPatient(confirmedSteps,"doadora").length} etapas</strong><p>Cada paciente recebe somente as etapas destinadas a ela.</p></div><button type="button" disabled={busy} onClick={()=>{setConfirmedSteps(current=>current.map(step=>projectPlans.some(plan=>plan.consultation_schedule?.some(saved=>saved.fiv_step_id && saved.fiv_step_id === step.fiv_step_id)) ? step : {...step,fiv_recipient:"ambas" as const}));setIntegralPreview(null);setError("");}}><Share2 size={17}/>Compartilhar etapas novas com ambas</button></div>}
+        {scheduleConfirmed ? <div className={planningStyles.tableScroll}><table className={planningStyles.table}><thead><tr><th>{planType === "in_vitro" ? "Etapa" : "Consulta"}</th><th>Semana</th><th>Data prevista</th><th>Destinatária e conteúdo</th><th>Ações</th></tr></thead><tbody>{confirmedSteps.map((step,index)=>{
+          const participantPlan=editingPlan?.fiv_project_id ? plans.find(plan=>plan.fiv_project_id === editingPlan.fiv_project_id && plan.fiv_role === (step.fiv_recipient === "ambas" ? "gestante" : step.fiv_recipient || "gestante")) : editingPlan;
+          const participantStep=participantPlan?.consultation_schedule?.find(item=>step.fiv_step_id ? item.fiv_step_id === step.fiv_step_id : item.number === step.number);
+          const hasSavedStep=Boolean(participantStep);
+          const occurrence=occurrences.find(item=>item.plan_id === participantPlan?.id && (item.step_number || 0) === (participantStep?.number || step.number));
+          const donorPlan=step.fiv_recipient === "ambas" ? plans.find(plan=>plan.fiv_project_id === editingPlan?.fiv_project_id && plan.fiv_role === "doadora") : undefined;
+          const donorStep=donorPlan?.consultation_schedule?.find(item=>item.fiv_step_id === step.fiv_step_id);
+          return <tr key={step.fiv_step_id ? `${step.fiv_step_id}:${step.fiv_recipient || "gestante"}` : `stage-${step.number}`}>
+            <td><span className={planningStyles.stageName}><span>{step.number}</span><strong>{planType === "in_vitro" ? `Etapa ${step.number}` : `Consulta ${step.number}`}</strong></span></td>
+            <td>{step.marker || "—"}</td>
+            <td>{planType === "in_vitro" ? <input type="date" aria-label={`Data da etapa ${step.number}`} value={step.date} disabled={busy} onChange={event=>updateConfirmedStep(index,{date:event.target.value})}/> : formatDate(step.date)}</td>
+            <td>{planType === "in_vitro" ? <StyledSelect aria-label={`Paciente da etapa ${step.number}`} value={step.fiv_recipient || "gestante"} disabled={busy || hasSavedStep} onChange={event=>updateConfirmedStep(index,{fiv_recipient:event.target.value as FivRecipient})}><option value="gestante">Gestante · {selectedPatient?.name}</option>{donorPatient && <><option value="doadora">Doadora · {donorPatient.name}</option><option value="ambas">Ambas · gestante e doadora</option></>}</StyledSelect> : <strong className={planningStyles.recipient}>{selectedPatient?.name || "Paciente"}</strong>}<p className={planningStyles.summary} title={step.planned_text}>{step.planned_text.trim() || "Conteúdo não preenchido"}</p></td>
+            <td><div className={planningStyles.rowActions}>{!hasSavedStep && <span className={planningStyles.unsaved}>Salve o planejamento</span>}<button type="button" disabled={busy} onClick={()=>hasSavedStep && participantPlan ? void openIndividualEditorAtStep(participantPlan,participantStep?.number || step.number) : setStageDraftEditor(index)}><Pencil size={15}/>{hasSavedStep && step.fiv_recipient === "ambas" ? "Editar gestante" : "Editar"}</button>{donorPlan && donorStep && <button type="button" disabled={busy} onClick={()=>void openIndividualEditorAtStep(donorPlan,donorStep.number)}><Pencil size={15}/>Editar doadora</button>}{planType === "in_vitro" && !hasSavedStep && <button type="button" className={planningStyles.remove} disabled={busy} onClick={()=>removeConfirmedStep(index)}><Trash2 size={15}/>Remover etapa</button>}{Boolean(occurrence?.individual_released_at) && <span className={planningStyles.released}>{step.fiv_recipient === "ambas" ? "Gestante liberada" : "Liberada"}</span>}</div></td>
+          </tr>;
+        })}</tbody></table></div> : <div className={planningStyles.empty}><CalendarDays size={28}/><strong>Aguardando confirmação</strong><p>Informe o período, peça a sugestão e confirme para organizar as consultas e etapas.</p></div>}
+        {stageDraftEditor !== null && confirmedSteps[stageDraftEditor] && <PlanningStageDraftEditor step={confirmedSteps[stageDraftEditor]} onClose={()=>setStageDraftEditor(null)} onSave={text=>{updateConfirmedStep(stageDraftEditor,{planned_text:text,description:text});setStageDraftEditor(null);}}/>}
       </section>
       </div>
     </div>
@@ -1396,4 +1425,11 @@ function ObstetricianWorkspace() {
 
     {readyIndividualPreview && individualModalOpen && typeof document !== "undefined" && createPortal(<div className="hpsr-modal-tone fixed inset-0 z-[230] flex items-center justify-center bg-[rgba(42,7,0,.78)] backdrop-blur-[2px] p-2 sm:p-5"><button type="button" className="absolute inset-0" aria-label="Fechar" onClick={() => !busy && setIndividualModalOpen(false)} /><div className="relative flex max-h-[94dvh] w-full max-w-[1160px] flex-col overflow-hidden rounded-[22px] border border-[#d5b7a4] bg-[#f9efe6] shadow-[0_24px_80px_rgba(62,21,12,.28)]"><header className="relative flex items-center justify-between gap-3 border-b border-[#ddc6b7] bg-[linear-gradient(120deg,#f8eadf_0%,#f4e2d5_100%)] px-4 py-3 before:absolute before:inset-x-0 before:top-0 before:h-[3px] before:bg-hpsr-wine"><div><p className="text-[10px] font-black uppercase tracking-[.15em] text-hpsr-wineLight">Modelo individual aprovado</p><h2 className="text-lg font-black text-hpsr-text">{selectedPlan?.plan_type === "in_vitro" ? "Etapa" : "Consulta"} {individualStep?.number || ""} · conferência</h2></div><button type="button" disabled={busy} onClick={() => setIndividualModalOpen(false)} className="grid h-10 w-10 place-items-center rounded-[12px] border border-[#d3b39d] bg-white text-hpsr-wine"><X size={18} /></button></header><div className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-5"><CanvasPreviewSurface source={readyIndividualPreview.canvas} label="Prévia da consulta individual" /></div><footer className="border-t border-[#ddc6b7] bg-[#f4e4d8] p-4"><div className="flex flex-col gap-2 rounded-[14px] border border-[#d7bba6] bg-[#f3e1d0] p-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-black text-hpsr-text">Liberar esta {selectedPlan?.plan_type === "in_vitro" ? "etapa" : "consulta"} individual</p><p className="text-xs text-hpsr-muted">A paciente recebe somente esta versão, sem liberar automaticamente o plano integral ou as outras consultas.</p></div><button type="button" role="switch" aria-checked={releaseIndividualOnSave} onClick={() => setReleaseIndividualOnSave((value) => !value)} className={`relative h-8 w-14 rounded-full border-2 ${releaseIndividualOnSave ? "border-[#73362b] bg-hpsr-wine" : "border-[#c6a895] bg-[#e2d0c2]"}`}><span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow ${releaseIndividualOnSave ? "left-[26px]" : "left-0.5"}`} /></button></div><div className="mt-3 flex flex-wrap justify-end gap-2"><button type="button" disabled={busy} onClick={() => setIndividualModalOpen(false)} className="rounded-[12px] border border-[#c9aa97] px-4 py-2 text-sm font-bold text-hpsr-wine">Voltar</button><button type="button" onClick={() => void downloadCanvasPng(readyIndividualPreview.canvas, `${selectedPlan?.plan_type === "in_vitro" ? "etapa" : "consulta"}-${individualStep?.number || "individual"}.png`).catch((caught) => setError(caught instanceof Error ? caught.message : "Não foi possível gerar o PNG solicitado."))} className="rounded-[12px] border border-hpsr-wine px-4 py-2 text-sm font-bold text-hpsr-wine">Baixar PNG</button><button type="button" disabled={busy} onClick={() => void saveIndividual()} className="inline-flex items-center gap-2 rounded-[12px] bg-hpsr-wine px-5 py-2 text-sm font-black text-white disabled:opacity-50">{busy && <Loader2 size={16} className="animate-spin" />}{busy ? "Salvando..." : `Salvar ${selectedPlan?.plan_type === "in_vitro" ? "etapa" : "consulta"}`}</button></div></footer></div></div>, document.body)}
   </div>;
+}
+
+function PlanningStageDraftEditor({step,onClose,onSave}:{step:PlanningStep;onClose:()=>void;onSave:(text:string)=>void}) {
+ const ref=useRef<HTMLDialogElement>(null);
+ const [text,setText]=useState(step.planned_text);
+ useEffect(()=>{ref.current?.showModal();},[]);
+ return <dialog ref={ref} onCancel={onClose} className={`hpsr-modal-tone ${planningStyles.draftDialog}`} aria-labelledby="planning-draft-stage-title"><div className={planningStyles.draftHeading}><div><p>Etapa ainda não salva no sistema</p><h3 id="planning-draft-stage-title">Editar {step.title || `etapa ${step.number}`}</h3></div><button type="button" onClick={onClose} aria-label="Fechar edição da etapa"><X size={18}/></button></div><label>Conteúdo da etapa<textarea autoFocus value={text} maxLength={3600} onChange={event=>setText(event.target.value)} rows={10}/></label><p className={planningStyles.draftHint}>As alterações entram no rascunho. Gere a prévia e salve o planejamento para registrá-las no sistema.</p><div className={planningStyles.draftActions}><button type="button" onClick={onClose}>Cancelar</button><button type="button" className={planningStyles.primary} onClick={()=>onSave(text)}>Aplicar à etapa</button></div></dialog>;
 }

@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ChevronDown, ClipboardList, Eye, History, Loader2, RefreshCcw, Send } from "lucide-react";
@@ -75,6 +76,7 @@ export function FollowupIntakeFormManager({ patientPassport, patientName, doctor
     setError("");
   }, [patientPassport, formType]);
 
+  useManualRefresh("followup-forms",load);
   useEffect(() => { void load(); }, [load]);
 
   const latest = rows[0];

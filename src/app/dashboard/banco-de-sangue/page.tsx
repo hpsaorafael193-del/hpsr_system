@@ -1,4 +1,5 @@
 "use client";
+import {registerManualRefresh} from "@/lib/manual-data-refresh";
 
 import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneNumber, formatPhoneDisplay } from "@/lib/phone";
@@ -390,8 +391,12 @@ export default function BloodBankPage() {
         setDoctors(options);
       }
     }
+    const releaseManualRefresh=[registerManualRefresh("src/app/dashboard/banco-de-sangue/page.tsx:loadData",loadData)];
+
     void loadData();
-  }, []);
+  
+    return ()=>releaseManualRefresh.forEach(release=>release());
+}, []);
   const analysis = useMemo(() => analyzeForm(form), [form]);
   const ResultIcon = analysis.icon;
 

@@ -1,4 +1,5 @@
 "use client";
+import {ManualRefreshButton,useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import dynamic from "next/dynamic";
@@ -104,6 +105,8 @@ export function PatientAccessPanel() {
     const frame = window.requestAnimationFrame(focusPortalContent);
     return () => window.cancelAnimationFrame(frame);
   }, [focusPortalContent, portalSection, stage]);
+
+  useManualRefresh("patient-overview",async()=>{await loadFollowups(selectedPassport,true);},followupLoading,stage === "portal" && ["home","followups","accompaniment"].includes(portalSection));
 
   const loadFollowups = useCallback((passport: string, force = false): Promise<void> => {
     if (!passport) { setFollowupData(null); setFollowupError(""); return Promise.resolve(); }
@@ -532,6 +535,7 @@ export function PatientAccessPanel() {
                 ))}
               </section>
 
+              <div className="flex justify-end px-5 pt-3 sm:px-8 lg:px-10"><ManualRefreshButton/></div>
               <main ref={portalContentRef} tabIndex={-1} className="scroll-mt-24 outline-none" aria-live="polite">
                 {pendingChildLinks.length > 0 && (
                   <div className="mx-5 mt-5 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 sm:mx-8">

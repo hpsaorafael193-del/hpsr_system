@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { brazilIso } from "@/lib/brazil-datetime";
 
@@ -207,6 +208,8 @@ export default function ClinicalSchedulePage() {
   const [scheduleScope, setScheduleScope] = useState<"mine" | "all">("mine");
   const [showCompletedAppointments, setShowCompletedAppointments] = useState(false);
   const [completedSearch, setCompletedSearch] = useState("");
+  const deleteAppointmentInFlight = useRef(false);
+  const [deletingAppointmentId, setDeletingAppointmentId] = useState<string | null>(null);
   const [quickStatusSavingId, setQuickStatusSavingId] = useState<string | null>(null);
   const [availabilitySlots, setAvailabilitySlots] = useState<AvailabilitySlot[]>([]);
   const [availabilityLoading, setAvailabilityLoading] = useState(false);
@@ -215,6 +218,7 @@ export default function ClinicalSchedulePage() {
 
   const dateKey = toDateKey(selectedDate);
 
+  useManualRefresh("clinical-agenda",async()=>{await loadAppointments();});
   const loadAppointments = useCallback(async () => {
     const client = createClient();
     if (!client) return;
@@ -421,52 +425,45 @@ export default function ClinicalSchedulePage() {
   }
 
   async function handleDeleteAppointment(appointment: Appointment) {
-    const confirmed = await hpsrConfirm(
-      `A consulta de ${appointment.patient}, em ${appointment.date.split("-").reverse().join("/")} às ${appointment.time}, será cancelada e removida da agenda. O registro de auditoria permanecerá no sistema.`,
-      "Excluir consulta agendada"
-    );
-    if (!confirmed) return;
-
-    const client = createClient();
-    if (!client) {
-      await hpsrAlert("Não foi possível acessar o banco de dados.", "Falha ao excluir consulta");
-      return;
+    if (!canManageAppointment(appointment) || deleteAppointmentInFlight.current || quickStatusSavingId) return;
+    deleteAppointmentInFlight.current = true;
+    setDeletingAppointmentId(appointment.id);
+    try {
+      const confirmed = await hpsrConfirm(
+        `Excluir a consulta de ${appointment.patient}, em ${appointment.date.split("-").reverse().join("/")} às ${appointment.time}? Ela será removida da agenda ativa e o histórico permanecerá no sistema.`,
+        "Excluir consulta agendada"
+      );
+      if (!confirmed) return;
+      const client = createClient();
+      if (!client) throw new Error("Não foi possível acessar o banco de dados.");
+      const { data: currentRow, error: readError } = await client.from("appointments")
+        .select("payload,status,updated_at").eq("id", appointment.id).maybeSingle();
+      if (readError) throw readError;
+      if (!currentRow) throw new Error("Esta consulta não foi encontrada. Atualize a agenda.");
+      const currentPayload = (currentRow.payload || {}) as Record<string, unknown>;
+      const doctorId = String(currentPayload.doctorId || currentPayload.doctor_id || currentPayload.acceptedById || "");
+      if (!canManageAppointment({ ...appointment, doctorId })) throw new Error("Você não pode excluir esta consulta.");
+      if (["Realizada", "Concluída", "Não compareceu", "Cancelada"].includes(String(currentRow.status))) {
+        await loadAppointments();
+        throw new Error("Esta consulta já foi finalizada ou excluída. A agenda foi atualizada.");
+      }
+      const now = brazilIso();
+      const payload = { ...currentPayload, cancellationReason: "Consulta excluída da Agenda do Médico", deletedAt: now,
+        deletedBy: currentUserProfile.systemName, previousStatus: currentRow.status };
+      let query = client.from("appointments").update({ status: "Cancelada", payload, updated_at: now })
+        .eq("id", appointment.id).eq("status", currentRow.status);
+      query = currentRow.updated_at ? query.eq("updated_at", currentRow.updated_at) : query.is("updated_at", null);
+      const { data: cancelledRow, error } = await query.select("id,status").maybeSingle();
+      if (error) throw error;
+      if (!cancelledRow || cancelledRow.status !== "Cancelada") throw new Error("A consulta mudou ou a exclusão não foi autorizada. Atualize a agenda e tente novamente.");
+      try { await loadAppointments(); }
+      catch { await hpsrAlert("A consulta foi excluída. Use Atualizar para recarregar a agenda.", "Consulta excluída"); }
+    } catch (caught) {
+      await hpsrAlert(caught instanceof Error ? caught.message : "Não foi possível excluir a consulta.", "Falha ao excluir consulta");
+    } finally {
+      deleteAppointmentInFlight.current = false;
+      setDeletingAppointmentId(null);
     }
-
-    const { data: currentRow, error: readError } = await client
-      .from("appointments")
-      .select("payload")
-      .eq("id", appointment.id)
-      .maybeSingle();
-    if (readError) {
-      await hpsrAlert(readError.message, "Falha ao excluir consulta");
-      return;
-    }
-
-    const now = brazilIso();
-    const payload = {
-      ...((currentRow?.payload || {}) as Record<string, unknown>),
-      cancellationReason: "Consulta excluída da Agenda do Médico",
-      deletedAt: now,
-      deletedBy: currentUserProfile.systemName,
-      previousStatus: appointment.status,
-    };
-    const { data: cancelledRow, error } = await client
-      .from("appointments")
-      .update({ status: "Cancelada", payload, updated_at: now })
-      .eq("id", appointment.id)
-      .select("id,status")
-      .maybeSingle();
-    if (error) {
-      await hpsrAlert(error.message, "Falha ao excluir consulta");
-      return;
-    }
-    if (!cancelledRow || cancelledRow.status !== "Cancelada") {
-      await hpsrAlert("O banco não confirmou a alteração desta consulta. Verifique as permissões do usuário e tente novamente.", "Consulta não alterada");
-      return;
-    }
-
-    await loadAppointments();
   }
 
   async function removePublishedSlot(slot: AvailabilitySlot) {
@@ -664,9 +661,11 @@ export default function ClinicalSchedulePage() {
                     <td className="px-3.5 py-3 text-base text-hpsr-text">{appointment.specialty}</td>
                     <td className="px-3.5 py-3"><span className={cn("inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-black", statusClasses(appointment.managementStatus || appointment.status))}><span className="h-2.5 w-2.5 rounded-full bg-current opacity-80" />{appointment.managementStatus || appointment.status}</span></td>
                     <td className="px-3.5 py-3">
-                      <div className="flex items-center gap-0">
+                      <div className="flex flex-wrap items-center gap-2"><div className="flex items-center gap-0">
                         <button type="button" onClick={() => setModal({ mode: "open", appointment })} className="inline-flex min-h-[44px] items-center gap-2 rounded-l-[14px] border border-[#d2b2a1] bg-[#f7ebe2] px-4 text-sm font-black text-hpsr-wine transition hover:bg-[#edd9cc]"><ClipboardPlus size={14} />Gerenciar</button>
                         <button type="button" onClick={() => setModal({ mode: "patient", appointment })} className="inline-flex min-h-[44px] items-center rounded-r-[14px] border border-l-0 border-[#bd927c] bg-[#f7ebe2] px-3 text-hpsr-wine transition hover:bg-[#edd9cc]"><ChevronRight size={16} /></button>
+                      </div>
+                        {canManageAppointment(appointment) && <button type="button" disabled={Boolean(deletingAppointmentId || quickStatusSavingId)} onClick={() => void handleDeleteAppointment(appointment)} aria-label={`Excluir consulta de ${appointment.patient}`} className="inline-flex min-h-[44px] items-center gap-2 rounded-[14px] border border-[#ccaa9b] bg-[#f2e0d6] px-3 text-sm font-black text-hpsr-wine transition hover:bg-[#e8cfc2] disabled:opacity-50"><Trash2 size={14} />{deletingAppointmentId === appointment.id ? "Excluindo..." : "Excluir"}</button>}
                       </div>
                     </td>
                   </tr>

@@ -1,4 +1,5 @@
 "use client";
+import {registerManualRefresh} from "@/lib/manual-data-refresh";
 
 import { useEffect, useMemo, useState } from "react";
 import { Download, Handshake, ReceiptText, Search, Trash2, UserRound, UsersRound, WalletCards } from "lucide-react";
@@ -157,9 +158,13 @@ export default function FinancePage() {
         })));
       }
     }
+    const releaseManualRefresh=[registerManualRefresh("src/app/dashboard/financeiro/page.tsx:loadFinancialData",loadFinancialData)];
+
 
     void loadFinancialData();
-  }, []);
+  
+    return ()=>releaseManualRefresh.forEach(release=>release());
+}, []);
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return receipts;

@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import styles from "./time-clock-report.module.css";
 
@@ -33,6 +34,7 @@ export function TimeClockAdministrativeReport() {
   const [liveAnchorMs, setLiveAnchorMs] = useState(() => Date.now());
   const [liveNowMs, setLiveNowMs] = useState(() => Date.now());
 
+  useManualRefresh("time-clock",load,correction !== undefined);
   async function load() {
     const client = createClient();
     if (!client) { setError("Conexão indisponível. Tente novamente."); setLoading(false); return; }

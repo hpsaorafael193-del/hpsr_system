@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import dynamic from "next/dynamic";
+import { ManualRefreshButton } from "@/lib/manual-data-refresh";
 import { Sidebar } from "./Sidebar";
 import { MobileSidebar } from "./MobileSidebar";
 import { cn } from "@/lib/utils";
@@ -138,6 +139,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         )}
       >
         <div className="fixed right-3 top-3 z-[90] flex max-w-[calc(100vw-1.5rem)] items-center gap-2 lg:right-5 lg:top-4">
+          <ManualRefreshButton compact />
           <UserMenu />
         </div>
 

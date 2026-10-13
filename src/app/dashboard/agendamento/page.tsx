@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { brazilIso } from "@/lib/brazil-datetime";
 
@@ -266,6 +267,7 @@ export default function AppointmentsPage() {
     }));
   }, []);
 
+  useManualRefresh("appointments",async()=>{await Promise.all([loadAppointments(),loadRequestBoard()]);});
   const loadRequestBoard = useCallback(async () => {
     const client = createClient();
     if (!client || !currentUserProfile.id) {

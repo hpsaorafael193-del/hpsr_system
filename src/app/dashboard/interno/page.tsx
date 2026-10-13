@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -82,6 +83,7 @@ export default function InternalPage(){
     setLoading(false);
   },[permitted]);
   useEffect(()=>{if(!permitted)return;if(section==="cadastros")void loadPatients();if(section==="documentos")void loadDocuments();if(section==="ocorrencias"||section==="historico")void loadActivities();},[permitted,section,loadPatients,loadDocuments,loadActivities]);
+  useManualRefresh("internal",async()=>{if(section==="cadastros")await loadPatients();else if(section==="documentos")await loadDocuments();else await loadActivities();},loading,permitted===true);
   const issueList=useMemo(()=>{
     const resolved=new Set(activities.filter(a=>a.action==="Ocorrência resolvida").map(a=>a.reference));
     return activities.filter(a=>a.action==="Ocorrência registrada").map(a=>({...a,resolved:resolved.has(a.reference)}));

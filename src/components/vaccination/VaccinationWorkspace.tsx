@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { preserveOriginalAsset } from "@/lib/clinical-render-snapshot";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -719,7 +720,9 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
     }
   }
 
-  async function loadHistory(passport = selectedPassport) {
+  useManualRefresh("vaccination-history",()=>loadHistory(selectedPassport,true),loading);
+
+  async function loadHistory(passport = selectedPassport, preserveDraft=false) {
     if (!passport) { setHistory([]); return; }
     const client = createClient();
     if (!client) return;
@@ -738,11 +741,12 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
       .filter((card) => mode === "gestational" ? card.card_model === "gestante" : card.card_model !== "gestante");
     const existingCard = savedCards[0] || null;
     setCardRecords(savedCards);
-    setObservations(normalizeVaccinationObservations(existingCard?.observations || ""));
+    if(!preserveDraft) setObservations(normalizeVaccinationObservations(existingCard?.observations || ""));
     const registryPatient = registryResult.data as any;
     const registryBirthDate = String(registryPatient?.birth_date || "");
     setBirthDate(registryBirthDate);
 
+    if(preserveDraft)return;
     // A escolha persistida na caderneta prevalece sobre o último atendimento.
     const latestApplication = parsedHistory.length ? parsedHistory[parsedHistory.length - 1] : null;
     if (mode === "gestational") {

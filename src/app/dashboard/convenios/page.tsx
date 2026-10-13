@@ -1,4 +1,5 @@
 "use client";
+import {registerManualRefresh} from "@/lib/manual-data-refresh";
 
 import { brazilDate, brazilIso, brazilMonth } from "@/lib/brazil-datetime";
 
@@ -398,9 +399,11 @@ export default function InsurancePage() {
         setPlansLoading(false);
       }
     }
+    const releaseManualRefresh=[registerManualRefresh("src/app/dashboard/convenios/page.tsx:loadPlans",loadPlans)];
+
 
     void loadPlans();
-    return () => { cancelled = true; };
+    return () => { releaseManualRefresh.forEach(release=>release());  cancelled = true; };
   }, []);
 
   async function persistInsurancePlan(plan: Patient, registeredBy = currentUserProfile.systemName): Promise<boolean> {

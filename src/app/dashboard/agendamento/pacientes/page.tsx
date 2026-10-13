@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -195,6 +196,7 @@ export default function MyPatientsPage() {
     [doctors],
   );
 
+  useManualRefresh("patient-links",load,Boolean(modal || endModal));
   async function load() {
     const client = createClient();
     if (!client) {

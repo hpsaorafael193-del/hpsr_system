@@ -1,4 +1,5 @@
 "use client";
+import {registerManualRefresh} from "@/lib/manual-data-refresh";
 import { SavedClinicalSheet } from "@/components/dashboard/SavedClinicalSheet";
 
 import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
@@ -440,6 +441,8 @@ export default function RecordsPage() {
       setTimelineEvents(events);
       setIsLoadingPatients(false);
     }
+    const releaseManualRefresh=[registerManualRefresh("src/app/dashboard/prontuarios/page.tsx:loadPatients",loadPatients)];
+
 
     const cached = refreshKey === 0 ? readProntuarioCache() : null;
     const cacheIsFresh = Boolean(cached && Date.now() - cached.savedAt < PRONTUARIO_CACHE_TTL_MS);
@@ -605,7 +608,7 @@ export default function RecordsPage() {
       })
       .subscribe();
 
-    return () => {
+    return () => { releaseManualRefresh.forEach(release=>release()); 
       active = false;
       void client.removeChannel(channel);
     };

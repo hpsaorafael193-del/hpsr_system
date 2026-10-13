@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneDisplay } from "@/lib/phone";
@@ -382,6 +383,7 @@ export default function TeamPage() {
   const [registrationDecisionId, setRegistrationDecisionId] = useState("");
   const [pendingAdministrativeAction, setPendingAdministrativeAction] = useState<PendingAdministrativeAction | null>(null);
 
+  useManualRefresh("team",loadAdministrativeData,Boolean(pendingAdministrativeAction));
   async function loadAdministrativeData() {
       const client = createClient();
       if (!client) {

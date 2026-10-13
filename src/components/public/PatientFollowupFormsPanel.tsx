@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -114,7 +115,8 @@ function QuestionField({ q, answers, setAnswer, disabled }: { q: Question; answe
 
 export function PatientFollowupFormsPanel({ passport, onSessionExpired }: { passport:string; onSessionExpired:()=>void }) {
   const [forms,setForms]=useState<IntakeForm[]>([]); const [loading,setLoading]=useState(true); const [busy,setBusy]=useState(""); const [error,setError]=useState(""); const [openId,setOpenId]=useState(""); const [drafts,setDrafts]=useState<Record<string,Record<string,any>>>({});
-  async function load(){ setLoading(true); try { const r=await fetch(`/api/paciente/fichas-acompanhamento?passport=${encodeURIComponent(passport)}`,{cache:"no-store"}); if(r.status===401){onSessionExpired();return;} const p=await r.json(); if(!r.ok) throw new Error(p.error||"Erro ao carregar fichas."); setForms(p.forms||[]); setDrafts(Object.fromEntries((p.forms||[]).map((f:IntakeForm)=>[f.id,f.answers||{}]))); setError(""); } catch(e){setError(e instanceof Error?e.message:"Erro ao carregar fichas.");} finally{setLoading(false);} }
+  useManualRefresh(`patient-intake:${passport}`,()=>load(true),Boolean(busy || openId));
+  async function load(preserveDraft=false){ setLoading(true); try { const r=await fetch(`/api/paciente/fichas-acompanhamento?passport=${encodeURIComponent(passport)}`,{cache:"no-store"}); if(r.status===401){onSessionExpired();return;} const p=await r.json(); if(!r.ok) throw new Error(p.error||"Erro ao carregar fichas."); setForms(p.forms||[]); setDrafts(current=>Object.fromEntries((p.forms||[]).map((f:IntakeForm)=>[f.id,preserveDraft && ["requested","draft"].includes(f.status) ? current[f.id] || f.answers || {} : f.answers || {}]))); setError(""); } catch(e){setError(e instanceof Error?e.message:"Erro ao carregar fichas.");} finally{setLoading(false);} }
   useEffect(()=>{void load();},[passport]);
   useEffect(()=>{
     if(!openId) return;

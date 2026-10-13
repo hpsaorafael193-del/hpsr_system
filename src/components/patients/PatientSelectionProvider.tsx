@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 import { formatCityPhoneNumber } from "@/lib/phone";
 import { formatPersonName } from "@/lib/person-name";
 
@@ -133,6 +134,8 @@ export function PatientSelectionProvider({ children }: { children: React.ReactNo
   useEffect(() => () => {
     if (deactivateTimerRef.current) clearTimeout(deactivateTimerRef.current);
   }, []);
+
+  useManualRefresh("shared-patients",async()=>{await refreshPatients();},false,active);
 
   const refreshPatients = useCallback(async () => {
     if (refreshInFlightRef.current) return refreshInFlightRef.current;

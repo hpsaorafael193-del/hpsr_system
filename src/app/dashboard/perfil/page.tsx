@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneNumber } from "@/lib/phone";
@@ -101,6 +102,8 @@ export default function PerfilPage() {
     });
   }, [currentUserProfile.systemName, currentUserProfile.characterName, currentUserProfile.passport]);
 
+
+  useManualRefresh("profile",refreshProfile,editing);
 
   async function changePassword() {
     setPasswordMessage("");

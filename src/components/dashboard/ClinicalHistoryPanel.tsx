@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 import { SavedClinicalSheet } from "@/components/dashboard/SavedClinicalSheet";
 
 import { useEffect, useMemo, useState } from "react";
@@ -34,6 +35,7 @@ export function ClinicalHistoryPanel({ recordType, comfortable = false, onEdit }
   const canDelete = currentUserProfile.systemRole === "Administrador do Sistema"
     || ["Diretora", "Vice Diretor", "Vice Diretor / Dev"].includes(currentUserProfile.role);
 
+  useManualRefresh(`clinical-history:${recordType}`,loadHistory,Boolean(visibilitySavingId));
   async function loadHistory() {
     const client = createClient();
     if (!client) {

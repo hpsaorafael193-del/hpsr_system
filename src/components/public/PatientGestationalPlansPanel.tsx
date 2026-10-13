@@ -1,4 +1,5 @@
 "use client";
+import {registerManualRefresh} from "@/lib/manual-data-refresh";
 
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Download, Eye, FileText, Loader2 } from "lucide-react";
@@ -146,8 +147,8 @@ export function PatientGestationalPlansPanel({ passport, onSessionExpired, planT
   useEffect(() => {
     let active = true;
     let lastFetch = 0;
-    async function load(initial = false) {
-      if (!initial && Date.now() - lastFetch < 10000) return;
+    async function load(initial = false,force=false) {
+      if (!initial && !force && Date.now() - lastFetch < 10000) return;
       lastFetch = Date.now();
       if (initial) { setPlans([]); setError(""); setLoading(true); }
       try {
@@ -160,12 +161,13 @@ export function PatientGestationalPlansPanel({ passport, onSessionExpired, planT
         if (active) setError(caught instanceof Error ? caught.message : "Erro ao carregar os planejamentos.");
       } finally { if (active) setLoading(false); }
     }
+    const releaseManualRefresh=registerManualRefresh(`patient-plans:${passport}:${planType || "all"}`,()=>load(false,true));
     void load(true);
     const onFocus = () => { void load(); };
     const onVisibility = () => { if (document.visibilityState === "visible") void load(); };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
-    return () => { active = false; window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVisibility); };
+    return () => { releaseManualRefresh(); active = false; window.removeEventListener("focus", onFocus); document.removeEventListener("visibilitychange", onVisibility); };
   }, [passport, onSessionExpired, planType]);
 
   return (

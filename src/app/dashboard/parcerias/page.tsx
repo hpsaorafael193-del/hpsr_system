@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -198,6 +199,7 @@ export default function PartnershipsPage() {
     setLoading(false);
   };
 
+  useManualRefresh("partnerships",load);
   useEffect(() => {
     void load();
   }, []);

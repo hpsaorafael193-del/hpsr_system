@@ -1,4 +1,5 @@
 "use client";
+import {registerManualRefresh} from "@/lib/manual-data-refresh";
 
 import styles from "./overview.module.css";
 
@@ -94,9 +95,13 @@ export default function DirectionPage() {
         }));
       }
     }
+    const releaseManualRefresh=[registerManualRefresh("src/app/dashboard/direcao/page.tsx:loadDirectionData",loadDirectionData)];
+
 
     void loadDirectionData();
-  }, []);
+  
+    return ()=>releaseManualRefresh.forEach(release=>release());
+}, []);
 
   const periodActivities = useMemo(() => {
     const derived: SystemActivity[] = [

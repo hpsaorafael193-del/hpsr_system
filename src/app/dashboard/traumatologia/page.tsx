@@ -1,4 +1,5 @@
 "use client";
+import {registerManualRefresh} from "@/lib/manual-data-refresh";
 
 import { brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneNumber } from "@/lib/phone";
@@ -166,9 +167,11 @@ export default function TraumaPage() {
         }))
       );
     }
+    const releaseManualRefresh=[registerManualRefresh("src/app/dashboard/traumatologia/page.tsx:loadRecords",loadRecords)];
+
 
     void loadRecords();
-    return () => { active = false; };
+    return () => { releaseManualRefresh.forEach(release=>release());  active = false; };
   }, []);
 
   const filteredRecords = useMemo(() => {

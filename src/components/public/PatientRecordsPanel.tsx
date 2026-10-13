@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 import { SavedClinicalSheet } from "@/components/dashboard/SavedClinicalSheet";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -52,6 +53,8 @@ export function PatientRecordsPanel({ onSessionExpired, passport, mode = "all" }
   const recordsSequenceRef = useRef(0);
   const onSessionExpiredRef = useRef(onSessionExpired);
   useEffect(() => { onSessionExpiredRef.current = onSessionExpired; }, [onSessionExpired]);
+
+  useManualRefresh(`patient-records:${passport}:${mode}`,async()=>{await loadRecords(false,true);},loading);
 
   const loadRecords = useCallback((silent = false, force = false): Promise<void> => {
     const passportKey = passport || "";

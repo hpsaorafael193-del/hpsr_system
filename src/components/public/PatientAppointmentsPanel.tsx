@@ -1,4 +1,5 @@
 "use client";
+import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
@@ -109,6 +110,8 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
       .finally(() => { if (active) setCapacityLoading(false); });
     return () => { active = false; };
   }, [requestSpecialty, view]);
+
+  useManualRefresh(`patient-appointments:${passport}`,async()=>{await loadAppointments({force:true});},loading);
 
   const loadAppointments = useCallback(async ({ silent = false, force = false }: { silent?: boolean; force?: boolean } = {}) => {
     const now = Date.now();

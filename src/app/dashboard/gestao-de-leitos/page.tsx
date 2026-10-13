@@ -1,4 +1,5 @@
 "use client";
+import {registerManualRefresh} from "@/lib/manual-data-refresh";
 
 import { addBrazilDays, brazilDate } from "@/lib/brazil-datetime";
 
@@ -137,9 +138,11 @@ export default function BedsPage() {
         });
       setDoctors(options);
     }
+    const releaseManualRefresh=[registerManualRefresh("src/app/dashboard/gestao-de-leitos/page.tsx:loadDoctors",loadDoctors)];
+
 
     void loadDoctors();
-    return () => { active = false; };
+    return () => { releaseManualRefresh.forEach(release=>release());  active = false; };
   }, []);
 
   useEffect(() => {
@@ -162,8 +165,10 @@ export default function BedsPage() {
       }
       setBedHistory((historyRows || []) as BedHistoryRecord[]);
     }
+    const releaseManualRefresh=[registerManualRefresh("src/app/dashboard/gestao-de-leitos/page.tsx:loadBedData",loadBedData)];
+
     void loadBedData();
-    return () => { active = false; };
+    return () => { releaseManualRefresh.forEach(release=>release());  active = false; };
   }, []);
 
   const patientOptions = useMemo(
