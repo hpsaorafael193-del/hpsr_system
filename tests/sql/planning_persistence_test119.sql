@@ -1,0 +1,53 @@
+begin;
+select set_config('request.jwt.claim.sub',(select id::text from public.profiles where access_status='Aprovado' and role='Vice Diretor / Dev' limit 1),true);
+insert into public.patient_registry(passport,name) values('QA-PERSIST-G119','Gestacional QA'),('QA-PERSIST-F119','FIV Gestante QA'),('QA-PERSIST-D119','FIV Doadora QA');
+insert into public.patient_doctor_links(patient_passport,doctor_id,specialty) values('QA-PERSIST-G119',auth.uid(),'Obstetra'),('QA-PERSIST-F119',auth.uid(),'Ginecologia'),('QA-PERSIST-D119',auth.uid(),'Ginecologia');
+insert into public.appointments(id,passport,patient,status,payload) values('QA-PERSIST-APPOINTMENT119','QA-PERSIST-G119','Gestacional QA','Confirmada',jsonb_build_object('doctorId',auth.uid(),'specialty','Obstetra','date','2026-10-22','time','10:00','preferredDate','2026-10-22','source','staff_manual_schedule','schedulingMode','staff_manual_schedule'));
+set local role authenticated;
+do $$
+declare result jsonb; v_plan_id uuid; visit_id uuid; v_plan timestamptz; v_visit timestamptz; old_plan timestamptz; failed boolean; steps jsonb; change_fields jsonb; fiv jsonb; master uuid; donor uuid; project_versions jsonb;
+begin
+ steps:='[{"number":1,"title":"Consulta 1","marker":"12 semanas","week":12,"date":"2026-10-14","planned_text":"Original 1","description":"Original 1"},{"number":2,"title":"Consulta 2","marker":"16 semanas","week":16,"date":"2026-10-21","planned_text":"Original 2","description":"Original 2"}]';
+ result:=public.save_gestational_planning_atomic(null,'QA-PERSIST-G119','Médica QA','2026-10-14','2026-11-14','Notas originais',steps,true,null);
+ v_plan_id:=(result->>'id')::uuid; v_plan:=(result->>'updated_at')::timestamptz;
+ if (select updated_at from public.clinical_followup_plans where id=v_plan_id) is distinct from v_plan then raise exception 'QA versão retornada não corresponde ao plano'; end if;
+ steps:=jsonb_set(jsonb_set(jsonb_set(steps,'{0,date}','"2026-10-15"'),'{1,date}','"2026-10-22"'),'{0,planned_text}','"Novo conteúdo integral"');
+ result:=public.save_gestational_planning_atomic(v_plan_id,'QA-PERSIST-G119','Médica QA','2026-10-15','2026-11-15','Notas novas',steps,true,v_plan); v_plan:=(result->>'updated_at')::timestamptz;
+ if not exists(select 1 from public.clinical_followup_plans where id=v_plan_id and start_date='2026-10-15' and planning_notes='Notas novas' and consultation_schedule#>>'{0,planned_text}'='Novo conteúdo integral') then raise exception 'QA reabertura do integral perdeu datas/texto'; end if;
+ if not exists(select 1 from public.clinical_followup_occurrences where plan_id=v_plan_id and step_number=1 and planned_date='2026-10-15' and planned_text='Novo conteúdo integral') then raise exception 'QA consulta não sincronizada'; end if;
+ select id,updated_at into visit_id,v_visit from public.clinical_followup_occurrences where clinical_followup_occurrences.plan_id=v_plan_id and step_number=1;
+ old_plan:=v_plan;
+ change_fields:='{"planned_text":"Conteúdo individual salvo","evolution_text":"Evolução salva","medical_observation_text":"Observação interna salva","rp_marker":"12 semanas","step_title":"Consulta 1","followup_report":{"exams_performed":"Exame salvo","exam_explanation":"Explicação salva","patient_observations":"Observação salva","private_draft":"Rascunho privado salvo"}}';
+ result:=public.save_reproductive_individual_atomic(visit_id,change_fields,null,v_visit);
+ v_visit:=(result->>'updated_at')::timestamptz; v_plan:=(result->>'plan_updated_at')::timestamptz;
+ if not exists(select 1 from public.clinical_followup_occurrences where id=visit_id and updated_at=v_visit and evolution_text='Evolução salva' and followup_report->>'private_draft'='Rascunho privado salvo') then raise exception 'QA reabrir individual perdeu conteúdo'; end if;
+ if not exists(select 1 from public.clinical_followup_plans where id=v_plan_id and consultation_schedule#>>'{0,planned_text}'='Conteúdo individual salvo' and planning_released_snapshot#>>'{consultation_schedule,0,planned_text}'='Novo conteúdo integral') then raise exception 'QA integral sobrescreveu individual ou republicou rascunho'; end if;
+ if not exists(select 1 from public.clinical_records where id='followup-'||visit_id and payload->>'planning'='Conteúdo individual salvo' and lower(history_patient_name)=lower('Gestacional QA')) then raise exception 'QA prontuário não salvo junto'; end if;
+ failed:=false;
+ begin perform public.save_gestational_planning_atomic(v_plan_id,'QA-PERSIST-G119','Médica QA','2026-10-15','2026-11-15','Rascunho antigo',steps,true,old_plan); exception when sqlstate '40001' then failed:=true; end;
+ if not failed then raise exception 'QA formulário integral antigo sobrescreveu consulta individual'; end if;
+ failed:=false;
+ begin perform public.save_reproductive_individual_atomic(visit_id,change_fields,null,v_visit-interval '1 second'); exception when sqlstate '40001' then failed:=true; end;
+ if not failed then raise exception 'QA consulta antiga aceita'; end if;
+ -- Uma data com agendamento bloqueia tudo, sem salvar só o plano ou a primeira consulta.
+ update public.clinical_followup_occurrences set appointment_id='QA-PERSIST-APPOINTMENT119' where clinical_followup_occurrences.plan_id=v_plan_id and step_number=2;
+ failed:=false;
+ begin perform public.save_gestational_planning_atomic(v_plan_id,'QA-PERSIST-G119','Médica QA','2026-10-16','2026-11-16','Não pode persistir',jsonb_set(jsonb_set(steps,'{0,planned_text}','"Não pode persistir"'),'{1,date}','"2026-10-23"'),true,v_plan); exception when others then failed:=true; end;
+ if not failed then raise exception 'QA reagendamento indevido permitido'; end if;
+ if not exists(select 1 from public.clinical_followup_plans where id=v_plan_id and start_date='2026-10-15' and planning_notes='Notas novas' and consultation_schedule#>>'{0,planned_text}'='Conteúdo individual salvo') then raise exception 'QA falha deixou salvamento parcial'; end if;
+ -- FIV: uma edição individual só altera o conteúdo da participante selecionada.
+ steps:='[{"number":1,"title":"Etapa compartilhada","marker":"1ª semana","week":1,"date":"2026-10-15","planned_text":"Texto conjunto","fiv_step_id":"00000000-0000-4000-8000-000000001191","fiv_recipient":"ambas"}]';
+ fiv:=public.save_fiv_patient_project_release_state('00000000-0000-4000-8000-000000001190',null,'QA-PERSIST-F119','QA-PERSIST-D119','Médica QA','2026-10-15','2026-11-15',null,steps,true,true,'{}');
+ master:=(fiv->>'gestante_plan_id')::uuid; donor:=(fiv->>'doadora_plan_id')::uuid;
+ select id,updated_at into visit_id,v_visit from public.clinical_followup_occurrences where clinical_followup_occurrences.plan_id=donor and step_number=1;
+ result:=public.save_reproductive_individual_atomic(visit_id,change_fields,null,v_visit);
+ if not exists(select 1 from public.clinical_followup_plans where id=donor and consultation_schedule#>>'{0,planned_text}'='Conteúdo individual salvo') or not exists(select 1 from public.clinical_followup_plans where id=master and consultation_schedule#>>'{0,planned_text}'='Texto conjunto') then raise exception 'QA edição individual copiada para outra paciente'; end if;
+ select jsonb_object_agg(id,updated_at) into project_versions from public.clinical_followup_plans where id in(master,donor);
+ steps:=jsonb_build_array(jsonb_set(steps->0,'{fiv_recipient}','"gestante"'),jsonb_set(jsonb_set(steps->0,'{fiv_recipient}','"doadora"'),'{planned_text}','"Conteúdo individual salvo"'));
+ steps:=jsonb_set(jsonb_set(steps,'{0,date}','"2026-10-16"'),'{1,date}','"2026-10-16"');
+ perform public.save_fiv_patient_project_release_state(master,master,'QA-PERSIST-F119','QA-PERSIST-D119','Médica QA','2026-10-16','2026-11-16',null,steps,true,true,project_versions);
+ if not exists(select 1 from public.clinical_followup_occurrences where clinical_followup_occurrences.plan_id=donor and planned_date='2026-10-16' and planned_text='Conteúdo individual salvo') then raise exception 'QA datas/conteúdo FIV perdidos após salvar integral'; end if;
+end $$;
+reset role;
+rollback;
+select 'PASS gestational/FIV edit-save-reopen, dates, all individual fields, draft isolation, stale-overwrite prevention, linked-date full rollback and patient privacy' as validation;

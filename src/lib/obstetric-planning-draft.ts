@@ -3,6 +3,7 @@ import { isDateOnly, normalizePlanningSteps, planningKey, type PlanningKind, typ
 /** Rascunho temporário da aba Obstetra; nunca substitui o registro oficial no Supabase. */
 export type ObstetricPlanningDraft = {
   version: 2;
+  reviewedVersions?: Record<string, string>;
   selectedPassport: string;
   donorPassport?: string;
   fivProjectId?: string;
@@ -41,13 +42,14 @@ export function parseObstetricDraft(raw: string | null): ObstetricPlanningDraft 
 
     return {
       version: 2,
+      reviewedVersions: draft.reviewedVersions && typeof draft.reviewedVersions === "object" ? Object.fromEntries(Object.entries(draft.reviewedVersions).filter(([key,value]) => /^[0-9a-f-]{36}$/i.test(key) && typeof value === "string")) as Record<string,string> : {},
       selectedPassport: draft.selectedPassport.slice(0, 80),
       donorPassport: typeof draft.donorPassport === "string" ? draft.donorPassport.slice(0,80) : "",
       fivProjectId: typeof draft.fivProjectId === "string" && /^[0-9a-f-]{36}$/i.test(draft.fivProjectId) ? draft.fivProjectId : "",
       planType,
       startDate: draft.startDate,
       endDate: draft.endDate,
-      planningNotes: draft.planningNotes.slice(0, 4000),
+      planningNotes: draft.planningNotes,
       editingPlanId: draft.editingPlanId.slice(0, 100),
       confirmedKey: keepConfirmed ? draft.confirmedKey : "",
       confirmedSteps: keepConfirmed ? confirmedSteps : [],

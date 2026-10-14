@@ -77,7 +77,10 @@ export function UserMenu() {
     const client = createClient();
     if (!client) return;
     const { data, error: heartbeatError } = await client.rpc("time_clock_heartbeat", { p_close: close });
-    if (!heartbeatError && data && typeof data === "object" && "closed" in data && Boolean((data as { closed?: boolean }).closed)) {
+    if (!heartbeatError && data && typeof data === "object" && (
+      ("closed" in data && Boolean((data as { closed?: boolean }).closed))
+      || ("active" in data && (data as { active?: boolean }).active === false)
+    )) {
       await loadClock();
       await refreshProfile();
     }
