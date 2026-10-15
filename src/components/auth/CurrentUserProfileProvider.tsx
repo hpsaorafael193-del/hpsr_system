@@ -64,13 +64,21 @@ function mapDatabaseProfile(row: Record<string, unknown>, resolvedSignatureImage
   };
 }
 
+// No authenticated identity or privileges are inferred from local development data.
+const unavailableProfile: CurrentUserProfile = {
+  ...localDevProfile, id: "", systemName: "Sessão indisponível", characterName: "Sessão indisponível",
+  passport: "—", role: "Não autenticado", systemRole: "Não autenticado", accessLevel: "Padrão",
+  specialty: "Não informado", specialties: [], specialtyCapacity: {}, crm: "—", cityPhone: "—", email: "",
+  signatureName: "", signatureRole: "", signaturePath: null, signatureImage: null, serviceStatus: "Fora de serviço",
+};
+
 export function CurrentUserProfileProvider({ children }: { children: React.ReactNode }) {
-  const [profile, setProfile] = useState<CurrentUserProfile>(() => isSupabaseConfigured() ? { ...localDevProfile, systemName: "Carregando...", characterName: "Carregando...", passport: "—", role: "Médico", systemRole: "Médico", specialty: "Não informado", specialties: ["Não informado"], crm: "—", cityPhone: "—", email: "", signatureName: "Carregando...", signatureRole: "Médico" } : localDevProfile);
+  const [profile, setProfile] = useState<CurrentUserProfile>({ ...unavailableProfile, systemName: "Carregando...", characterName: "Carregando..." });
   const [loading, setLoading] = useState(true);
 
   const refreshProfile = useCallback(async () => {
     if (!isSupabaseConfigured()) {
-      setProfile(localDevProfile);
+      setProfile(unavailableProfile);
       setLoading(false);
       return;
     }
@@ -84,7 +92,7 @@ export function CurrentUserProfileProvider({ children }: { children: React.React
     const { data: sessionData } = await client.auth.getSession();
     const user = sessionData.session?.user;
     if (!user) {
-      setProfile({ ...localDevProfile, systemName: "Sessão não encontrada", characterName: "Sessão não encontrada", passport: "—", role: "Médico", systemRole: "Médico", specialty: "Não informado", specialties: ["Não informado"], crm: "—", cityPhone: "—", email: "", signatureName: "Sessão não encontrada", signatureRole: "Médico" });
+      setProfile({ ...unavailableProfile, systemName: "Sessão não encontrada", characterName: "Sessão não encontrada" });
       setLoading(false);
       return;
     }
@@ -105,7 +113,7 @@ export function CurrentUserProfileProvider({ children }: { children: React.React
       }
       setProfile(mapDatabaseProfile(row, resolvedSignatureImage));
     }
-    else if (!data) setProfile({ ...localDevProfile, systemName: "Perfil não localizado", characterName: "Perfil não localizado", passport: "—", role: "Médico", systemRole: "Médico", specialty: "Não informado", specialties: ["Não informado"], crm: "—", cityPhone: "—", email: "", signatureName: "Perfil não localizado", signatureRole: "Médico" });
+    else if (!data) setProfile({ ...unavailableProfile, systemName: "Perfil não localizado", characterName: "Perfil não localizado" });
     setLoading(false);
   }, []);
 
@@ -115,8 +123,7 @@ export function CurrentUserProfileProvider({ children }: { children: React.React
 
   const updateProfile = useCallback(async (changes: ProfileUpdate) => {
     if (!isSupabaseConfigured()) {
-      setProfile((current) => ({ ...current, ...changes, systemName: changes.characterName || current.systemName }));
-      return { ok: true };
+      return { ok: false, error: "Serviço de autenticação indisponível. Nenhuma alteração foi salva." };
     }
 
     const client = createClient();

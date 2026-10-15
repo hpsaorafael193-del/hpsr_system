@@ -7,9 +7,7 @@ import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { BadgeInfo, Hash, IdCard, Lock, LogIn, Mail, Phone, ShieldCheck, Stethoscope, UserRound, X } from "lucide-react";
-import { currentUserProfile } from "@/data/current-user-profile";
 import { createClient, createPasswordRecoveryClient, isSupabaseConfigured } from "@/lib/supabase";
-import { LOCAL_AUTH_SESSION_KEY } from "@/lib/local-auth";
 import { registerSystemActivity } from "@/lib/administrative-storage";
 import { setAuthContext, setLoginPersistence } from "@/lib/auth-persistence";
 
@@ -38,6 +36,8 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
 
   useEffect(() => {
     setMounted(true);
+    localStorage.removeItem("hpsr-local-auth-session");
+    localStorage.removeItem("hpsr-demo-session");
     const savedEmail = localStorage.getItem("hpsr-saved-login-email") || "";
     if (savedEmail) setLoginForm((current) => ({ ...current, email: savedEmail }));
   }, []);
@@ -69,15 +69,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
     setAuthMessage("");
 
     if (!supabaseConfigured) {
-      localStorage.setItem(LOCAL_AUTH_SESSION_KEY, JSON.stringify({
-        approved: true,
-        role: currentUserProfile.role,
-        systemRole: currentUserProfile.systemRole,
-        email: currentUserProfile.email,
-        createdAt: brazilIso(),
-      }));
-      onClose();
-      router.push("/dashboard");
+      setAuthMessage("Acesso indisponível: o serviço de autenticação não está configurado. Contate a administração.");
       return;
     }
 
@@ -379,8 +371,8 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           {mode === "login" ? (
             <form onSubmit={handleLogin} className="space-y-3 rounded-[18px] border border-hpsr-border bg-white/[0.78] p-3.5">
               {!supabaseConfigured && (
-                <div className="rounded-[14px] border border-blue-200 bg-blue-50 px-3 py-2.5 text-[11px] font-bold leading-relaxed text-blue-900">
-                  Modo local ativo. O Supabase ainda não está configurado; o acesso é liberado somente para o perfil Dev cadastrado no sistema.
+                <div className="rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] font-bold leading-relaxed text-amber-900">
+                  Acesso temporariamente indisponível. O serviço de autenticação não está configurado. Contate a administração.
                 </div>
               )}
               <div className="mb-1 flex items-center gap-2 rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-800">
@@ -388,7 +380,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                 Acesso restrito a profissionais autorizados.
               </div>
 
-              {supabaseConfigured && <>
+              <>
                 <AccessField label="E-mail institucional" icon={<Mail size={16} className="text-hpsr-wine" />}>
                   <input type="email" value={loginForm.email} onChange={(event) => setLoginForm((current) => ({ ...current, email: event.target.value }))} placeholder="medico@saorafael.com" className="w-full bg-transparent text-[13px] font-semibold text-hpsr-text outline-none placeholder:text-zinc-400" />
                 </AccessField>
@@ -398,7 +390,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                 <div className="flex justify-end">
                   <button type="button" onClick={() => void handleForgotPassword()} disabled={authLoading} className="text-[11px] font-black text-hpsr-wine underline-offset-4 hover:underline disabled:opacity-60">Esqueci minha senha</button>
                 </div>
-              </>}
+              </>
               <label className="flex cursor-pointer items-start gap-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3">
                 <input type="checkbox" checked={rememberEmail} onChange={(event) => setRememberEmail(event.target.checked)} className="mt-0.5 h-4 w-4 accent-hpsr-wine" />
                 <span><span className="block text-[13px] font-black text-hpsr-text">Salvar e-mail</span><span className="mt-0.5 block text-[11px] text-hpsr-muted">A sessão continuará ativa e o e-mail poderá ser preenchido automaticamente.</span></span>
@@ -406,10 +398,11 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
 
               <button
                 type="submit"
-                className="mt-1 inline-flex w-full items-center justify-center gap-2.5 rounded-[15px] bg-[linear-gradient(135deg,#672614,#2a0700)] px-4 py-3 text-sm font-black text-white transition hover:bg-hpsr-wineDark"
+                disabled={authLoading || !supabaseConfigured}
+                className="disabled:cursor-not-allowed disabled:opacity-50 mt-1 inline-flex w-full items-center justify-center gap-2.5 rounded-[15px] bg-[linear-gradient(135deg,#672614,#2a0700)] px-4 py-3 text-sm font-black text-white transition hover:bg-hpsr-wineDark"
               >
                 <LogIn size={16} />
-                {authLoading ? "Validando..." : supabaseConfigured ? "Entrar no painel" : "Entrar como Dev local"}
+                {authLoading ? "Validando..." : "Entrar no painel"}
               </button>
             </form>
           ) : (
