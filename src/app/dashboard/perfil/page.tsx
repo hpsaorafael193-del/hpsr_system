@@ -1,6 +1,8 @@
 "use client";
 import {useManualRefresh} from "@/lib/manual-data-refresh";
 
+import styles from "./profile.module.css";
+
 import { brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneNumber } from "@/lib/phone";
 
@@ -42,8 +44,6 @@ type EditableProfile = {
 
 
 
-const inputClass =
-  "min-h-[38px] w-full rounded-[14px] border border-hpsr-border bg-white/[0.92] px-3 text-sm font-bold text-hpsr-text outline-none transition placeholder:text-zinc-400 focus:border-hpsr-wineLight focus:ring-2 focus:ring-hpsr-wineLight/20";
 
 export default function PerfilPage() {
   const { profile: currentUserProfile, updateProfile: persistProfile, refreshProfile } = useCurrentUserProfile();
@@ -132,13 +132,13 @@ export default function PerfilPage() {
       { label: "Nome profissional", value: profile.characterName, icon: UserRound },
       { label: "Passaporte", value: profile.passport, icon: Hash },
       { label: "Cargo", value: currentUserProfile.role, icon: BadgeCheck },
-      { label: "Especialidade", value: currentUserProfile.specialty, icon: Stethoscope },
+      { label: "Especialidades", value: currentUserProfile.specialty, icon: Stethoscope },
       { label: "CRM-RP", value: profile.crm, icon: ClipboardCheck },
       { label: "Telefone na cidade", value: profile.cityPhone, icon: Phone },
       { label: "E-mail", value: profile.email, icon: Mail },
       { label: "Departamento", value: profile.department, icon: Building2 },
     ],
-    [profile]
+    [profile, currentUserProfile.role, currentUserProfile.specialty]
   );
 
   function updateField(field: keyof EditableProfile, value: string) {
@@ -289,280 +289,122 @@ export default function PerfilPage() {
   }
 
   return (
-    <div className="hpsr-page max-w-[1500px] gap-3">
-      <div className="hpsr-topbar" />
-
-      <section className="hpsr-page-scroll overflow-y-auto pr-2">
-        <div className="space-y-4">
-          <section className="overflow-hidden rounded-[18px] border border-[#d3b8a0] bg-[#ecdfd1]">
-            <div className="bg-[linear-gradient(135deg,#672614,#2a0700)] px-4 py-3 text-white">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-[16px] border border-white/15 bg-white/10 text-white">
-                    <UserRound size={30} />
-                  </div>
-
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h1 className="break-words text-lg font-black leading-tight">{profile.characterName}</h1>
-                      <span
-                        className={
-                          isInService
-                            ? "inline-flex items-center gap-1 rounded-full border border-emerald-200/30 bg-emerald-400/15 px-3 py-1 text-xs font-bold text-emerald-50"
-                            : "inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-bold text-orange-50/80"
-                        }
-                      >
-                        <Circle
-                          size={7}
-                          className={isInService ? "fill-emerald-200 text-emerald-200" : "fill-orange-50/60 text-orange-50/60"}
-                        />
-                        {serviceStatus}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-sm font-semibold text-orange-50/85">
-                      {currentUserProfile.role} · {currentUserProfile.specialty}
-                    </p>
-                    <p className="mt-1 text-xs text-orange-50/70">
-                      Passaporte {profile.passport} · {profile.crm}
-                    </p>
-                  </div>
+    <div className={`hpsr-page ${styles.page}`}>
+      <div className={styles.topSpace} aria-hidden="true" />
+      <section className="hpsr-page-scroll">
+        <div className={styles.stack}>
+          <header className={`${styles.panel} ${styles.header}`}>
+            <div className={styles.identity}>
+              <span className={styles.avatar}><UserRound size={36} strokeWidth={1.7} /></span>
+              <div className={styles.identityText}>
+                <div className={styles.nameRow}>
+                  <h1>{profile.characterName}</h1>
+                  <span className={`${styles.status} ${isInService ? styles.inService : ""}`}><Circle size={7} fill="currentColor" />{serviceStatus}</span>
                 </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <span className="inline-flex items-center justify-center rounded-[14px] border border-white/20 bg-white/10 px-4 py-2.5 text-xs font-bold text-white/85">
-                    Controle de ponto disponível no menu do usuário
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setEditing((value) => !value)}
-                    className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-black text-white transition hover:bg-white/15"
-                  >
-                    <PenLine size={16} />
-                    {editing ? "Fechar edição" : "Editar dados"}
-                  </button>
-                  {editing && (
-                    <button
-                      type="button"
-                      onClick={saveProfile}
-                      className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-white px-4 py-2.5 text-sm font-black text-hpsr-wine transition hover:bg-[#fff8f0]"
-                    >
-                      <Save size={16} />
-                      Salvar
-                    </button>
-                  )}
-                </div>
+                <p className={styles.role}>{currentUserProfile.role} · {currentUserProfile.specialty}</p>
+                <p className={styles.passport}>Passaporte {profile.passport} · CRM-RP {profile.crm}</p>
               </div>
             </div>
+            <div className={styles.headerActions}>
+              <span className={styles.clockHint}>Controle de ponto disponível no menu do usuário</span>
+              <button type="button" onClick={() => setEditing((value) => !value)} className={styles.secondaryButton}><PenLine size={16} />{editing ? "Fechar edição" : "Editar dados"}</button>
+              {editing && <button type="button" onClick={saveProfile} className={styles.primaryButton}><Save size={16} />Salvar</button>}
+            </div>
+          </header>
 
-            {saveMessage && <p className="mx-3.5 mt-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-xs font-bold text-hpsr-text">{saveMessage}</p>}
+          {saveMessage && <p role="status" className={styles.message}>{saveMessage}</p>}
 
-            {editing ? (
-              <div className="grid gap-3 p-3.5 md:grid-cols-2 xl:grid-cols-3">
-                <ProfileInput label="Nome completo" value={profile.characterName} onChange={(value) => updateField("characterName", value)} />
-                <ProfileInput label="Passaporte" value={profile.passport} onChange={(value) => updateField("passport", value)} />
-                <ProfileInput label="CRM-RP" value={profile.crm} onChange={(value) => updateField("crm", value)} />
-                <ProfileInput label="Telefone na cidade" value={profile.cityPhone} onChange={(value) => updateField("cityPhone", formatPhoneNumber(value))} />
-                <ProfileInput label="E-mail" value={profile.email} onChange={(value) => updateField("email", value)} />
-                <ProfileInput label="Departamento" value={profile.department} onChange={(value) => updateField("department", value)} />
-                <ProfileInput label="Nome da assinatura" value={profile.signatureName} onChange={(value) => updateField("signatureName", value)} />
-
-                <div className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Cargo</p>
-                  <p className="mt-2 text-sm font-black text-hpsr-text">{currentUserProfile.role}</p>
-                  <p className="mt-1 text-xs font-semibold text-hpsr-muted">Não editável pelo perfil.</p>
-                </div>
-
-                <div className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-3">
-                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Especialidade</p>
-                  <p className="mt-2 text-sm font-black text-hpsr-text">{currentUserProfile.specialty}</p>
-                  <p className="mt-1 text-xs font-semibold text-hpsr-muted">Não editável pelo perfil.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="grid gap-3 p-3.5 sm:grid-cols-2 xl:grid-cols-4">
-                {profileItems.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <div key={item.label} className="rounded-[16px] border border-[#d7c0a9] bg-[#f1e6da] p-3">
-                      <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-[14px] bg-white text-hpsr-wine">
-                        <Icon size={17} />
-                      </div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-muted">{item.label}</p>
-                      <p className="mt-1 break-words text-sm font-black text-hpsr-text">{item.value}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+          {editing ? (
+            <section aria-label="Editar dados profissionais" className={`${styles.panel} ${styles.editGrid}`}>
+              <ProfileInput label="Nome completo" value={profile.characterName} onChange={(value) => updateField("characterName", value)} />
+              <ProfileInput label="Passaporte" value={profile.passport} onChange={(value) => updateField("passport", value)} />
+              <ProfileInput label="CRM-RP" value={profile.crm} onChange={(value) => updateField("crm", value)} />
+              <ProfileInput label="Telefone na cidade" value={profile.cityPhone} onChange={(value) => updateField("cityPhone", formatPhoneNumber(value))} />
+              <ProfileInput label="E-mail" value={profile.email} onChange={(value) => updateField("email", value)} />
+              <ProfileInput label="Departamento" value={profile.department} onChange={(value) => updateField("department", value)} />
+              <ProfileInput label="Nome da assinatura" value={profile.signatureName} onChange={(value) => updateField("signatureName", value)} />
+              <div className={styles.readOnlyField}><p className={styles.eyebrow}>Cargo</p><strong>{currentUserProfile.role}</strong><small>Não editável pelo perfil.</small></div>
+              <div className={styles.readOnlyField}><p className={styles.eyebrow}>Especialidades</p><strong>{currentUserProfile.specialty}</strong><small>Não editável pelo perfil.</small></div>
+            </section>
+          ) : (
+            <section aria-label="Dados profissionais" className={styles.profileGrid}>
+              {profileItems.map((item) => {
+                const Icon = item.icon;
+                return <article key={item.label} className={styles.infoCard}>
+                  <span className={styles.iconCircle}><Icon size={22} strokeWidth={1.9} /></span>
+                  <div><p className={styles.eyebrow}>{item.label}</p><p className={styles.infoValue}>{item.value || "Não informado"}</p></div>
+                </article>;
+              })}
+            </section>
+          )}
 
           <ClinicalCapacitySettings />
 
-          <section className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(280px,380px)]">
-            <article id="assinatura" className="scroll-mt-24 rounded-[24px] border border-[#d3b8a0] bg-[#ecdfd1] p-3.5">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Documentos médicos</p>
-                  <h2 className="mt-1 text-lg font-black text-hpsr-text">Assinatura e carimbo</h2>
-                </div>
-                <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[#f7f2ea] text-hpsr-wine">
-                  <PenLine size={18} />
-                </div>
+          <section className={styles.documentsGrid} aria-label="Assinatura e documentos">
+            <article id="assinatura" className={`${styles.panel} ${styles.signaturePanel}`}>
+              <div className={styles.sectionHeading}>
+                <div><p className={styles.eyebrow}>Documentos médicos</p><h2>Assinatura e carimbo</h2></div>
+                <span className={styles.iconCircle}><PenLine size={20} /></span>
               </div>
-
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_260px]">
-                <div className="rounded-[16px] border border-dashed border-hpsr-wine/30 bg-[#fcf6ee] p-3.5">
-                  <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-muted">Prévia da assinatura</p>
-
-                  <div className="mt-5 flex min-h-[120px] items-center justify-center rounded-[16px] border border-hpsr-border bg-white p-3.5">
-                    {signatureImage ? (
-                      <img
-                        src={signatureImage}
-                        alt="Assinatura enviada"
-                        className="max-h-24 max-w-full object-contain"
-                      />
-                    ) : (
-                      <div className="w-full max-w-md border-b border-hpsr-text/50 pb-3">
-                        <p className="break-words font-serif text-4xl italic leading-tight text-hpsr-text">{profile.signatureName}</p>
-                      </div>
-                    )}
+              <div className={styles.signatureGrid}>
+                <div className={styles.subPanel}>
+                  <p className={styles.eyebrow}>Prévia da assinatura</p>
+                  <div className={styles.signaturePreview}>
+                    {signatureImage ? <img src={signatureImage} alt="Assinatura enviada" className={styles.signatureImage} /> : <div className={styles.emptySignature}><FileImage size={25} /><span>Envie sua assinatura em PNG</span></div>}
                   </div>
-
-                  <div className="mt-3">
-                    <p className="font-black text-hpsr-text">{currentUserProfile.signatureRole}</p>
-                    <p className="text-sm font-semibold text-hpsr-muted">{profile.crm}</p>
-                  </div>
+                  <p className={styles.signatureRole}>{currentUserProfile.signatureRole}</p>
+                  <p className={styles.muted}>{profile.crm}</p>
                 </div>
-
-                <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white">
-                    <Stamp size={20} />
+                <div className={styles.subPanel}>
+                  <div className={styles.stampHeading}>
+                    <span className={styles.stampIcon}><Stamp size={22} /></span>
+                    <div><p className={styles.eyebrow}>Carimbo institucional</p><p className={styles.stampText}>{currentUserProfile.stampText}</p><p className={styles.muted}>{profile.crm}</p></div>
                   </div>
-                  <p className="mt-4 text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-muted">Carimbo institucional</p>
-                  <p className="mt-2 text-sm font-black leading-relaxed text-hpsr-text">{currentUserProfile.stampText}</p>
-                  <p className="mt-1 text-sm font-semibold text-hpsr-muted">{profile.crm}</p>
-
-                  <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-[16px] border border-dashed border-hpsr-wine/30 bg-[#fcf6ee] px-4 py-3 text-center transition hover:bg-[#fff8f0]">
-                    <Upload size={20} className="text-hpsr-wine" />
-                    <span className="text-sm font-black text-hpsr-text">Enviar assinatura PNG</span>
-                    <span className="text-xs font-semibold leading-relaxed text-hpsr-muted">
-                      Caneta preta, fundo transparente.
-                    </span>
-                    <input type="file" accept="image/png" className="hidden" onChange={handleSignatureUpload} />
+                  <label className={styles.uploadTarget}>
+                    <Upload size={21} /><span>Enviar assinatura PNG</span><small>Caneta preta, fundo transparente.</small>
+                    <input type="file" accept="image/png" className={styles.fileInput} onChange={handleSignatureUpload} aria-label="Enviar assinatura PNG" />
                   </label>
-
-                  {signatureImage && (
-                    <button
-                      type="button"
-                      onClick={() => { void removeSignatureImage(); }}
-                      className="mt-3 w-full rounded-[14px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0]"
-                    >
-                      Remover PNG
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-4 rounded-[16px] border border-blue-200 bg-blue-50 p-3">
-                <div className="flex gap-2">
-                  <FileImage size={17} className="mt-0.5 shrink-0 text-blue-700" />
-                  <p className="text-xs font-bold leading-relaxed text-blue-900">
-                    Para melhor resultado, envie uma assinatura em PNG, feita em caneta preta e com fundo transparente.
-                  </p>
+                  {signatureImage && <button type="button" onClick={() => { void removeSignatureImage(); }} className={`${styles.secondaryButton} ${styles.removeButton}`}>Remover PNG</button>}
                 </div>
               </div>
             </article>
-
-            <aside className="rounded-[24px] border border-hpsr-border bg-[#f9f0df] p-3.5">
-              <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Documentos</p>
-              <h2 className="mt-1 text-lg font-black text-hpsr-text">Uso da assinatura</h2>
-
-              <div className="mt-4 rounded-[16px] border border-hpsr-border bg-white/70 p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-muted">Documentos habilitados</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {profileDocuments.map((document) => (
-                    <span key={document} className="rounded-full bg-[#fcf6ee] px-3 py-1.5 text-xs font-bold text-hpsr-wine">
-                      {document}
-                    </span>
-                  ))}
+            <aside className={styles.panel}>
+              <div className={styles.sectionHeading}><div><p className={styles.eyebrow}>Documentos</p><h2>Uso da assinatura</h2></div></div>
+              <div className={`${styles.subPanel} ${styles.usagePanel}`}>
+                <p className={styles.eyebrow}>Documentos habilitados</p>
+                <div className={styles.documentTags}>{profileDocuments.map((document) => <span key={document}>{document}</span>)}</div>
+                <div className={styles.medicalIdentity}>
+                  <span className={styles.outlineIcon}><FileText size={25} /></span>
+                  <div><h3>Identidade médica</h3><p>Os documentos utilizam os dados profissionais deste perfil.</p></div>
                 </div>
-              </div>
-
-              <div className="mt-4 rounded-[16px] border border-hpsr-border bg-[#fcf6ee] p-3">
-                <div className="mb-2 flex h-8 w-8 items-center justify-center rounded-[14px] bg-white text-hpsr-wine">
-                  <FileText size={17} />
-                </div>
-                <p className="text-sm font-black text-hpsr-text">Identidade médica</p>
-                <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">
-                  Os documentos usam nome profissional, cargo, CRM-RP e carimbo institucional definidos neste perfil.
-                </p>
               </div>
             </aside>
           </section>
 
-          <section className="rounded-[24px] border border-[#d3b8a0] bg-[#ecdfd1] p-3.5">
-            <div className="flex items-center gap-3"><div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[#f7f2ea] text-hpsr-wine"><KeyRound size={18} /></div><div><p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Segurança</p><h2 className="text-xl font-black text-hpsr-text">Alterar senha</h2></div></div>
-            <div className="mt-4 rounded-[14px] border-2 border-amber-400 bg-amber-50 px-4 py-3 text-sm font-black text-amber-900 shadow-sm">
-              A nova senha deve ter no mínimo 6 caracteres.
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <ProfileInput label="Senha atual" value={passwordForm.current} type={showPasswords ? "text" : "password"} onChange={(value) => setPasswordForm((current) => ({ ...current, current: value }))} />
-              <ProfileInput label="Nova senha" value={passwordForm.next} type={showPasswords ? "text" : "password"} minLength={6} onChange={(value) => setPasswordForm((current) => ({ ...current, next: value }))} />
-              <ProfileInput label="Confirmar nova senha" value={passwordForm.confirm} type={showPasswords ? "text" : "password"} minLength={6} onChange={(value) => setPasswordForm((current) => ({ ...current, confirm: value }))} />
-            </div>
-            <div className="mt-3 flex flex-wrap items-center gap-3"><button type="button" onClick={() => setShowPasswords((v) => !v)} className="rounded-[14px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">{showPasswords ? "Ocultar senhas" : "Mostrar senhas"}</button><button type="button" onClick={changePassword} className="rounded-[14px] bg-hpsr-wine px-4 py-2 text-xs font-black text-white">Salvar nova senha</button>{passwordMessage && <span className={`rounded-[12px] border px-3 py-2 text-xs font-black ${passwordMessage === "Senha alterada com sucesso." ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-red-300 bg-red-50 text-red-800"}`}>{passwordMessage}</span>}</div>
-          </section>
-
-          <section className="rounded-[24px] border border-[#d3b8a0] bg-[#ecdfd1] p-3.5">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-[16px] bg-[#f7f2ea] text-hpsr-wine">
-                <FileText size={18} />
+          <section className={styles.bottomGrid} aria-label="Segurança e histórico">
+            <article className={styles.panel}>
+              <div className={styles.sectionHeading}><span className={styles.iconCircle}><KeyRound size={22} /></span><div><p className={styles.eyebrow}>Segurança</p><h2>Alterar senha</h2></div></div>
+              <div className={styles.passwordGrid}>
+                <ProfileInput label="Senha atual" value={passwordForm.current} type={showPasswords ? "text" : "password"} autoComplete="current-password" onChange={(value) => setPasswordForm((current) => ({ ...current, current: value }))} />
+                <div><ProfileInput label="Nova senha" value={passwordForm.next} type={showPasswords ? "text" : "password"} autoComplete="new-password" minLength={6} onChange={(value) => setPasswordForm((current) => ({ ...current, next: value }))} /><p className={styles.passwordHint}>Mínimo de 6 caracteres.</p></div>
+                <ProfileInput label="Confirmar nova senha" value={passwordForm.confirm} type={showPasswords ? "text" : "password"} autoComplete="new-password" minLength={6} onChange={(value) => setPasswordForm((current) => ({ ...current, confirm: value }))} />
               </div>
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">Histórico</p>
-                <h2 className="text-xl font-black text-hpsr-text">Atividade do perfil</h2>
+              <div className={styles.passwordActions}>
+                <button type="button" onClick={() => setShowPasswords((v) => !v)} className={styles.secondaryButton}>{showPasswords ? "Ocultar senhas" : "Mostrar senhas"}</button>
+                <button type="button" onClick={changePassword} className={styles.primaryButton}>Salvar nova senha</button>
               </div>
-            </div>
-
-            <div className="mt-4 max-h-[420px] overflow-y-auto pr-2 [scrollbar-color:#7a2f1b_#f3e8dc] [scrollbar-width:thin]">
-              <div className="space-y-2">
-                {activities.map((item) => (
-                  <details key={item.id} className="group overflow-hidden rounded-[14px] border border-hpsr-border bg-[#fcf6ee] open:bg-white">
-                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2.5 marker:hidden">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-black text-hpsr-text">{item.action}</p>
-                        <p className="mt-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">
-                          {item.module} · {new Date(item.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
-                        </p>
-                      </div>
-                      <span className="shrink-0 rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-wine transition group-open:bg-hpsr-wine group-open:text-white">
-                        Detalhes
-                      </span>
-                    </summary>
-
-                    <div className="border-t border-hpsr-border bg-white px-3 py-3">
-                      <p className="text-xs font-semibold leading-relaxed text-hpsr-muted">{item.description}</p>
-                      <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
-                        <div className="rounded-[12px] bg-[#fcf6ee] px-3 py-2">
-                          <dt className="text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">Responsável</dt>
-                          <dd className="mt-1 font-bold text-hpsr-text">{item.actor || "Não informado"}</dd>
-                        </div>
-                        <div className="rounded-[12px] bg-[#fcf6ee] px-3 py-2">
-                          <dt className="text-[9px] font-black uppercase tracking-[0.12em] text-hpsr-wineLight">Referência</dt>
-                          <dd className="mt-1 break-words font-bold text-hpsr-text">{item.reference || "Sem referência"}</dd>
-                        </div>
-                      </dl>
-                    </div>
-                  </details>
-                ))}
-
-                {activities.length === 0 && (
-                  <div className="rounded-[16px] border border-dashed border-hpsr-border bg-[#fcf6ee] p-5 text-sm font-semibold text-hpsr-muted">
-                    Nenhuma atividade registrada para este médico.
-                  </div>
-                )}
+              {passwordMessage && <p role="status" className={`${styles.message} ${passwordMessage === "Senha alterada com sucesso." ? styles.success : styles.error}`}>{passwordMessage}</p>}
+            </article>
+            <article className={styles.panel}>
+              <div className={styles.sectionHeading}><span className={styles.iconCircle}><FileText size={22} /></span><div><p className={styles.eyebrow}>Histórico</p><h2>Atividade do perfil</h2></div></div>
+              <div className={styles.activityList} tabIndex={0} aria-label="Atividades recentes do perfil">
+                {activities.map((item) => <details key={item.id} className={styles.activity}>
+                  <summary><FileText size={20} className={styles.activityIcon} /><div><p>{item.action}</p><small>{item.module} · {new Date(item.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</small></div><span className={styles.detailsButton}>Detalhes</span></summary>
+                  <div className={styles.activityDetails}><p>{item.description}</p><dl><div><dt>Responsável</dt><dd>{item.actor || "Não informado"}</dd></div><div><dt>Referência</dt><dd>{item.reference || "Sem referência"}</dd></div></dl></div>
+                </details>)}
+                {activities.length === 0 && <p className={styles.emptyActivity}>Nenhuma atividade registrada para este médico.</p>}
               </div>
-            </div>
+            </article>
           </section>
         </div>
       </section>
@@ -576,17 +418,19 @@ function ProfileInput({
   onChange,
   type = "text",
   minLength,
+  autoComplete,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
   minLength?: number;
+  autoComplete?: string;
 }) {
   return (
-    <label className="block">
-      <span className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">{label}</span>
-      <input type={type} minLength={minLength} className={`${inputClass} mt-1.5`} value={value} onChange={(event) => onChange(event.target.value)} />
+    <label className={styles.field}>
+      <span className={styles.eyebrow}>{label}</span>
+      <input type={type} minLength={minLength} autoComplete={autoComplete} className={styles.input} value={value} onChange={(event) => onChange(event.target.value)} />
     </label>
   );
 }

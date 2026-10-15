@@ -139,7 +139,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         )}
       >
         <div className="fixed right-3 top-3 z-[90] flex max-w-[calc(100vw-1.5rem)] items-center gap-2 lg:right-5 lg:top-4">
-          <ManualRefreshButton compact />
+          <ManualRefreshButton compact globalControl />
           <UserMenu />
         </div>
 

@@ -1,0 +1,19 @@
+.panel { min-width: 0; border: 1px solid #dfb497; border-radius: 16px; padding: 13px 17px; background: linear-gradient(115deg, #f0d6c2, #f4dfce); }
+.heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; }
+.heading > div { min-width: 0; }
+.heading h2 { font-size: 19px; line-height: 1.25; }
+.heading p:last-child { font-weight: 400; }
+.grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 11px; margin-top: 13px; }
+.card { display: block; min-width: 0; padding: 9px 13px; border: 1px solid #dfb497; border-radius: 13px; background: #f2d9c3; }
+.icon { display: inline-flex; width: 32px; height: 32px; flex-shrink: 0; align-items: center; justify-content: center; border-radius: 50%; color: #762b14; background: #fbe8d6; }
+.inputRow { display: flex; align-items: center; gap: 10px; margin-top: 3px; }
+.input { min-width: 0; min-height: 34px; width: 36%; max-width: 114px; flex-shrink: 0; border: 1px solid #dfb497; border-radius: 10px; padding: 5px 12px; background: #fbe8d7; color: #421a0e; font-size: 13px; font-weight: 700; outline: none; }
+.input:focus { border-color: #9b5839; box-shadow: 0 0 0 2px #762b1420; }
+.inputRow > span { font-size: 11px; line-height: 1.45; font-weight: 400; }
+.save { display: inline-flex; min-height: 38px; flex-shrink: 0; align-items: center; justify-content: center; gap: 8px; padding: 8px 16px; border: 1px solid #81381d; border-radius: 11px; color: #fff7ef; background: linear-gradient(120deg, #8a3519, #67220f); font-size: 12px; font-weight: 750; }
+.save:hover { background: #67220f; }
+.save:disabled { opacity: .5; }
+.save:focus-visible { outline: 2px solid #762b14; outline-offset: 3px; }
+.message { margin-top: 10px; padding: 9px 12px; border: 1px solid #c99576; border-radius: 10px; background: #f8e3d1; font-size: 12px; line-height: 1.5; color: #421a0e; }
+@media (max-width: 1279px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 599px) { .panel { padding: 13px; } .heading { flex-wrap: wrap; } .grid { grid-template-columns: minmax(0, 1fr); } .save { width: 100%; } }

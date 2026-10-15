@@ -1,5 +1,5 @@
 "use client";
-import {useManualRefresh} from "@/lib/manual-data-refresh";
+import {useManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ChevronDown, ClipboardList, Eye, History, Loader2, RefreshCcw, Send } from "lucide-react";
@@ -48,6 +48,7 @@ export function FollowupIntakeFormManager({ patientPassport, patientName, doctor
   doctorName: string;
   planType: "gestacional" | "in_vitro";
 }) {
+  useLocalRefreshControl(Boolean(patientPassport));
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

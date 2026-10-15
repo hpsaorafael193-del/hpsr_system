@@ -1,4 +1,5 @@
 "use client";
+import {useLocalRefreshControl} from "@/lib/manual-data-refresh";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ShieldCheck, RefreshCw, UsersRound } from "lucide-react";
@@ -17,6 +18,7 @@ const statusLabels: Record<string,string> = {pending:"Pendente",authorized:"Auto
 export function GuardianApprovalPanel() {
   const { profile } = useCurrentUserProfile();
   const [permitted,setPermitted] = useState(false);
+  useLocalRefreshControl(permitted);
   const [rows,setRows] = useState<GuardianLink[]>([]);
   const [filter,setFilter] = useState("pending");
   const [loading,setLoading] = useState(false);

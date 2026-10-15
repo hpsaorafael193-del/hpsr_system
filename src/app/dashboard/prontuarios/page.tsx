@@ -1,5 +1,5 @@
 "use client";
-import {registerManualRefresh} from "@/lib/manual-data-refresh";
+import {registerManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh";
 import { SavedClinicalSheet } from "@/components/dashboard/SavedClinicalSheet";
 
 import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
@@ -166,6 +166,7 @@ function eventIcon(type: TimelineEvent["type"]) {
 }
 
 export default function RecordsPage() {
+  useLocalRefreshControl();
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const isInternalLinkManager = currentUserProfile.systemRole === "Administrador do Sistema";
   const canDeleteClinicalData = isInternalLinkManager || ["Diretora", "Vice Diretor", "Vice Diretor / Dev"].includes(currentUserProfile.role);

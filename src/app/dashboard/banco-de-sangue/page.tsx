@@ -1,5 +1,5 @@
 "use client";
-import {registerManualRefresh} from "@/lib/manual-data-refresh";
+import {registerManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh";
 
 import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneNumber, formatPhoneDisplay } from "@/lib/phone";
@@ -325,6 +325,7 @@ function statusClass(result: ResultKey) {
 }
 
 export default function BloodBankPage() {
+  useLocalRefreshControl();
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const [form, setForm] = useState<DonorForm>(() => createInitialForm(currentUserProfile.systemName));
   const [records, setRecords] = useState<DonationRecord[]>([]);

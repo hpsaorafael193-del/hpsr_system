@@ -1,5 +1,5 @@
 "use client";
-import {useManualRefresh} from "@/lib/manual-data-refresh";
+import {useManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh";
 
 import styles from "./time-clock-report.module.css";
 
@@ -20,6 +20,7 @@ type ReportData = { entries: Entry[]; reports: Report[]; audit: Audit[]; current
 const emptyData: ReportData = { entries: [], reports: [], audit: [], currentRanking: [], activeStaff: [], serverNow: undefined };
 
 export function TimeClockAdministrativeReport() {
+  useLocalRefreshControl();
   const [data, setData] = useState<ReportData>(emptyData);
   const [correction, setCorrection] = useState<{ userId: string; id: string } | null | undefined>(undefined);
   const [notice, setNotice] = useState("");

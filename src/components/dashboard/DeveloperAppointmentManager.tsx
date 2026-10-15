@@ -1,4 +1,5 @@
 "use client";
+import {useLocalRefreshControl} from "@/lib/manual-data-refresh";
 
 import { brazilIso } from "@/lib/brazil-datetime";
 import { useEffect, useMemo, useState } from "react";
@@ -96,6 +97,7 @@ export function DeveloperAppointmentManager({
   canViewAll?: boolean;
   appointments?: AppointmentSummary[];
 }) {
+  useLocalRefreshControl();
   const [series, setSeries] = useState<Series[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [loading, setLoading] = useState(true);

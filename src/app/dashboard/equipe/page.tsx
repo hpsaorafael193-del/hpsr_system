@@ -1,5 +1,5 @@
 "use client";
-import {useManualRefresh} from "@/lib/manual-data-refresh";
+import {useManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh";
 
 import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneDisplay } from "@/lib/phone";
@@ -1290,6 +1290,7 @@ function RegistrationRequestsModal({
   onSetHidden: (item: StaffRegistrationRequest, hidden: boolean) => void | Promise<void>;
   onOpenEditor: () => void;
 }) {
+  useLocalRefreshControl();
   const [showHistory, setShowHistory] = useState(false);
   const isHistoricalItem = (item: StaffRegistrationRequest) => Boolean(item.hiddenAt || item.historical);
   const visibleItems = items.filter((item) => showHistory ? isHistoricalItem(item) : !isHistoricalItem(item));
