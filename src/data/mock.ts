@@ -3,6 +3,7 @@ export const roles = [
   "Vice Diretor",
   "Diretor Clínico",
   "Médico Cirurgião",
+  "Médico Supervisor",
   "Médico Plantonista",
   "Médico Especialista",
   "Médico Clínico",

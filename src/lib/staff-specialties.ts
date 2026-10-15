@@ -7,7 +7,7 @@ export const NO_CLINICAL_SPECIALTY_ROLES = new Set([
 
 export const GENERAL_BASE_SPECIALTY_ROLES = new Set([
   "Médico Clínico",
-  "Médico Especialista",
+  "Médico Especialista", "Médico Supervisor",
   "Médico Plantonista",
   "Médico Cirurgião",
   "Diretor Clínico",

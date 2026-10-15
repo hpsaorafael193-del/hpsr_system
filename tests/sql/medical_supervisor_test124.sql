@@ -1,0 +1,55 @@
+begin;
+select set_config('request.jwt.claim.sub','',true);
+update public.profiles set role='Médico Supervisor' where id='0ede5ea0-06ce-403a-b699-56fc20f9f3c6';
+insert into public.patient_registry(passport,name) values('QA-SUPERVISOR124','Paciente QA supervisor');
+select set_config('request.jwt.claim.sub','0ede5ea0-06ce-403a-b699-56fc20f9f3c6',true);
+set local role authenticated;
+do $$ declare denied boolean:=false; begin
+ if not hpsr_private.can_manage_insurance_plans() then raise exception 'QA supervisor não pode cadastrar plano'; end if;
+ if public.is_access_admin() then raise exception 'QA supervisor virou administrador geral'; end if;
+ if not public.hpsr_can_edit_vaccination() then raise exception 'QA supervisor perdeu capacidade clínica'; end if;
+ if public.hpsr_can_access_obstetra() or hpsr_private.can_manage_pediatric_followup() then raise exception 'QA supervisor ganhou especialidade não atribuída'; end if;
+ if not public.hpsr_doctor_has_specialty(auth.uid(),'Clínico Geral') or public.hpsr_doctor_has_specialty(auth.uid(),'Neurologia') then raise exception 'QA agenda ignora especialidades'; end if;
+ insert into public.financial_plan_entries(id,plan_name,holder_passport,value,payload) values('QA-SUPERVISOR-PLAN124','Plano QA','QA-SUPERVISOR124',100,'{}');
+ update public.financial_plan_entries set value=200 where id='QA-SUPERVISOR-PLAN124';
+ if not exists(select 1 from public.financial_plan_entries where id='QA-SUPERVISOR-PLAN124' and value=200) then raise exception 'QA plano não atualizado'; end if;
+ insert into public.clinical_records(id,patient_passport,record_type,created_by,payload) values('QA-SUPERVISOR-EXAM124','QA-SUPERVISOR124','Exame',auth.uid(),'{"examName":"Exame QA"}'),('QA-SUPERVISOR-DOC124','QA-SUPERVISOR124','Documento',auth.uid(),'{"documentModelId":"normal","title":"Documento QA"}');
+ insert into public.appointments(id,passport,patient,status,payload) values('QA-SUPERVISOR-APPOINTMENT124','QA-SUPERVISOR124','Paciente QA supervisor','Confirmada',jsonb_build_object('doctorId',auth.uid(),'specialty','Clínico Geral','date','2026-10-20','time','10:00','source','staff_manual_schedule','schedulingMode','staff_manual_schedule'));
+ begin perform public.admin_update_team_member(auth.uid(),jsonb_build_object('role','Diretor Clínico')); exception when others then denied:=true; end;
+ if not denied then raise exception 'QA supervisor gerencia equipe pelo RPC'; end if;
+ delete from public.financial_plan_entries where id='QA-SUPERVISOR-PLAN124';
+ if exists(select 1 from public.financial_plan_entries where id='QA-SUPERVISOR-PLAN124') then raise exception 'QA supervisor não gerencia exclusão de plano'; end if;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','',true);
+update public.profiles set specialty='Clínico Geral, Obstetra, Ginecologia, Pediatra' where id='0ede5ea0-06ce-403a-b699-56fc20f9f3c6';
+insert into public.patient_doctor_links(patient_passport,doctor_id,specialty) values('QA-SUPERVISOR124','0ede5ea0-06ce-403a-b699-56fc20f9f3c6','Obstetra'),('QA-SUPERVISOR124','0ede5ea0-06ce-403a-b699-56fc20f9f3c6','Ginecologia');
+select set_config('request.jwt.claim.sub','0ede5ea0-06ce-403a-b699-56fc20f9f3c6',true);
+set local role authenticated;
+do $$ begin
+ if not public.hpsr_can_access_obstetra() or not public.hpsr_can_manage_gestational_vaccination() or not hpsr_private.can_manage_pediatric_followup() then raise exception 'QA supervisor perdeu especialidades atribuídas'; end if;
+ if not public.hpsr_can_manage_reproductive_patient(auth.uid(),'QA-SUPERVISOR124','gestacional') or not public.hpsr_can_manage_reproductive_patient(auth.uid(),'QA-SUPERVISOR124','in_vitro') then raise exception 'QA supervisor não pode gerir seu planejamento'; end if;
+ if public.hpsr_can_manage_reproductive_patient('bdb0e416-e6a4-4b8b-9358-71a4adaede71','QA-SUPERVISOR124','gestacional') then raise exception 'QA vínculo alheio permitido'; end if;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub','',true);
+update public.profiles set role='Médico Plantonista',specialty='Clínico Geral' where id='0ede5ea0-06ce-403a-b699-56fc20f9f3c6';
+select set_config('request.jwt.claim.sub','0ede5ea0-06ce-403a-b699-56fc20f9f3c6',true);
+set local role authenticated;
+do $$ declare denied boolean:=false; begin
+ if hpsr_private.can_manage_insurance_plans() then raise exception 'QA Plantonista ganhou planos'; end if;
+ begin insert into public.financial_plan_entries(id,plan_name,payload) values('QA-SUPERVISOR-DENIED124','Plano proibido','{}'); exception when insufficient_privilege then denied:=true; end;
+ if not denied then raise exception 'QA API aceita plano de Plantonista'; end if;
+ denied:=false;
+ begin update public.profiles set role='Médico Supervisor' where id=auth.uid(); exception when insufficient_privilege then denied:=true; end;
+ if not denied then raise exception 'QA autopromoção para Supervisor permitida'; end if;
+end $$;
+reset role;
+select set_config('request.jwt.claim.sub',(select id::text from public.profiles where access_status='Aprovado' and role='Vice Diretor / Dev' limit 1),true);
+set local role authenticated;
+do $$ begin
+ if not hpsr_private.can_manage_insurance_plans() then raise exception 'QA direção perdeu planos'; end if;
+end $$;
+reset role;
+rollback;
+select 'PASS Supervisor: planos, exame, documento, agenda, especialidades e vínculo próprio; sem administração geral/autopromoção; Plantonista e direção preservados; rollback' as validation;

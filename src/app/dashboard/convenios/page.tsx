@@ -152,8 +152,8 @@ const inputClass =
 
 const labelClass = "text-[11px] font-semibold uppercase tracking-[0.15em] text-hpsr-wineLight";
 
-// Cadastro e alteração de convênios são exclusivos da Direção e da identidade do sistema.
-const insuranceAdminRoles = ["Diretora", "Vice Diretor", "Vice Diretor / Dev"];
+// Supervisores recebem somente a gestão de convênios, sem poderes gerais da Direção.
+const insuranceAdminRoles = ["Diretora", "Vice Diretor", "Vice Diretor / Dev", "Médico Supervisor"];
 
 
 function normalizePassport(value: string) {
@@ -408,7 +408,7 @@ export default function InsurancePage() {
 
   async function persistInsurancePlan(plan: Patient, registeredBy = currentUserProfile.systemName): Promise<boolean> {
     if (!canManagePlans) {
-      await hpsrAlert("Somente a Diretora, Vice Diretores e a administração do sistema podem alterar convênios.", "Acesso restrito");
+      await hpsrAlert("Somente a Diretoria, os Médicos Supervisores e a administração do sistema podem alterar convênios.", "Acesso restrito");
       return false;
     }
     const selectedPlan = plans.find((item) => item.name === plan.plan);
@@ -715,7 +715,7 @@ export default function InsurancePage() {
             type="button"
             onClick={() => canManagePlans && setModal({ mode: "manage" })}
             disabled={!canManagePlans}
-            title={canManagePlans ? "Gerenciar planos" : "Acesso restrito à Diretoria"}
+            title={canManagePlans ? "Gerenciar planos" : "Acesso restrito à Diretoria e Supervisores"}
             className={`inline-flex items-center gap-2 rounded-[14px] border px-4 py-2.5 text-sm font-semibold transition ${
               canManagePlans
                 ? "border-hpsr-border bg-white text-hpsr-wine hover:bg-[#fffdf9]"
@@ -736,7 +736,7 @@ export default function InsurancePage() {
         </div>
         {!canManagePlans && (
           <p className="mt-2 text-xs font-medium text-hpsr-muted">
-            Cadastro e gerenciamento de planos são restritos à Diretora, Vice Diretores e administração do sistema. Seu cargo atual: {currentUserProfile.role}.
+            Cadastro e gerenciamento de planos são restritos à Diretoria, Médicos Supervisores e administração do sistema. Seu cargo atual: {currentUserProfile.role}.
           </p>
         )}
       </section>
@@ -1385,7 +1385,7 @@ function ManagePlans({
                 Gerenciar convênios
               </h2>
               <p className="mt-1 text-sm leading-relaxed text-white/85">
-                Diretoria gerencia planos ativos e encerrados. Encerrados saem do banco após 30 dias se não houver bloqueio.
+                Diretoria e Supervisores gerenciam planos ativos e encerrados. Encerrados saem do banco após 30 dias se não houver bloqueio.
               </p>
             </div>
           </div>

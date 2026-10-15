@@ -5,7 +5,7 @@ import {
 } from "@/lib/staff-specialties";
 
 const OBSTETRA_ELIGIBLE_ROLES = new Set([
-  "Médico Especialista",
+  "Médico Especialista", "Médico Supervisor",
   "Médico Plantonista",
   "Médico Cirurgião",
   "Diretor Clínico",

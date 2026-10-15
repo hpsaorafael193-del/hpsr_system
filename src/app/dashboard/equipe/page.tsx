@@ -154,6 +154,7 @@ const roleDescriptions = [
   { title: "Vice Diretor", description: "Gestão operacional ampla, procedimentos, convênios, equipe e prontuários. Pode remover membros, mas não promover nem ajustar permissões.", group: "Direção" },
   { title: "Diretor Clínico", description: "Monitoramento do histórico assistencial da equipe para revisão de exames, documentos, convênios, consultas e procedimentos, com finalidade de orientação clínica.", group: "Direção" },
   { title: "Médico Cirurgião", description: "Atendimento e condutas cirúrgicas conforme liberação e protocolo do hospital.", group: "Corpo Médico" },
+  { title: "Médico Supervisor", description: "Acessos de Médico Especialista, exames, documentos e agenda pelas especialidades atribuídas, com cadastro e gerenciamento de planos. Tempo de contrato informativo, sem avaliação aos 15 dias.", group: "Corpo Médico" },
   { title: "Médico Plantonista", description: "Atendimentos, exames, documentos e agenda clínica nas especialidades atribuídas, sem acesso administrativo a convênios.", group: "Corpo Médico" },
   { title: "Médico Especialista", description: "Atendimento por especialidade, prontuários e acompanhamentos vinculados à área.", group: "Corpo Médico" },
   { title: "Médico Clínico", description: "Atendimento clínico geral, consultas, retornos e registros médicos.", group: "Corpo Médico" },
@@ -171,6 +172,7 @@ const roleHierarchy: Record<string, number> = {
   "Vice Diretor": 2,
   "Diretor Clínico": 3,
   "Médico Cirurgião": 4,
+  "Médico Supervisor": 4.5,
   "Médico Plantonista": 5,
   "Médico Especialista": 6,
   "Médico Clínico": 7,
@@ -216,7 +218,7 @@ function saoPauloCalendarDate() {
 }
 
 function getContractInfo(member: TeamMember) {
-  if (member.systemRole || ["Diretora", "Vice Diretor", "Diretor Clínico"].includes(member.hospitalRole)) {
+  if (member.systemRole || ["Diretora", "Vice Diretor", "Diretor Clínico", "Médico Supervisor"].includes(member.hospitalRole)) {
     return null;
   }
 
@@ -1176,7 +1178,7 @@ export default function TeamPage() {
                             <MiniStat label="Status" value={member.serviceStatus} />
                             <MiniStat label="Advertências" value={String(member.warnings)} />
                             <MiniStat label="Suspensões" value={String(member.suspensions)} />
-                            <MiniStat label="Entrada" value={formatDate(member.joinedAt)} />
+                            <MiniStat label={member.hospitalRole === "Médico Supervisor" ? "Tempo de contrato" : "Entrada"} value={member.hospitalRole === "Médico Supervisor" ? `${daysSince(member.joinedAt)} dias · ${formatDate(member.joinedAt)}` : formatDate(member.joinedAt)} />
                           </div>
 
                           {contract && (
@@ -2651,6 +2653,9 @@ function getDefaultPermissions(hospitalRole: string, systemRole?: string) {
   }
   if (hospitalRole === "Diretor Clínico") {
     return ["Histórico assistencial", "Indicadores de produção clínica", "Revisão de exames e documentos", "Orientação da equipe médica"];
+  }
+  if (hospitalRole === "Médico Supervisor") {
+    return ["Atendimento por especialidade", "Prontuários", "Prescrições", "Exames", "Documentos", "Consultas", "Agendamentos por especialidade", "Cadastro e gerenciamento de planos"];
   }
   if (hospitalRole === "Médico Plantonista") {
     return ["Atendimento clínico", "Prontuários", "Exames", "Documentos", "Consultas", "Agendamentos por especialidade"];
