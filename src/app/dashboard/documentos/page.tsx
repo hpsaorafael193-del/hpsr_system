@@ -1200,7 +1200,7 @@ export default function DocumentsPage() {
     setSavingDocument(true);
     try {
       const { data, error } = await client.from("clinical_records")
-        .select("id,patient_passport,payload,is_confidential")
+        .select("id,patient_passport,payload,released_render_payload,is_confidential")
         .eq("id", recordId)
         .in("record_type", ["Documento", "documento"])
         .maybeSingle();
@@ -1221,7 +1221,7 @@ export default function DocumentsPage() {
       setUseModel(Boolean(payload.useModel));
       setEditorHtml(html);
       setEditingRecordId(String(data.id));
-      setEditingReleasedSnapshot(payload.releasedSnapshot && typeof payload.releasedSnapshot === "object" ? payload.releasedSnapshot as Record<string, unknown> : null);
+      setEditingReleasedSnapshot((data.released_render_payload || payload.releasedSnapshot || null) as Record<string, unknown> | null);
       setLoadedIsConfidential(Boolean(data.is_confidential));
       setIsConfidential(Boolean(data.is_confidential));
       setDocumentDirty(false);
@@ -1277,12 +1277,12 @@ export default function DocumentsPage() {
         const visibilityChanged = isConfidential !== loadedIsConfidential;
         const shouldRepublish = Boolean(options?.publishCurrent) && !isConfidential;
         if (visibilityChanged || shouldRepublish) {
-          const { data: changed, error: visibilityError } = await client.rpc("set_clinical_record_confidentiality", {
+          const { data: changed, error: visibilityError } = await client.rpc("set_clinical_record_visibility", {
             target_record_id: editingRecordId,
             confidential: isConfidential,
           });
           if (visibilityError) throw visibilityError;
-          const changedPayload = (changed as any)?.payload;
+          const changedPayload = (changed as any)?.payload || { releasedSnapshot: !(changed as any)?.is_confidential ? { ...payload, releasedSnapshot: undefined, releasedAt: (changed as any)?.released_at, releasedBy: (changed as any)?.released_by } : null };
           latestReleasedSnapshot = changedPayload?.releasedSnapshot && typeof changedPayload.releasedSnapshot === "object" ? changedPayload.releasedSnapshot : latestReleasedSnapshot;
           finalConfidential = Boolean((changed as any)?.is_confidential ?? isConfidential);
         }
@@ -1300,12 +1300,12 @@ export default function DocumentsPage() {
         if (error) throw error;
         finalConfidential = true;
         if (!requestedConfidential) {
-          const { data: changed, error: visibilityError } = await client.rpc("set_clinical_record_confidentiality", {
+          const { data: changed, error: visibilityError } = await client.rpc("set_clinical_record_visibility", {
             target_record_id: recordId,
             confidential: false,
           });
           if (visibilityError) throw visibilityError;
-          const changedPayload = (changed as any)?.payload;
+          const changedPayload = (changed as any)?.payload || { releasedSnapshot: !(changed as any)?.is_confidential ? { ...payload, releasedSnapshot: undefined, releasedAt: (changed as any)?.released_at, releasedBy: (changed as any)?.released_by } : null };
           latestReleasedSnapshot = changedPayload?.releasedSnapshot && typeof changedPayload.releasedSnapshot === "object" ? changedPayload.releasedSnapshot : null;
           finalConfidential = false;
         }

@@ -88,8 +88,8 @@ function resolveRecordDate(payload: any, fallback: string) {
 function safeRecord(record: any) {
   const payload = record.payload || {};
   const releasedSnapshot = ["Documento", "documento", "Exame", "exame"].includes(String(record.record_type || ""))
-    && payload?.releasedSnapshot && typeof payload.releasedSnapshot === "object"
-    ? payload.releasedSnapshot
+    && (record.released_render_payload || payload?.releasedSnapshot) && typeof (record.released_render_payload || payload.releasedSnapshot) === "object"
+    ? (record.released_render_payload || payload.releasedSnapshot)
     : null;
   const visiblePayload = releasedSnapshot || payload;
   return {
@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
     if (recordId) {
       const { data: record, error } = await patientSession.supabase
         .from("clinical_records")
-        .select("id,patient_passport,record_type,payload,created_at,updated_at,is_confidential,released_at")
+        .select("id,patient_passport,record_type,payload,released_render_payload,created_at,updated_at,is_confidential,released_at")
         .eq("id", recordId)
         .eq("patient_passport", targetPassport)
         .in("record_type", ["Exame", "Documento", "Vacina"])
@@ -216,7 +216,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await patientSession.supabase
       .from("clinical_records")
-      .select("payload,patient_passport,id,record_type,created_at,updated_at,is_confidential,released_at,title:payload->>title,exam_name:payload->>examName,released_exam_name:payload->releasedSnapshot->>examName,document_title:payload->>documentTitle,released_document_title:payload->releasedSnapshot->>documentTitle,doctor_name:payload->doctor->>name,released_doctor_name:payload->releasedSnapshot->doctor->>name,doctor_name_flat:payload->>doctorName,protocol:payload->>protocol,released_protocol:payload->releasedSnapshot->>protocol,exam_date:payload->>examDate,released_exam_date:payload->releasedSnapshot->>examDate,exam_time:payload->>examTime,released_exam_time:payload->releasedSnapshot->>examTime,exam_performed_at:payload->>examPerformedAt,released_exam_performed_at:payload->releasedSnapshot->>examPerformedAt")
+      .select("payload,patient_passport,id,record_type,created_at,updated_at,is_confidential,released_at,new_title:released_render_payload->>documentTitle,new_exam:released_render_payload->>examName,new_doctor:released_render_payload->doctor->>name,new_protocol:released_render_payload->>protocol,new_date:released_render_payload->>examDate,new_time:released_render_payload->>examTime,new_performed:released_render_payload->>examPerformedAt,title:payload->>title,exam_name:payload->>examName,released_exam_name:payload->releasedSnapshot->>examName,document_title:payload->>documentTitle,released_document_title:payload->releasedSnapshot->>documentTitle,doctor_name:payload->doctor->>name,released_doctor_name:payload->releasedSnapshot->doctor->>name,doctor_name_flat:payload->>doctorName,protocol:payload->>protocol,released_protocol:payload->releasedSnapshot->>protocol,exam_date:payload->>examDate,released_exam_date:payload->releasedSnapshot->>examDate,exam_time:payload->>examTime,released_exam_time:payload->releasedSnapshot->>examTime,exam_performed_at:payload->>examPerformedAt,released_exam_performed_at:payload->releasedSnapshot->>examPerformedAt")
       .eq("patient_passport", targetPassport)
       .in("record_type", ["Exame", "Documento", "Vacina"])
       .eq("is_confidential", false)
@@ -230,12 +230,12 @@ export async function GET(request: NextRequest) {
       type: record.record_type,
       cardModel: record.record_type === "Vacina" ? vaccinationModel(record.payload)?.key : null,
       title: ["Documento", "documento"].includes(String(record.record_type || ""))
-        ? (record.released_document_title || record.document_title || record.title || record.record_type)
-        : record.record_type === "Vacina" && vaccinationModel(record.payload) ? "Caderneta de vacinação" : (record.released_exam_name || record.exam_name || record.document_title || record.title || record.record_type),
-      doctor: record.released_doctor_name || record.doctor_name || record.doctor_name_flat || "Equipe médica",
-      createdAt: record.released_exam_performed_at || record.exam_performed_at || (record.released_exam_date ? `${record.released_exam_date}T${record.released_exam_time || "00:00"}:00-03:00` : record.exam_date ? `${record.exam_date}T${record.exam_time || "00:00"}:00-03:00` : record.created_at),
+        ? (record.new_title || record.released_document_title || record.document_title || record.title || record.record_type)
+        : record.record_type === "Vacina" && vaccinationModel(record.payload) ? "Caderneta de vacinação" : (record.new_exam || record.released_exam_name || record.exam_name || record.document_title || record.title || record.record_type),
+      doctor: record.new_doctor || record.released_doctor_name || record.doctor_name || record.doctor_name_flat || "Equipe médica",
+      createdAt: record.new_performed || (record.new_date ? `${record.new_date}T${record.new_time || "00:00"}:00-03:00` : null) || record.released_exam_performed_at || record.exam_performed_at || (record.released_exam_date ? `${record.released_exam_date}T${record.released_exam_time || "00:00"}:00-03:00` : record.exam_date ? `${record.exam_date}T${record.exam_time || "00:00"}:00-03:00` : record.created_at),
       updatedAt: record.released_at || record.updated_at,
-      protocol: record.released_protocol || record.protocol || null,
+      protocol: record.new_protocol || record.released_protocol || record.protocol || null,
       isConfidential: Boolean(record.is_confidential),
     }));
     // Só a versão formalmente publicada aparece aqui. O rascunho e as

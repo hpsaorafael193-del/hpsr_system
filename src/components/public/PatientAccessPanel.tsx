@@ -569,6 +569,8 @@ export function PatientAccessPanel() {
                       </section>
                     </div>
 
+                    <PatientFollowupFormsPanel key={`${selectedPassport}:pending-forms`} passport={selectedPassport} onSessionExpired={handleSessionExpired} pendingOnly/>
+
                     {Boolean(activeFollowups?.agendaAvailableCount) && <button type="button" onClick={() => openPortalSection("followups")} className="mt-5 flex w-full items-center gap-3 rounded-[14px] border border-[#d8c1b3] bg-[#f3e7df] px-4 py-3 text-left"><BellRing size={18} className="text-[#672614]"/><strong className="flex-1 text-sm text-[#672614]">Seu médico publicou novos horários.</strong><span className="text-xs font-black text-[#672614]">Escolher <ArrowRight size={13} className="inline"/></span></button>}
 
                     <div className="mt-5 grid gap-5 lg:grid-cols-[1.08fr_.92fr]">
@@ -610,7 +612,7 @@ export function PatientAccessPanel() {
                     </section>
                     <section className="rounded-[18px] border border-[#ddcfc2] bg-[#f4eee7] p-5">
                       <div className="mb-4 flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#e5ded5] text-[#672614]"><ClipboardList size={19}/></span><div><p className="text-[11px] font-black uppercase tracking-[.14em] text-[#927566]">Fichas</p><h3 className="mt-1 text-lg font-bold text-[#4e291c]">Fichas do acompanhamento</h3><p className="mt-1 text-xs text-[#82736a]">Quando sua equipe solicitar uma atualização, ela aparecerá aqui.</p></div></div>
-                      <PatientFollowupFormsPanel passport={selectedPassport} onSessionExpired={handleSessionExpired}/>
+                      <PatientFollowupFormsPanel key={selectedPassport} passport={selectedPassport} onSessionExpired={handleSessionExpired}/>
                     </section>
                   </div>
                 </div>}

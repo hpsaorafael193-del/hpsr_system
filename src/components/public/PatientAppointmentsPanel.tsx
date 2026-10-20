@@ -76,6 +76,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
   const [expanded, setExpanded] = useState<string | null>(null);
   const [requestFlowType, setRequestFlowType] = useState("Consulta comum");
   const [requestSpecialty, setRequestSpecialty] = useState("");
+  const [psychotechnicalNotice, setPsychotechnicalNotice] = useState(false);
   const [discordId, setDiscordId] = useState("");
   const contactClassification = classifyPatientContact(discordId, passport);
   const [capacityAvailable, setCapacityAvailable] = useState<boolean | null>(null);
@@ -177,6 +178,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
       if (!response.ok || !data.ok) throw new Error(data.error || "Não foi possível solicitar a consulta.");
       setMessage(`Solicitação registrada. Protocolo: ${data.id}`);
       formElement.reset();
+      setPsychotechnicalNotice(false);
       setRequestFlowType("Consulta comum");
       setRequestSpecialty("");
       setCapacityAvailable(null);
@@ -335,7 +337,11 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
           <h3 className="text-base font-black text-hpsr-text">Solicitar consulta</h3>
           <p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">Aqui você pede uma nova consulta. Isso não marca um horário na hora. Se você já faz acompanhamento, veja Meus agendamentos e Horários do médico.</p>
         </div>
-        <form onSubmit={submitAppointment} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <form onSubmit={submitAppointment} onChange={(event) => {
+          const values = new FormData(event.currentTarget);
+          const objective = `${values.get("reason") || ""} ${values.get("flowDetails") || ""}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+          setPsychotechnicalNotice(/psico[\s-]*tecnic/.test(objective));
+        }} className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="text-xs font-black text-hpsr-muted">Nome do paciente<input name="patient" required className={`${fieldClass} mt-1.5`} /></label>
           <label className="text-xs font-black text-hpsr-muted">Especialidade<StyledSelect name="specialty" required value={requestSpecialty} onChange={(event) => setRequestSpecialty(event.target.value)} className={`${fieldClass} mt-1.5`}><option value="" disabled>Selecione</option>{specialties.map((item) => <option key={item}>{item}</option>)}</StyledSelect></label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Tipo de consulta
@@ -375,6 +381,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
             {contactClassification.kind === "passport" ? <span className="mt-1.5 block rounded-[10px] border border-rose-200 bg-rose-50 px-2.5 py-2 text-[11px] font-black text-rose-700">Esse número é o seu passaporte/ID da cidade. Informe o ID do seu perfil do Discord ou o telefone da cidade.</span> : contactClassification.kind === "city_phone" ? <span className="mt-1.5 block text-[11px] font-semibold text-emerald-700">Telefone reconhecido: {contactClassification.value}</span> : <span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">No Discord, use o ID numérico do seu perfil/usuário. Não use o passaporte da cidade.</span>}
           </label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Por que você precisa da consulta?<textarea name="reason" required rows={4} placeholder="Conte em poucas palavras por que você precisa da consulta." className={`${fieldClass} mt-1.5 py-3`} /></label>
+          {psychotechnicalNotice && <p role="status" aria-live="polite" className="sm:col-span-2 rounded-[12px] border border-amber-200 bg-amber-50 px-3.5 py-3 text-xs font-semibold leading-relaxed text-amber-950">Para realizar um psicotécnico, solicite um <strong>exame</strong> na opção <strong>“Pedir um exame”</strong>. Este aviso não impede o envio da consulta.</p>}
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Observações<textarea name="notes" rows={3} className={`${fieldClass} mt-1.5 py-3`} /></label>
           {message && <p className="sm:col-span-2 rounded-[12px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800"><CheckCircle2 className="mr-2 inline" size={16} />{message}</p>}
           {error && <p className="sm:col-span-2 rounded-[12px] border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-bold text-rose-800">{error}</p>}

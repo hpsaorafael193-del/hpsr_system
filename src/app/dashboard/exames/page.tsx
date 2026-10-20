@@ -1735,7 +1735,7 @@ export default function ExamesPage() {
         });
         if (error) throw error;
         if (!isConfidential) {
-          const { error: releaseError } = await client.rpc("set_clinical_record_confidentiality", {
+          const { error: releaseError } = await client.rpc("set_clinical_record_visibility", {
             target_record_id: recordId,
             confidential: false,
           });

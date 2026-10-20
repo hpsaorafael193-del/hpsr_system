@@ -668,7 +668,7 @@ export default function RecordsPage() {
 
     const nextConfidentiality = !event.isConfidential;
     setPortalVisibilityBusyId(event.id);
-    const { error } = await client.rpc("set_clinical_record_confidentiality", {
+    const { error } = await client.rpc("set_clinical_record_visibility", {
       target_record_id: event.id,
       confidential: nextConfidentiality,
     });

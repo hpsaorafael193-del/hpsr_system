@@ -1,0 +1,60 @@
+/* Workspace chrome only. The report renderer and exported sheet keep their own styles. */
+.hpsr-clinical-modern { --clinical-border:#e8cfc0; --clinical-ink:#49291e; --clinical-surface:#fcf5ef; gap:12px; }
+.hpsr-clinical-modern .clinical-page-heading { padding:0 4px 2px; }
+.hpsr-clinical-modern .clinical-page-heading h1 { margin:0; font-size:30px; font-weight:750; letter-spacing:-.04em; line-height:1.15; color:var(--clinical-ink); }
+.hpsr-clinical-modern .clinical-page-heading p { margin:5px 0 0; font-size:13px; color:#8b7265; }
+.hpsr-clinical-modern .clinical-selection-bar { display:flex; align-items:center; flex-wrap:wrap; gap:12px 20px; padding:12px 16px; border:1px solid var(--clinical-border); border-radius:12px; background:#fbf0e8; }
+.hpsr-clinical-modern .clinical-selection-bar > label:first-child { display:flex; align-items:center; gap:14px; font-size:13px; font-weight:700; flex:1 1 240px; }
+.hpsr-clinical-modern .clinical-selection-bar select { width:100%; min-width:0; max-width:360px; height:38px; padding:0 12px; border:1px solid #ddd3cc; border-radius:7px; background:#fffdfb; font-size:13px; color:var(--clinical-ink); }
+.hpsr-clinical-modern .clinical-model-toggle { display:flex; gap:10px; align-items:center; font-size:13px; font-weight:600; white-space:nowrap; }
+.hpsr-clinical-modern .clinical-model-toggle button { width:43px; height:25px; padding:3px; background:#cbbdb3; border:0; border-radius:99px; }
+.hpsr-clinical-modern .clinical-model-toggle button[aria-checked=true] { background:#672614; }
+.hpsr-clinical-modern .clinical-model-toggle span { display:block; width:19px; height:19px; background:#fff; border-radius:50%; transition:transform .15s; box-shadow:0 1px 4px #0002; }
+.hpsr-clinical-modern .clinical-model-toggle button[aria-checked=true] span { transform:translateX(18px); }
+.hpsr-clinical-modern .clinical-selection-bar > button,.hpsr-clinical-modern .clinical-draft-status button { padding:9px 14px; font-size:12px; font-weight:650; border:1px solid #b98f78; border-radius:7px; color:#672614; background:#fff8f2; }
+.hpsr-clinical-modern .clinical-draft-status { font-size:11px; color:#6f6357; margin-left:auto; }
+.hpsr-clinical-modern .clinical-catalog { border:1px solid var(--clinical-border); background:#fcf5ef; border-radius:12px; padding:12px; max-height:420px; overflow:auto; }
+.hpsr-clinical-modern :is(.hpsr-exams-workspace,.hpsr-documents-workspace) { grid-template-columns:minmax(0,1.04fr) minmax(0,1fr); gap:14px; align-items:stretch; }
+.hpsr-clinical-modern .clinical-compose-column { min-width:0; min-height:0; display:flex; flex-direction:column; gap:12px; height:100%; overflow-y:auto; overscroll-behavior-y:auto; scrollbar-gutter:stable; padding-right:3px; }
+.hpsr-clinical-modern .clinical-compose-column > aside { padding:0; background:var(--clinical-surface); border:1px solid var(--clinical-border); border-radius:11px; box-shadow:none; height:310px; min-height:310px; flex:none; overflow:auto; scrollbar-gutter:stable; }
+.hpsr-clinical-modern .clinical-compose-column > aside :is(section,div)[class*="shadow-"] { box-shadow:none; }
+.hpsr-clinical-modern .clinical-compose-column > aside section { background:transparent; border:0; border-radius:0; box-shadow:none; }
+.hpsr-clinical-modern .clinical-compose-column > aside section + section { border-top:1px solid var(--clinical-border); }
+.hpsr-clinical-modern .clinical-compose-column > aside section > div:first-child { background:#f8eae0; border-color:var(--clinical-border); padding:10px 16px; }
+.hpsr-clinical-modern .clinical-compose-column > aside section > div:first-child h2 { font-size:15px; text-transform:none; letter-spacing:0; }
+.hpsr-clinical-modern .clinical-compose-column > aside section > div:first-child > div:first-child > span { display:none; }
+.hpsr-clinical-modern .clinical-compose-column > aside section > div:not(:first-child) { padding:12px 16px; }
+.hpsr-clinical-modern .clinical-compose-column > aside :is(input,select) { min-height:36px; height:36px; border-radius:7px; background:#fffdfb; font-size:12px; }
+.hpsr-clinical-modern .clinical-compose-column > aside .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top:12px; }
+.hpsr-clinical-modern .clinical-compose-column > main { height:620px; min-height:620px; flex:none; border-radius:11px; border:1px solid var(--clinical-border); background:var(--clinical-surface); box-shadow:none; overflow:hidden; --tw-ring-shadow:0 0 #0000; }
+.hpsr-clinical-modern .clinical-compose-column > main > div:first-child { background:#f8eae0; border-color:var(--clinical-border); padding:12px 16px; }
+.hpsr-clinical-modern .clinical-compose-column > main > div:first-child h2 { font-size:15px; letter-spacing:0; }
+.hpsr-clinical-modern .clinical-compose-column > main > div:last-child { padding:10px 14px; background:#fcf3ec; }
+.hpsr-clinical-modern .clinical-compose-column :is(.hpsr-exams-editor-viewport,.hpsr-documents-editor-viewport) { flex:1 1 0%; min-height:0; overflow:auto; background:#fffdfb; }
+.hpsr-clinical-modern .clinical-compose-column .hpsr-continuous-editor { background:#fffdfb; }
+.hpsr-clinical-modern .clinical-preview-column { display:flex; flex-direction:column; min-width:0; min-height:0; height:100%; padding:0!important; overflow:hidden; background:#fbf0e8!important; border:1px solid var(--clinical-border)!important; border-radius:11px!important; }
+.hpsr-clinical-modern .clinical-preview-heading { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--clinical-border); background:#f8eae0; }
+.hpsr-clinical-modern .clinical-preview-heading h2 { font-size:15px; font-weight:750; color:var(--clinical-ink); }
+.hpsr-clinical-modern .clinical-zoom { display:flex; align-items:center; gap:7px; }
+.hpsr-clinical-modern .clinical-zoom button { min-height:30px; min-width:30px; padding:4px 8px; background:#fff8f3; border:1px solid #decabd; border-radius:6px; font-size:11px; font-weight:650; }
+.hpsr-clinical-modern .clinical-zoom output { min-width:35px; text-align:center; font-size:11px; font-variant-numeric:tabular-nums; }
+.hpsr-clinical-modern .clinical-preview-frame { min-height:0; flex:1; display:flex; width:100%; }
+.hpsr-clinical-modern .clinical-preview-card { display:flex; flex-direction:column; flex:1; min-width:0; min-height:0; overflow:hidden; }
+.hpsr-clinical-modern .clinical-preview-card > div:first-child { padding:14px; background:#f0e5db; scrollbar-gutter:stable; }
+.hpsr-clinical-modern .clinical-preview-sheet { margin:0 auto; flex:none; min-width:0; max-width:none; }
+.hpsr-clinical-modern .clinical-preview-sheet img { width:100%; height:auto; box-shadow:0 2px 10px #49291e18; }
+.hpsr-clinical-modern .clinical-preview-card > div:last-child { padding:12px; background:#fcf3ec; border-color:var(--clinical-border); gap:10px; }
+.hpsr-clinical-modern .clinical-preview-card > div:last-child button { min-height:36px; border-radius:7px; font-size:11px; }
+.hpsr-clinical-modern .clinical-preview-empty { display:flex; flex:1; flex-direction:column; align-items:center; justify-content:center; gap:12px; padding:28px; text-align:center; color:#8b7265; background:#fffaf6; }
+.hpsr-clinical-modern .clinical-preview-empty h3 { color:#573626; font-size:16px; font-weight:650; }
+.hpsr-clinical-modern .clinical-preview-empty p { max-width:300px; font-size:12px; line-height:1.65; }
+.hpsr-clinical-modern .clinical-preview-empty button { margin-top:6px; padding:10px 16px; border-radius:7px; background:#672614; color:#fff; font-size:12px; font-weight:650; }
+.hpsr-clinical-modern :is(button,select,input):focus-visible { outline:2px solid #a66342; outline-offset:3px; }
+.hpsr-clinical-modern button:disabled { opacity:.45; }
+.hpsr-clinical-modern .clinical-data-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.hpsr-clinical-modern .clinical-data-fields > :first-child,.hpsr-clinical-modern .clinical-data-fields > :last-child { grid-column:1/-1; }
+.hpsr-clinical-modern .clinical-preview-notice { padding:8px 14px; border-bottom:1px solid #e7cfad; background:#fff5df; color:#77522e; font-size:11px; line-height:1.5; }
+@media(min-width:1280px) { .hpsr-page.hpsr-clinical-modern > section:is(.hpsr-exams-workspace,.hpsr-documents-workspace):not(.fixed) { height:clamp(820px,calc(68dvh + 260px),1120px)!important; min-height:0!important; flex:none; } }
+@media(max-width:1279px) { .hpsr-clinical-modern :is(.hpsr-exams-workspace,.hpsr-documents-workspace) { height:auto; flex:none; } .hpsr-clinical-modern .clinical-compose-column { height:960px; } .hpsr-clinical-modern .clinical-preview-column { height:960px; } }
+@media(max-width:1050px) { .hpsr-clinical-modern :is(.hpsr-exams-workspace,.hpsr-documents-workspace) { grid-template-columns:minmax(0,1fr); } .hpsr-clinical-modern .clinical-compose-column { height:960px; } .hpsr-clinical-modern .clinical-preview-column { height:740px; } }
+@media(max-width:599px) { .hpsr-clinical-modern .clinical-page-heading h1 { font-size:25px; } .hpsr-clinical-modern .clinical-selection-bar { gap:12px; padding:12px; } .hpsr-clinical-modern .clinical-selection-bar > label:first-child { flex-basis:100%; } .hpsr-clinical-modern .clinical-draft-status { width:100%; margin:0; } .hpsr-clinical-modern .clinical-preview-card > div:last-child > div { flex-wrap:wrap; } .hpsr-clinical-modern .clinical-preview-column { height:680px; } }

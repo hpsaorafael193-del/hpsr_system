@@ -1,4 +1,5 @@
 "use client";
+import { formatFollowupBirthType } from "@/lib/followup-birth-options";
 import {useManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -207,7 +208,7 @@ export function FollowupIntakeFormManager({ patientPassport, patientName, doctor
                 {Object.entries(latest.answers || {}).filter(([, value]) => Array.isArray(value) ? value.length : String(value ?? "").trim()).map(([key, value]) => (
                   <div key={key} className="grid gap-1 py-2.5 sm:grid-cols-[minmax(150px,220px)_1fr] sm:gap-4">
                     <p className="text-[8px] font-black uppercase tracking-[.08em] text-hpsr-wineLight">{prettyKey(key)}</p>
-                    <p className="break-words text-[11px] font-semibold leading-relaxed text-hpsr-text">{Array.isArray(value) ? value.join(", ") : String(value)}</p>
+                    <p className="break-words text-[11px] font-semibold leading-relaxed text-hpsr-text">{Array.isArray(value) ? value.join(", ") : String(key === "birthType" ? formatFollowupBirthType(value) : value)}</p>
                   </div>
                 ))}
               </div>

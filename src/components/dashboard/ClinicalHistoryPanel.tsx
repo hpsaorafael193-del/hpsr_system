@@ -98,7 +98,7 @@ export function ClinicalHistoryPanel({ recordType, comfortable = false, onEdit }
     );
     if (!confirmed) return;
     setVisibilitySavingId(item.id);
-    const { error } = await client.rpc("set_clinical_record_confidentiality", {
+    const { error } = await client.rpc("set_clinical_record_visibility", {
       target_record_id: item.id,
       confidential: nextConfidential,
     });
