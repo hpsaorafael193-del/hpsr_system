@@ -1,5 +1,7 @@
+import { renderClinicalBody as renderHistoricalBody } from "@/lib/clinical-body-renderer-v2";
+import { renderClinicalBody, measureClinicalBody } from "@/lib/clinical-body-renderer";
 import type { RenderedExamDocument } from "@/data/exames/final-renderer";
-import { drawRichTextElement, measureRichTextElement } from "@/lib/rich-text-canvas";
+import { drawRichTextElement, measureRichTextElement } from "@/lib/rich-text-canvas-legacy";
 import { normalizeSignatureImage, EXAM_SIGNATURE_IMAGE_WIDTH, EXAM_SIGNATURE_IMAGE_HEIGHT } from "@/lib/exam-signature-image";
 function formatDateBR(value: string) { const [year,month,day] = (value || "").split("-"); return year && month && day ? `${day}/${month}/${year}` : value || "-"; }
 export async function renderExamPage(
@@ -7,6 +9,7 @@ export async function renderExamPage(
     pageIndex: number,
   ) {
     await document.fonts.ready;
+    const modern = finalDocument.contentRendererVersion === 3;
     const page = finalDocument.pages[pageIndex];
     if (!page) return;
 
@@ -127,6 +130,12 @@ export async function renderExamPage(
     };
 
     const drawInstitutionalPageBase = async () => {
+      if (modern) {
+        context.fillStyle="#fffdf9";context.fillRect(0,0,794,1123);
+        const watermark=await loadImage("/clinical/exam-v3/logo-horizontal.png");
+        if(watermark){context.save();context.globalAlpha=.065;context.drawImage(watermark,0,0,watermark.width*.296,watermark.height,112,335,570,503);context.restore();}
+        return;
+      }
       const headerGradient = context.createLinearGradient(0, 0, 0, 165);
       headerGradient.addColorStop(0, "#fbf6f2");
       headerGradient.addColorStop(1, "#fffdfb");
@@ -145,6 +154,35 @@ export async function renderExamPage(
     };
 
     const drawInstitutionalHeader = async () => {
+      if (modern) {
+        const logo=await loadImage("/clinical/exam-v3/logo-horizontal.png");
+        if(logo) drawImageContain(logo,42,30,322,84);
+        context.fillStyle="#4b2118";context.textAlign="right";
+        const title=(finalDocument.metadata.examName || "EXAME").toUpperCase();
+        let size=23;context.font=`700 ${size}px Arial`;
+        while(context.measureText(title).width>350 && size>12){size--;context.font=`700 ${size}px Arial`;}
+        const titleLines=wrapCanvasText(context,title,350);
+        titleLines.slice(0,2).forEach((line,index)=>context.fillText(line,752,53+index*18,350));
+        context.font="10px Arial";context.fillText(page.type === "report" ? "Laudo de exame" : page.label,752,96,350);
+        context.textAlign="left";context.font="8px Arial";
+        context.fillText([finalDocument.metadata.patient.age ? `Idade: ${finalDocument.metadata.patient.age}` : "", finalDocument.metadata.patient.bloodType ? `Tipo sanguíneo: ${finalDocument.metadata.patient.bloodType}` : ""].filter(Boolean).join(" · "),42,116,710);
+        context.strokeStyle="#89553c";context.lineWidth=.8;
+        context.beginPath();context.moveTo(42,128);context.lineTo(752,128);context.stroke();
+        context.fillStyle="#f5e7db";context.fillRect(42,145,710,58);
+        const fields=[{x:54,w:326,label:"Nome do paciente",value:finalDocument.metadata.patient.name},
+          {x:402,w:155,label:"Passaporte",value:finalDocument.metadata.patient.passport},
+          {x:578,w:162,label:"Data do exame",value:formatDateBR(finalDocument.metadata.date)}];
+        for(const field of fields){
+          context.fillStyle="#542519";context.font="700 11px Arial";context.fillText(field.label,field.x,154);
+          context.font="12px Arial";
+          const lines=wrapCanvasText(context,field.value || "—",field.w);
+          lines.slice(0,2).forEach((line,index)=>context.fillText(line,field.x,174+index*13,field.w));
+        }
+        if(finalDocument.metadata.time){context.font="9px Arial";context.fillText(`Horário: ${finalDocument.metadata.time}`,578,189,162);}
+        context.strokeStyle="#ddc0ac";context.lineWidth=.6;
+        for(const x of [390,566]){context.beginPath();context.moveTo(x,151);context.lineTo(x,197);context.stroke();}
+        return;
+      }
       context.fillStyle = "rgba(255,255,255,0.97)";
       context.strokeStyle = "rgba(91,24,9,0.16)";
       context.beginPath();
@@ -183,6 +221,24 @@ export async function renderExamPage(
     };
 
     const drawFooter = async () => {
+      if (modern) {
+        const lastPage=pageIndex === finalDocument.pages.length-1;
+        if(lastPage){
+          const signature=finalDocument.metadata.signatureImage ? await loadImage(finalDocument.metadata.signatureImage) : null;
+          if(finalDocument.metadata.signatureImage && !signature) throw new Error("Não foi possível carregar a assinatura preservada.");
+          if(signature){const normalized=normalizeSignatureImage(signature);if(!normalized) throw new Error("Não foi possível preparar a assinatura preservada.");drawImageContain(normalized,267,964,260,50,true);}
+          context.strokeStyle="#764531";context.lineWidth=.6;context.beginPath();context.moveTo(247,1018);context.lineTo(547,1018);context.stroke();
+          context.fillStyle="#4b2118";context.textAlign="center";context.font="11px Arial";
+          context.fillText(`Dr(a). ${finalDocument.metadata.doctor.name || "Nome do médico"}`,397,1027,650);
+          context.font="9px Arial";context.fillText(`CRM: ${finalDocument.metadata.doctor.crm || "000000"}`,397,1042);
+        }
+        context.strokeStyle="#89553c";context.lineWidth=.8;context.beginPath();context.moveTo(42,1064);context.lineTo(752,1064);context.stroke();
+        context.fillStyle="#6e4836";context.font="9px Arial";context.textAlign="left";
+        context.fillText(lastPage ? "Hospital São Rafael · Documento médico" : "Hospital São Rafael · Continua na próxima página.",42,1080);
+        context.textAlign="right";context.fillText(`Página ${pageIndex+1} de ${finalDocument.pages.length}`,752,1080);
+        context.font="8px Arial";context.fillText(`Código: ${finalDocument.metadata.protocol || "—"}`,752,1096,350);context.textAlign="left";
+        return;
+      }
       const signature = finalDocument.metadata.signatureImage
         ? await loadImage(finalDocument.metadata.signatureImage)
         : null;
@@ -236,7 +292,9 @@ export async function renderExamPage(
       await drawInstitutionalHeader();
 
       if (page.type === "report") {
-        drawExamReportHtml(context, page.reportHtml || "", 42, 214, 710, 928);
+        if (modern) renderClinicalBody(context, page.reportHtml || "", 42, 214, 710, 928, "exam");
+        else if (finalDocument.contentRendererVersion === 2) renderHistoricalBody(context, page.reportHtml || "", 42, 214, 710, 928, "exam");
+        else drawExamReportHtml(context, page.reportHtml || "", 42, 214, 710, 928);
       } else if (page.type === "auto-attachment" && page.automaticAttachment) {
         const attachment = page.automaticAttachment;
         const image = attachment.imageUrl ? await loadImage(attachment.imageUrl) : null;
@@ -414,7 +472,5 @@ export function drawExamReportHtml(context: CanvasRenderingContext2D, html: stri
     }
 
 export function measureExamReportHtml(html: string, width = 710): number | null {
-  if (typeof document === "undefined") return null;
-  const context = document.createElement("canvas").getContext("2d");
-  return context ? drawExamReportHtml(context, html, 0, 0, width, Number.POSITIVE_INFINITY) : null;
+  return measureClinicalBody(html, "exam");
 }

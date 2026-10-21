@@ -1,4 +1,6 @@
 "use client";
+import { clinicalEditorGuideTops } from "@/lib/clinical-editor-guides";
+import { useClinicalEditorLayout } from "@/lib/use-clinical-editor-layout";
 
 import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 
@@ -30,6 +32,12 @@ import {
   Heart,
   HeartPulse,
   Highlighter,
+  Heading1,
+  Heading2,
+  Pilcrow,
+  Undo2,
+  Redo2,
+  MessageSquareText,
   ClipboardPaste,
   Eraser,
   CaseUpper,
@@ -391,26 +399,28 @@ function mergeAutomaticBlocks(currentHtml: string, generatedHtml: string) {
     changed = true;
   });
 
+  // A missing automatic section must not stay missing after applying a model.
+  // Restore it in generated order without overwriting manually edited siblings.
+  for (const [id, html] of generatedBlocks) {
+    const existing = Array.from(wrapper.querySelectorAll<HTMLElement>("[data-hpsr-block]"));
+    if (existing.some(node => normalizeBlockId(node.dataset.hpsrBlock || "") === id)) continue;
+    const order = [...generatedBlocks.keys()];
+    const next = existing.find(node => order.indexOf(normalizeBlockId(node.dataset.hpsrBlock || "")) > order.indexOf(id));
+    if (next) next.insertAdjacentHTML("beforebegin", html);
+    else wrapper.insertAdjacentHTML("beforeend", html);
+    changed = true;
+  }
   return changed ? wrapper.innerHTML : currentHtml;
 }
 
 function cleanEditorHtml(html: string) {
-  return html
-    .replace(/<div><br><\/div>/g, "<p><br></p>")
-    .replace(/<div>/g, "<p>")
-    .replace(/<\/div>/g, "</p>")
-    .replace(/<table\b([^>]*)>/gi, (_match, attrs: string) => {
-      if (/\bclass\s*=/.test(attrs)) {
-        const nextAttrs = attrs.replace(/\bclass=(['"])(.*?)\1/i, (_classMatch: string, quote: string, classes: string) => {
-          const normalized = classes.split(/\s+/).filter(Boolean);
-          if (!normalized.includes("hpsr-exam-table")) normalized.push("hpsr-exam-table");
-          return `class=${quote}${normalized.join(" ")}${quote}`;
-        });
-        return `<table${nextAttrs}>`;
-      }
-      return `<table class="hpsr-exam-table"${attrs}>`;
-    })
-    .trim();
+  if (typeof document === "undefined") return html.trim();
+  const root = document.createElement("div");
+  root.innerHTML = html;
+  // Preserve nested blocks, attributes and closing tags. A regex replacing all
+  // </div> tags with </p> used to create malformed mixed/pasted content.
+  root.querySelectorAll("table").forEach(table => table.classList.add("hpsr-exam-table"));
+  return root.innerHTML.trim();
 }
 
 
@@ -469,6 +479,7 @@ function Button({
     <button
       type={type}
       title={title}
+      aria-label={title}
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
       className={`inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border px-3 text-[14px] font-black transition duration-150 ${active ? "border-hpsr-wine bg-hpsr-wine text-white shadow-[0_8px_18px_rgba(103,38,20,0.15)]" : "border-[#dec9b7] bg-white/90 text-hpsr-text hover:border-hpsr-wine/40 hover:bg-[#fff8f0] hover:shadow-[0_6px_16px_rgba(42,7,0,0.05)]"} ${className}`}
@@ -703,6 +714,7 @@ export default function ExamesPage() {
     signatureImage: currentUserProfile.signatureImage || null,
   }]);
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const scheduleEditorGuides = useClinicalEditorLayout(editorRef, updateEditorPageGuides, true);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const signatureInputRef = useRef<HTMLInputElement | null>(null);
   const editorHtmlRef = useRef("");
@@ -801,6 +813,7 @@ export default function ExamesPage() {
   const [tableCols, setTableCols] = useState(3);
   const [editorPageGuideTops, setEditorPageGuideTops] = useState<number[]>([]);
   const [editorReportPageCount, setEditorReportPageCount] = useState(1);
+  const [editorPaginationError, setEditorPaginationError] = useState("");
 
   const draftPayload = useMemo(() => ({
     schemaVersion: 1, patient, doctor, selectedDoctorId, selectedCategory, selectedExamId,
@@ -1055,85 +1068,15 @@ export default function ExamesPage() {
   }, [selectedExam]);
 
   function updateEditorPageGuides() {
-    const editor = editorRef.current;
-    if (!editor) {
-      setEditorPageGuideTops([]);
-      return;
-    }
-
-    try {
-      const previewDocument = buildPreviewDocument();
-      const pages = previewDocument.pages.filter((page) => page.type === "report").map((page) => page.reportHtml || "");
-      setEditorReportPageCount(Math.max(1, pages.length));
-      if (pages.length <= 1) {
-        setEditorPageGuideTops([]);
-        return;
-      }
-
-      // Conta também <br> e parágrafos vazios. Assim, os Enters ocupam espaço
-      // no mesmo fluxo que a paginação/preview, em vez de a guia acompanhar
-      // somente caracteres visíveis.
-      const contentUnits = (root: Node) => {
-        let total = 0;
-        const walker = window.document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
-        let current = walker.nextNode();
-        while (current) {
-          if (current.nodeType === Node.TEXT_NODE) total += (current.textContent || "").length;
-          else if ((current as Element).tagName?.toLowerCase() === "br") total += 1;
-          current = walker.nextNode();
-        }
-        return total;
-      };
-
-      const targets: number[] = [];
-      let cumulative = 0;
-      pages.slice(0, -1).forEach((pageHtml) => {
-        const holder = window.document.createElement("div");
-        holder.innerHTML = pageHtml;
-        cumulative += contentUnits(holder);
-        targets.push(cumulative);
-      });
-
-      const walker = window.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
-      const positions: number[] = [];
-      let targetIndex = 0;
-      let consumed = 0;
-      let node = walker.nextNode();
-      const editorRect = editor.getBoundingClientRect();
-
-      while (node && targetIndex < targets.length) {
-        if (node.nodeType === Node.TEXT_NODE) {
-          const value = node.textContent || "";
-          while (targetIndex < targets.length && consumed + value.length >= targets[targetIndex]) {
-            const offset = Math.max(0, Math.min(value.length, targets[targetIndex] - consumed));
-            const range = window.document.createRange();
-            range.setStart(node, offset);
-            range.setEnd(node, offset);
-            const rect = range.getBoundingClientRect();
-            positions.push(Math.max(0, editor.offsetTop + rect.top - editorRect.top));
-            targetIndex += 1;
-          }
-          consumed += value.length;
-        } else if ((node as Element).tagName?.toLowerCase() === "br") {
-          consumed += 1;
-          while (targetIndex < targets.length && consumed >= targets[targetIndex]) {
-            const parentRect = (node.parentElement || editor).getBoundingClientRect();
-            positions.push(Math.max(0, editor.offsetTop + parentRect.bottom - editorRect.top));
-            targetIndex += 1;
-          }
-        }
-        node = walker.nextNode();
-      }
-
-      setEditorPageGuideTops((current) => {
-        if (current.length === positions.length && current.every((value, index) => Math.abs(value - positions[index]) < 1)) return current;
-        return positions;
-      });
-    } catch {
-      setEditorPageGuideTops([]);
-      setEditorReportPageCount(1);
-    }
-  }
+ const editor=editorRef.current;if(!editor){setEditorPageGuideTops([]);return;}
+ try {
+ const pages=buildPreviewDocument().pages.filter(page=>page.type==="report").map(page=>page.reportHtml || "");
+ setEditorReportPageCount(Math.max(1,pages.length));
+ const positions=clinicalEditorGuideTops(editor,pages);
+ setEditorPaginationError("");
+ setEditorPageGuideTops(current=>current.length===positions.length&&current.every((value,index)=>Math.abs(value-positions[index])<1)?current:positions);
+ } catch (error) { setEditorPageGuideTops([]);setEditorPaginationError(error instanceof Error ? error.message : "Não foi possível conferir a paginação."); }
+}
 
   function setEditorContent(
     html: string,
@@ -1149,7 +1092,7 @@ export default function ExamesPage() {
       window.requestAnimationFrame(placeCaretAtEnd);
     }
     scheduleAutosave(clean);
-    window.requestAnimationFrame(updateEditorPageGuides);
+    scheduleEditorGuides();
   }
 
   function scheduleAutosave(htmlOverride?: string) {
@@ -1160,16 +1103,16 @@ export default function ExamesPage() {
 
   useEffect(() => {
     function handleVisibilityChange() {
-      if (document.visibilityState === "visible") updateEditorPageGuides();
+      if (document.visibilityState === "visible") scheduleEditorGuides();
     }
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
   useEffect(() => {
-    updateEditorPageGuides();
-    window.addEventListener("resize", updateEditorPageGuides);
-    return () => window.removeEventListener("resize", updateEditorPageGuides);
+    scheduleEditorGuides();
+    window.addEventListener("resize", scheduleEditorGuides);
+    return () => window.removeEventListener("resize", scheduleEditorGuides);
   }, []);
 
   function rememberSelection() {
@@ -1230,7 +1173,7 @@ export default function ExamesPage() {
     editorHtmlRef.current = html;
     rememberSelection();
     scheduleAutosave(html);
-    window.requestAnimationFrame(updateEditorPageGuides);
+    scheduleEditorGuides();
   }
 
   function exec(command: string, value?: string) {
@@ -1296,6 +1239,8 @@ export default function ExamesPage() {
   }
 
   function insertTable(rows = tableRows, cols = tableCols) {
+    rows=Math.max(1,Math.min(30,Math.trunc(rows)||1));
+    cols=Math.max(1,Math.min(8,Math.trunc(cols)||1));
     const headers = Array.from(
       { length: cols },
       (_, index) => `<th>Coluna ${index + 1}</th>`,
@@ -2322,7 +2267,7 @@ export default function ExamesPage() {
 
         {(!showCatalog || Boolean(editorHtmlRef.current.trim())) ? (
         <main aria-label="Editor do exame" className="hpsr-light-editor-shell flex min-h-0 min-w-0 flex-col overflow-visible rounded-[24px] border border-[#ddd4cc] bg-[#fffaf5] shadow-[0_14px_38px_rgba(42,7,0,0.065)] ring-1 ring-white xl:overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#ece5df] bg-[linear-gradient(110deg,#fff8ed_0%,#f5e9e5_100%)] px-6 py-4">
+          <div className="hpsr-exam-editor-heading flex flex-wrap items-center justify-between gap-4 border-b border-[#ece5df] bg-[linear-gradient(110deg,#fff8ed_0%,#f5e9e5_100%)] px-6 py-4">
             <div>
               <h2 className="text-xl font-black tracking-[-0.01em] text-hpsr-text">
                 {selectedExam?.nome || "Exame livre"}
@@ -2368,7 +2313,7 @@ export default function ExamesPage() {
           <div className="border-b border-[#eee8e2] bg-[#fbfaf9] px-6 py-2.5 text-xs font-semibold text-hpsr-muted">
             <div className="flex items-center gap-2">
               <Info size={14} className="text-hpsr-wine" />
-              <span>Revise resultados, referências, interpretação e conclusão. As linhas no editor indicam onde uma nova página começa no documento final.</span>
+              <span>As linhas indicam as quebras de página. Confira a folha em Pré-visualizar.</span>
             </div>
           </div>
 
@@ -2389,7 +2334,7 @@ export default function ExamesPage() {
           />
 
           <div className="hpsr-exams-editor-viewport h-[clamp(510px,68dvh,760px)] flex-none overflow-y-auto overscroll-contain bg-[linear-gradient(180deg,#f3eee8_0%,#eee5e1_100%)] p-5 [scrollbar-gutter:stable]">
-            <div className="mx-auto min-h-full max-w-[1100px] rounded-[20px] border border-[#dfd5ce] bg-white p-8 shadow-[0_14px_34px_rgba(42,7,0,0.055)] ring-1 ring-white">
+            <div className="hpsr-exam-editor-sheet mx-auto min-h-full border border-[#dfd5ce] bg-white">
               <div className="relative">
                 {editorPageGuideTops.map((top, index) => {
                     const pageNumber = index + 2;
@@ -2523,7 +2468,7 @@ export default function ExamesPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#e9e1da] bg-[#fcfbfa] px-6 py-3.5">
-            <span className="text-[13px] font-semibold text-hpsr-muted">Revise o conteúdo antes de pré-visualizar.</span>
+            <span role={editorPaginationError ? "alert" : undefined} className="text-[13px] font-semibold text-hpsr-muted">{editorPaginationError || "Revise o conteúdo antes de pré-visualizar."}</span>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -2686,7 +2631,7 @@ function Panel({
   const isCatalog = title === "Catálogo de exames";
   const isAttachments = title === "Anexos";
   return (
-    <section className={`overflow-hidden rounded-[18px] border shadow-[0_4px_14px_rgba(42,7,0,0.028)] ${isCatalog ? "border-[#dfc5bc] bg-[#fff8f3]" : isAttachments ? "border-[#e9d5bd] bg-[#fffbf4]" : "border-[#ead8c8] bg-[#fffaf4]"}`}>
+    <section className={`hpsr-exam-form-section overflow-hidden rounded-[18px] border shadow-[0_4px_14px_rgba(42,7,0,0.028)] ${isCatalog ? "border-[#dfc5bc] bg-[#fff8f3]" : isAttachments ? "border-[#e9d5bd] bg-[#fffbf4]" : "border-[#ead8c8] bg-[#fffaf4]"}`}>
       <div className={`flex items-start gap-3 border-b px-4 py-3 ${isCatalog ? "border-[#ead0c4] bg-[#f5e1d9]" : isAttachments ? "border-[#f0dfcc] bg-[#fff1e0]" : "border-[#eedbca] bg-[#f9eada]"}`}>
         <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] text-white ${isCatalog ? "bg-[linear-gradient(135deg,#8b3d31,#672614)]" : isAttachments ? "bg-[#a96d37]" : "bg-[linear-gradient(135deg,#672614,#2a0700)]"}`}>
           <Icon size={17} strokeWidth={2.2} />
@@ -2755,73 +2700,58 @@ function Toolbar({
   }
 
   return (
-    <div
-      className="sticky top-0 z-10 flex flex-wrap items-center gap-2 border-b border-[#e7dfd8] bg-white/95 px-4 py-2.5 backdrop-blur-md"
-      onMouseDownCapture={() => rememberSelection()}
-    >
-      <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
-        <Button onClick={() => exec("undo")} title="Desfazer">
-          ↶
-        </Button>
-        <Button onClick={() => exec("redo")} title="Refazer">
-          ↷
-        </Button>
+    <div className="hpsr-exam-toolbar sticky top-0 z-10" role="toolbar" aria-label="Ferramentas do laudo" onMouseDownCapture={() => rememberSelection()}>
+      <div className="hpsr-exam-toolgroup" role="group" aria-label="Estilo do parágrafo">
+        <span className="hpsr-exam-toolgroup-label">Estilo</span>
+        <div className="hpsr-exam-toolgroup-controls">
+          <Button onClick={() => applyFormatBlock("h1")} title="Título"><Heading1 size={16} /></Button>
+          <Button onClick={() => applyFormatBlock("h2")} title="Seção"><Heading2 size={16} /></Button>
+          <Button onClick={() => applyFormatBlock("p")} title="Texto normal"><Pilcrow size={16} /></Button>
+        </div>
       </div>
-      <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
-        <Button onClick={() => applyFormatBlock("h1")}>
-          <Type size={14} /> Título
-        </Button>
-        <Button onClick={() => applyFormatBlock("h2")}>Seção</Button>
-        <Button onClick={() => applyFormatBlock("p")}>Texto</Button>
+      <div className="hpsr-exam-toolgroup" role="group" aria-label="Fonte e ênfase">
+        <span className="hpsr-exam-toolgroup-label">Fonte</span>
+        <div className="hpsr-exam-toolgroup-controls">
+          <EditorFontSizeMenu onChange={(value) => exec("fontSize", value)} />
+          <Button onClick={() => exec("bold")} title="Negrito"><Bold size={15} /></Button>
+          <Button onClick={() => exec("italic")} title="Itálico"><Italic size={15} /></Button>
+          <Button onClick={() => exec("underline")} title="Sublinhado"><Underline size={15} /></Button>
+        </div>
       </div>
-      <div className="flex items-center rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
-        <EditorFontSizeMenu onChange={(value) => exec("fontSize", value)} />
+      <div className="hpsr-exam-toolgroup" role="group" aria-label="Alinhamento e listas">
+        <span className="hpsr-exam-toolgroup-label">Parágrafo</span>
+        <div className="hpsr-exam-toolgroup-controls">
+          <Button onClick={() => exec("justifyLeft")} title="Alinhar à esquerda"><AlignLeft size={15} /></Button>
+          <Button onClick={() => exec("justifyCenter")} title="Centralizar"><AlignCenter size={15} /></Button>
+          <Button onClick={() => exec("justifyRight")} title="Alinhar à direita"><AlignRight size={15} /></Button>
+          <Button onClick={() => exec("insertUnorderedList")} title="Lista com marcadores"><List size={15} /></Button>
+          <Button onClick={() => exec("insertOrderedList")} title="Lista numerada"><ListOrdered size={15} /></Button>
+        </div>
       </div>
-      <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
-        <Button onClick={() => exec("bold")}>
-          <Bold size={15} />
-        </Button>
-        <Button onClick={() => exec("italic")}>
-          <Italic size={15} />
-        </Button>
-        <Button onClick={() => exec("underline")}>
-          <Underline size={15} />
-        </Button>
-        <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[12px] border border-hpsr-border bg-white/85 px-3 text-xs font-black text-hpsr-text" title="Cor da fonte">
-          <Type size={15} />
-          <input type="color" onChange={color} className="h-5 w-7 cursor-pointer border-0 bg-transparent p-0" aria-label="Cor da fonte" />
-        </label>
-        <label className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-[12px] border border-hpsr-border bg-white/85 px-3 text-xs font-black text-hpsr-text" title="Cor de fundo do texto">
-          <Highlighter size={15} />
-          <input type="color" defaultValue="#fff2a8" onChange={backgroundColor} className="h-5 w-7 cursor-pointer border-0 bg-transparent p-0" aria-label="Cor de fundo do texto" />
-        </label>
-        <Button onClick={() => exec("removeFormat")} title="Remover formatação"><Eraser size={15} /></Button>
+      <div className="hpsr-exam-toolgroup" role="group" aria-label="Cores e limpeza">
+        <span className="hpsr-exam-toolgroup-label">Cores</span>
+        <div className="hpsr-exam-toolgroup-controls">
+          <label className="hpsr-exam-color-control" title="Cor da fonte"><Type size={15} /><input type="color" onChange={color} className="h-5 w-6 cursor-pointer border-0 bg-transparent p-0" aria-label="Cor da fonte" /></label>
+          <label className="hpsr-exam-color-control" title="Cor de fundo do texto"><Highlighter size={15} /><input type="color" defaultValue="#fff2a8" onChange={backgroundColor} className="h-5 w-6 cursor-pointer border-0 bg-transparent p-0" aria-label="Cor de fundo do texto" /></label>
+          <Button onClick={() => exec("removeFormat")} title="Remover formatação"><Eraser size={15} /></Button>
+        </div>
       </div>
-      <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
-        <Button onClick={() => void pasteWithoutFormatting()} title="Colar sem formatação"><ClipboardPaste size={15} /></Button>
-        <Button onClick={() => transformSelectionCase("upper")} title="Converter seleção para maiúsculas"><CaseUpper size={16} /></Button>
-        <Button onClick={() => transformSelectionCase("lower")} title="Converter seleção para minúsculas"><CaseLower size={16} /></Button>
+      <div className="hpsr-exam-toolgroup" role="group" aria-label="Edição do texto">
+        <span className="hpsr-exam-toolgroup-label">Edição</span>
+        <div className="hpsr-exam-toolgroup-controls">
+          <Button onClick={() => exec("undo")} title="Desfazer"><Undo2 size={16} /></Button>
+          <Button onClick={() => exec("redo")} title="Refazer"><Redo2 size={16} /></Button>
+          <Button onClick={() => void pasteWithoutFormatting()} title="Colar sem formatação"><ClipboardPaste size={15} /></Button>
+          <Button onClick={() => transformSelectionCase("upper")} title="Converter seleção para maiúsculas"><CaseUpper size={16} /></Button>
+          <Button onClick={() => transformSelectionCase("lower")} title="Converter seleção para minúsculas"><CaseLower size={16} /></Button>
+        </div>
       </div>
-      <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
-        <Button onClick={() => exec("justifyLeft")}>
-          <AlignLeft size={15} />
-        </Button>
-        <Button onClick={() => exec("justifyCenter")}>
-          <AlignCenter size={15} />
-        </Button>
-        <Button onClick={() => exec("justifyRight")}>
-          <AlignRight size={15} />
-        </Button>
-        <Button onClick={() => exec("insertUnorderedList")}>
-          <List size={15} />
-        </Button>
-        <Button onClick={() => exec("insertOrderedList")}>
-          <ListOrdered size={15} />
-        </Button>
-      </div>
-      <div className="relative flex items-center gap-1 rounded-[13px] border border-[#d8bfa9] bg-[#fff3e3] p-1">
-        <Button onClick={() => setTablePickerOpen(!tablePickerOpen)}>
-          <Table2 size={15} /> Tabela <ChevronDown size={13} />
+      <div className="hpsr-exam-toolgroup" role="group" aria-label="Inserir conteúdo">
+        <span className="hpsr-exam-toolgroup-label">Inserir</span>
+        <div className="hpsr-exam-toolgroup-controls">
+      <div className="hpsr-exam-table-tool">
+        <Button onClick={() => setTablePickerOpen(!tablePickerOpen)} title="Inserir tabela">
+          <Table2 size={15} /><ChevronDown size={13} />
         </Button>
         {tablePickerOpen && (
           <div className="absolute left-0 top-12 z-20 w-64 rounded-[16px] border border-[#d8bfa9] bg-white p-3 shadow-soft">
@@ -2867,19 +2797,8 @@ function Toolbar({
           </div>
         )}
       </div>
-      <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
-        <Button
-          onClick={() =>
-            insertHtml("<blockquote>Observação: </blockquote><p><br></p>")
-          }
-        >
-          Observação
-        </Button>
-        <Button
-          onClick={() => insertHtml("<p><strong>Conclusão:</strong> </p>")}
-        >
-          Conclusão
-        </Button>
+          <Button onClick={() => insertHtml("<blockquote>Observação: </blockquote><p><br></p>")} title="Inserir observação"><MessageSquareText size={16} /></Button>
+        </div>
       </div>
     </div>
   );

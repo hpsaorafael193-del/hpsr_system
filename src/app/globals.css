@@ -2376,3 +2376,357 @@ textarea,
 
 /* Cobertura dos gradientes claros usados por todos os modais. */
 .hpsr-modal-tone :is(div,section,article,form,header,footer):not(.a4-page):not(.a4-page *):not(.hpsr-document-sheet):not(.hpsr-document-sheet *):not([data-preserve-white="true"]):not([data-preserve-white="true"] *):is([class~="bg-[linear-gradient(110deg,#fff3e9_0%,#f5e5df_100%)]"],[class~="bg-[linear-gradient(110deg,#fff8ed_0%,#f5e9e5_100%)]"],[class~="bg-[linear-gradient(118deg,#eddfd1_0%,#f6eee5_66%,#e9d8ca_100%)]"],[class~="bg-[linear-gradient(120deg,#f8eadf_0%,#f4e2d5_100%)]"],[class~="bg-[linear-gradient(120deg,#f8ecdf_0%,#f4e3d7_100%)]"],[class~="bg-[linear-gradient(135deg,#e2c9ba,#ecddd3)]"],[class~="bg-[linear-gradient(135deg,#e8d2c5,#f0e2d8)]"],[class~="bg-[linear-gradient(135deg,#e9d8c8_0%,#e5d0bd_100%)]"],[class~="bg-[linear-gradient(135deg,#ead5c8,#f2e5dc)]"],[class~="bg-[linear-gradient(135deg,#ead6ca,#f4e8df)]"],[class~="bg-[linear-gradient(135deg,#ebd8c5_0%,#f2e5d8_100%)]"],[class~="bg-[linear-gradient(135deg,#f4ebdf_0%,#ebdfd1_100%)]"],[class~="bg-[linear-gradient(135deg,#f6e8da_0%,#ebd4c0_100%)]"],[class~="bg-[linear-gradient(135deg,#f9ece6_0%,#fff9f4_100%)]"],[class~="bg-[linear-gradient(135deg,#fff8f1_0%,#fffdf9_100%)]"],[class~="bg-[linear-gradient(135deg,#fff8f3_0%,#fffdfb_100%)]"],[class~="bg-[linear-gradient(135deg,#fff9df_0%,#fff4cc_100%)]"],[class~="bg-[linear-gradient(135deg,#fff9e8_0%,#fff3d6_100%)]"],[class~="bg-[linear-gradient(135deg,#fffaf4,#fff)]"],[class~="bg-[linear-gradient(135deg,#fffaf4_0%,#f1dfcd_100%)]"],[class~="bg-[linear-gradient(135deg,#fffaf4_0%,#f3e5d8_100%)]"],[class~="bg-[linear-gradient(135deg,#fffaf4_0%,#f5e7d8_100%)]"],[class~="bg-[linear-gradient(135deg,#fffaf4_0%,#f6eadc_58%,#ead8c6_100%)]"],[class~="bg-[linear-gradient(135deg,#fffaf4_0%,#f7eadc_55%,#f2e3d0_100%)]"],[class~="bg-[linear-gradient(135deg,#fffaf4_0%,#fff2e6_100%)]"],[class~="bg-[linear-gradient(135deg,#fffaf4_0%,#ffffff_62%,#f7eee4_100%)]"],[class~="bg-[linear-gradient(135deg,#fffdf9_0%,#f4e7dc_100%)]"],[class~="bg-[linear-gradient(135deg,#fffdf9_0%,#fff7ee_58%,#f2e0cf_100%)]"],[class~="bg-[linear-gradient(135deg,#fffdf9_0%,#fff7ef_100%)]"],[class~="bg-[linear-gradient(135deg,#ffffff_0%,#fffaf4_45%,#f1dfcd_100%)]"],[class~="bg-[linear-gradient(145deg,#ead7c5_0%,#e4ccb7_100%)]"],[class~="bg-[linear-gradient(145deg,#fff9f0_0%,#f5e9e5_100%)]"],[class~="bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)]"],[class~="bg-[linear-gradient(155deg,#f8eddf_0%,#eddbc7_100%)]"],[class~="bg-[linear-gradient(165deg,#f5e9dd_0%,#efdfcf_100%)]"],[class~="bg-[linear-gradient(170deg,#ecd9c7_0%,#ddc4af_100%)]"],[class~="bg-[linear-gradient(170deg,#f4e5d3_0%,#f0dfcd_100%)]"],[class~="bg-[linear-gradient(170deg,#fff9f4_0%,#f7e8e4_100%)]"],[class~="bg-[linear-gradient(180deg,#ead4c0_0%,#e5cbb5_100%)]"],[class~="bg-[linear-gradient(180deg,#eee3d7_0px,#f5efe7_88px,#f5efe7_100%)]"],[class~="bg-[linear-gradient(180deg,#f2e6d8_0%,#e9d6c4_100%)]"],[class~="bg-[linear-gradient(180deg,#f3eee8_0%,#eee5e1_100%)]"],[class~="bg-[linear-gradient(180deg,#f4f0ed_0%,#ebe5e0_100%)]"],[class~="bg-[linear-gradient(180deg,#f5e5dd_0%,#f1e6dc_100%)]"],[class~="bg-[linear-gradient(180deg,#f8eee5_0%,#f3e2de_100%)]"],[class~="bg-[linear-gradient(180deg,#f8f1e8_0%,#f4ebe0_100%)]"],[class~="bg-[linear-gradient(180deg,#fffaf4_0%,#f5e8dc_100%)]"],[class~="bg-[linear-gradient(180deg,#fffaf4_0%,#fff6ee_100%)]"],[class~="bg-[linear-gradient(180deg,#ffffff_0%,#fffaf4_100%)]"],[class~="bg-[linear-gradient(180deg,#ffffff_0%,#fffaf5_100%)]"]) { background-image:linear-gradient(155deg,#f3e5d8,#ead9c8 58%,#efdfd2)!important; }
+
+/* Clinical content metrics, shared with renderer v2. Workspace heights stay unchanged. */
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor { width:710px;max-width:none;box-sizing:border-box;letter-spacing:0;font-weight:400; }
+.hpsr-exams-page .hpsr-continuous-editor { font:12px/16.5px Arial,sans-serif; }
+.hpsr-documents-page .hpsr-continuous-editor { font:11.4px/15.5px Georgia,'Times New Roman',serif; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor :is(p,blockquote) { margin:0 0 5px;min-height:0;padding:0;background:none;border:0;border-radius:0;line-height:max(1.34em,16.5px);color:inherit; }
+.hpsr-documents-page .hpsr-continuous-editor :is(p,blockquote) { line-height:max(1.34em,15.5px); }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor :is(h1,h2,h3) { margin:0 0 6px;padding:0;border:0;border-radius:0;background:none;text-transform:none;letter-spacing:0;color:inherit;font-family:Arial,sans-serif;font-weight:700;line-height:max(1.34em,16px); }
+.hpsr-exams-page .hpsr-continuous-editor h1 { font-size:12.5px; }
+.hpsr-exams-page .hpsr-continuous-editor :is(h2,h3) { font-size:11px; }
+.hpsr-documents-page .hpsr-continuous-editor h1 { font-size:13px; }
+.hpsr-documents-page .hpsr-continuous-editor :is(h2,h3) { font-size:11.5px; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor strong { color:inherit; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor table { width:500px;max-width:78%;table-layout:fixed;border-collapse:collapse;border-spacing:0;border-radius:0;margin:0 auto 10px;background:none;font-size:11px;line-height:13px; }
+.hpsr-documents-page .hpsr-continuous-editor table { font-size:10px;line-height:11px; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor :is(td,th) { padding:4px 6px;vertical-align:middle;text-align:center;border:1px solid #5b18092e;line-height:max(1.34em,13px); }
+.hpsr-documents-page .hpsr-continuous-editor :is(td,th) { line-height:max(1.34em,11px); }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor :is(thead th,tbody tr:nth-child(even) td) { background:none;color:inherit; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor :is(ul,ol) { margin:0 0 6px;padding-left:24px; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor li { margin:0;padding:0; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor section[data-hpsr-auto-block] { margin:0;padding:0; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor font[size='1'] { font-size:10px; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor font[size='2'] { font-size:12px; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor font[size='3'] { font-size:14px; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor font[size='4'] { font-size:16px; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor font[size='5'] { font-size:18px; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor font[size='6'] { font-size:24px; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor font[size='7'] { font-size:32px; }
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor :is(font,span,b,strong,i,em,u) { line-height:1.34; }
+
+/* test.130 — restrained decoration belongs to generated report headings only. */
+:is(.hpsr-exams-page,.hpsr-documents-page) .hpsr-continuous-editor :is(h1,h2,h3)[data-hpsr-section-heading] {
+  background-color:#f8f1eb;box-shadow:inset 0 -1px #d9b9a4;
+}
+
+/* test.131 — exam sheet v3: full width tables and restrained warm accents. */
+.hpsr-exams-page .hpsr-continuous-editor :is(h1,h2,h3) {
+  font-size:15px;line-height:max(1.34em,20px);background:none;box-shadow:none;
+  border-bottom:.6px solid #a07863;
+}
+.hpsr-exams-page .hpsr-continuous-editor h1 { font-size:17px; }
+.hpsr-exams-page .hpsr-continuous-editor :is(h1,h2,h3)[data-hpsr-section-heading] { background:none;box-shadow:none; }
+.hpsr-exams-page .hpsr-continuous-editor p[data-hpsr-narrative-panel] { background-color:#f7ebe0;padding:8px 10px; }
+.hpsr-exams-page .hpsr-continuous-editor table { width:710px;max-width:100%;margin:0 0 10px; }
+.hpsr-exams-page .hpsr-continuous-editor :is(td,th) { height:25px;box-sizing:border-box;border:0;border-bottom:.9px solid #5b18092e; }
+.hpsr-exams-page .hpsr-continuous-editor :is(td,th):first-child { text-align:left;width:36%; }
+.hpsr-exams-page .hpsr-continuous-editor tr[data-hpsr-table-group] td { background-color:#f4e5d8;font-weight:700;text-align:left; }
+
+/* test.132 — the editor's content column matches the 710px report body.
+   Scope beats legacy auto-section/table selectors; inline user formatting wins. */
+.hpsr-exams-page .hpsr-exams-editor-viewport { padding:12px;overflow-x:auto; }
+.hpsr-exams-page .hpsr-exam-editor-sheet { width:794px;min-width:794px;max-width:none;box-sizing:border-box;padding:36px 41px; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor { width:710px;max-width:none;margin:0;padding:0;color:#4b2118;font:12px/16.5px Arial,sans-serif; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor section[data-hpsr-auto-block] { margin:0;padding:0;break-inside:auto; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor :is(h1,h2,h3) { margin:0 0 6px;padding:0;border:0;border-radius:0;box-shadow:inset 0 -.6px #a07863;background:none;color:inherit;font-family:Arial,sans-serif;font-size:15px;font-weight:700;line-height:max(1.34em,20px);text-transform:none;letter-spacing:0; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor h1 { font-size:17px; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor :is(p,blockquote) { margin:0 0 5px;padding:0;min-height:0;border:0;background:none;line-height:max(1.34em,16.5px); }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor p[data-hpsr-narrative-panel] { padding:8px 10px;background-color:#f7ebe0; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor table.hpsr-exam-table { width:710px;max-width:100%;margin:0 0 10px;border:0;border-radius:0;border-collapse:collapse;border-spacing:0;table-layout:fixed;background:none;font:11px/13px Arial,sans-serif;overflow:visible; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor table.hpsr-exam-table :is(td,th) { height:25px;box-sizing:border-box;padding:4px 6px;border:0;border-bottom:.9px solid #5b18092e;vertical-align:middle;text-align:center;line-height:max(1.34em,13px);font-weight:400; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor table.hpsr-exam-table th { font-weight:700; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor table.hpsr-exam-table :is(td,th):first-child { text-align:left;width:36%; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor table.hpsr-exam-table :is(td,th) p { margin:0;padding:0;line-height:inherit; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor tr[data-hpsr-table-group] td { font-weight:700;background-color:#f4e5d8; }
+@media(min-width:1280px) {
+  .hpsr-exams-page .hpsr-exams-workspace { grid-template-columns:minmax(340px,420px) minmax(0,858px);justify-content:start; }
+}
+
+
+/* test.134 — original sides retained; balanced widths fill the row. */
+@media(min-width:1280px) {
+  .hpsr-exams-page .hpsr-exams-workspace {
+    grid-template-columns:minmax(360px,1fr) minmax(0,1fr);
+    justify-content:stretch;
+  }
+}
+
+/* test.135 — fit the complete content column; vertical scrolling only. */
+.hpsr-exams-page .hpsr-exams-editor-viewport { overflow-x:hidden;overflow-y:auto; }
+.hpsr-exams-page .hpsr-exam-editor-sheet {
+  width:100%;max-width:794px;min-width:0;
+  padding:36px clamp(8px,5.16%,41px);
+}
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor { overflow-wrap:anywhere; }
+
+/* test.136 — compact logical groups instead of irregular nested tool cards. */
+.hpsr-exams-page .hpsr-exam-editor-heading { padding:12px 16px;gap:10px; }
+.hpsr-exams-page .hpsr-exam-editor-heading h2 { font-size:18px; }
+.hpsr-exams-page .hpsr-exam-toolbar {
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));
+  align-items:start;gap:8px 12px;padding:10px 14px;
+  border-bottom:1px solid #dfcbb8;background:#f5eadf;
+}
+.hpsr-exams-page .hpsr-exam-toolgroup { min-width:0; }
+.hpsr-exams-page .hpsr-exam-toolgroup-label { display:block;margin-bottom:4px;color:#80604e;font-size:10px;font-weight:700;line-height:12px;letter-spacing:.04em; }
+.hpsr-exams-page .hpsr-exam-toolgroup-controls { display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-width:0; }
+.hpsr-exams-page .hpsr-exam-toolgroup-controls > button,
+.hpsr-exams-page .hpsr-exam-toolgroup-controls > .relative > button,
+.hpsr-exams-page .hpsr-exam-color-control {
+  display:inline-flex;align-items:center;justify-content:center;gap:5px;
+  height:32px;min-width:30px;padding:0 7px;border-radius:7px;
+  border:1px solid #dcc5b1;background:#fcf3e8;color:#4b2118;
+  font-size:12px;font-weight:600;box-shadow:none;
+}
+.hpsr-exams-page .hpsr-exam-color-control { cursor:pointer; }
+.hpsr-exams-page .hpsr-exam-toolbar button:hover { background:#eedac7;box-shadow:none; }
+.hpsr-exams-page .hpsr-exam-toolbar :is(button,input):focus-visible { outline:2px solid #672614;outline-offset:2px; }
+@media(pointer:coarse) {
+  .hpsr-exams-page .hpsr-exam-toolgroup-controls > button,
+  .hpsr-exams-page .hpsr-exam-toolgroup-controls > .relative > button,
+  .hpsr-exams-page .hpsr-exam-color-control { height:36px;min-width:34px; }
+}
+
+.hpsr-exams-page .hpsr-exam-toolgroup { position:relative; }
+.hpsr-exams-page .hpsr-exam-toolgroup-controls > .hpsr-exam-table-tool > button { height:32px;min-width:30px;padding:0 7px;gap:5px;font-size:12px;font-weight:600;border-radius:7px;box-shadow:none; }
+.hpsr-exams-page .hpsr-exam-table-tool > div { top:100%;left:0;right:0;width:100%;max-width:256px;margin-top:4px; }
+@media(pointer:coarse) { .hpsr-exams-page .hpsr-exam-toolgroup-controls > .hpsr-exam-table-tool > button { height:36px;min-width:34px; } }
+/* The font selector fits beside bold/italic/underline without an orphaned row. */
+.hpsr-exams-page .hpsr-exam-toolgroup-controls > .relative { width:86px; }
+.hpsr-exams-page .hpsr-exam-toolgroup-controls > .relative > button > span:first-child { display:none; }
+.hpsr-exams-page .hpsr-exam-toolgroup-controls > .relative > button > span:last-child { width:18px;height:18px;margin-right:5px; }
+
+/* test.137 — modestly wider sheet column; coherent icon controls. */
+@media(min-width:1280px) {
+  .hpsr-exams-page .hpsr-exams-workspace { grid-template-columns:minmax(340px,.92fr) minmax(0,1.08fr); }
+}
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-exam-toolbar .hpsr-exam-toolgroup-controls > button,
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-exam-toolbar .hpsr-exam-toolgroup-controls > .relative > button,
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-exam-toolbar .hpsr-exam-toolgroup-controls > .hpsr-exam-table-tool > button,
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-exam-toolbar .hpsr-exam-color-control {
+  border-color:transparent;background:transparent;border-radius:8px;color:#672614;
+}
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-exam-toolbar .hpsr-exam-toolgroup-controls > button:hover,
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-exam-toolbar .hpsr-exam-toolgroup-controls > .relative > button:hover,
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-exam-toolbar .hpsr-exam-toolgroup-controls > .hpsr-exam-table-tool > button:hover,
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-exam-toolbar .hpsr-exam-color-control:hover { background:#ead3bd;border-color:#d7b79c; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-exam-toolbar .hpsr-exam-toolgroup-controls svg { stroke-width:1.9;flex-shrink:0; }
+
+/* test.138 — reference-inspired continuous workspace, warm institutional tones.
+   All chrome rules stay outside the report body and the page header. */
+.hpsr-exams-page .hpsr-exams-workspace { gap:16px; }
+.hpsr-exams-page .hpsr-exams-workspace > aside {
+  padding:0 16px 16px;border:1px solid #d6bba6;border-radius:18px;
+  background:linear-gradient(155deg,#efdfd0,#e9d5c4);box-shadow:none;
+  overscroll-behavior-y:auto;scrollbar-color:#bb9780 #e8d4c2;
+}
+.hpsr-exams-page .hpsr-exams-workspace > aside > .hpsr-exam-form-section {
+  margin:0;border:0;border-bottom:1px solid #cfb39d;border-radius:0;
+  background:transparent;box-shadow:none;overflow:visible;
+}
+.hpsr-exams-page .hpsr-exams-workspace > aside > .hpsr-exam-form-section:last-child { border-bottom:0; }
+.hpsr-exams-page .hpsr-exams-workspace > aside > .hpsr-exam-form-section > div:first-child {
+  padding:18px 0 12px;border:0;background:transparent;
+}
+.hpsr-exams-page .hpsr-exams-workspace > aside > .hpsr-exam-form-section > div:last-child { padding:0 0 18px; }
+.hpsr-exams-page .hpsr-exam-form-section h3 { font-size:13px;letter-spacing:.035em; }
+.hpsr-exams-page .hpsr-exams-workspace > aside :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select) {
+  background-color:#f7ebdf;border-color:#cfb49e;box-shadow:none;
+}
+.hpsr-exams-page .hpsr-exams-workspace > aside :is(input,select):focus-visible {
+  outline:2px solid #813e28;outline-offset:2px;
+}
+.hpsr-exams-page .hpsr-exams-workspace > aside [class~="bg-white"] { background-color:#f7ebdf; }
+.hpsr-exams-page .hpsr-exams-workspace > main {
+  border:1px solid #d6bba6;border-radius:18px;background:#efdfd0;
+  box-shadow:none;--tw-ring-shadow:0 0 #0000;
+}
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-exam-editor-heading {
+  padding:16px 16px 12px;gap:10px;background:transparent;border-bottom:0;
+}
+.hpsr-exams-page .hpsr-exam-editor-heading > div:first-child { flex:1 1 100%;min-width:0; }
+.hpsr-exams-page .hpsr-exam-editor-heading h2 { font-size:20px;line-height:1.3; }
+.hpsr-exams-page .hpsr-exam-editor-heading p { font-size:11px;line-height:1.5;letter-spacing:.025em;margin-top:3px; }
+.hpsr-exams-page .hpsr-exam-editor-heading > div:last-child { gap:8px; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-exam-editor-heading :is([class*="bg-[#fbfaf9]"],[class*="bg-[#fff8f1]"]) {
+  background-color:#f7ebdf;border-color:#cfb49e;
+}
+.hpsr-exams-page .hpsr-exam-editor-heading > div:last-child > :is(span,button) { height:36px;box-shadow:none;border-radius:9px; }
+.hpsr-exams-page .hpsr-exams-workspace > main > .hpsr-exam-editor-heading + div {
+  padding:9px 16px;background:transparent;border-color:#d6bba6;font-size:11px;
+}
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-exam-toolbar {
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px 0;
+  margin:12px 14px 0;padding:10px 8px;border:1px solid #d4b69e;
+  border-radius:12px;background:#f2e3d4;
+}
+.hpsr-exams-page .hpsr-exam-toolbar .hpsr-exam-toolgroup {
+  flex:0 1 auto;max-width:100%;padding:0 8px;border-right:1px solid #d6baa3;
+}
+.hpsr-exams-page .hpsr-exam-toolbar .hpsr-exam-toolgroup:last-child { border-right:0; }
+.hpsr-exams-page .hpsr-exam-toolgroup-label { color:#754a36;font-size:10px;margin-bottom:3px; }
+.hpsr-exams-page .hpsr-exam-toolgroup-controls { gap:2px; }
+.hpsr-exams-page .hpsr-exams-editor-viewport {
+  margin:12px 14px 0;padding:0;border:1px solid #d4b69e;border-radius:10px;
+  background:#fff;overscroll-behavior-y:auto;scrollbar-color:#bb9780 #f3e5d8;
+}
+.hpsr-exams-page .hpsr-exam-editor-sheet { border:0;border-radius:0;box-shadow:none; }
+.hpsr-exams-page .hpsr-exams-workspace > main > div:last-child:not(.hpsr-exams-editor-viewport) {
+  background:transparent;border-color:#d6bba6;padding:12px 14px;
+}
+@media(min-width:1280px) {
+  .hpsr-exams-page .hpsr-exams-workspace { grid-template-columns:minmax(320px,.8fr) minmax(0,1.2fr); }
+}
+@media(max-width:639px) {
+  .hpsr-exams-page .hpsr-exams-workspace > aside { padding:0 12px 12px; }
+  .hpsr-exams-page .hpsr-exams-workspace .hpsr-exam-toolbar { margin:10px 8px 0;padding:8px 2px; }
+  .hpsr-exams-page .hpsr-exam-toolbar .hpsr-exam-toolgroup { padding:0 6px; }
+  .hpsr-exams-page .hpsr-exams-editor-viewport { margin:10px 8px 0; }
+  .hpsr-exams-page .hpsr-exam-editor-heading h2 { font-size:18px; }
+}
+/* Title occupies its own line; metadata shares the next line when space permits. */
+.hpsr-exams-page .hpsr-exam-editor-heading > div:first-child { display:contents; }
+.hpsr-exams-page .hpsr-exam-editor-heading :is(h2,p) { width:100%; }
+.hpsr-exams-page .hpsr-exam-editor-heading > div:first-child > div { margin-top:0; }
+
+/* test.139 — reference-inspired continuous workspace, warm institutional tones.
+   All chrome rules stay outside the report body and the page header. */
+.hpsr-documents-page .hpsr-documents-workspace { gap:16px; }
+.hpsr-documents-page .hpsr-documents-workspace > aside {
+  padding:0 16px 16px;border:1px solid #d6bba6;border-radius:18px;
+  background:linear-gradient(155deg,#efdfd0,#e9d5c4);box-shadow:none;
+  overscroll-behavior-y:auto;scrollbar-color:#bb9780 #e8d4c2;
+}
+.hpsr-documents-page .hpsr-documents-workspace > aside > .hpsr-document-form-section {
+  margin:0;border:0;border-bottom:1px solid #cfb39d;border-radius:0;
+  background:transparent;box-shadow:none;overflow:visible;
+}
+.hpsr-documents-page .hpsr-documents-workspace > aside > .hpsr-document-form-section:last-child { border-bottom:0; }
+.hpsr-documents-page .hpsr-documents-workspace > aside > .hpsr-document-form-section > div:first-child {
+  padding:18px 0 12px;border:0;background:transparent;
+}
+.hpsr-documents-page .hpsr-documents-workspace > aside > .hpsr-document-form-section > div:last-child { padding:0 0 18px; }
+.hpsr-documents-page .hpsr-document-form-section h3 { font-size:13px;letter-spacing:.035em; }
+.hpsr-documents-page .hpsr-documents-workspace > aside :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select) {
+  background-color:#f7ebdf;border-color:#cfb49e;box-shadow:none;
+}
+.hpsr-documents-page .hpsr-documents-workspace > aside :is(input,select):focus-visible {
+  outline:2px solid #813e28;outline-offset:2px;
+}
+.hpsr-documents-page .hpsr-documents-workspace > aside [class~="bg-white"] { background-color:#f7ebdf; }
+.hpsr-documents-page .hpsr-documents-workspace > main {
+  border:1px solid #d6bba6;border-radius:18px;background:#efdfd0;
+  box-shadow:none;--tw-ring-shadow:0 0 #0000;
+}
+.hpsr-documents-page .hpsr-documents-workspace .hpsr-document-editor-heading {
+  padding:16px 16px 12px;gap:10px;background:transparent;border-bottom:0;
+}
+.hpsr-documents-page .hpsr-document-editor-heading > div:first-child { flex:1 1 100%;min-width:0; }
+.hpsr-documents-page .hpsr-document-editor-heading h2 { font-size:20px;line-height:1.3; }
+.hpsr-documents-page .hpsr-document-editor-heading p { font-size:11px;line-height:1.5;letter-spacing:.025em;margin-top:3px; }
+.hpsr-documents-page .hpsr-document-editor-heading > div:last-child { gap:8px; }
+.hpsr-documents-page .hpsr-documents-workspace .hpsr-document-editor-heading :is([class*="bg-[#fbfaf9]"],[class*="bg-[#fff8f1]"]) {
+  background-color:#f7ebdf;border-color:#cfb49e;
+}
+.hpsr-documents-page .hpsr-document-editor-heading > div:last-child > :is(span,button) { height:36px;box-shadow:none;border-radius:9px; }
+.hpsr-documents-page .hpsr-documents-workspace > main > .hpsr-document-editor-heading + div {
+  padding:9px 16px;background:transparent;border-color:#d6bba6;font-size:11px;
+}
+.hpsr-documents-page .hpsr-documents-workspace .hpsr-document-toolbar {
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px 0;
+  margin:12px 14px 0;padding:10px 8px;border:1px solid #d4b69e;
+  border-radius:12px;background:#f2e3d4;
+}
+.hpsr-documents-page .hpsr-document-toolbar .hpsr-document-toolgroup {
+  flex:0 1 auto;max-width:100%;padding:0 8px;border-right:1px solid #d6baa3;
+}
+.hpsr-documents-page .hpsr-document-toolbar .hpsr-document-toolgroup:last-child { border-right:0; }
+.hpsr-documents-page .hpsr-document-toolgroup-label { color:#754a36;font-size:10px;margin-bottom:3px; }
+.hpsr-documents-page .hpsr-document-toolgroup-controls { gap:2px; }
+.hpsr-documents-page .hpsr-documents-editor-viewport {
+  margin:12px 14px 0;padding:0;border:1px solid #d4b69e;border-radius:10px;
+  background:#fff;overscroll-behavior-y:auto;scrollbar-color:#bb9780 #f3e5d8;
+}
+.hpsr-documents-page .hpsr-document-editor-sheet { border:0;border-radius:0;box-shadow:none; }
+.hpsr-documents-page .hpsr-documents-workspace > main > div:last-child:not(.hpsr-documents-editor-viewport) {
+  background:transparent;border-color:#d6bba6;padding:12px 14px;
+}
+@media(min-width:1280px) {
+  .hpsr-documents-page .hpsr-documents-workspace { grid-template-columns:minmax(320px,.8fr) minmax(0,1.2fr); }
+}
+@media(max-width:639px) {
+  .hpsr-documents-page .hpsr-documents-workspace > aside { padding:0 12px 12px; }
+  .hpsr-documents-page .hpsr-documents-workspace .hpsr-document-toolbar { margin:10px 8px 0;padding:8px 2px; }
+  .hpsr-documents-page .hpsr-document-toolbar .hpsr-document-toolgroup { padding:0 6px; }
+  .hpsr-documents-page .hpsr-documents-editor-viewport { margin:10px 8px 0; }
+  .hpsr-documents-page .hpsr-document-editor-heading h2 { font-size:18px; }
+}
+/* Title occupies its own line; metadata shares the next line when space permits. */
+.hpsr-documents-page .hpsr-document-editor-heading > div:first-child { display:contents; }
+.hpsr-documents-page .hpsr-document-editor-heading :is(h2,p) { width:100%; }
+.hpsr-documents-page .hpsr-document-editor-heading > div:first-child > div { margin-top:0; }
+
+/* Document tools share the exam ribbon treatment, without nested control cards. */
+.hpsr-documents-page .hpsr-documents-workspace .hpsr-document-toolbar .hpsr-document-toolgroup {
+ display:flex;flex-wrap:wrap;align-items:center;gap:2px;border:0;border-right:1px solid #d6baa3;
+ border-radius:0;background:transparent;box-shadow:none;min-width:0;
+}
+.hpsr-documents-page .hpsr-document-toolgroup::before {
+ content:attr(data-tool-label);width:100%;font-size:10px;line-height:12px;font-weight:700;color:#754a36;margin-bottom:3px;
+}
+.hpsr-documents-page .hpsr-documents-workspace .hpsr-document-toolbar .hpsr-document-toolgroup > :is(button,label),
+.hpsr-documents-page .hpsr-documents-workspace .hpsr-document-toolbar .hpsr-document-toolgroup > .relative > button {
+ height:32px;min-width:30px;padding:0 7px;gap:5px;border:1px solid transparent;
+ border-radius:8px;background:transparent;box-shadow:none;color:#672614;font-size:12px;font-weight:600;
+}
+.hpsr-documents-page .hpsr-documents-workspace .hpsr-document-toolbar .hpsr-document-toolgroup > :is(button,label):hover,
+.hpsr-documents-page .hpsr-documents-workspace .hpsr-document-toolbar .hpsr-document-toolgroup > .relative > button:hover { background:#ead3bd;border-color:#d7b79c; }
+.hpsr-documents-page .hpsr-document-toolbar :is(button,input):focus-visible { outline:2px solid #672614;outline-offset:2px; }
+.hpsr-documents-page .hpsr-document-toolgroup > .relative { width:86px; }
+.hpsr-documents-page .hpsr-document-toolgroup > .relative > button > span:first-child { display:none; }
+.hpsr-documents-page .hpsr-document-editor-sheet {
+ width:100%;max-width:794px;min-width:0;box-sizing:border-box;padding:36px clamp(8px,5.16%,41px);
+}
+.hpsr-documents-page .hpsr-documents-editor-viewport { overflow-x:hidden;overflow-y:auto; }
+@media(pointer:coarse) {
+ .hpsr-documents-page .hpsr-documents-workspace .hpsr-document-toolbar .hpsr-document-toolgroup > :is(button,label),
+ .hpsr-documents-page .hpsr-documents-workspace .hpsr-document-toolbar .hpsr-document-toolgroup > .relative > button { height:36px;min-width:34px; }
+}
+
+/* test.140 — compact document heading and tools leave more room to edit. */
+.hpsr-documents-page .hpsr-documents-workspace .hpsr-document-editor-heading {
+ padding:10px 14px;gap:8px 12px;align-items:center;flex-shrink:0;
+}
+.hpsr-documents-page .hpsr-document-editor-heading > div:first-child {
+ display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
+ gap:3px 12px;flex:1 1 320px;min-width:0;
+}
+.hpsr-documents-page .hpsr-document-editor-heading :is(h2,p) { width:auto;grid-column:1;margin:0; }
+.hpsr-documents-page .hpsr-document-editor-heading h2 { font-size:17px;line-height:1.25; }
+.hpsr-documents-page .hpsr-document-editor-heading p { font-size:10px;line-height:1.3;letter-spacing:0;text-transform:none; }
+.hpsr-documents-page .hpsr-document-editor-heading > div:first-child > div {
+ grid-column:2;grid-row:1 / span 2;height:32px;border-radius:8px;
+}
+.hpsr-documents-page .hpsr-document-editor-heading > button { min-height:32px;height:32px;padding:0 10px;border-radius:8px;font-size:12px; }
+.hpsr-documents-page .hpsr-documents-workspace > main > .hpsr-document-editor-heading + div { padding:6px 14px;font-size:10px;flex-shrink:0; }
+.hpsr-documents-page .hpsr-documents-workspace .hpsr-document-toolbar {
+ margin:6px 12px 0;padding:6px 4px;gap:5px 0;flex-shrink:0;
+}
+.hpsr-documents-page .hpsr-document-toolgroup::before { display:none; }
+.hpsr-documents-page .hpsr-documents-workspace .hpsr-document-toolbar .hpsr-document-toolgroup { padding:0 5px; }
+.hpsr-documents-page .hpsr-documents-editor-viewport { margin-top:8px; }
+.hpsr-documents-page .hpsr-documents-workspace > main > div:last-child:not(.hpsr-documents-editor-viewport) { padding:8px 12px;gap:6px;flex-shrink:0; }
+@media(min-width:1280px) {
+ .hpsr-page.hpsr-documents-page > section.hpsr-documents-workspace:not(.fixed) {
+  height:clamp(820px,calc(68dvh + 260px),1120px)!important;
+ }
+}
+@media(max-width:1279px) {
+ .hpsr-documents-page .hpsr-documents-editor-viewport { height:clamp(480px,65dvh,760px);flex:none; }
+}
+@media(max-width:639px) {
+ .hpsr-documents-page .hpsr-document-editor-heading > div:first-child { flex-basis:100%;grid-template-columns:minmax(0,1fr); }
+ .hpsr-documents-page .hpsr-document-editor-heading > div:first-child > div { grid-column:1;grid-row:auto;justify-self:start;margin-top:3px; }
+}

@@ -1,3 +1,4 @@
+import { clearReportLanguage, uniqueReportParagraphs, isRepeatedEvidenceNarrative, isRepeatedEvidenceConclusion, reviewedInterpretation, explainReportConclusion } from "./report-language";
 import type {
   IntelligentClinicalVariable,
   IntelligentExamModel,
@@ -1292,10 +1293,16 @@ function resultForParameter(model: IntelligentExamModel, parameter: IntelligentE
   return result;
 }
 
-function tableHtml(headers: string[], rows: string[][]) {
+function tableHtml(headers: string[], rows: string[][], rowGroups?: Record<string, string>) {
   if (!rows.length) return "";
-  return `<table class="hpsr-exam-table"><thead><tr>${headers.map((header) => `<th>${htmlEscape(header)}</th>`).join("")}</tr></thead><tbody>${rows
-    .map((row) => `<tr>${row.map((cell) => `<td>${htmlEscape(cell || "-")}</td>`).join("")}</tr>`)
+  let previousGroup = "";
+  return `<table class="hpsr-exam-table"><thead><tr>${headers.map((header) => `<th style="background-color:#f5e9df;color:#5b281b">${htmlEscape(header)}</th>`).join("")}</tr></thead><tbody>${rows
+    .map((row) => {
+      const group = rowGroups?.[row[0]] || "";
+      const groupHtml = group && group !== previousGroup ? `<tr data-hpsr-table-group="true"><td colspan="${headers.length}">${htmlEscape(group)}</td></tr>` : "";
+      previousGroup = group;
+      return groupHtml + `<tr>${row.map((cell) => `<td>${htmlEscape(cell || "-")}</td>`).join("")}</tr>`;
+    })
     .join("")}</tbody></table>`;
 }
 
@@ -1331,7 +1338,8 @@ function parameterRows(resolved: AdaptiveResolvedExam) {
 
 function section(blockId: string, title: string, body: string) {
   if (!body.trim()) return "";
-  return `<section data-hpsr-block="${htmlEscape(blockId)}" data-hpsr-auto-block="true"><h2>${htmlEscape(title)}</h2>${body}</section>`;
+  if (["interpretacao", "conclusao"].includes(blockId)) body = body.replace(/<p>/g, '<p data-hpsr-narrative-panel="true">');
+  return `<section data-hpsr-block="${htmlEscape(blockId)}" data-hpsr-auto-block="true"><h2 data-hpsr-section-heading="true">${htmlEscape(title)}</h2>${body}</section>`;
 }
 
 function paragraphs(value: string) {
@@ -1829,44 +1837,34 @@ function contextualProtocolNarrative(resolved: AdaptiveResolvedExam, kind: "inte
 }
 
 function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][]) {
-  if (resolved.model.id === "genetico_sexagem_fetal") return resolved.profile.interpretation;
-  // Exceção expressa do projeto: não alterar o comportamento do Raio-X.
-  if (resolved.model.id === "img_raio_x_unico") return legacyTechnicalInterpretation(resolved, rows);
-
-  const evidence = reportEvidenceRows(resolved, rows)
-    .map((row) => `${row[0]}: ${row[1]}`)
-    .join("; ");
-  const protocolContext = contextualProtocolNarrative(resolved, "interpretation");
-  const generalContext = generalContextNarrative(resolved, "interpretation");
-  const contextual = [protocolContext, generalContext].filter(Boolean).join("\n");
-  const narrative = refreshedNarrative(resolved, resolved.profile.interpretation, "interpretation");
-  const fallback = refreshedNarrative(resolved, resolved.profile.resultSummary, "interpretation");
-  const contextOwnsNarrative = resolved.model.id === "gineco_usg_monitorizacao_folicular" && Boolean(protocolContext);
-  const base = contextOwnsNarrative ? protocolContext : [contextual, narrative || fallback].filter(Boolean).join("\n");
-  if (!evidence) return simplifyClinicalNarrative(base);
-
-  const noun = isImagingReportModel(resolved.model) ? "Principais achados" : "Principais resultados";
-  return simplifyClinicalNarrative(`${base}\n${noun}: ${evidence}.`);
+  const original = refreshedNarrative(resolved, resolved.profile.interpretation, "interpretation");
+  // Generated evidence belongs in the table; an interpretation explains its meaning.
+  // The former catalogue boilerplate repeated entire rows, including stale numbers.
+  const repeated = isRepeatedEvidenceNarrative(resolved.profile.interpretation);
+  let narrative = repeated ? "" : reviewedInterpretation(resolved.model.id, resolved.profile.id, original);
+  if (repeated && resolved.profile.status !== "normal" && resolved.profile.id !== "normal") {
+    narrative = resolved.profile.status === "indefinido"
+      ? "O resultado não permite uma definição segura por si só. A avaliação deve considerar os sintomas, o histórico e, quando disponíveis, exames anteriores."
+      : "A importância das alterações depende dos sintomas, do histórico e dos demais exames do paciente.";
+  }
+  // The clinical context and protocol are already recorded in Method. Keep only
+  // context-specific limitations here, without describing how the system worked.
+  const conclusion = technicalConclusion(resolved, rows);
+  return uniqueReportParagraphs(clearReportLanguage(narrative), conclusion);
 }
 
 function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
-  if (resolved.model.id === "genetico_sexagem_fetal") return resolved.profile.conclusion;
-  // Exceção expressa do projeto: não alterar o comportamento do Raio-X.
-  if (resolved.model.id === "img_raio_x_unico") return legacyTechnicalConclusion(resolved, rows);
-
-  const evidence = reportEvidenceRows(resolved, rows)
-    .slice(0, 2)
-    .map((row) => `${row[0]}: ${row[1]}`)
-    .join("; ");
-  const protocolContext = contextualProtocolNarrative(resolved, "conclusion");
-  const generalContext = generalContextNarrative(resolved, "conclusion");
-  const contextual = [protocolContext, generalContext].filter(Boolean).join("\n");
-  const conclusion = refreshedNarrative(resolved, resolved.profile.conclusion, "conclusion")
-    || refreshedNarrative(resolved, resolved.profile.resultSummary, "conclusion");
-  const contextOwnsNarrative = resolved.model.id === "gineco_usg_monitorizacao_folicular" && Boolean(protocolContext);
-  const base = contextOwnsNarrative ? protocolContext : [contextual, conclusion].filter(Boolean).join("\n");
-  if (!evidence || /personalizado/i.test(resolved.profile.id)) return simplifyClinicalNarrative(base);
-  return simplifyClinicalNarrative(`${base}\nResumo principal: ${evidence}.`);
+  const { model, profile } = resolved;
+  let conclusion = refreshedNarrative(resolved, profile.conclusion, "conclusion");
+  if (isRepeatedEvidenceConclusion(profile.conclusion)) {
+    const impression = rows.find(row => /impressão|impressao|conclusão|conclusao|diagnóstico|diagnostico/i.test(row[0] || ""))?.[1]
+      || rows.find(row => /^resultado$/i.test(row[0] || "") && !isGenericResult(row[1] || ""))?.[1];
+    conclusion = impression && !isGenericResult(impression)
+      ? narrativeForSelection(resolved, impression)
+      : genericNarrativeForProfile(resolved, "conclusion");
+  }
+  // No sampling comments, duplicate row summaries or metadata in the conclusion.
+  return uniqueReportParagraphs(explainReportConclusion(clearReportLanguage(conclusion || profile.resultSummary)));
 }
 
 function resultSummaryFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {
@@ -2002,6 +2000,8 @@ export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
   // O contexto já participa da construção do método, da ordem dos achados e
   // da interpretação. Evitamos reduzi-lo novamente a uma linha isolada.
   const contextText = "";
+  const interpretation = technicalInterpretation(resolved, rows);
+  const conclusionTitle = interpretation ? "4. Conclusão" : "3. Conclusão";
   const contrastField = resolved.dynamicFields.find((field) => field.id === "contraste");
   const contrastText = contrastField?.value ? `<p><strong>Contraste:</strong> ${htmlEscape(String(contrastField.value))}</p>` : "";
   const technicalVariableText = resolved.dynamicFields
@@ -2032,10 +2032,9 @@ export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
       section("avaliacao_fisica", "4. Avaliação física", tableHtml(["Parâmetro", "Resultado", "Referência"], physicalRows)),
       section("avaliacao_cardiaca", "5. Avaliação cardíaca", tableHtml(["Parâmetro", "Resultado", "Referência"], cardiacRows)),
       section("avaliacao_respiratoria", "6. Avaliação respiratória", tableHtml(["Parâmetro", "Resultado", "Referência"], respiratoryRows)),
-      section("interpretacao", "7. Leitura clínica", paragraphs(simplifyClinicalNarrative(`${psychotechnicalContextNarrative(resolved, "interpretation")}
-${profile.interpretation}`))),
-      section("conclusao", "8. Conclusão", paragraphs(simplifyClinicalNarrative(`${psychotechnicalContextNarrative(resolved, "conclusion")}
-${profile.conclusion}`))),
+      section("interpretacao", "7. Leitura clínica", paragraphs(uniqueReportParagraphs(clearReportLanguage(`${psychotechnicalContextNarrative(resolved, "interpretation")}
+${profile.interpretation}`), technicalConclusion(resolved, rows)))),
+      section("conclusao", "8. Conclusão", paragraphs(uniqueReportParagraphs(clearReportLanguage(profile.conclusion)))),
     ].join("");
   }
   if (model.id === "geral_exame_toxicologico") {
@@ -2060,9 +2059,9 @@ ${profile.conclusion}`))),
       section("tecnica_metodo", "3. Método utilizado", method),
       section("substancias_pesquisadas", "4. Substâncias Pesquisadas", tableHtml(["Substância ou classe", "Resultado", "Valor de corte"], substanceRows)),
       section("controle_qualidade", "5. Controle de Qualidade da Amostra", tableHtml(["Parâmetro", "Resultado", "Referência"], qualityRows)),
-      section("resultado_laboratorial", "6. Resultado Laboratorial", paragraphs(resultSummaryFromRows(resolved, [...substanceRows, ...qualityRows]))),
-      section("interpretacao", "7. Leitura clínica", paragraphs(simplifyClinicalNarrative(profile.interpretation))),
-      section("conclusao", "8. Conclusão", paragraphs(simplifyClinicalNarrative(`Perfil do resultado: ${profile.name}.\n${profile.conclusion}\nOs achados devem ser interpretados em conjunto com os dados clínicos, ocupacionais e administrativos disponíveis. Este exame não determina, isoladamente, o grau de comprometimento funcional, o momento exato do uso ou a frequência de exposição à substância pesquisada.`))),
+      
+      section("interpretacao", "6. Leitura clínica", paragraphs(uniqueReportParagraphs(clearReportLanguage(profile.interpretation), profile.conclusion))),
+      section("conclusao", "7. Conclusão", paragraphs(uniqueReportParagraphs(clearReportLanguage(`${profile.conclusion}\nEste exame não define, sozinho, o grau de comprometimento funcional nem o momento exato da exposição.`)))),
     ].join("");
   }
 
@@ -2073,8 +2072,8 @@ ${profile.conclusion}`))),
     return [
       section("tecnica", "1. Método", technique + adapterText + contrastText + technicalVariableText + contextText),
       section("achados", "2. Achados", findingsTable),
-      section("interpretacao", "3. Leitura clínica", paragraphs(technicalInterpretation(resolved, rows))),
-      section("conclusao", "4. Conclusão", paragraphs(technicalConclusion(resolved, rows))),
+      section("interpretacao", "3. Leitura clínica", paragraphs(interpretation)),
+      section("conclusao", conclusionTitle, paragraphs(technicalConclusion(resolved, rows))),
     ].join("");
   }
 
@@ -2082,14 +2081,17 @@ ${profile.conclusion}`))),
     ? tableHtml(
         isLaboratory ? ["Parâmetro", "Resultado", "Valores de referência"] : ["Parâmetro avaliado", "Resultado", "Referência"],
         displayRows,
+        model.id === "lab_hemograma_completo" ? Object.fromEntries(model.parameters.map(parameter => [parameter.label,
+          ["hemacias","hemoglobina","hematocrito","vcm","hcm","chcm","anisocitose"].includes(parameter.id) ? "Eritrograma"
+            : ["plaquetas","agregados_plaquetarios"].includes(parameter.id) ? "Plaquetograma" : "Leucograma"])) : undefined,
       )
     : paragraphs(isLaboratory ? resultSummaryFromRows(resolved, rows) : findingsFromRows(resolved, rows));
 
   return [
     section("tecnica", "1. Método", technique + adapterText + contrastText + technicalVariableText + contextText),
     section(isLaboratory ? "resultados" : "achados", isLaboratory ? "2. Resultados" : "2. Achados", structuredResults),
-    section("interpretacao", "3. Leitura clínica", paragraphs(technicalInterpretation(resolved, rows))),
-    section("conclusao", "4. Conclusão", paragraphs(technicalConclusion(resolved, rows))),
+    section("interpretacao", "3. Leitura clínica", paragraphs(interpretation)),
+    section("conclusao", conclusionTitle, paragraphs(technicalConclusion(resolved, rows))),
   ].join("");
 }
 

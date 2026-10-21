@@ -1,6 +1,6 @@
 {
   "name": "hpsr-system",
-  "version": "1.1.16-test.127",
+  "version": "1.1.16-test.140",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -10,7 +10,12 @@
     "typecheck": "tsc --noEmit",
     "audit:portal": "node tests/portal-audit.mjs",
     "audit:release": "node tests/release-audit.mjs",
-    "audit:current": "node tests/portal-audit.mjs && node tests/staff-registration-audit.mjs && node tests/patient-link-permission-v116t4.mjs && node tests/release-audit.mjs"
+    "audit:current": "node tests/portal-audit.mjs && node tests/staff-registration-audit.mjs && node tests/patient-link-permission-v116t4.mjs && node tests/release-audit.mjs",
+    "test:editor": "node tests/editor-rendering-test129.cjs",
+    "test:exam-copy": "node tests/exam-copy-test130.cjs",
+    "test:exam-sheet": "node tests/exam-sheet-test131.cjs",
+    "test:editor-completeness": "node tests/editor-completeness-test132.cjs",
+    "test:editor-fit": "node tests/editor-fit-test135.cjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -31,7 +36,9 @@
     "es-to-primitive": "1.3.0",
     "postcss": "8.4.49",
     "tailwindcss": "3.4.17",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "jsdom": "26.1.0",
+    "@napi-rs/canvas": "0.1.80"
   },
   "engines": {
     "node": "24.x"

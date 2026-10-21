@@ -18,18 +18,10 @@ type DrawOptions = {
   italic?: boolean;
   underline?: boolean;
   lineHeight?: number;
-  textAlign?: "left" | "center" | "right";
+  textAlign?: "left" | "center" | "right" | "justify";
 };
 
-const FONT_SIZE_MAP: Record<string, number> = {
-  "1": 8.5,
-  "2": 10,
-  "3": 11.4,
-  "4": 13,
-  "5": 15,
-  "6": 19,
-  "7": 24,
-};
+const FONT_SIZE_MAP: Record<string, number> = { "1": 10, "2": 12, "3": 14, "4": 16, "5": 18, "6": 24, "7": 32 };
 
 function cssColor(value: string | null | undefined, fallback: string) {
   const trimmed = String(value || "").trim();
@@ -53,14 +45,14 @@ function inheritedStyle(element: Element, parent: RichTextStyle): RichTextStyle 
   const legacySize = fontElement?.getAttribute("size") || "";
 
   return {
-    bold:
+    bold: fontWeight === "normal" || fontWeight === "400" ? false :
       parent.bold ||
       tag === "b" ||
       tag === "strong" ||
       fontWeight === "bold" ||
       (Number.parseInt(fontWeight, 10) || 0) >= 600,
-    italic: parent.italic || tag === "i" || tag === "em" || fontStyle === "italic" || fontStyle === "oblique",
-    underline: parent.underline || tag === "u" || decoration.includes("underline"),
+    italic: fontStyle === "normal" ? false : parent.italic || tag === "i" || tag === "em" || fontStyle === "italic" || fontStyle === "oblique",
+    underline: decoration === "none" ? false : parent.underline || tag === "u" || decoration.includes("underline"),
     color: cssColor(style.color || fontElement?.getAttribute("color"), parent.color),
     backgroundColor: cssColor(style.backgroundColor, parent.backgroundColor || "transparent") === "transparent"
       ? parent.backgroundColor
@@ -83,7 +75,10 @@ function collectRuns(node: Node, style: RichTextStyle, output: RichRun[]) {
     return;
   }
   const nextStyle = inheritedStyle(element, style);
-  Array.from(element.childNodes).forEach((child) => collectRuns(child, nextStyle, output));
+  Array.from(element.childNodes).forEach((child, index) => {
+    if (child.nodeType === Node.ELEMENT_NODE && /^(P|DIV|SECTION|ARTICLE|LI)$/.test((child as Element).tagName) && index > 0 && output.length && !output[output.length-1].text.endsWith("\n")) output.push({ ...nextStyle, text: "\n" });
+    collectRuns(child, nextStyle, output);
+  });
 }
 
 function canvasFont(style: RichTextStyle) {
@@ -115,7 +110,16 @@ function layoutRuns(
   };
 
   for (const run of runs) {
-    for (const token of splitRunTokens(run)) {
+    for (const token of splitRunTokens(run).flatMap(token => {
+      context.font=canvasFont(token);
+      if (/^\s+$/.test(token.text) || context.measureText(token.text).width<=maxWidth) return [token];
+      const parts: RichRun[]=[];let text="";
+      for(const char of Array.from(token.text)) {
+        if(text && context.measureText(text+char).width>maxWidth){parts.push({...token,text});text="";}
+        text+=char;
+      }
+      if(text)parts.push({...token,text});return parts;
+    })) {
       if (token.text === "\n") {
         commit();
         continue;
@@ -138,10 +142,10 @@ function layoutRuns(
   return lines;
 }
 
-function blockAlignment(element: Element, fallback: "left" | "center" | "right") {
+function blockAlignment(element: Element, fallback: "left" | "center" | "right" | "justify") {
   const html = element as HTMLElement;
   const align = (html.style.textAlign || element.getAttribute("align") || "").toLowerCase();
-  if (align === "center" || align === "right" || align === "left") return align;
+  if (align === "center" || align === "right" || align === "left" || align === "justify") return align;
   return fallback;
 }
 
@@ -192,12 +196,14 @@ export function drawRichTextElement(
 
   context.save();
   context.textBaseline = "top";
-  for (const line of lines) {
+  for (const [lineIndex, line] of lines.entries()) {
     if (y + line.height > maxY) break;
     let cursorX = x;
     if (align === "center") cursorX = x + Math.max(0, (maxWidth - line.width) / 2);
     if (align === "right") cursorX = x + Math.max(0, maxWidth - line.width);
 
+    const spaces = line.tokens.filter(token => /^\s+$/.test(token.text)).length;
+    const extraSpace = align === "justify" && lineIndex < lines.length-1 && spaces ? Math.max(0, maxWidth-line.width)/spaces : 0;
     for (const token of line.tokens) {
       context.font = canvasFont(token);
       const drawY = y + Math.max(0, (line.height - token.fontSize * 1.2) / 2);
@@ -216,7 +222,7 @@ export function drawRichTextElement(
         context.lineTo(cursorX + token.width, underlineY);
         context.stroke();
       }
-      cursorX += token.width;
+      cursorX += token.width + (/^\s+$/.test(token.text) ? extraSpace : 0);
     }
     y += line.height;
   }

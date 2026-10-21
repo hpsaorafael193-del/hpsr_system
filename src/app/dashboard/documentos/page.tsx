@@ -1,4 +1,6 @@
 "use client";
+import { clinicalEditorGuideTops } from "@/lib/clinical-editor-guides";
+import { useClinicalEditorLayout } from "@/lib/use-clinical-editor-layout";
 
 import { brazilIso } from "@/lib/brazil-datetime";
 
@@ -11,6 +13,12 @@ import { useVirtualPngPreview } from "@/lib/use-virtual-png-preview";
 import { useExamDraft } from "@/lib/use-exam-draft";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Heading1,
+  Heading2,
+  Pilcrow,
+  Undo2,
+  Redo2,
+  MessageSquareText,
   AlignCenter,
   AlignLeft,
   AlignRight,
@@ -388,7 +396,7 @@ function Panel({ title, description, children }: { title: string; description?: 
   const isCatalog = title === "Catálogo de documentos";
   const isModel = title === "Modelo do documento";
   return (
-    <section className={`overflow-hidden rounded-[18px] border shadow-[0_4px_14px_rgba(42,7,0,0.028)] ${isCatalog ? "border-[#dfc5bc] bg-[#fff8f3]" : isModel ? "border-[#e7d0c0] bg-[#fff9f3]" : "border-[#ead8c8] bg-[#fffaf4]"}`}>
+    <section className={`hpsr-document-form-section overflow-hidden rounded-[18px] border shadow-[0_4px_14px_rgba(42,7,0,0.028)] ${isCatalog ? "border-[#dfc5bc] bg-[#fff8f3]" : isModel ? "border-[#e7d0c0] bg-[#fff9f3]" : "border-[#ead8c8] bg-[#fffaf4]"}`}>
       <div className={`flex items-start gap-3 border-b px-4 py-3 ${isCatalog ? "border-[#ead0c4] bg-[#f5e1d9]" : isModel ? "border-[#ecd8c8] bg-[#fae9df]" : "border-[#eedbca] bg-[#f9eada]"}`}>
         <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white">
           <Icon size={17} strokeWidth={2.2} />
@@ -569,6 +577,7 @@ export default function DocumentsPage() {
     signatureImage: currentUserProfile.signatureImage || null,
   }]);
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const scheduleEditorGuides = useClinicalEditorLayout(editorRef, updateEditorPageGuides);
   const modelPanelRef = useRef<HTMLDivElement | null>(null);
   const lastRange = useRef<Range | null>(null);
   const signatureInputRef = useRef<HTMLInputElement | null>(null);
@@ -680,7 +689,7 @@ export default function DocumentsPage() {
   }, [selectedModel, patient, doctor, guidedValues, today]);
 
   useEffect(() => {
-    window.requestAnimationFrame(updateEditorPageGuides);
+    scheduleEditorGuides();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorHtml, generatedHtml, selectedModelId]);
 
@@ -792,7 +801,7 @@ export default function DocumentsPage() {
     setEditorHtml(html);
     setDocumentDirty(true);
     rememberSelection();
-    window.requestAnimationFrame(updateEditorPageGuides);
+    scheduleEditorGuides();
   }
 
   function applyModel() {
@@ -1037,82 +1046,14 @@ export default function DocumentsPage() {
   }
 
   function updateEditorPageGuides() {
-    const editor = editorRef.current;
-    if (!editor) {
-      setEditorPageGuideTops([]);
-      return;
-    }
-
-    try {
-      const pages = buildDocumentPages();
-      if (pages.length <= 1) {
-        setEditorPageGuideTops([]);
-        return;
-      }
-
-      // Conta também <br> e parágrafos vazios. Assim, os Enters ocupam espaço
-      // no mesmo fluxo que a paginação/preview, em vez de a guia acompanhar
-      // somente caracteres visíveis.
-      const contentUnits = (root: Node) => {
-        let total = 0;
-        const walker = window.document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
-        let current = walker.nextNode();
-        while (current) {
-          if (current.nodeType === Node.TEXT_NODE) total += (current.textContent || "").length;
-          else if ((current as Element).tagName?.toLowerCase() === "br") total += 1;
-          current = walker.nextNode();
-        }
-        return total;
-      };
-
-      const targets: number[] = [];
-      let cumulative = 0;
-      pages.slice(0, -1).forEach((pageHtml) => {
-        const holder = window.document.createElement("div");
-        holder.innerHTML = pageHtml;
-        cumulative += contentUnits(holder);
-        targets.push(cumulative);
-      });
-
-      const walker = window.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
-      const positions: number[] = [];
-      let targetIndex = 0;
-      let consumed = 0;
-      let node = walker.nextNode();
-      const editorRect = editor.getBoundingClientRect();
-
-      while (node && targetIndex < targets.length) {
-        if (node.nodeType === Node.TEXT_NODE) {
-          const value = node.textContent || "";
-          while (targetIndex < targets.length && consumed + value.length >= targets[targetIndex]) {
-            const offset = Math.max(0, Math.min(value.length, targets[targetIndex] - consumed));
-            const range = window.document.createRange();
-            range.setStart(node, offset);
-            range.setEnd(node, offset);
-            const rect = range.getBoundingClientRect();
-            positions.push(Math.max(0, editor.offsetTop + rect.top - editorRect.top));
-            targetIndex += 1;
-          }
-          consumed += value.length;
-        } else if ((node as Element).tagName?.toLowerCase() === "br") {
-          consumed += 1;
-          while (targetIndex < targets.length && consumed >= targets[targetIndex]) {
-            const parentRect = (node.parentElement || editor).getBoundingClientRect();
-            positions.push(Math.max(0, editor.offsetTop + parentRect.bottom - editorRect.top));
-            targetIndex += 1;
-          }
-        }
-        node = walker.nextNode();
-      }
-
-      setEditorPageGuideTops((current) => {
-        if (current.length === positions.length && current.every((value, index) => Math.abs(value - positions[index]) < 1)) return current;
-        return positions;
-      });
-    } catch {
-      setEditorPageGuideTops([]);
-    }
-  }
+ const editor=editorRef.current;if(!editor){setEditorPageGuideTops([]);return;}
+ try {
+ const pages=buildDocumentPages();
+ 
+ const positions=clinicalEditorGuideTops(editor,pages);
+ setEditorPageGuideTops(current=>current.length===positions.length&&current.every((value,index)=>Math.abs(value-positions[index])<1)?current:positions);
+ } catch { setEditorPageGuideTops([]); }
+}
 
   async function initializePreviewPages(pages: string[]) {
     const snapshot = await captureDocumentSnapshot({ title: selectedModel?.title || "Documento médico", date: today, patient, doctor }, pages);
@@ -1623,7 +1564,7 @@ export default function DocumentsPage() {
           </aside>
 
           <main aria-label="Editor do documento" className="hpsr-light-editor-shell flex min-h-0 min-w-0 flex-col overflow-visible rounded-[24px] border border-[#ddd4cc] bg-[#fffaf5] shadow-[0_14px_38px_rgba(42,7,0,0.065)] ring-1 ring-white xl:overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#ece5df] bg-[linear-gradient(110deg,#fff8ed_0%,#f5e9e5_100%)] px-6 py-4 no-print">
+            <div className="hpsr-document-editor-heading flex flex-wrap items-center justify-between gap-4 border-b border-[#ece5df] bg-[linear-gradient(110deg,#fff8ed_0%,#f5e9e5_100%)] px-6 py-4 no-print">
               <div>
                 <h2 className="text-xl font-black tracking-[-0.01em] text-hpsr-text">
                   {selectedModel?.title || "Documento livre"}
@@ -1657,28 +1598,29 @@ export default function DocumentsPage() {
             </div>
 
             <div
-              className="flex flex-wrap items-center gap-2 border-b border-[#e7dfd8] bg-white/95 px-4 py-2.5 no-print"
+              className="hpsr-document-toolbar flex flex-wrap items-center gap-2 border-b border-[#e7dfd8] bg-white/95 px-4 py-2.5 no-print"
+              role="toolbar" aria-label="Ferramentas do documento"
               onMouseDownCapture={(event) => {
                 rememberSelection();
                 if ((event.target as HTMLElement).closest("button")) event.preventDefault();
               }}
             >
-              <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
-                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-xs font-black text-hpsr-text" onClick={() => exec("undo")} title="Desfazer">↶</button>
-                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-xs font-black text-hpsr-text" onClick={() => exec("redo")} title="Refazer">↷</button>
+              <div role="group" aria-label="Histórico" data-tool-label="Histórico" className="hpsr-document-toolgroup flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-xs font-black text-hpsr-text" onClick={() => exec("undo")} title="Desfazer"><Undo2 size={16} /></button>
+                <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-xs font-black text-hpsr-text" onClick={() => exec("redo")} title="Refazer"><Redo2 size={16} /></button>
               </div>
 
-              <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
-                <button type="button" className="inline-flex h-9 items-center gap-1.5 rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => applyFormatBlock("h1")}><Type size={14} /> Título</button>
-                <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => applyFormatBlock("h2")}>Seção</button>
-                <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => applyFormatBlock("p")}>Texto</button>
+              <div role="group" aria-label="Estilo" data-tool-label="Estilo" className="hpsr-document-toolgroup flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
+                <button type="button" className="inline-flex h-9 items-center gap-1.5 rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => applyFormatBlock("h1")} title="Título"><Heading1 size={16} /></button>
+                <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => applyFormatBlock("h2")} title="Seção"><Heading2 size={16} /></button>
+                <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => applyFormatBlock("p")} title="Texto normal"><Pilcrow size={16} /></button>
               </div>
 
-              <div className="flex items-center rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
+              <div role="group" aria-label="Fonte" data-tool-label="Fonte" className="hpsr-document-toolgroup flex items-center rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
                 <EditorFontSizeMenu onChange={(value) => exec("fontSize", value)} />
               </div>
 
-              <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
+              <div role="group" aria-label="Cores e ênfase" data-tool-label="Cores e ênfase" className="hpsr-document-toolgroup flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("bold")}><Bold size={15} /></button>
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("italic")}><Italic size={15} /></button>
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("underline")}><Underline size={15} /></button>
@@ -1687,13 +1629,13 @@ export default function DocumentsPage() {
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("removeFormat")} title="Remover formatação"><Eraser size={15} /></button>
               </div>
 
-              <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
+              <div role="group" aria-label="Edição" data-tool-label="Edição" className="hpsr-document-toolgroup flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => void pasteWithoutFormatting()} title="Colar sem formatação"><ClipboardPaste size={15} /></button>
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => transformSelectionCase("upper")} title="Converter seleção para maiúsculas"><CaseUpper size={16} /></button>
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => transformSelectionCase("lower")} title="Converter seleção para minúsculas"><CaseLower size={16} /></button>
               </div>
 
-              <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
+              <div role="group" aria-label="Parágrafo" data-tool-label="Parágrafo" className="hpsr-document-toolgroup flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("justifyLeft")}><AlignLeft size={15} /></button>
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("justifyCenter")}><AlignCenter size={15} /></button>
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => exec("justifyRight")}><AlignRight size={15} /></button>
@@ -1701,7 +1643,7 @@ export default function DocumentsPage() {
                 <button type="button" className="inline-flex h-9 min-w-9 items-center justify-center rounded-[11px] border border-[#e0c7b2] bg-white px-2 text-hpsr-text" onClick={() => insertList(true)}><ListOrdered size={15} /></button>
               </div>
 
-              <div className="relative flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
+              <div role="group" aria-label="Tabela" data-tool-label="Tabela" className="hpsr-document-toolgroup relative flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
                 <button type="button" className="inline-flex h-9 items-center gap-2 rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => setTablePickerOpen(!tablePickerOpen)}><Table2 size={15} /> Tabela <ChevronDown size={13} /></button>
                 {tablePickerOpen && <div className="absolute left-0 top-12 z-30 w-64 rounded-[16px] border border-[#d8bfa9] bg-white p-3 shadow-[0_18px_45px_rgba(42,7,0,0.16)]">
                   <p className="mb-3 text-xs font-black uppercase tracking-[0.04em] text-hpsr-text">Inserir tabela</p>
@@ -1713,14 +1655,14 @@ export default function DocumentsPage() {
                 </div>}
               </div>
 
-              <div className="flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
-                <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => insertHtml("<blockquote>Observação: </blockquote><p><br></p>")}>Observação</button>
-                <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => insertHtml("<p><strong>Conclusão:</strong> </p>")}>Conclusão</button>
+              <div role="group" aria-label="Inserir" data-tool-label="Inserir" className="hpsr-document-toolgroup flex items-center gap-1 rounded-[13px] border border-[#e2d8cf] bg-[#fbfaf9] p-1 shadow-[0_2px_8px_rgba(42,7,0,0.025)]">
+                <button type="button" className="inline-flex h-9 items-center rounded-[11px] border border-[#e0c7b2] bg-white px-3 text-xs font-black text-hpsr-text" onClick={() => insertHtml("<blockquote>Observação: </blockquote><p><br></p>")} title="Inserir observação"><MessageSquareText size={16} /></button>
+                
               </div>
             </div>
 
             <div className="hpsr-documents-editor-viewport min-h-0 bg-[linear-gradient(180deg,#f3eee8_0%,#eee5e1_100%)] p-4 xl:p-5">
-              <div className="mx-auto min-h-full max-w-[1100px] rounded-[20px] border border-[#dfd5ce] bg-white p-8 shadow-[0_14px_34px_rgba(42,7,0,0.055)] ring-1 ring-white">
+              <div className="hpsr-document-editor-sheet mx-auto min-h-full max-w-[1100px] rounded-[20px] border border-[#dfd5ce] bg-white p-8 shadow-[0_14px_34px_rgba(42,7,0,0.055)] ring-1 ring-white">
                 <div className="relative">
                   {editorPageGuideTops.map((top, index) => (
                     <div key={index} className="pointer-events-none absolute left-0 right-0 z-10" style={{ top }}>

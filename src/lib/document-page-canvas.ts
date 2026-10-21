@@ -1,5 +1,6 @@
+import { renderClinicalBody, measureClinicalBody } from "@/lib/clinical-body-renderer-v2";
 import type { DocumentRenderSnapshot } from "@/lib/clinical-render-snapshot";
-import { drawRichTextElement, measureRichTextElement } from "@/lib/rich-text-canvas";
+import { drawRichTextElement, measureRichTextElement } from "@/lib/rich-text-canvas-legacy";
   function loadImage(src: string) {
     return new Promise<HTMLImageElement | null>((resolve) => {
       const image = new Image();
@@ -374,7 +375,7 @@ export async function renderSavedDocumentCanvas(snapshot: DocumentRenderSnapshot
     drawInfoCard(context, "Tipo sanguíneo", patient.bloodType || "-", 598, 138, 154, 30);
 
     let y = 184;
-    y = drawDocumentHtml(context, html, 42, y, 710, 1009);
+    y = snapshot.rendererVersion === 2 ? renderClinicalBody(context, html, 42, y, 710, 1009, "document") : drawDocumentHtml(context, html, 42, y, 710, 1009);
 
     context.fillStyle = "rgba(255,250,247,0.98)";
     context.fillRect(42, 1018, 710, 93);
@@ -429,7 +430,5 @@ export async function renderSavedDocumentCanvas(snapshot: DocumentRenderSnapshot
 
 
 export function measureDocumentReportHtml(html: string): number | null {
-  if (typeof document === "undefined") return null;
-  const context = document.createElement("canvas").getContext("2d");
-  return context ? drawDocumentHtml(context, html, 0, 0, 710, Number.POSITIVE_INFINITY) : null;
+  return measureClinicalBody(html, "document");
 }

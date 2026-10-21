@@ -1,3 +1,4 @@
+import { clinicalPageSourceOffsets } from "@/lib/clinical-editor-guides";
 import { measureExamReportHtml } from "@/lib/exam-page-canvas";
 import { EXAM_SIGNATURE_WIDTH, EXAM_SIGNATURE_HEIGHT } from "@/lib/exam-signature-image";
 import { ExamSignatureImage } from "@/components/dashboard/ExamSignatureImage";
@@ -56,6 +57,7 @@ export type RenderedExamPage = {
 };
 
 export type RenderedExamDocument = {
+  contentRendererVersion?: 2 | 3;
   pages: RenderedExamPage[];
   automaticAttachments: AutomaticAttachment[];
   metadata: RenderMetadata;
@@ -100,7 +102,7 @@ function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity
     const prefix = children[0].outerHTML;
     const tail = children.slice(1).map(child => child.outerHTML).join("");
     const prefixHeight = measureHeight(prefix) ?? 36;
-    if (capacity > prefixHeight + 28) {
+    if (capacity >= prefixHeight + 20.5) {
       const pieces = splitOversizedHtmlBlock(tail, measure, capacity - prefixHeight, measureHeight);
       if (pieces.length > 1) return [prefix + pieces[0], ...pieces.slice(1)];
     }
@@ -120,6 +122,7 @@ function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity
       if ((measureHeight(candidate) ?? measure.scrollHeight) > capacity) break;
       count = index + 1;
     }
+    if (count < rows.length && rows[count-1]?.hasAttribute("data-hpsr-table-group")) count--;
     return count > 0 && count < rows.length
       ? [buildTable(rows.slice(0, count)), buildTable(rows.slice(count))]
       : [html];
@@ -161,13 +164,16 @@ function splitOversizedHtmlBlock(html: string, measure: HTMLDivElement, capacity
     };
 
     const buildFragment = (start: number, end: number) => {
-      const range = document.createRange();
-      const startPoint = pointAt(start);
-      const endPoint = pointAt(end);
-      range.setStart(startPoint.node, startPoint.offset);
-      range.setEnd(endPoint.node, endPoint.offset);
-      const clone = root.cloneNode(false) as HTMLElement;
-      clone.appendChild(range.cloneContents());
+      // Clone the entire ancestor chain before trimming. cloneContents() on a
+      // text-only Range loses wrapping STRONG/FONT/SPAN styles and under-measures.
+      const clone=root.cloneNode(true) as HTMLElement;
+      const walker=document.createTreeWalker(clone,NodeFilter.SHOW_TEXT);
+      const nodes: Text[]=[];let current=walker.nextNode();
+      while(current){nodes.push(current as Text);current=walker.nextNode();}
+      const at=(offset:number)=>{let remaining=offset;for(const node of nodes){if(remaining<=node.data.length)return {node,offset:remaining};remaining-=node.data.length;}const node=nodes[nodes.length-1];return {node,offset:node.data.length};};
+      const left=at(start),right=at(end);
+      const tail=document.createRange();tail.setStart(right.node,right.offset);tail.setEnd(clone,clone.childNodes.length);tail.deleteContents();
+      const head=document.createRange();head.setStart(clone,0);head.setEnd(left.node,left.offset);head.deleteContents();
       return clone.outerHTML;
     };
 
@@ -293,10 +299,12 @@ function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[], options?: 
   const queue = [...blocks];
 
   const currentCapacity = () => capacities[Math.min(pageIndex, 1)];
+  const heightCache = new Map<string, number>();
   const renderedHeight = (html: string) => {
-    measure.innerHTML = html;
-    applyCanvasEquivalentMeasurementStyles(measure);
-    return measureHeight(html) ?? measure.scrollHeight;
+    const cached = heightCache.get(html); if(cached !== undefined) return cached;
+    let height = measureHeight(html);
+    if(height === null) { measure.innerHTML = html; applyCanvasEquivalentMeasurementStyles(measure); height = measure.scrollHeight; }
+    heightCache.set(html,height); return height;
   };
   const fitsCurrentPage = (html: string) => renderedHeight(html) <= currentCapacity();
 
@@ -315,7 +323,7 @@ function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[], options?: 
       // tabela, lista ou parágrafo que pode ser dividido com segurança.
       const currentHtml = current.join("");
       const remainingCapacity = Math.max(0, currentCapacity() - renderedHeight(currentHtml));
-      if (remainingCapacity >= 28) {
+      if (remainingCapacity >= 20.5) {
         const fragments = splitOversizedHtmlBlock(block.html, measure, remainingCapacity, measureHeight);
         if (fragments.length > 1) {
           let consumed = 0;
@@ -360,8 +368,8 @@ function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[], options?: 
         continue;
       }
 
-      // Último recurso para um elemento realmente indivisível.
-      current.push(block.html);
+      // Never silently clip an indivisible row or oversized element in the PNG.
+      throw new Error("Um bloco não cabe na área útil da folha. Divida a linha de tabela ou reduza a fonte desse trecho.");
     }
 
     if (current.length || !pages.length) pages.push(current);
@@ -473,7 +481,25 @@ function splitLongList(listHtml: string) {
 function parseClinicalBlocks(html: string) {
   const clean = normalizeClinicalHtml(html);
   if (!clean) return [] as ClinicalBlock[];
-  const raw = clean.match(/<(h[1-3]|p|table|ul|ol|blockquote|div)[^>]*>[\s\S]*?<\/\1>|<hr[^>]*>/gi) || [clean];
+  const raw = typeof document !== "undefined" ? (() => {
+    const root=document.createElement("div");root.innerHTML=clean;
+    const flatten=(parent: HTMLElement):string[]=>{
+      const result:string[]=[];let inline="";
+      const flush=()=>{if(inline.trim()){const p=document.createElement("p");p.style.cssText=parent.style.cssText;p.innerHTML=inline;result.push(p.outerHTML);}inline="";};
+      for(const node of Array.from(parent.childNodes)) {
+        if(node.nodeType===Node.TEXT_NODE){const escaped=document.createElement("span");escaped.textContent=node.textContent;inline+=escaped.innerHTML;continue;}
+        if(node.nodeType!==Node.ELEMENT_NODE)continue;
+        const element=node as HTMLElement;
+        if(/^(P|H[1-3]|TABLE|UL|OL|BLOCKQUOTE|DIV|SECTION|ARTICLE|HR)$/.test(element.tagName)) {
+          flush();element.style.cssText=parent.style.cssText+";"+element.style.cssText;
+          if(["DIV","SECTION","ARTICLE"].includes(element.tagName))result.push(...flatten(element));
+          else result.push(element.outerHTML);
+        } else inline+=element.outerHTML;
+      }
+      flush();return result;
+    };
+    return flatten(root);
+  })() : clean.match(/<(h[1-3]|p|table|ul|ol|blockquote|div)[^>]*>[\s\S]*?<\/\1>|<hr[^>]*>/gi) || [clean];
   return raw
     .flatMap((block) => {
       if (/^<table[\s>]/i.test(block)) return typeof document === "undefined" ? splitLongTable(block) : [block];
@@ -484,12 +510,12 @@ function parseClinicalBlocks(html: string) {
     .map((block) => ({ html: block, kind: blockKind(block), weight: estimateBlockWeight(block) }));
 }
 
-function mergeConclusionWithText(blocks: ClinicalBlock[]) {
+function mergeHeadingWithContent(blocks: ClinicalBlock[]) {
   const output: ClinicalBlock[] = [];
   for (let index = 0; index < blocks.length; index += 1) {
     const block = blocks[index];
-    const isConclusion = block.kind === "heading" && /conclus[aã]o/i.test(textOnly(block.html));
-    if (!isConclusion || !blocks[index + 1]) {
+    const isHeading = block.kind === "heading";
+    if (!isHeading || !blocks[index + 1] || blocks[index + 1].kind === "heading") {
       output.push(block);
       continue;
     }
@@ -507,7 +533,7 @@ export function splitClinicalReportHtmlIntoPages(html: string, signatureImage?: 
   const allPages: string[] = [];
 
   sourceSegments.forEach((segment, segmentIndex) => {
-    const blocks = mergeConclusionWithText(parseClinicalBlocks(segment));
+    const blocks = mergeHeadingWithContent(parseClinicalBlocks(segment));
     if (!blocks.length) {
       allPages.push("");
       return;
@@ -543,6 +569,10 @@ export function splitClinicalReportHtmlIntoPages(html: string, signatureImage?: 
     allPages.push(...pages.map((page) => page.join("")));
   });
 
+  if (typeof document !== "undefined") {
+    const source=document.createElement("div");source.innerHTML=sourceSegments.join("");
+    clinicalPageSourceOffsets(source,allPages,true);
+  }
   return allPages.length ? allPages : [""];
 }
 
@@ -653,7 +683,7 @@ export function createFinalExamDocument(input: {
   ];
 
   const labeledPages = (pages.length ? pages : [{ id: "report-1", type: "report" as const, label: "", reportHtml: "" }]).map((page, index, array) => ({ ...page, label: `Página ${index + 1} de ${array.length}` }));
-  return { pages: labeledPages, automaticAttachments, metadata: input.metadata };
+  return { contentRendererVersion: 3, pages: labeledPages, automaticAttachments, metadata: input.metadata };
 }
 
 function formatDate(value: string) {
