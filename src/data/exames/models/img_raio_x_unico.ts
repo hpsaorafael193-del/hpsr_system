@@ -299,7 +299,7 @@ export const img_raio_x_unicoModel: IntelligentExamModel = {
       "id": "normal",
       "name": "Normal",
       "status": "normal",
-      "description": "Sem alterações radiográficas agudas.",
+      "description": "Perfil de referência para Qualidade técnica, Alinhamento / Eixo. Os valores e a leitura consideram os campos ativos; revise os achados antes de salvar.",
       "resultSummary": "Exame radiográfico sem alterações agudas evidentes.",
       "results": {
         "qualidade_tecnica": "Adequada",
@@ -394,7 +394,7 @@ export const img_raio_x_unicoModel: IntelligentExamModel = {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
-      "description": "Modelo livre para ajuste médico.",
+      "description": "Preencha os achados observados ou edite o laudo. Nenhum resultado normal é preenchido automaticamente.",
       "resultSummary": "Radiografia personalizada.",
       "interpretation": "Interpretação a ser definida pelo médico.",
       "conclusion": "Conclusão a ser definida pelo médico."

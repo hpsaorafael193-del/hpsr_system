@@ -1,3 +1,4 @@
+import { EXAM_SIGNED_BODY_HEIGHT, EXAM_UNSIGNED_BODY_HEIGHT } from "@/lib/exam-report-layout";
 import { clinicalPageSourceOffsets } from "@/lib/clinical-editor-guides";
 import { measureExamReportHtml } from "@/lib/exam-page-canvas";
 import { EXAM_SIGNATURE_WIDTH, EXAM_SIGNATURE_HEIGHT } from "@/lib/exam-signature-image";
@@ -57,7 +58,7 @@ export type RenderedExamPage = {
 };
 
 export type RenderedExamDocument = {
-  contentRendererVersion?: 2 | 3;
+  contentRendererVersion?: 2 | 3 | 4;
   pages: RenderedExamPage[];
   automaticAttachments: AutomaticAttachment[];
   metadata: RenderMetadata;
@@ -291,14 +292,14 @@ function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[], options?: 
   });
   document.body.appendChild(measure);
 
-  const capacities = [options?.capacity ?? 714, options?.capacity ?? 714];
+  let capacity = options?.capacity ?? EXAM_SIGNED_BODY_HEIGHT;
   const measureHeight = options?.measureHeight || measureExamReportHtml;
   const pages: string[][] = [];
   let current: string[] = [];
   let pageIndex = 0;
   const queue = [...blocks];
 
-  const currentCapacity = () => capacities[Math.min(pageIndex, 1)];
+  const currentCapacity = () => capacity;
   const heightCache = new Map<string, number>();
   const renderedHeight = (html: string) => {
     const cached = heightCache.get(html); if(cached !== undefined) return cached;
@@ -310,6 +311,17 @@ function splitClinicalBlocksByRenderedHeight(blocks: ClinicalBlock[], options?: 
 
   try {
     while (queue.length) {
+      if (!current.length && !options) {
+        const remainingHeight = renderedHeight(queue.map(block => block.html).join(""));
+        // The terminal report page reserves its signature. Earlier pages can
+        // use the same band for text. Leave a readable tail when the remainder
+        // nearly fits an unsigned page, rather than adding an empty sign page.
+        capacity = remainingHeight <= EXAM_SIGNED_BODY_HEIGHT
+          ? EXAM_SIGNED_BODY_HEIGHT
+          : remainingHeight <= EXAM_UNSIGNED_BODY_HEIGHT
+            ? Math.max(EXAM_SIGNED_BODY_HEIGHT, remainingHeight - 40)
+            : EXAM_UNSIGNED_BODY_HEIGHT;
+      }
       const block = queue.shift()!;
       const candidateHtml = [...current, block.html].join("");
 
@@ -491,7 +503,7 @@ function parseClinicalBlocks(html: string) {
         if(node.nodeType!==Node.ELEMENT_NODE)continue;
         const element=node as HTMLElement;
         if(/^(P|H[1-3]|TABLE|UL|OL|BLOCKQUOTE|DIV|SECTION|ARTICLE|HR)$/.test(element.tagName)) {
-          flush();element.style.cssText=parent.style.cssText+";"+element.style.cssText;
+          flush();element.style.cssText=[parent.style.cssText, element.style.cssText].filter(Boolean).join(";");
           if(["DIV","SECTION","ARTICLE"].includes(element.tagName))result.push(...flatten(element));
           else result.push(element.outerHTML);
         } else inline+=element.outerHTML;
@@ -683,7 +695,7 @@ export function createFinalExamDocument(input: {
   ];
 
   const labeledPages = (pages.length ? pages : [{ id: "report-1", type: "report" as const, label: "", reportHtml: "" }]).map((page, index, array) => ({ ...page, label: `Página ${index + 1} de ${array.length}` }));
-  return { contentRendererVersion: 3, pages: labeledPages, automaticAttachments, metadata: input.metadata };
+  return { contentRendererVersion: 4, pages: labeledPages, automaticAttachments, metadata: input.metadata };
 }
 
 function formatDate(value: string) {

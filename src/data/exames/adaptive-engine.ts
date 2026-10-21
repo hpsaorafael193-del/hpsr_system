@@ -1,3 +1,6 @@
+import { inputContextInterpretation, hasManualFindings } from "./input-context";
+import { monitoringBaselineFocus, normalBaselineMonitoringResult } from "./follicular-context";
+import { developClinicalInterpretation } from "./clinical-interpretation";
 import { clearReportLanguage, uniqueReportParagraphs, isRepeatedEvidenceNarrative, isRepeatedEvidenceConclusion, reviewedInterpretation, explainReportConclusion } from "./report-language";
 import type {
   IntelligentClinicalVariable,
@@ -113,6 +116,8 @@ function profileField(model: IntelligentExamModel, configuration: AdaptiveExamCo
 
 function appliesToSelection(variable: IntelligentClinicalVariable, configuration: AdaptiveExamConfiguration) {
   if (!variable.appliesTo?.length) return true;
+  const focus = String(configuration.variables.foco_monitorizacao ?? "").trim();
+  if (focus) return variable.appliesTo.some(item => normalizedFieldKey(item) === normalizedFieldKey(focus));
   const selected = [
     configuration.adapterValue,
     configuration.clinicalContext,
@@ -176,6 +181,7 @@ function defaultVariableValue(variable: IntelligentClinicalVariable, configurati
     if (legacyFocus.includes("receptora") || legacyFocus.includes("gestante") || legacyFocus.includes("endometr")) return "Endométrio";
     if (legacyFocus.includes("doadora") || legacyFocus.includes("folicul")) return "Folículos";
   }
+  if (configuration.profileId === "personalizado") return "";
   if (variable.tipo === "boolean") return false;
   if (variable.tipo === "select") {
     const adapterMatch = variable.options?.find((option) => normalizedFieldKey(option) === normalizedFieldKey(configuration.adapterValue));
@@ -226,7 +232,17 @@ function contextualParameters(model: IntelligentExamModel, variables: Record<str
       : focus.includes("endometr") || focus.includes("receptora") || focus.includes("gestante")
         ? new Set(["utero", "endometrio", "espessura_endometrial", "liquido_fundo_saco", "impressao"])
         : null;
-    return ids ? model.parameters.filter((parameter) => ids.has(parameter.id)) : model.parameters;
+    const selected = ids ? model.parameters.filter((parameter) => ids.has(parameter.id)) : model.parameters;
+    const baseline = profileId === "normal" ? monitoringBaselineFocus(variables) : null;
+    if (!baseline) return selected;
+    return selected.map(parameter => {
+      const reference = /^(foliculos_od|foliculos_oe)$/.test(parameter.id)
+        ? "Folículos antrais na avaliação basal: 2–10 mm"
+        : parameter.id === "foliculo_dominante" ? "Dominância não presumida antes do estímulo"
+        : baseline === "endometrium" && /^(endometrio|espessura_endometrial)$/.test(parameter.id)
+          ? "Aspecto basal antes do preparo; interpretar conforme o contexto" : parameter.referencia;
+      return { ...parameter, referencia: reference };
+    });
   }
 
   if (model.id === "lab_beta_hcg_completo" && profileId === "negativo") {
@@ -290,12 +306,23 @@ export function resolveAdaptiveExam(
 ): AdaptiveResolvedExam {
   const safeConfiguration = configuration.examId === model.id ? configuration : createInitialAdaptiveConfiguration(model);
   const technicalVariables = clinicalVariableFields(model, safeConfiguration);
-  const resolvedVariables: Record<string, string | boolean> = { ...safeConfiguration.variables };
+  if (safeConfiguration.profileId === "personalizado") {
+    for (const parameter of model.parameters) {
+      if (technicalVariables.some(field => field.id === parameter.id)) continue;
+      technicalVariables.push({ id: parameter.id, label: parameter.label + (parameter.unidade ? ` (${parameter.unidade})` : ""), tipo: "text", source: "variable", value: safeConfiguration.variables[parameter.id] ?? "" });
+    }
+  }
+  const resolvedVariables: Record<string, string | boolean> = {};
   technicalVariables.forEach((field) => {
     if (resolvedVariables[field.id] === undefined || String(resolvedVariables[field.id]).trim() === "") {
       resolvedVariables[field.id] = field.value;
     }
   });
+  for (const parameter of contextualParameters(model, resolvedVariables)) {
+    const supplied = safeConfiguration.variables[parameter.id];
+    if (supplied !== undefined && String(supplied).trim() !== "") resolvedVariables[parameter.id] = supplied;
+  }
+  if (model.adapter.secondaryOptions?.length) resolvedVariables.contraste = safeConfiguration.variables.contraste ?? firstOption(model.adapter.secondaryOptions);
   const clinicalContext = resolvedClinicalContext(model, safeConfiguration, resolvedVariables);
   const profile = profileForClinicalContext(model, safeConfiguration, clinicalContext);
   const dynamicFields = [
@@ -1023,6 +1050,7 @@ function guidedRuntimeOverride(
   const stimulationDay = String(runtimeVariables.dia_estimulacao ?? "").trim();
   const endometrialPrepDay = String(runtimeVariables.dia_preparo_endometrial ?? "").trim();
   const directVariable = runtimeVariables[parameter.id];
+  if (profile.status === "personalizado") return directVariable !== undefined && String(directVariable).trim() !== "" ? String(directVariable) : "Não informado";
 
   if (model.id === "hormonal_painel_hormonal_completo" && parameter.id === "fase_ciclo" && protocolRoleKey) {
     if (protocolRoleKey.includes("doadora")) {
@@ -1036,6 +1064,13 @@ function guidedRuntimeOverride(
   if (directVariable !== undefined && directVariable !== null && String(directVariable).trim() !== "") {
     return String(directVariable);
   }
+  if (model.id === "gineco_usg_monitorizacao_folicular" && profile.status === "normal") {
+    const focus = monitoringBaselineFocus(runtimeVariables);
+    if (focus) {
+      const baseline = normalBaselineMonitoringResult(focus, parameter.id, generationSeed);
+      if (baseline !== undefined) return baseline;
+    }
+  }
   if (parameter.id === "incidencia" && runtimeVariables.incidencias) return String(runtimeVariables.incidencias);
   if (parameter.id === "uso_contraste" && runtimeVariables.contraste) return String(runtimeVariables.contraste);
 
@@ -1046,12 +1081,12 @@ function guidedRuntimeOverride(
     if (model.id === "gineco_usg_monitorizacao_folicular") {
       if (protocolRoleKey.includes("folicul") || protocolRoleKey.includes("doadora")) {
         return profile.status === "normal" || profile.id === "normal"
-          ? "Desenvolvimento folicular em acompanhamento, com resposta ovariana compatível com a etapa avaliada"
+          ? (/^0+(?:[.,]0+)?$/.test(stimulationDay) ? "Achados ovarianos no dia zero, conforme as observações informadas, antes do início do estímulo" : "Desenvolvimento folicular em acompanhamento, com resposta ovariana compatível com a etapa avaliada")
           : profile.results?.[parameter.id]?.trim() || "Desenvolvimento folicular a correlacionar com a evolução seriada";
       }
       if (protocolRoleKey.includes("endometr") || protocolRoleKey.includes("receptora") || protocolRoleKey.includes("gestante")) {
         return profile.status === "normal" || profile.id === "normal"
-          ? "Endométrio em acompanhamento, com padrão e espessura compatíveis com a etapa avaliada"
+          ? (/^0+(?:[.,]0+)?$/.test(endometrialPrepDay) ? "Achados endometriais no dia zero, conforme as observações informadas, antes do início do preparo" : "Endométrio em acompanhamento, com padrão e espessura compatíveis com a etapa avaliada")
           : profile.results?.[parameter.id]?.trim() || "Endométrio a correlacionar com a evolução seriada";
       }
     }
@@ -1339,7 +1374,7 @@ function parameterRows(resolved: AdaptiveResolvedExam) {
 function section(blockId: string, title: string, body: string) {
   if (!body.trim()) return "";
   if (["interpretacao", "conclusao"].includes(blockId)) body = body.replace(/<p>/g, '<p data-hpsr-narrative-panel="true">');
-  return `<section data-hpsr-block="${htmlEscape(blockId)}" data-hpsr-auto-block="true"><h2 data-hpsr-section-heading="true">${htmlEscape(title)}</h2>${body}</section>`;
+  return `<section data-hpsr-block="${htmlEscape(blockId)}" data-hpsr-auto-block="true"><h2 data-hpsr-section-heading="true" style="font-size:17px">${htmlEscape(title)}</h2>${body}</section>`;
 }
 
 function paragraphs(value: string) {
@@ -1604,7 +1639,12 @@ function technicalMethodNarrative(resolved: AdaptiveResolvedExam) {
   let primary = cleanTechnicalSentence(model.technique || model.method);
 
   if (model.id === "gineco_usg_monitorizacao_folicular") {
-    if (protocolRole.includes("folicul") || protocolRole.includes("doadora")) {
+    const baselineFocus = monitoringBaselineFocus(resolved.variables);
+    if (resolved.profile.status === "normal" && baselineFocus) {
+      primary = baselineFocus === "follicles"
+        ? "Ultrassonografia transvaginal basal, antes do início da estimulação ovariana (dia 0), com avaliação dos ovários e medidas dos folículos antrais"
+        : "Ultrassonografia transvaginal basal, antes do início do preparo endometrial (dia 0), com avaliação do útero, do padrão e da espessura endometrial";
+    } else if (protocolRole.includes("folicul") || protocolRole.includes("doadora")) {
       primary = "Ultrassonografia transvaginal seriada com foco no desenvolvimento folicular, incluindo avaliação dos ovários, mensuração dos folículos e pesquisa de sinais de maturação/ovulação";
     } else if (protocolRole.includes("endometr") || protocolRole.includes("receptora") || protocolRole.includes("gestante")) {
       primary = "Ultrassonografia transvaginal seriada com foco endometrial, incluindo avaliação uterina, padrão e espessura do endométrio";
@@ -1837,6 +1877,15 @@ function contextualProtocolNarrative(resolved: AdaptiveResolvedExam, kind: "inte
 }
 
 function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  const focusRows = resolved.profile.status === "normal" ? rows : profileChangedRows(resolved, rows);
+  const develop = (base: string) => [developClinicalInterpretation(resolved, rows, base, focusRows.length ? focusRows : rows), inputContextInterpretation(resolved, rows)].filter(Boolean).join("\n");
+  if (hasManualFindings(resolved) || resolved.profile.status === "personalizado") return develop("Os achados informados pelo profissional têm prioridade sobre o perfil inicial. A interpretação considera os resultados registrados, sem presumir que os demais parâmetros sejam normais.");
+  if (resolved.model.id === "gineco_usg_monitorizacao_folicular" && resolved.profile.status === "normal") {
+    const focus = monitoringBaselineFocus(resolved.variables);
+    if (focus) return develop(focus === "follicles"
+      ? "Esta é uma avaliação basal, com dia de estimulação informado como zero. Os pequenos folículos descritos representam o aspecto observado antes do tratamento; não há resposta ao estímulo nem maturidade folicular a presumir neste modelo. A comparação posterior permitirá avaliar a resposta ao protocolo, sem assumir crescimento apenas pela passagem dos dias."
+      : "Esta avaliação foi configurada antes do início do preparo endometrial. O padrão e a espessura descritos são basais; não representam resposta ao tratamento nem confirmação de que o endométrio esteja preparado para transferência. O acompanhamento posterior deve considerar a evolução dos achados e o protocolo informado.");
+  }
   if (resolved.model.id === "hormonal_painel_hormonal_completo" && resolved.profile.id !== "personalizado") {
     const profile = resolved.profile.id;
     const text = ({
@@ -1848,7 +1897,7 @@ function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][
     } as Record<string,string>)[profile] || "";
     const fiv = /fiv|estimula|preparo endometrial/i.test(`${resolved.adapterValue} ${resolved.clinicalContext} ${resolved.variables.papel_no_protocolo || ""}`);
     const context = fiv ? "Na FIV, estradiol, LH e progesterona devem ser avaliados conforme o protocolo e a evolução dos folículos ou do endométrio, sem definir sozinhos a resposta ao tratamento." : "";
-    return uniqueReportParagraphs(text + (context ? " " + context : ""));
+    return develop(uniqueReportParagraphs(text + (context ? " " + context : "")));
   }
   const original = refreshedNarrative(resolved, resolved.profile.interpretation, "interpretation");
   // Generated evidence belongs in the table; an interpretation explains its meaning.
@@ -1863,11 +1912,22 @@ function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][
   // The clinical context and protocol are already recorded in Method. Keep only
   // context-specific limitations here, without describing how the system worked.
   const conclusion = technicalConclusion(resolved, rows);
-  return uniqueReportParagraphs(clearReportLanguage(narrative), conclusion);
+  return develop(uniqueReportParagraphs(clearReportLanguage(narrative), conclusion));
 }
 
 function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
   const { model, profile } = resolved;
+  if (hasManualFindings(resolved) || profile.status === "personalizado") {
+    const conclusionField = resolved.parameters.find(parameter => /conclus/i.test(parameter.id) && String(resolved.variables[parameter.id] ?? "").trim());
+    const impression = conclusionField ? resolved.variables[conclusionField.id] : resolved.variables.impressao;
+    return typeof impression === "string" && impression.trim() ? impression.trim() : "Avaliação individual conforme os achados registrados; conclusão a ser definida pelo profissional.";
+  }
+  if (model.id === "gineco_usg_monitorizacao_folicular" && profile.status === "normal") {
+    const focus = monitoringBaselineFocus(resolved.variables);
+    if (focus) return focus === "follicles"
+      ? "Aspecto ovariano basal, sem dominância folicular, antes do início da estimulação."
+      : "Aspecto endometrial basal, antes do início do preparo.";
+  }
   if (model.id === "hormonal_painel_hormonal_completo" && profile.id !== "personalizado") {
     const reviewed: Record<string,string> = {
       normal: "Perfil hormonal sem alterações relevantes no contexto informado.",
@@ -2055,9 +2115,9 @@ export function renderAdaptiveExamReport(resolved: AdaptiveResolvedExam) {
       section("avaliacao_fisica", "4. Avaliação física", tableHtml(["Parâmetro", "Resultado", "Referência"], physicalRows)),
       section("avaliacao_cardiaca", "5. Avaliação cardíaca", tableHtml(["Parâmetro", "Resultado", "Referência"], cardiacRows)),
       section("avaliacao_respiratoria", "6. Avaliação respiratória", tableHtml(["Parâmetro", "Resultado", "Referência"], respiratoryRows)),
-      section("interpretacao", "7. Leitura clínica", paragraphs(uniqueReportParagraphs(clearReportLanguage(`${psychotechnicalContextNarrative(resolved, "interpretation")}
-${profile.interpretation}`), technicalConclusion(resolved, rows)))),
-      section("conclusao", "8. Conclusão", paragraphs(uniqueReportParagraphs(clearReportLanguage(profile.conclusion)))),
+      section("interpretacao", "7. Leitura clínica", paragraphs(hasManualFindings(resolved) || profile.status === "personalizado" ? interpretation : [developClinicalInterpretation(resolved, rows, uniqueReportParagraphs(clearReportLanguage(`${psychotechnicalContextNarrative(resolved, "interpretation")}
+${profile.interpretation}`), technicalConclusion(resolved, rows))), inputContextInterpretation(resolved, rows)].filter(Boolean).join("\n"))),
+      section("conclusao", "8. Conclusão", paragraphs(technicalConclusion(resolved, rows))),
     ].join("");
   }
   if (model.id === "geral_exame_toxicologico") {
@@ -2083,8 +2143,8 @@ ${profile.interpretation}`), technicalConclusion(resolved, rows)))),
       section("substancias_pesquisadas", "4. Substâncias Pesquisadas", tableHtml(["Substância ou classe", "Resultado", "Valor de corte"], substanceRows)),
       section("controle_qualidade", "5. Controle de Qualidade da Amostra", tableHtml(["Parâmetro", "Resultado", "Referência"], qualityRows)),
       
-      section("interpretacao", "6. Leitura clínica", paragraphs(uniqueReportParagraphs(clearReportLanguage(profile.interpretation), profile.conclusion))),
-      section("conclusao", "7. Conclusão", paragraphs(uniqueReportParagraphs(clearReportLanguage(`${profile.conclusion}\nEste exame não define, sozinho, o grau de comprometimento funcional nem o momento exato da exposição.`)))),
+      section("interpretacao", "6. Leitura clínica", paragraphs(hasManualFindings(resolved) || profile.status === "personalizado" ? interpretation : [developClinicalInterpretation(resolved, substanceRows, uniqueReportParagraphs(clearReportLanguage(profile.interpretation), profile.conclusion)), inputContextInterpretation(resolved, rows)].filter(Boolean).join("\n"))),
+      section("conclusao", "7. Conclusão", paragraphs(uniqueReportParagraphs(clearReportLanguage(`${technicalConclusion(resolved, rows)}\nEste exame não define, sozinho, o grau de comprometimento funcional nem o momento exato da exposição.`)))),
     ].join("");
   }
 

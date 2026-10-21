@@ -42,19 +42,28 @@ export function handleRichEditorTableKeyDown(
     return true;
   }
 
-  if (event.key === "Backspace") {
-    const paragraph = startElement.closest<HTMLElement>("p,div");
-    if (!paragraph || paragraph.parentElement !== editor) return false;
-    const paragraphText = (paragraph.textContent || "").replace(/\u00a0/g, " ").trim();
-    const isCaretAtStart = range.startOffset === 0 && paragraphText.length === 0;
+  // An empty paragraph is a spacer, not an instruction to delete table data.
+  const paragraph = startElement.closest<HTMLElement>("p,div");
+  if (paragraph && paragraph !== editor && editor.contains(paragraph)
+      && !(paragraph.textContent || "").replace(/\u00a0/g, " ").trim()
+      && !paragraph.querySelector("table,img,hr")) {
     const previous = paragraph.previousElementSibling;
-    if (!isCaretAtStart || previous?.tagName.toLowerCase() !== "table") return false;
-    const rows = Array.from(previous.querySelectorAll("tbody tr"));
-    if (rows.length <= 1) return false;
-    event.preventDefault();
-    rows[rows.length - 1].remove();
-    onChanged();
-    return true;
+    const next = paragraph.nextElementSibling;
+    const target = event.key === "Backspace" ? previous || next : next || previous;
+    if (target) {
+      event.preventDefault();
+      paragraph.remove();
+      const caret = document.createRange();
+      const anchor = target.tagName === "TABLE"
+        ? (event.key === "Backspace" ? target.querySelector("tr:last-child td:last-child, tr:last-child th:last-child") : target.querySelector("td,th")) || target
+        : target;
+      caret.selectNodeContents(anchor);
+      caret.collapse(event.key !== "Backspace");
+      selection.removeAllRanges();
+      selection.addRange(caret);
+      onChanged();
+      return true;
+    }
   }
 
   return false;

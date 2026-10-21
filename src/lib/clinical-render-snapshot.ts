@@ -3,7 +3,7 @@ import { measureDocumentReportHtml } from "@/lib/document-page-canvas";
 import { splitClinicalReportHtmlIntoPages } from "@/data/exames/final-renderer";
 
 export const CLINICAL_RENDER_LAYOUT = Object.freeze({ width: 794, height: 1123, patientNameFont: 13, patientDataFont: 12, signatureWidth: 260, signatureHeight: 50, bodyFont: 12, bodyLineHeight: 16.5, template: "hpsr-institutional-v1" });
-export type ExamRenderSnapshot = { kind: "exam"; rendererVersion: 1 | 2 | 3; layout: { width: number; height: number; patientNameFont: number; patientDataFont: number; signatureWidth: number; signatureHeight: number; bodyFont: number; bodyLineHeight: number; template: string }; document: RenderedExamDocument };
+export type ExamRenderSnapshot = { kind: "exam"; rendererVersion: 1 | 2 | 3 | 4; layout: { width: number; height: number; patientNameFont: number; patientDataFont: number; signatureWidth: number; signatureHeight: number; bodyFont: number; bodyLineHeight: number; template: string; unsignedBodyHeight?: number; signedBodyHeight?: number; sectionGap?: number }; document: RenderedExamDocument };
 export type DocumentRenderSnapshot = { kind: "document"; rendererVersion: 1 | 2; layout: { width: number; height: number; patientNameFont: number; patientDataFont: number; signatureWidth: number; signatureHeight: number; bodyFont: number; bodyLineHeight: number; template: string }; pages: string[]; metadata: { title: string; date: string; patient: RenderPatient; doctor: RenderDoctor & { role?: string; signatureImage?: string | null } } };
 export type ClinicalRenderSnapshot = ExamRenderSnapshot | DocumentRenderSnapshot;
 
@@ -30,7 +30,7 @@ export async function captureExamSnapshot(document: RenderedExamDocument): Promi
   for (const page of frozen.pages) for (const file of page.manualAttachments || []) {
     file.url = await preserveOriginalAsset(file.url, true) || "";
   }
-  return { kind: "exam", rendererVersion: frozen.contentRendererVersion === 3 ? 3 : 2, layout: { ...CLINICAL_RENDER_LAYOUT, patientNameFont: frozen.contentRendererVersion === 3 ? 12 : CLINICAL_RENDER_LAYOUT.patientNameFont, template: frozen.contentRendererVersion === 3 ? "hpsr-exam-sheet-v3" : CLINICAL_RENDER_LAYOUT.template }, document: frozen };
+  return { kind: "exam", rendererVersion: frozen.contentRendererVersion === 4 ? 4 : frozen.contentRendererVersion === 3 ? 3 : 2, layout: { ...CLINICAL_RENDER_LAYOUT, patientNameFont: (frozen.contentRendererVersion === 3 || frozen.contentRendererVersion === 4) ? 12 : CLINICAL_RENDER_LAYOUT.patientNameFont, template: frozen.contentRendererVersion === 4 ? "hpsr-exam-sheet-v4" : frozen.contentRendererVersion === 3 ? "hpsr-exam-sheet-v3" : CLINICAL_RENDER_LAYOUT.template, ...(frozen.contentRendererVersion === 4 ? { unsignedBodyHeight: 834, signedBodyHeight: 714, sectionGap: 12 } : {}) }, document: frozen };
 }
 export async function captureDocumentSnapshot(metadata: DocumentRenderSnapshot["metadata"], pages: string[]): Promise<DocumentRenderSnapshot> {
   if (!metadata.doctor.signatureImage) throw new Error("Cadastre ou selecione a imagem da assinatura do médico antes de gerar ou salvar o documento.");
@@ -42,7 +42,7 @@ export async function captureDocumentSnapshot(metadata: DocumentRenderSnapshot["
 export function resolveClinicalSnapshot(payload: Record<string, any>, recordType: string, fallbackDate = ""): { snapshot: ClinicalRenderSnapshot; legacy: boolean } {
   const saved = payload.renderSnapshot;
   if (saved) {
-    if (!(saved.kind === "exam" ? [1, 2, 3] : [1, 2]).includes(saved.rendererVersion) || !["exam", "document"].includes(saved.kind)) throw new Error("Este registro usa uma versão de folha não suportada. Atualize o sistema para abri-lo.");
+    if (!(saved.kind === "exam" ? [1, 2, 3, 4] : [1, 2]).includes(saved.rendererVersion) || !["exam", "document"].includes(saved.kind)) throw new Error("Este registro usa uma versão de folha não suportada. Atualize o sistema para abri-lo.");
     if (saved.kind === "exam" && (!saved.document?.metadata || !saved.document?.pages?.length)) throw new Error("O snapshot da folha está incompleto.");
     if (saved.kind === "document" && (!saved.metadata || !saved.pages?.length)) throw new Error("O snapshot do documento está incompleto.");
     return { snapshot: saved as ClinicalRenderSnapshot, legacy: false };
@@ -54,5 +54,5 @@ export function resolveClinicalSnapshot(payload: Record<string, any>, recordType
   const date = String(payload.examDate || payload.savedAt || fallbackDate).slice(0, 10);
   const pages = splitClinicalReportHtmlIntoPages(html, doctor.signatureImage, recordType.toLowerCase() === "documento" ? { measureHeight: measureDocumentReportHtml, capacity: 825 } : undefined);
   if (recordType.toLowerCase() === "documento") return { legacy: true, snapshot: { kind: "document", rendererVersion: 2, layout: CLINICAL_RENDER_LAYOUT, pages, metadata: { title: payload.documentTitle || payload.title || "Documento médico", date, patient, doctor } } };
-  return { legacy: true, snapshot: { kind: "exam", rendererVersion: 3, layout: { ...CLINICAL_RENDER_LAYOUT, patientNameFont: 12, template: "hpsr-exam-sheet-v3" }, document: { contentRendererVersion: 3, metadata: { patient, doctor, signatureImage: doctor.signatureImage || null, date, time: payload.examTime || "", protocol: payload.protocol || "", examName: payload.examName || payload.title || "Exame" }, pages: pages.map((reportHtml, index) => ({ id: `legacy-${index}`, type: "report", label: `Página ${index + 1}`, reportHtml })), automaticAttachments: [] } } };
+  return { legacy: true, snapshot: { kind: "exam", rendererVersion: 4, layout: { ...CLINICAL_RENDER_LAYOUT, patientNameFont: 12, template: "hpsr-exam-sheet-v4", unsignedBodyHeight: 834, signedBodyHeight: 714, sectionGap: 12 }, document: { contentRendererVersion: 4, metadata: { patient, doctor, signatureImage: doctor.signatureImage || null, date, time: payload.examTime || "", protocol: payload.protocol || "", examName: payload.examName || payload.title || "Exame" }, pages: pages.map((reportHtml, index) => ({ id: `legacy-${index}`, type: "report", label: `Página ${index + 1}`, reportHtml })), automaticAttachments: [] } } };
 }

@@ -224,7 +224,7 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
-      "description": "Modelo livre para ajuste médico.",
+      "description": "Preencha os achados observados ou edite o laudo. Nenhum resultado normal é preenchido automaticamente.",
       "resultSummary": "β-hCG (Beta hCG): modelo personalizado preparado para edição dos resultados.",
       "results": {
         "tipo_exame": "Quantitativo",

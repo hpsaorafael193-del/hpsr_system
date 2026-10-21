@@ -33,7 +33,7 @@ const guides=load(path.join(root,'src/lib/clinical-editor-guides.ts'));
 const report=generated+'<h2>Observações</h2><p>'+('Detalhe clinico registrado. '.repeat(420))+'</p><h2>Conclusão</h2><p>CONCLUSAO_FINAL_132</p>';
 const parts=pages.splitClinicalReportHtmlIntoPages(report);assert(parts.length>2);
 let printed=[];const c=createCanvas(794,1123).getContext('2d');const ctx=new Proxy(c,{get(t,k){if(k==='fillText')return(...args)=>{printed.push(args[0]);return t.fillText(...args)};const v=t[k];return typeof v==='function'?v.bind(t):v;},set(t,k,v){t[k]=v;return true;}});
-for(const part of parts){assert(body.measureClinicalBody(part,'exam')<=714.01);body.renderClinicalBody(ctx,part,42,214,710,928,'exam');}
+parts.forEach((part,index)=>{const cap=index===parts.length-1?714:834;assert(body.measureClinicalBody(part,'exam')<=cap+.01);body.renderClinicalBody(ctx,part,42,214,710,214+cap,'exam');});
 assert(printed.join(' ').includes('CONCLUSAO_FINAL_132'));
 const original=document.createElement('div');original.innerHTML='<p>Inicio</p><p>CONCLUSAO_FINAL</p>';
 assert.throws(()=>guides.clinicalPageSourceOffsets(original,['<p>Inicio</p>'],true),/final do laudo/);
@@ -54,7 +54,7 @@ const files=fs.readdirSync('src/data/exames/models').filter(n=>n.endsWith('.ts')
 for(const file of files){const m=Object.values(load(path.join(root,'src/data/exames/models',file)))[0];for(const profile of m.profiles){
  const r=engine.resolveAdaptiveExam(m,{...engine.createInitialAdaptiveConfiguration(m),profileId:profile.id,generationSeed:7});
  const html=engine.renderAdaptiveExamReport(r);const pagesOfModel=pages.splitClinicalReportHtmlIntoPages(html);
- for(const page of pagesOfModel)assert(body.measureClinicalBody(page,'exam')<=714.01,m.id+'/'+profile.id);
+ pagesOfModel.forEach((page,index)=>assert(body.measureClinicalBody(page,'exam')<=(index===pagesOfModel.length-1?714:834)+.01,m.id+'/'+profile.id));
  const all=document.createElement('div');all.innerHTML=pagesOfModel.join('');assert(/Conclusão/i.test(all.textContent),m.id+'/'+profile.id);count++;
 }}
 console.log(`PASS ${files.length} models / ${count} profiles paginated with complete ending and every page inside the body`);

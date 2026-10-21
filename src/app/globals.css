@@ -2730,3 +2730,13 @@ textarea,
  .hpsr-documents-page .hpsr-document-editor-heading > div:first-child { flex-basis:100%;grid-template-columns:minmax(0,1fr); }
  .hpsr-documents-page .hpsr-document-editor-heading > div:first-child > div { grid-column:1;grid-row:auto;justify-self:start;margin-top:3px; }
 }
+
+/* test.143 — section rhythm is layout spacing, never artificial blank lines. */
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor section[data-hpsr-auto-block] { display:flow-root; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor :is(h1,h2,h3) { margin-top:12px; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor > :is(h1,h2,h3):first-child,
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor > section:first-child > :is(h1,h2,h3):first-child { margin-top:0; }
+
+/* test.144 — headings match the source-owned sizes used by the PNG renderer. */
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor :is(h2,h3) { font-size:17px; }
+.hpsr-exams-page .hpsr-exams-workspace .hpsr-continuous-editor h1 { font-size:19px; }

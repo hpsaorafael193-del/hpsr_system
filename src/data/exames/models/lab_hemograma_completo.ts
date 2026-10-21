@@ -188,7 +188,7 @@ export const lab_hemograma_completoModel: IntelligentExamModel = {
       "id": "normal",
       "name": "Normal",
       "status": "normal",
-      "description": "Parâmetros hematológicos dentro das referências disponíveis.",
+      "description": "Perfil de referência para Hemácias, Hemoglobina. Os valores e a leitura consideram os campos ativos; revise os achados antes de salvar.",
       "resultSummary": "Hemograma sem alterações relevantes.",
       "results": {
         "hemacias": "4,8",
@@ -269,7 +269,7 @@ export const lab_hemograma_completoModel: IntelligentExamModel = {
       "id": "indefinido",
       "name": "Indefinido / limítrofe",
       "status": "indefinido",
-      "description": "Alteração discreta ou isolada, sem conclusão diagnóstica.",
+      "description": "Perfil de referência para Hemácias, Hemoglobina. Os valores e a leitura consideram os campos ativos; revise os achados antes de salvar.",
       "resultSummary": "Hemograma com variação discreta em parâmetro isolado.",
       "results": {
         "hemacias": "4,1",
@@ -296,7 +296,7 @@ export const lab_hemograma_completoModel: IntelligentExamModel = {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
-      "description": "Modelo livre para ajuste médico.",
+      "description": "Preencha os achados observados ou edite o laudo. Nenhum resultado normal é preenchido automaticamente.",
       "resultSummary": "Hemograma Completo: modelo personalizado preparado para edição dos resultados.",
       "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
       "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",

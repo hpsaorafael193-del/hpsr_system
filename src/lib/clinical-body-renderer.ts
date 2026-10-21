@@ -1,3 +1,4 @@
+import { EXAM_SECTION_GAP } from "./exam-report-layout";
 import { backgroundCanvasColor, textCanvasColor } from "./canvas-color";
 import { drawRichTextElement, measureRichTextElement } from "./rich-text-canvas";
 
@@ -7,7 +8,8 @@ export const CLINICAL_BODY_CAPACITY = { exam: 714, document: 825 };
 let measurementContext: CanvasRenderingContext2D | null = null;
 
 /** The same layout is used for fitting and painting. Institutional chrome is separate. */
-export function renderClinicalBody(context: CanvasRenderingContext2D, html: string, x: number, y: number, width: number, maxY: number, kind: ClinicalBodyKind, measureOnly = false): number {
+export function renderClinicalBody(context: CanvasRenderingContext2D, html: string, x: number, y: number, width: number, maxY: number, kind: ClinicalBodyKind, measureOnly = false, includeLeadingGap = false): number {
+  const startY = y;
   const root = document.createElement("div");
   root.innerHTML = html;
   const font = kind === "exam" ? "Arial, sans-serif" : "Georgia, 'Times New Roman', serif";
@@ -26,7 +28,7 @@ export function renderClinicalBody(context: CanvasRenderingContext2D, html: stri
         for (const property of ["color", "background-color", "font-family", "font-size", "font-weight", "font-style", "text-align"])
           if (!child.style.getPropertyValue(property) && block.style.getPropertyValue(property)) child.style.setProperty(property, block.style.getPropertyValue(property));
       }
-      y = renderClinicalBody(context, block.innerHTML, x, y, width, maxY, kind, measureOnly);
+      y = renderClinicalBody(context, block.innerHTML, x, y, width, maxY, kind, measureOnly, includeLeadingGap || y > startY);
       continue;
     }
     if (tag === "table") {
@@ -80,6 +82,7 @@ export function renderClinicalBody(context: CanvasRenderingContext2D, html: stri
     }
     if (tag === "hr") { if (!measureOnly) { context.beginPath();context.moveTo(x,y+4);context.lineTo(x+width,y+4);context.stroke(); } y+=10;continue; }
     const heading=/^h[1-3]$/.test(tag);
+    if (heading && kind === "exam" && (includeLeadingGap || y > startY)) y += EXAM_SECTION_GAP;
     // A source-owned decoration survives snapshots; ordinary/custom headings stay neutral.
     if (heading && kind !== "exam" && block.hasAttribute("data-hpsr-section-heading") && !measureOnly) {
       const height = measureRichTextElement(context, block, width, {baseFontSize:11.5,fontFamily:"Arial, sans-serif",lineHeight:16,bold:true,color:"#4b2118"});

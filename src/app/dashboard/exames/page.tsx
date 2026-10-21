@@ -1,4 +1,5 @@
 "use client";
+import { AttachmentPasteArea } from "@/components/ui/AttachmentPasteArea";
 import { normalizeClinicalPasteHtml } from "@/lib/clinical-paste";
 import { clinicalEditorGuideTops } from "@/lib/clinical-editor-guides";
 import { useClinicalEditorLayout } from "@/lib/use-clinical-editor-layout";
@@ -383,6 +384,12 @@ function mergeAutomaticBlocks(currentHtml: string, generatedHtml: string) {
 
     const containsTable = Boolean(node.querySelector("table")) && /<table[\s>]/i.test(next);
     if (id === "tabelas" || containsTable) {
+      if (!wasEditedByUser && containsTable) {
+        const nextNode = document.createElement("div");
+        nextNode.innerHTML = next;
+        const labels = (root: HTMLElement) => Array.from(root.querySelectorAll("table tr")).map(row => row.firstElementChild?.textContent?.trim() || "").join("\n");
+        if (labels(node) !== labels(nextNode)) { node.outerHTML = next; changed = true; return; }
+      }
       // Em blocos tabulares, "Atualizar achados" deve recalcular os valores
       // mesmo quando o profissional já ajustou a estrutura/texto ao redor.
       // A atualização é feita por rótulo para não destruir a formatação manual.
@@ -421,6 +428,9 @@ function cleanEditorHtml(html: string) {
   // Preserve nested blocks, attributes and closing tags. A regex replacing all
   // </div> tags with </p> used to create malformed mixed/pasted content.
   root.querySelectorAll("table").forEach(table => table.classList.add("hpsr-exam-table"));
+  root.querySelectorAll<HTMLElement>("h1,h2,h3").forEach(heading => {
+    if (!heading.style.fontSize) heading.style.fontSize = heading.tagName === "H1" ? "19px" : "17px";
+  });
   return root.innerHTML.trim();
 }
 
@@ -1566,7 +1576,7 @@ export default function ExamesPage() {
       });
   }
 
-  function addAttachmentFiles(files: FileList | null) {
+  function addAttachmentFiles(files: FileList | File[] | null) {
     if (!files?.length) return;
 
     const selectedFiles = Array.from(files);
@@ -1695,7 +1705,7 @@ export default function ExamesPage() {
       });
       setLastSavedAt(time);
       setSaveStatus(`Salvo às ${time}`);
-        setPreview({ open: true, document, pageIndex: 0 });
+      setPreview({ open: false, document: null, pageIndex: 0 });
       registerSystemActivity({ module: "Exames", action: "Exame salvo", description: `${document.metadata.examName} salvo para ${patient.name || "paciente não informado"}.`, actor: currentUserProfile.systemName, reference: currentUserProfile.passport });
       window.dispatchEvent(new CustomEvent("hpsr:clinical-record-saved", { detail: { recordType: "Exame" } }));
       hpsrSuccess(`${document.metadata.examName} foi salvo no prontuário de ${patient.name}.`, "Exame salvo");
@@ -2069,6 +2079,8 @@ export default function ExamesPage() {
                     </div>
                   )}
 
+                  {resolvedExam?.profile.description && <p className="text-xs font-semibold text-hpsr-muted">{resolvedExam.profile.description}</p>}
+
                   {resolvedExam?.dynamicFields.filter((field) => field.source === "variable").map((field) => (
                     <div key={field.id}>
                       <FieldLabel>{field.id === "dia_estimulacao" ? "Dia da estimulação (opcional)" : field.id === "dia_preparo_endometrial" ? "Dia do preparo (opcional)" : field.label}</FieldLabel>
@@ -2093,6 +2105,7 @@ export default function ExamesPage() {
                           value={String(field.value ?? "")}
                           onChange={(value) => updateVariable(field.id, value)}
                         >
+                          {String(field.value ?? "") === "" && <option value="">Não informado</option>}
                           {(field.options || []).map((option) => (
                             <option key={option} value={option}>{option}</option>
                           ))}
@@ -2109,7 +2122,7 @@ export default function ExamesPage() {
                         <input
                           type={field.tipo === "number" ? "number" : field.tipo === "date" ? "date" : "text"}
                           value={String(field.value ?? "")}
-                          min={field.id === "idade_gestacional_referida" || field.id === "dia_estimulacao" || field.id === "dia_preparo_endometrial" ? 1 : undefined}
+                          min={field.id === "idade_gestacional_referida" ? 1 : field.id === "dia_estimulacao" || field.id === "dia_preparo_endometrial" ? 0 : undefined}
                           step={field.id === "idade_gestacional_referida" || field.id === "dia_estimulacao" || field.id === "dia_preparo_endometrial" ? "1" : undefined}
                           placeholder={field.id === "idade_gestacional_referida" ? "Ex.: 6" : field.id === "idade_gestacional" ? "Ex.: 28 semanas" : field.id === "contexto_clinico" ? "Ex.: dor pélvica, controle pós-trauma, investigação específica..." : field.id === "dia_estimulacao" ? "Ex.: 8" : field.id === "dia_preparo_endometrial" ? "Ex.: 10" : undefined}
                           onChange={(event) => updateVariable(field.id, event.target.value)}
@@ -2218,6 +2231,7 @@ export default function ExamesPage() {
                 >
                   <Upload size={16} /> Adicionar anexo
                 </button>
+                <AttachmentPasteArea key={selectedExamId} onFiles={addAttachmentFiles} />
 
                 <div className="rounded-[16px] border border-[#e5d8cf] bg-[#fffaf6] px-3 py-2 text-[13px] font-semibold leading-relaxed text-hpsr-muted">
                   A página de anexo usa uma única imagem centralizada. Ao adicionar uma nova imagem manual, ela será exibida como anexo visual do exame.
@@ -2372,6 +2386,7 @@ export default function ExamesPage() {
                       </button>
                     </div>
 
+                    <AttachmentPasteArea key={selectedExamId} onFiles={addAttachmentFiles} />
                     {effectiveAutomaticAttachment && (
                       <div className="rounded-[18px] border border-[#d7c3b8] bg-white p-4">
                         <div className="flex items-start gap-3">

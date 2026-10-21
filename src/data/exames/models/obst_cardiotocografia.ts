@@ -117,14 +117,16 @@ export const obst_cardiotocografiaModel: IntelligentExamModel = {
   },
   "clinicalContexts": [
     "Rotina",
-    "Personalizado"
+    "Vigilância anteparto",
+    "Trabalho de parto",
+    "Redução de movimentos fetais"
   ],
   "profiles": [
     {
       "id": "normal",
-      "name": "Normal",
+      "name": "Traçado reativo",
       "status": "normal",
-      "description": "Parâmetros dentro das referências disponíveis.",
+      "description": "Modelo de traçado reativo, com acelerações e variabilidade preservadas.",
       "resultSummary": "Cardiotocografia (CTG) com FCF Basal: 134; Variabilidade: Normal; Acelerações: Presentes.",
       "interpretation": "Os parâmetros mensurados — FCF Basal: 134 bpm; Variabilidade: Normal; Acelerações: Presentes; Desacelerações: Ausentes — apresentam conjunto compatível com o padrão de referência e com a qualidade técnica prevista para este exame.",
       "conclusion": "Cardiotocografia (CTG) com parâmetros compatíveis com o padrão esperado, incluindo FCF Basal: 134 bpm; Variabilidade: Normal.",
@@ -138,9 +140,9 @@ export const obst_cardiotocografiaModel: IntelligentExamModel = {
     },
     {
       "id": "alterado",
-      "name": "Alterado",
+      "name": "Traçado não tranquilizador",
       "status": "alterado",
-      "description": "Um ou mais parâmetros fora da referência.",
+      "description": "Modelo com variabilidade reduzida e desacelerações tardias recorrentes.",
       "resultSummary": "Cardiotocografia (CTG): FCF Basal: 170; Variabilidade: Reduzida; Acelerações: Ausentes no período observado; Desacelerações: Desacelerações tardias recorrentes.",
       "interpretation": "Os resultados principais (FCF Basal: 170 bpm; Variabilidade: Reduzida; Acelerações: Ausentes no período observado; Desacelerações: Desacelerações tardias recorrentes) documentam o padrão alterado selecionado. A interpretação deve considerar a distribuição das alterações, o contexto clínico e, quando aplicável, exames anteriores ou complementares.",
       "conclusion": "Cardiotocografia (CTG) com padrão alterado, documentado por FCF Basal: 170 bpm; Variabilidade: Reduzida.",
@@ -154,9 +156,9 @@ export const obst_cardiotocografiaModel: IntelligentExamModel = {
     },
     {
       "id": "indefinido",
-      "name": "Indefinido / limítrofe",
+      "name": "Traçado suspeito / avaliação inconclusiva",
       "status": "indefinido",
-      "description": "Alteração discreta ou inconclusiva.",
+      "description": "Modelo com variabilidade limítrofe e desacelerações variáveis isoladas.",
       "resultSummary": "Cardiotocografia (CTG): FCF Basal: 160; Variabilidade: Limítrofe/reduzida por período curto; Acelerações: Presentes, porém escassas; Desacelerações: Variáveis isoladas.",
       "interpretation": "Os principais resultados (FCF Basal: 160 bpm; Variabilidade: Limítrofe/reduzida por período curto; Acelerações: Presentes, porém escassas; Desacelerações: Variáveis isoladas) situam-se em faixa limítrofe ou apresentam alteração inespecífica. O conjunto, isoladamente, não estabelece diagnóstico e deve ser interpretado de forma evolutiva e clínica.",
       "conclusion": "Cardiotocografia (CTG) com resultado limítrofe/inespecífico, destacando-se FCF Basal: 160 bpm; Variabilidade: Limítrofe/reduzida por período curto.",
@@ -170,9 +172,9 @@ export const obst_cardiotocografiaModel: IntelligentExamModel = {
     },
     {
       "id": "personalizado",
-      "name": "Personalizado",
+      "name": "Achados informados pelo profissional",
       "status": "personalizado",
-      "description": "Modelo livre para ajuste médico.",
+      "description": "Preencha os achados observados ou edite o laudo. Nenhum resultado normal é preenchido automaticamente.",
       "resultSummary": "Cardiotocografia (CTG): modelo personalizado preparado para edição dos resultados.",
       "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
       "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",

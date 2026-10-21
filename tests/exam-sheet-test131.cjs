@@ -14,7 +14,7 @@ if(fs.existsSync('/usr/share/fonts/opentype/urw-base35/NimbusSans-Regular.otf'))
 }
 Object.defineProperty(document,'fonts',{value:{ready:Promise.resolve()}});
 global.Image=class extends NativeImage {set src(value){super.src=value.startsWith('/')?fs.readFileSync(path.join(root,'public',value)):value;}get src(){return super.src;}};
-const body=load(path.join(root,'src/lib/clinical-body-renderer.ts'));
+const body=load(path.join(root,'src/lib/clinical-body-renderer-v3.ts'));
 const oldBody=load(path.join(root,'src/lib/clinical-body-renderer-v2.ts'));
 const pages=load(path.join(root,'src/data/exames/final-renderer.tsx'));
 const render=load(path.join(root,'src/lib/exam-page-canvas.ts'));
@@ -26,11 +26,11 @@ const model=Object.values(load(path.join(root,'src/data/exames/models/lab_hemogr
  const metadata={examName:'Hemograma',protocol:'TEST-131',date:'2026-10-20',time:'20:30',patient:{name:'Paciente de demonstração',passport:'1234',age:'30 anos',bloodType:'O+'},doctor:{name:'Profissional de demonstração',crm:'12345'},signatureImage:signature.toDataURL('image/png')};
  const resolved=engine.resolveAdaptiveExam(model,{...engine.createInitialAdaptiveConfiguration(model),profileId:'normal'});
  const html=engine.renderAdaptiveExamReport(resolved);
- const split=pages.splitClinicalReportHtmlIntoPages(html);
+ const split=pages.splitClinicalReportHtmlIntoPages(html,null,{capacity:714,measureHeight:value=>body.measureClinicalBody(value,'exam')});
  assert(split.length);for(const part of split)assert(body.measureClinicalBody(part,'exam')<=714.01);
  const rootHtml=document.createElement('div');rootHtml.innerHTML=html;assert.equal(rootHtml.querySelectorAll('[data-hpsr-table-group]').length,3);
  const long=html+'<p>'+('Texto complementar de demonstração. '.repeat(210))+'</p>';
- const parts=pages.splitClinicalReportHtmlIntoPages(long);assert(parts.length>1);for(const part of parts)assert(body.measureClinicalBody(part,'exam')<=714.01);
+ const parts=pages.splitClinicalReportHtmlIntoPages(long,null,{capacity:714,measureHeight:value=>body.measureClinicalBody(value,'exam')});assert(parts.length>1);for(const part of parts)assert(body.measureClinicalBody(part,'exam')<=714.01);
  const full={contentRendererVersion:3,pages:parts.map((reportHtml,index)=>({id:String(index),type:'report',label:'Laudo',reportHtml})),automaticAttachments:[],metadata};
  const captured=await snapshots.captureExamSnapshot(full);assert.equal(captured.rendererVersion,3);assert.equal(captured.document.contentRendererVersion,3);assert(captured.document.metadata.signatureImage.startsWith('data:'));
  assert.equal(snapshots.resolveClinicalSnapshot({renderSnapshot:captured},'Exame').snapshot,captured);

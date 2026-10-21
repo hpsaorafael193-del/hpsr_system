@@ -190,7 +190,7 @@ export const obst_us_3dModel: IntelligentExamModel = {
       "id": "personalizado",
       "name": "Personalizado",
       "status": "personalizado",
-      "description": "Modelo livre para ajuste médico.",
+      "description": "Preencha os achados observados ou edite o laudo. Nenhum resultado normal é preenchido automaticamente.",
       "resultSummary": "Ultrassonografia Obstétrica 3D: modelo personalizado preparado para edição dos resultados.",
       "interpretation": "Interpretação a ser definida pelo médico conforme os resultados efetivamente informados.",
       "conclusion": "Conclusão a ser definida pelo médico conforme os resultados efetivamente informados.",

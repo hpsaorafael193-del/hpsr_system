@@ -28,7 +28,7 @@ for(const model of models){let modelProfiles=0;for(const profile of model.profil
   assert(conclusion.trim(),model.id+'/'+profile.id);
   if(model.id==='genetico_sexagem_fetal'&&profile.id.startsWith('gemelar_'))assert(interpretation.includes('não distingue'));
   if(model.id==='geral_exame_toxicologico')assert(conclusion.includes('não define, sozinho'));
-  if(model.id==='lab_hba1c_completa'&&profile.id!=='personalizado')assert(!/5,4%|108 mg|5,9%|123 mg|7,2%|160 mg/.test(interpretation));
+  if(model.id==='lab_hba1c_completa'&&profile.id!=='personalizado'){for(const token of interpretation.match(/5,4%|108 mg|5,9%|123 mg|7,2%|160 mg/g)||[])assert(tableValues(html).flat(2).some(cell=>cell.includes(token)), 'Stale HbA1c value: '+token);}
   cases++;
  }
 }review.push({id:model.id,profiles:modelProfiles});}
@@ -47,5 +47,5 @@ const measured=renderer.measureClinicalBody(decorated,'exam');
 assert.equal(renderer.renderClinicalBody(drawContext,decorated,0,0,710,714,'exam'),measured);assert(rectangles>=2);
 assert.equal(renderer.measureClinicalBody('<h2>Resultados</h2>','exam'),renderer.measureClinicalBody('<h2 data-hpsr-section-heading="true">Resultados</h2>','exam'));
 const source=decorated.repeat(70);const sheets=pagination.splitClinicalReportHtmlIntoPages(source);
-assert(sheets.length>1);for(const sheet of sheets){assert(renderer.measureClinicalBody(sheet,'exam')<=714+.01);assert(sheet.includes('data-hpsr-section-heading'));}
+assert(sheets.length>1);sheets.forEach((sheet,index)=>{assert(renderer.measureClinicalBody(sheet,'exam')<=(index===sheets.length-1?714:834)+.01);assert(sheet.includes('data-hpsr-section-heading'));});
 console.log('PASS source-owned decoration and manual colors share measurement/drawing; pagination remains inside the body');

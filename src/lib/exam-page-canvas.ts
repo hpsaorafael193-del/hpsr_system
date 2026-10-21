@@ -1,3 +1,5 @@
+import { EXAM_REPORT_BODY_TOP, EXAM_SIGNED_BODY_HEIGHT, EXAM_UNSIGNED_BODY_HEIGHT, lastReportPageIndex } from "./exam-report-layout";
+import { renderClinicalBody as renderV3Body } from "./clinical-body-renderer-v3";
 import { renderClinicalBody as renderHistoricalBody } from "@/lib/clinical-body-renderer-v2";
 import { renderClinicalBody, measureClinicalBody } from "@/lib/clinical-body-renderer";
 import type { RenderedExamDocument } from "@/data/exames/final-renderer";
@@ -9,7 +11,10 @@ export async function renderExamPage(
     pageIndex: number,
   ) {
     await document.fonts.ready;
-    const modern = finalDocument.contentRendererVersion === 3;
+    const expanded = finalDocument.contentRendererVersion === 4;
+    const modern = expanded || finalDocument.contentRendererVersion === 3;
+    const lastReportIndex = lastReportPageIndex(finalDocument.pages);
+    const signedReport = pageIndex === lastReportIndex && finalDocument.pages[pageIndex]?.type === "report";
     const page = finalDocument.pages[pageIndex];
     if (!page) return;
 
@@ -223,7 +228,7 @@ export async function renderExamPage(
     const drawFooter = async () => {
       if (modern) {
         const lastPage=pageIndex === finalDocument.pages.length-1;
-        if(lastPage){
+        if(expanded ? signedReport : lastPage){
           const signature=finalDocument.metadata.signatureImage ? await loadImage(finalDocument.metadata.signatureImage) : null;
           if(finalDocument.metadata.signatureImage && !signature) throw new Error("Não foi possível carregar a assinatura preservada.");
           if(signature){const normalized=normalizeSignatureImage(signature);if(!normalized) throw new Error("Não foi possível preparar a assinatura preservada.");drawImageContain(normalized,267,964,260,50,true);}
@@ -292,7 +297,8 @@ export async function renderExamPage(
       await drawInstitutionalHeader();
 
       if (page.type === "report") {
-        if (modern) renderClinicalBody(context, page.reportHtml || "", 42, 214, 710, 928, "exam");
+        if (expanded) renderClinicalBody(context, page.reportHtml || "", 42, EXAM_REPORT_BODY_TOP, 710, EXAM_REPORT_BODY_TOP + (signedReport ? EXAM_SIGNED_BODY_HEIGHT : EXAM_UNSIGNED_BODY_HEIGHT), "exam");
+        else if (modern) renderV3Body(context, page.reportHtml || "", 42, 214, 710, 928, "exam");
         else if (finalDocument.contentRendererVersion === 2) renderHistoricalBody(context, page.reportHtml || "", 42, 214, 710, 928, "exam");
         else drawExamReportHtml(context, page.reportHtml || "", 42, 214, 710, 928);
       } else if (page.type === "auto-attachment" && page.automaticAttachment) {

@@ -1,0 +1,25 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),Module=require('node:module'),ts=require('typescript');
+const {JSDOM}=require(process.env.HPSR_EDITOR_TEST_DEPS ? process.env.HPSR_EDITOR_TEST_DEPS+'/jsdom' : 'jsdom');
+global.DOMParser=new JSDOM('').window.DOMParser;
+const file='src/lib/clipboard-attachments.ts',m=new Module(file,module);m._compile(ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,file);
+const {clipboardAttachmentImages:read}=m.exports;
+const copied=new File(['image-bytes'],'copiada.png',{type:'image/png'});
+const clipboard=(items=[],files=[],html='')=>({items,files,getData:type=>type==='text/html'?html:''});
+(async()=>{
+ let requests=0;global.fetch=async()=>{requests++;throw Error('Should not fetch')};
+ const item={kind:'file',type:'image/png',getAsFile:()=>copied};
+ assert.deepEqual(await read(clipboard([item],[copied],'<img src="https://example.test/image.png">')),[copied]);assert.equal(requests,0);
+ assert.deepEqual(await read(clipboard([],[copied])),[copied]);
+ assert.deepEqual(await read(clipboard([{kind:'string',type:'text/plain'}])),[]);
+ assert.deepEqual(await read(clipboard([{kind:'file',type:'image/png',getAsFile:()=>null}])),[]);
+ global.fetch=async(url,options)=>{requests++;assert.equal(options.credentials,'omit');assert.equal(options.referrerPolicy,'no-referrer');return new Response(new Blob(['bytes'],{type:'image/webp'}),{status:200,headers:{'Content-Type':'image/webp'}})};
+ const [remote]=await read(clipboard([],[],'<div><img src="https://example.test/image.webp"></div>'));assert.equal(remote.type,'image/webp');assert.equal(remote.name,'imagem-colada.webp');assert.equal(await remote.text(),'bytes');
+ await assert.rejects(()=>read(clipboard([],[],'<img src="file:///private/image.png">')),/Copiar imagem/);
+ global.fetch=async()=>new Response('not an image',{headers:{'Content-Type':'text/html'}});
+ await assert.rejects(()=>read(clipboard([],[],'<img src="https://example.test/error">')),/não permitiu/);
+ global.fetch=async()=>{throw new TypeError('CORS')};await assert.rejects(()=>read(clipboard([],[],'<img src="https://example.test/image">')),/não permitiu/);
+ const page=fs.readFileSync('src/app/dashboard/exames/page.tsx','utf8');assert.equal((page.match(/<AttachmentPasteArea /g)||[]).length,2);
+ assert(page.includes('function addAttachmentFiles(files: FileList | File[] | null)'));
+ assert(page.includes('processAttachmentFiles(selectedFiles, "replace")'));assert(page.includes('processAttachmentFiles(selectedFiles, "append")'));
+ console.log('PASS clipboard image bytes, file fallback, deduplication, empty clipboard, web image import, blocked sources/CORS, two attachment areas and existing append/replace flow');
+})().catch(error=>{console.error(error);process.exitCode=1});
