@@ -1,3 +1,4 @@
+import { textCanvasColor, backgroundCanvasColor } from "./canvas-color";
 export type RichTextStyle = {
   bold: boolean;
   italic: boolean;
@@ -22,11 +23,6 @@ type DrawOptions = {
 };
 
 const FONT_SIZE_MAP: Record<string, number> = { "1": 10, "2": 12, "3": 14, "4": 16, "5": 18, "6": 24, "7": 32 };
-
-function cssColor(value: string | null | undefined, fallback: string) {
-  const trimmed = String(value || "").trim();
-  return trimmed && trimmed !== "transparent" && trimmed !== "rgba(0, 0, 0, 0)" ? trimmed : fallback;
-}
 
 function parsePx(value: string | null | undefined) {
   const match = String(value || "").match(/(-?\d+(?:\.\d+)?)px/i);
@@ -53,10 +49,8 @@ function inheritedStyle(element: Element, parent: RichTextStyle): RichTextStyle 
       (Number.parseInt(fontWeight, 10) || 0) >= 600,
     italic: fontStyle === "normal" ? false : parent.italic || tag === "i" || tag === "em" || fontStyle === "italic" || fontStyle === "oblique",
     underline: decoration === "none" ? false : parent.underline || tag === "u" || decoration.includes("underline"),
-    color: cssColor(style.color || fontElement?.getAttribute("color"), parent.color),
-    backgroundColor: cssColor(style.backgroundColor, parent.backgroundColor || "transparent") === "transparent"
-      ? parent.backgroundColor
-      : cssColor(style.backgroundColor, parent.backgroundColor || "transparent"),
+    color: textCanvasColor(style.color || fontElement?.getAttribute("color"), parent.color),
+    backgroundColor: backgroundCanvasColor(style.backgroundColor, parent.backgroundColor, textCanvasColor(style.color || fontElement?.getAttribute("color"), parent.color)),
     fontSize: parsedSize || FONT_SIZE_MAP[legacySize] || parent.fontSize,
     fontFamily: style.fontFamily || parent.fontFamily,
   };
@@ -159,7 +153,7 @@ export function measureRichTextElement(
     bold: options.bold || false,
     italic: options.italic || false,
     underline: options.underline || false,
-    color: options.color || "#3f231c",
+    color: textCanvasColor(options.color, "#3f231c"),
     backgroundColor: null,
     fontSize: options.baseFontSize || 11.4,
     fontFamily: options.fontFamily || "Georgia, 'Times New Roman', serif",
@@ -183,7 +177,7 @@ export function drawRichTextElement(
     bold: options.bold || false,
     italic: options.italic || false,
     underline: options.underline || false,
-    color: options.color || "#3f231c",
+    color: textCanvasColor(options.color, "#3f231c"),
     backgroundColor: null,
     fontSize: options.baseFontSize || 11.4,
     fontFamily: options.fontFamily || "Georgia, 'Times New Roman', serif",

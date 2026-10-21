@@ -1,6 +1,6 @@
 {
   "name": "hpsr-system",
-  "version": "1.1.16-test.141",
+  "version": "1.1.16-test.142",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,6 +12,7 @@
     "audit:release": "node tests/release-audit.mjs",
     "audit:current": "node tests/portal-audit.mjs && node tests/staff-registration-audit.mjs && node tests/patient-link-permission-v116t4.mjs && node tests/release-audit.mjs",
     "test:editor": "node tests/editor-rendering-test129.cjs",
+    "test:paste": "node tests/paste-colors-test142.cjs",
     "test:exam-copy": "node tests/exam-copy-test130.cjs",
     "test:exam-sheet": "node tests/exam-sheet-test131.cjs",
     "test:editor-completeness": "node tests/editor-completeness-test132.cjs",

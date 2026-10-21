@@ -1,3 +1,4 @@
+import { backgroundCanvasColor, textCanvasColor } from "./canvas-color";
 import { drawRichTextElement, measureRichTextElement } from "./rich-text-canvas";
 
 export type ClinicalBodyKind = "exam" | "document";
@@ -52,7 +53,7 @@ export function renderClinicalBody(context: CanvasRenderingContext2D, html: stri
         if (y+height > maxY+.01) throw new Error("Uma linha de tabela não cabe na folha. Divida o texto dessa linha em linhas menores ou reduza a fonte.");
         cells.forEach((cell,index) => {
           if (!measureOnly) {
-            const background = cell.style.backgroundColor || (row as HTMLElement).style.backgroundColor || block.style.backgroundColor || (modern && group ? "#f4e5d8" : "");
+            const background = backgroundCanvasColor(cell.style.backgroundColor || (row as HTMLElement).style.backgroundColor || block.style.backgroundColor || (modern && group ? "#f4e5d8" : ""));
             if (background) { context.fillStyle=background; context.fillRect(bounds[index].left,y,bounds[index].width,height); }
             context.strokeStyle="rgba(91,24,9,.18)"; context.lineWidth=.9;
             if (modern) { context.beginPath();context.moveTo(bounds[index].left,y+height);context.lineTo(bounds[index].left+bounds[index].width,y+height);context.stroke(); }
@@ -70,8 +71,8 @@ export function renderClinicalBody(context: CanvasRenderingContext2D, html: stri
       let number = Number(block.getAttribute("start") || 1);
       for (const item of items) {
         if (item.hasAttribute("value")) number=Number(item.getAttribute("value"));
-        if (!measureOnly) { context.font=`${base}px ${font}`; context.fillStyle=block.style.color || "#4b2118"; context.fillText(tag === "ol" ? `${number}.` : "•",x+2,y); }
-        y=paintText(item,x+24,y,width-24,{baseFontSize:base,fontFamily:font,lineHeight:line,color:block.style.color || "#4b2118"});
+        if (!measureOnly) { context.font=`${base}px ${font}`; context.fillStyle=textCanvasColor(block.style.color, "#4b2118"); context.fillText(tag === "ol" ? `${number}.` : "•",x+2,y); }
+        y=paintText(item,x+24,y,width-24,{baseFontSize:base,fontFamily:font,lineHeight:line,color:textCanvasColor(block.style.color, "#4b2118")});
         number++;
       }
       y+=6;

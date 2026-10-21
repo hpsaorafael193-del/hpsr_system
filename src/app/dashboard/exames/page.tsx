@@ -1,4 +1,5 @@
 "use client";
+import { normalizeClinicalPasteHtml } from "@/lib/clinical-paste";
 import { clinicalEditorGuideTops } from "@/lib/clinical-editor-guides";
 import { useClinicalEditorLayout } from "@/lib/use-clinical-editor-layout";
 
@@ -2451,6 +2452,15 @@ export default function ExamesPage() {
                   contentEditable={draftPersistence.ready}
                   suppressContentEditableWarning
                   onInput={syncEditorFromDom}
+                  onPaste={(event) => {
+                    const html = event.clipboardData.getData("text/html");
+                    const text = event.clipboardData.getData("text/plain");
+                    if (!html && !text) return;
+                    event.preventDefault();
+                    rememberSelection();
+                    if (html) insertHtml(normalizeClinicalPasteHtml(html));
+                    else exec("insertText", text);
+                  }}
                   onKeyUp={rememberSelection}
                   onMouseUp={rememberSelection}
                   onBlur={rememberSelection}

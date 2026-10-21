@@ -1837,12 +1837,25 @@ function contextualProtocolNarrative(resolved: AdaptiveResolvedExam, kind: "inte
 }
 
 function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  if (resolved.model.id === "hormonal_painel_hormonal_completo" && resolved.profile.id !== "personalizado") {
+    const profile = resolved.profile.id;
+    const text = ({
+      normal: "Os hormônios reprodutivos, a prolactina e os marcadores da tireoide são avaliados em conjunto para identificar alterações que possam interferir no equilíbrio hormonal.",
+      disfuncao_ovulatoria: "A progesterona pode ajudar a avaliar a atividade ovulatória quando a etapa do acompanhamento é conhecida. Uma medida isolada não confirma ausência de ovulação.",
+      hiperprolactinemia: "A elevação da prolactina pode interferir na atividade ovulatória. Estresse, medicamentos, gestação e alterações da tireoide podem influenciar esse hormônio.",
+      tireoide: "A relação entre TSH e T4 livre ajuda a avaliar o funcionamento da tireoide. Alterações nesse eixo podem influenciar o metabolismo e a função reprodutiva.",
+      indefinido: "Variações próximas dos limites de referência não definem, por si só, uma alteração hormonal persistente. A evolução das medidas pode ajudar a esclarecer o resultado.",
+    } as Record<string,string>)[profile] || "";
+    const fiv = /fiv|estimula|preparo endometrial/i.test(`${resolved.adapterValue} ${resolved.clinicalContext} ${resolved.variables.papel_no_protocolo || ""}`);
+    const context = fiv ? "Na FIV, estradiol, LH e progesterona devem ser avaliados conforme o protocolo e a evolução dos folículos ou do endométrio, sem definir sozinhos a resposta ao tratamento." : "";
+    return uniqueReportParagraphs(text + (context ? " " + context : ""));
+  }
   const original = refreshedNarrative(resolved, resolved.profile.interpretation, "interpretation");
   // Generated evidence belongs in the table; an interpretation explains its meaning.
   // The former catalogue boilerplate repeated entire rows, including stale numbers.
   const repeated = isRepeatedEvidenceNarrative(resolved.profile.interpretation);
-  let narrative = repeated ? "" : reviewedInterpretation(resolved.model.id, resolved.profile.id, original);
-  if (repeated && resolved.profile.status !== "normal" && resolved.profile.id !== "normal") {
+  let narrative = reviewedInterpretation(resolved.model.id, resolved.profile.id, original);
+  if (repeated && !narrative && resolved.profile.status !== "normal" && resolved.profile.id !== "normal") {
     narrative = resolved.profile.status === "indefinido"
       ? "O resultado não permite uma definição segura por si só. A avaliação deve considerar os sintomas, o histórico e, quando disponíveis, exames anteriores."
       : "A importância das alterações depende dos sintomas, do histórico e dos demais exames do paciente.";
@@ -1855,6 +1868,16 @@ function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][
 
 function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
   const { model, profile } = resolved;
+  if (model.id === "hormonal_painel_hormonal_completo" && profile.id !== "personalizado") {
+    const reviewed: Record<string,string> = {
+      normal: "Perfil hormonal sem alterações relevantes no contexto informado.",
+      disfuncao_ovulatoria: "Progesterona reduzida para a fase lútea presumida; possível alteração ovulatória, se esse contexto for confirmado.",
+      hiperprolactinemia: "Prolactina elevada (hiperprolactinemia).",
+      tireoide: "Padrão hormonal sugestivo de redução da função da tireoide (hipotireoidismo).",
+      indefinido: "Perfil hormonal com valores limítrofes, sem diagnóstico definido.",
+    };
+    if (reviewed[profile.id]) return reviewed[profile.id];
+  }
   let conclusion = refreshedNarrative(resolved, profile.conclusion, "conclusion");
   if (isRepeatedEvidenceConclusion(profile.conclusion)) {
     const impression = rows.find(row => /impressão|impressao|conclusão|conclusao|diagnóstico|diagnostico/i.test(row[0] || ""))?.[1]
