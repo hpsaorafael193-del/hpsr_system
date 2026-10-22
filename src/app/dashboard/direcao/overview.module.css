@@ -157,7 +157,7 @@
 @media screen {
 :global(html[data-theme="dark"]) .overview { color:#e9b495
 }
-:global(html[data-theme="dark"]) .overview.overview .reportShell .hero { background:linear-gradient(110deg,#302016,#302016 65%,#463022)!important; box-shadow:0 10px 25px #3020160c
+:global(html[data-theme="dark"]) .overview.overview .reportShell .hero { background:linear-gradient(110deg,#672614,#48160c 65%,#2a0700)!important; box-shadow:0 10px 25px #3020160c
 }
 :global(html[data-theme="dark"]) .overview .hero > div:first-child > span { background:#302016
 }
@@ -275,13 +275,13 @@
 }
 :global(html[data-theme="dark"]) .overview .activityPanel,:global(html[data-theme="dark"]) .overview .structure,:global(html[data-theme="dark"]) .overview .summary,:global(html[data-theme="dark"]) .overview .historyPanel { background:linear-gradient(155deg,#231c17 0%,#231c17 58%,#231c17 100%); border-color:#4d3d31
 }
-:global(html[data-theme="dark"]) .overview.overview .reportShell .hero { background:linear-gradient(120deg,#231c17 0%,#231c17 100%)!important
+:global(html[data-theme="dark"]) .overview.overview .reportShell .hero { background:linear-gradient(110deg,#672614,#48160c 65%,#2a0700)!important
 }
 :global(html[data-theme="dark"]) .overview.overview.overview .hero h2 { color:#e9b495!important
 }
 :global(html[data-theme="dark"]) .overview.overview.overview .hero p { color:#c9b9ac!important
 }
-:global(html[data-theme="dark"]) .overview .hero > div:first-child > span { background:linear-gradient(135deg,#302016,#1d1611)
+:global(html[data-theme="dark"]) .overview .hero > div:first-child > span { background:linear-gradient(110deg,#672614,#48160c 65%,#2a0700)
 }
 :global(html[data-theme="dark"]) .overview.overview.overview .hero > div:last-child > button { background:#302016; border-color:#463326; color:#f3ede7
 }

@@ -141,7 +141,7 @@
 @media screen {
 :global(html[data-theme="dark"]) .page { color:#e9b495
 }
-:global(html[data-theme="dark"]) .header { background:linear-gradient(110deg,#302016,#302016 58%,#463022); color:#f3ede7
+:global(html[data-theme="dark"]) .header { background:linear-gradient(110deg,#672614,#48160c 65%,#2a0700); color:#f3ede7
 }
 :global(html[data-theme="dark"]) .headerIcon { background:#231c1716
 }

@@ -32,7 +32,7 @@ async function main(){
  function collect(container,target){container.each(n=>{
  if(n.type==='atrule'){if(['media','container','supports'].includes(n.name)&&!/print/.test(n.params)){const m=postcss.atRule({name:n.name,params:n.params});collect(n,m);if(m.nodes?.length)target.append(m);}return;}
  if(n.type!=='rule')return;
- const ds=[];n.each(d=>{if(d.type==='decl'){const value=transform(d.value,d.prop);if(value!==d.value)ds.push(d.clone({value}));}});if(!ds.length)return;
+ const ds=[];n.each(d=>{if(d.type==='decl'){const value=/\.(header|hero)\b/.test(n.selector)&&/^background/.test(d.prop)&&/gradient\(/.test(d.value)?(d.prop==='background-image'?'linear-gradient(110deg,#672614,#48160c 65%,#2a0700)':'linear-gradient(110deg,#672614,#48160c 65%,#2a0700)'):transform(d.value,d.prop);if(value!==d.value)ds.push(d.clone({value}));}});if(!ds.length)return;
  const ss=n.selectors.filter(s=>!s.includes(':root')&&!s.includes('hpsr-render-page'));if(!ss.length)return;
  const r=postcss.rule({selector:ss.map(s=>{if(s==='html')return 'html[data-theme="dark"]';const match=s.match(/(::[\w-]+(?:\([^)]*\))?)$/);const pseudo=match?match[1]:'';const base=pseudo?s.slice(0,-pseudo.length):s;return `html[data-theme="dark"] :is(${base||'*'})${exclusion}${pseudo}`;}).join(',\n')});ds.forEach(d=>r.append(d));target.append(r);count++;
  });}collect(result.root,output);
@@ -42,7 +42,7 @@ async function main(){
  const original=fs.readFileSync(file,'utf8').split(marker)[0].trimEnd();const dark=postcss.root();
  postcss.parse(original).walkRules(rule=>{
  if(rule.parent.type==='atrule'&&/keyframes|print/.test(rule.parent.name+' '+rule.parent.params))return;
- const ds=[];rule.walkDecls(d=>{const value=transform(d.value,d.prop);if(value!==d.value)ds.push(d.clone({value}));});
+ const ds=[];rule.walkDecls(d=>{const value=/\.(header|hero)\b/.test(rule.selector)&&/^background/.test(d.prop)&&/gradient\(/.test(d.value)?(d.prop==='background-image'?'linear-gradient(110deg,#672614,#48160c 65%,#2a0700)':'linear-gradient(110deg,#672614,#48160c 65%,#2a0700)'):transform(d.value,d.prop);if(value!==d.value)ds.push(d.clone({value}));});
  if(!ds.length)return;
  const clone=postcss.rule({selector:rule.selectors.map(s=>`:global(html[data-theme="dark"]) ${s}`).join(',')});ds.forEach(d=>clone.append(d));dark.append(clone);
  });

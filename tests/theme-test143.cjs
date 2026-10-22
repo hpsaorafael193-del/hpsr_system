@@ -23,7 +23,7 @@ console.log('PASS: gradient structure preserved, original semantic borders, repo
 assert(fs.readFileSync('src/app/dashboard/page.tsx','utf8').includes('data-hpsr-home-overlay="true"'));
 assert(fs.readFileSync('src/components/layout/Sidebar.tsx','utf8').includes('data-hpsr-sidebar="true"'));
 assert(themeCSS.includes('rgba(103,38,20,.66)'));
-assert(themeCSS.includes('linear-gradient(180deg,#59301e'));
+assert(themeCSS.includes('linear-gradient(180deg,#612314'));
 console.log('PASS: hospital image gradient and warm navigation restored by explicit scopes.');
 
 assert(!themeCSS.includes('button:not(:where(.hpsr-render-page *,[data-hpsr-document] *)) { border-color:#9d7e67; }'));
@@ -31,3 +31,9 @@ const preserved=transform('radial-gradient(circle,rgba(255,255,255,0.12),transpa
 assert(preserved.includes('radial-gradient'));assert(preserved.includes('0.12'));assert(preserved.includes('transparent'));
 assert.notEqual(transform('#612d1c','background'),transform('#260600','background'));
 console.log('PASS: decorative gradients, transparency and depth retained; extra button outlines removed.');
+
+assert(themeCSS.includes('#612314 0%,#43120b 54%,#250700 100%'));
+assert(themeCSS.includes('.hpsr-dark-section-header'));
+assert(themeCSS.includes('linear-gradient(110deg,#672614 0%,#48160c 65%,#2a0700 100%)'));
+assert(!themeCSS.includes('#59301e'));
+console.log('PASS: original institutional wine restored in navigation and branded headers.');

@@ -21,7 +21,7 @@ html[data-theme="dark"] :is(.hpsr-render-page,[data-hpsr-document]) { color-sche
 .hpsr-theme-switch[data-active="true"]>span { transform:translateX(12px); }
 html[data-theme="dark"] .hpsr-profile-trigger { background:#231c17; border-color:#4d3d31; }
 html[data-theme="dark"] .hpsr-profile-menu { background:#231c17; border-color:#4d3d31; box-shadow:0 24px 70px #0008; }
-html[data-theme="dark"] .hpsr-profile-heading { background:linear-gradient(130deg,#34251b,#231c17); }
+html[data-theme="dark"] .hpsr-profile-heading { background:linear-gradient(130deg,#42180f,#24100a); }
 html[data-theme="dark"] .hpsr-theme-toggle { color:#f3ede7; background:#2b231d; }
 @media(max-width:420px) { .hpsr-profile-preferences { grid-template-columns:1fr; } }
 @media(prefers-reduced-motion:reduce) { .hpsr-theme-switch>span { transition:none; } }
@@ -39,28 +39,44 @@ html[data-theme="dark"] [data-cast-status="reavaliacao"]>div:first-child { backg
 html[data-theme="dark"] [data-cast-status="atrasada"]>div:first-child { background-color:#ef4444; }
 html[data-theme="dark"] [data-cast-status="retirado"]>div:first-child { background-color:#a1a1aa; }
 html[data-theme="dark"] button:disabled { opacity:.55; }
-html[data-theme="dark"] .hpsr-profile-heading { background:linear-gradient(130deg,#34251b,#231c17); }
+html[data-theme="dark"] .hpsr-profile-heading { background:linear-gradient(130deg,#42180f,#24100a); }
 }
 
 /* Warm identity accents: intentionally retained, without recoloring large work panels. */
 @media screen {
 html[data-theme="dark"] [data-hpsr-sidebar="true"] {
-  background:linear-gradient(180deg,#59301e 0%,#382014 54%,#21110b 100%);
+  background:linear-gradient(180deg,#612314 0%,#43120b 54%,#250700 100%);
 }
 html[data-theme="dark"] [data-hpsr-home-overlay="true"] {
   background:linear-gradient(90deg,rgba(42,7,0,.84) 0%,rgba(103,38,20,.66) 34%,rgba(42,7,0,.44) 58%,rgba(42,7,0,.70) 100%);
 }
 html[data-theme="dark"] :is(.h-8,.h-9,.h-10,.h-11,.h-12)[class*="bg-[linear-gradient"]:not(:where(.hpsr-render-page *,[data-hpsr-document] *)) {
-  background:linear-gradient(135deg,#6c3a26,#3c1c11);
+  background:linear-gradient(135deg,#672614,#2a0700);
 }
-html[data-theme="dark"] :is(.h-8,.h-9,.h-10,.h-11,.h-12).bg-hpsr-wine:not(:where(.hpsr-render-page *,[data-hpsr-document] *)) { background:#6c3a26; color:#fff1e4; }
-html[data-theme="dark"] button.bg-hpsr-wine:not(:where(.hpsr-render-page *,[data-hpsr-document] *)) { background:#713b26; color:#fff1e4; }
-html[data-theme="dark"] button.bg-hpsr-wine:hover:not(:disabled) { background:#854a31; }
-html[data-theme="dark"] button[class*="bg-[linear-gradient"]:not(:where(.hpsr-render-page *,[data-hpsr-document] *)) { background:linear-gradient(135deg,#6c3a26,#4b2518); color:#fff1e4; }
+html[data-theme="dark"] :is(.h-8,.h-9,.h-10,.h-11,.h-12).bg-hpsr-wine:not(:where(.hpsr-render-page *,[data-hpsr-document] *)) { background:#672614; color:#fff1e4; }
+html[data-theme="dark"] button.bg-hpsr-wine:not(:where(.hpsr-render-page *,[data-hpsr-document] *)) { background:#672614; color:#fff1e4; }
+html[data-theme="dark"] button.bg-hpsr-wine:hover:not(:disabled) { background:#79321d; }
+html[data-theme="dark"] button[class*="bg-[linear-gradient"]:not(:where(.hpsr-render-page *,[data-hpsr-document] *)) { background:linear-gradient(135deg,#672614,#3d1007); color:#fff1e4; }
 }
 
 @media screen {
 /* Spacing and surfaces separate the personal actions, without an extra divider. */
 html[data-theme="dark"] .hpsr-profile-preferences { border-top-color:transparent; }
 html[data-theme="dark"] .hpsr-profile-heading { border-bottom-color:transparent; }
+}
+
+@media screen {
+/* Institutional wine is retained in branded headers, independent of work surfaces. */
+html[data-theme="dark"] .hpsr-dashboard-shell .hpsr-dark-section-header {
+ background:linear-gradient(110deg,#672614 0%,#48160c 65%,#2a0700 100%);
+}
+html[data-theme="dark"] .hpsr-topbar { background:linear-gradient(90deg,#672614,#43120b); }
+}
+
+@media screen {
+/* Sidebar navigation uses its fill to indicate selection. Keyboard focus stays visible. */
+html[data-theme] .hpsr-dashboard-shell [data-hpsr-sidebar] :is(a,button) {
+ border-color:transparent;
+ box-shadow:none;
+}
 }
