@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./dark-generated.css";
+import "./theme.css";
+import "./responsive.css";
+import { ThemeProvider, themeBootstrap } from "@/components/theme/ThemeProvider";
 import { HpsrDialogProvider } from "@/components/ui/HpsrDialogProvider";
 import { HpsrToastProvider } from "@/components/ui/HpsrToastProvider";
 
@@ -15,8 +19,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
-      <body><HpsrDialogProvider><HpsrToastProvider>{children}</HpsrToastProvider></HpsrDialogProvider></body>
+    <html lang="pt-BR" suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
+      <body><ThemeProvider><HpsrDialogProvider><HpsrToastProvider>{children}</HpsrToastProvider></HpsrDialogProvider></ThemeProvider></body>
     </html>
   );
 }

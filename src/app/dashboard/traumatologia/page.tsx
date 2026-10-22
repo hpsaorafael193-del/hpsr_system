@@ -560,6 +560,7 @@ function CastHistoryCard({ record, onOpen }: { record: CastRecord; onOpen: () =>
     <button
       type="button"
       onClick={onOpen}
+      data-cast-status={statusKey}
       className={`group overflow-hidden rounded-[22px] border-2 bg-[#f7ebde] text-left shadow-[0_10px_24px_rgba(42,7,0,0.045)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(42,7,0,0.075)] ${castCardTone[statusKey].frame}`}
     >
       <div className={`h-1 ${castCardTone[statusKey].strip}`} />

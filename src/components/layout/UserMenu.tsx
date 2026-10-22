@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, BellRing, CalendarCheck2, CheckCircle2, ChevronDown, Circle, ClipboardList, FlaskConical, LogOut, Pause, Play, RotateCcw, Square, Stethoscope, UserRound, X } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "@/components/theme/ThemeProvider";
 import { useRouter } from "next/navigation";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { createClient } from "@/lib/supabase";
@@ -39,6 +41,7 @@ type ClockState = {
 const emptyClock: ClockState = { status: "Fora de serviço", workedSeconds: 0, history: [], ranking: [] };
 
 export function UserMenu() {
+  const { theme, toggleTheme } = useTheme();
   const { profile: currentUserProfile, refreshProfile } = useCurrentUserProfile();
   const [open, setOpen] = useState(false);
   const [clock, setClock] = useState<ClockState>(emptyClock);
@@ -437,7 +440,7 @@ export function UserMenu() {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex min-w-0 items-center gap-2 rounded-[14px] border border-hpsr-border bg-white/[0.86] px-2.5 py-2 transition hover:bg-white"
+        className="hpsr-profile-trigger flex min-w-0 items-center gap-2 rounded-[14px] border border-hpsr-border bg-white/[0.86] px-2.5 py-2 transition hover:bg-white"
         aria-expanded={open}
         aria-haspopup="menu"
       >
@@ -450,8 +453,8 @@ export function UserMenu() {
       </button>
 
       {open && (
-        <div role="menu" className="absolute right-0 top-[calc(100%+0.75rem)] z-[45] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-[18px] border border-hpsr-border bg-[#fffaf5]/95 shadow-[0_18px_50px_rgba(60,25,12,.16)]">
-          <div className="border-b border-hpsr-border bg-[#fcf6ee] px-4 py-3">
+        <div role="menu" aria-label="Menu do perfil" className="hpsr-profile-menu absolute right-0 top-[calc(100%+0.75rem)] z-[45] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-[18px] border border-hpsr-border bg-[#fffaf5]/95 shadow-[0_18px_50px_rgba(60,25,12,.16)]">
+          <div className="hpsr-profile-heading border-b border-hpsr-border bg-[#fcf6ee] px-4 py-3">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#74321e,#a67a5f)] text-white"><UserRound size={19} /></div>
               <div className="min-w-0"><p className="truncate text-sm font-semibold text-hpsr-text">{currentUserProfile.systemName}</p><p className="mt-0.5 truncate text-xs text-hpsr-muted">{currentUserProfile.role}</p></div>
@@ -482,7 +485,13 @@ export function UserMenu() {
 
             {!currentUserProfile.signaturePath && <button type="button" role="menuitem" onClick={() => { setOpen(false); router.push("/dashboard/perfil#assinatura"); }} className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] font-black text-amber-800 transition hover:bg-amber-100"><UserRound size={15}/> Perfil incompleto · falta assinatura</button>}
             {canUseNotifications && <button type="button" role="menuitem" onClick={() => { setOpen(false); setNotificationsOpen(true); void loadNotifications(true); }} className="relative flex w-full items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5 text-[11px] font-black text-hpsr-wine transition hover:bg-[#f7f2ea]"><BellRing size={15}/> Minhas notificações{unreadNotificationCount > 0 && <span className="ml-auto rounded-full bg-red-600 px-2 py-0.5 text-[9px] font-black text-white">{unreadNotificationCount}</span>}</button>}
+            <div className="hpsr-profile-preferences">
             <button type="button" role="menuitem" onClick={() => { setOpen(false); router.push("/dashboard/perfil"); }} className="flex w-full items-center justify-center gap-2 rounded-[12px] px-3 py-2 text-[11px] font-bold text-hpsr-wine transition hover:bg-[#f7f2ea]"><UserRound size={15}/> Ver perfil completo</button>
+              <button type="button" role="menuitemcheckbox" aria-checked={theme === "dark"} onClick={toggleTheme} className="hpsr-theme-toggle">
+                {theme === "dark" ? <Moon size={16}/> : <Sun size={16}/>}
+                <span>Modo escuro</span><span aria-hidden="true" className="hpsr-theme-switch" data-active={theme === "dark"}><span /></span>
+              </button>
+            </div>
             <button type="button" role="menuitem" onClick={handleLogout} className="flex w-full items-center justify-center gap-2 rounded-[12px] px-3 py-2 text-[11px] font-bold text-hpsr-muted transition hover:bg-[#f7f2ea]"><LogOut size={15}/> Sair</button>
           </div>
         </div>

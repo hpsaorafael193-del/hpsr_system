@@ -7,7 +7,7 @@ import { useVirtualPngPreview } from "@/lib/use-virtual-png-preview";
 
 export function SavedClinicalSheet({ payload, recordType, savedAt = "", title = "registro", autoDownload = false }: { payload: Record<string, any>; recordType: string; savedAt?: string; title?: string; autoDownload?: boolean }) {
   const downloaded = useRef<string | null>(null);
-  const legacyImages: string[] = !payload.renderSnapshot ? (payload.previewImages || (payload.previewImage ? [payload.previewImage] : [])).filter((value: unknown) => typeof value === "string" && /^(data:image\/|blob:|https?:\/\/)/.test(value)) : [];
+  const legacyImages: string[] = !payload.renderSnapshot ? (payload.previewImages || (payload.previewImage ? [payload.previewImage] : [])).filter((value: unknown) => typeof value === "string" && /^(data:image\/|blob:|https?:\/\/|\/api\/clinical-assets\?)/.test(value)) : [];
   const [resolved, setResolved] = useState<{ snapshot: ClinicalRenderSnapshot; legacy: boolean } | null>(null);
   const [error, setError] = useState("");
   const [page, setPage] = useState(0);

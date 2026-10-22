@@ -136,3 +136,66 @@
   .topSpace { height: 0; }
   .headerActions { padding-top: 36px; }
 }
+
+/* HPSR DARK MODULE PALETTE */
+@media screen {
+:global(html[data-theme="dark"]) .page {
+  --profile-text: #e9b495;
+  --profile-muted: #c9b9ac;
+  --profile-wine: #e9b495;
+  --profile-fill: #2b231d
+}
+:global(html[data-theme="dark"]) .panel {
+  background: linear-gradient(115deg, #2b231d, #2b231d)
+}
+:global(html[data-theme="dark"]) .avatar { background: #231c17; color: #e9b495
+}
+:global(html[data-theme="dark"]) .status { color: #e9b495; background: #2b231d
+}
+:global(html[data-theme="dark"]) .inService { color: #83e5c0; border-color: #4d3d31; background: #2b231d
+}
+:global(html[data-theme="dark"]) .secondaryButton { background: #231c17
+}
+:global(html[data-theme="dark"]) .secondaryButton:hover { background: #2b231d
+}
+:global(html[data-theme="dark"]) .primaryButton { color: #f3ede7; background: linear-gradient(120deg, #463022, #302016)
+}
+:global(html[data-theme="dark"]) .primaryButton:hover { background: #302016
+}
+:global(html[data-theme="dark"]) .infoCard { background: linear-gradient(115deg, #2b231d, #2b231d)
+}
+:global(html[data-theme="dark"]) .iconCircle { background: #231c17
+}
+:global(html[data-theme="dark"]) .eyebrow { color: #e9b495
+}
+:global(html[data-theme="dark"]) .input { background: #231c17
+}
+:global(html[data-theme="dark"]) .input:focus { box-shadow: 0 0 0 2px #30201620
+}
+:global(html[data-theme="dark"]) .readOnlyField { background: #231c17
+}
+:global(html[data-theme="dark"]) .subPanel { background: #231c17
+}
+:global(html[data-theme="dark"]) .signaturePreview { background: #2b231d
+}
+:global(html[data-theme="dark"]) .stampIcon { background: #302016; color: #f3ede7
+}
+:global(html[data-theme="dark"]) .uploadTarget { background: #2b231d
+}
+:global(html[data-theme="dark"]) .uploadTarget:hover { background: #2b231d
+}
+:global(html[data-theme="dark"]) .documentTags span { background: #2b231d
+}
+:global(html[data-theme="dark"]) .message { background: #231c17
+}
+:global(html[data-theme="dark"]) .success { border-color: #4d3d31; background: #231c17; color: #83e5c0
+}
+:global(html[data-theme="dark"]) .error { background: #2b231d; color: #e9b495
+}
+:global(html[data-theme="dark"]) .activityList { background: #231c17; scrollbar-color: #463022 #2b231d
+}
+:global(html[data-theme="dark"]) .detailsButton { background: #231c17
+}
+:global(html[data-theme="dark"]) .activity[open] .detailsButton { background: #302016; color: #f3ede7
+}
+}

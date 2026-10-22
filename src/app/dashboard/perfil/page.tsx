@@ -1,4 +1,5 @@
 "use client";
+import { imageDigest, optimizeClinicalImage } from "@/lib/clinical-image-optimization";
 import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import styles from "./profile.module.css";
@@ -168,6 +169,7 @@ export default function PerfilPage() {
 
     const reader = new FileReader();
     reader.onload = async () => {
+      try {
       const originalImage = String(reader.result);
       const image = await new Promise<string>((resolve) => {
         const source = new Image();
@@ -238,12 +240,12 @@ export default function PerfilPage() {
         return;
       }
 
-      const storagePath = `${userId}/signature.png`;
-      const signatureBlob = await fetch(image).then((response) => response.blob());
+      const signatureBlob = await optimizeClinicalImage(await fetch(image).then((response) => response.blob()), "signature");
+      const storagePath = `${userId}/${await imageDigest(signatureBlob)}.png`;
       const { error: uploadError } = await client.storage
         .from("signatures")
-        .upload(storagePath, signatureBlob, { contentType: "image/png", upsert: true });
-      if (uploadError) {
+        .upload(storagePath, signatureBlob, { contentType: "image/png", upsert: false });
+      if (uploadError && !/duplicate|already exists|409/i.test(`${uploadError.message} ${(uploadError as any).statusCode}`)) {
         localStorage.setItem(`hpsr-profile-signature-png:${userId}`, image);
         setSaveMessage(`Não foi possível enviar a assinatura ao Supabase: ${uploadError.message}`);
         return;
@@ -263,6 +265,7 @@ export default function PerfilPage() {
       localStorage.removeItem(`hpsr-profile-signature-png:${userId}`);
       await refreshProfile();
       setSaveMessage("Assinatura sincronizada com o perfil no Supabase.");
+      } catch (error) { setSaveMessage(error instanceof Error ? error.message : "Não foi possível salvar a assinatura."); }
     };
     reader.readAsDataURL(file);
   }

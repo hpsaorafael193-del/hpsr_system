@@ -1,6 +1,6 @@
 {
   "name": "hpsr-system",
-  "version": "1.1.16-test.143",
+  "version": "1.1.16-test.144",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -20,7 +20,11 @@
     "test:editor-completeness": "node tests/editor-completeness-test132.cjs",
     "test:editor-fit": "node tests/editor-fit-test135.cjs",
     "test:engine-inputs": "node tests/engine-inputs-test145.cjs",
-    "test:clipboard-attachments": "node tests/clipboard-attachments-test146.cjs"
+    "test:clipboard-attachments": "node tests/clipboard-attachments-test146.cjs",
+    "theme:generate": "node scripts/generate-dark-theme.cjs",
+    "prebuild": "npm run theme:generate",
+    "predev": "npm run theme:generate",
+    "test:clinical-images": "node tests/clinical-images-test144.cjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

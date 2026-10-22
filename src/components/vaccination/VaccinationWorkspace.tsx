@@ -1,4 +1,5 @@
 "use client";
+import { persistClinicalImages, clinicalSaveError } from "@/lib/clinical-image-assets";
 import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { preserveOriginalAsset } from "@/lib/clinical-render-snapshot";
@@ -873,13 +874,15 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
       draftPaths: [],
       version: previous ? previous.version + 1 : 1,
     };
+    const cardRecordId = previous?.id || crypto.randomUUID();
+    const preparedPayload = await persistClinicalImages(payload, { recordId: cardRecordId });
     const request = previous
-      ? client.from("clinical_records").update({ payload, updated_at: now })
+      ? client.from("clinical_records").update({ payload: preparedPayload, image_asset_paths: preparedPayload.imageAssets, updated_at: now })
         .eq("id", previous.id).eq("record_type", "CadernetaVacinal")
         .eq("patient_passport", passport).eq("payload->>version", String(previous.version))
         .select("id,payload,updated_at").maybeSingle()
-      : client.from("clinical_records").insert({ id: crypto.randomUUID(), patient_passport: passport,
-          record_type: "CadernetaVacinal", payload, created_by: profile.id,
+      : client.from("clinical_records").insert({ id: cardRecordId, patient_passport: passport,
+          record_type: "CadernetaVacinal", payload: preparedPayload, image_asset_paths: preparedPayload.imageAssets, created_by: profile.id,
           is_confidential: true, released_at: null, created_at: now, updated_at: now })
         .select("id,payload,updated_at").single();
     const { data, error } = await request;
@@ -896,8 +899,8 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
     const client = createClient();
     if (!client || !profile.id) throw new Error("Supabase indisponível.");
     const now = brazilIso();
-    const payload = { ...card.payload, ...patch, version: card.version + 1 };
-    const update: Record<string, unknown> = { payload, updated_at: now };
+    const payload = await persistClinicalImages({ ...card.payload, ...patch, version: card.version + 1 }, { recordId: card.id });
+    const update: Record<string, unknown> = { payload, image_asset_paths: payload.imageAssets, updated_at: now };
     if (published === true) Object.assign(update, { is_confidential: false, released_at: now, released_by: profile.id });
     if (published === false) Object.assign(update, { is_confidential: true, released_at: null, released_by: null });
     const { data, error } = await client.from("clinical_records").update(update)
@@ -1041,11 +1044,14 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
       cardModel: group === "adulto" ? `adulto-${adultVariant}` : group,
       releasedToPatient: false,
     };
+    let preparedPayload;
+    try { preparedPayload = await persistClinicalImages(payload, { recordId: id }); }
+    catch (error) { setSaving(false); return void hpsrAlert(clinicalSaveError(error), "Aplicação não salva"); }
     const { error } = await client.from("clinical_records").insert({
       id,
       patient_passport: normalizedPassport,
       record_type: "Vacina",
-      payload,
+      payload: preparedPayload, image_asset_paths: preparedPayload.imageAssets,
       created_by: profile.id || null,
       is_confidential: true,
       released_at: null,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { persistClinicalImages, compactKnownClinicalImages } from "@/lib/clinical-image-assets";
 import { createClient } from "@/lib/supabase";
 
 const departingSaves = new Map<string, Promise<void>>();
@@ -45,8 +46,9 @@ export function useExamDraft<T extends Record<string, unknown>>(
       while (pending.current && ownerRef.current === owner) {
         const snapshot: { json: string; time: string } = pending.current;
         if (mounted.current) setStatus("Salvando rascunho…");
+        const prepared = await persistClinicalImages(JSON.parse(snapshot.json), { draft: table === "exam_editor_drafts" ? "exam" : "document", owner });
         const { error } = await client.from(table).upsert({
-          owner_id: owner, payload: JSON.parse(snapshot.json),
+          owner_id: owner, payload: prepared, image_asset_paths: prepared.imageAssets,
           client_saved_at: snapshot.time,
         }, { onConflict: "owner_id" });
         if (error) throw error;
@@ -140,7 +142,9 @@ export function useExamDraft<T extends Record<string, unknown>>(
       const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
       if (!url || !key || !tokenRef.current || !ownerRef.current) return;
       clock.current = Math.max(Date.now(), clock.current + 1);
-      const body = JSON.stringify({ owner_id: ownerRef.current, payload: JSON.parse(json), client_saved_at: new Date(clock.current).toISOString() });
+      const compact = compactKnownClinicalImages(JSON.parse(json), { draft: table === "exam_editor_drafts" ? "exam" : "document", owner: ownerRef.current }, ownerRef.current);
+      if (!compact) { void flush(); return; }
+      const body = JSON.stringify({ owner_id: ownerRef.current, payload: compact, image_asset_paths: compact.imageAssets, client_saved_at: new Date(clock.current).toISOString() });
       // Browser keepalive requests are limited to about 64 KiB. Larger image
       // drafts use the normal autosave queue and the visible pending indicator.
       if (new Blob([body]).size > 60000) { void flush(); return; }

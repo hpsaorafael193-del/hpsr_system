@@ -1,4 +1,5 @@
 "use client";
+import { persistClinicalImages, clinicalSaveError } from "@/lib/clinical-image-assets";
 import { normalizeClinicalPasteHtml } from "@/lib/clinical-paste";
 import { clinicalEditorGuideTops } from "@/lib/clinical-editor-guides";
 import { useClinicalEditorLayout } from "@/lib/use-clinical-editor-layout";
@@ -1150,7 +1151,7 @@ export default function DocumentsPage() {
       if (!data) throw new Error("Documento não encontrado.");
       const payload = (data.payload || {}) as Record<string, any>;
       const loadedPatient = payload.patient && typeof payload.patient === "object" ? payload.patient as PatientDraft : { ...emptyPatient, passport: String(data.patient_passport || "") };
-      const loadedDoctor = payload.doctor && typeof payload.doctor === "object" ? payload.doctor as DoctorDraft : initialDoctor;
+      const loadedDoctor = { ...(payload.doctor && typeof payload.doctor === "object" ? payload.doctor as DoctorDraft : initialDoctor), signatureImage: payload.renderSnapshot?.metadata?.doctor?.signatureImage || payload.doctor?.signatureImage || null };
       const modelId = documentModels.some((model) => model.id === String(payload.documentModelId || ""))
         ? String(payload.documentModelId)
         : documentModels.find((model) => model.title === String(payload.documentTitle || ""))?.id || documentModels[0]?.id || "";
@@ -1201,8 +1202,11 @@ export default function DocumentsPage() {
       const renderSnapshot = previewOpen && previewSnapshotRef.current && previewSnapshotRef.current.pages.join("") === buildDocumentPages().join("")
         ? previewSnapshotRef.current
         : await captureDocumentSnapshot({ title: selectedModel?.title || "Documento médico", date: today, patient, doctor }, buildDocumentPages());
-      const payload = { ...buildStructuredDocumentPayload(html, savedAt, activeAppointment), schemaVersion: 3, renderSnapshot, patient: renderSnapshot.metadata.patient, doctor: renderSnapshot.metadata.doctor };
+      const targetRecordId = editingRecordId || `document-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const { signatureImage: _duplicateSignature, ...doctorIdentity } = renderSnapshot.metadata.doctor;
+      const payload = await persistClinicalImages({ ...buildStructuredDocumentPayload(html, savedAt, activeAppointment), schemaVersion: 4, renderSnapshot, patient: renderSnapshot.metadata.patient, doctor: doctorIdentity }, { recordId: targetRecordId });
       const historyFields = {
+        image_asset_paths: payload.imageAssets,
         patient_passport: renderSnapshot.metadata.patient.passport.trim(),
         history_title: renderSnapshot.metadata.title,
         history_patient_name: renderSnapshot.metadata.patient.name.trim(),
@@ -1223,13 +1227,13 @@ export default function DocumentsPage() {
             target_record_id: editingRecordId,
             confidential: isConfidential,
           });
-          if (visibilityError) throw visibilityError;
+          if (visibilityError) throw new Error("O documento foi salvo, mas não foi possível atualizar a liberação ao Portal: " + clinicalSaveError(visibilityError));
           const changedPayload = (changed as any)?.payload || { releasedSnapshot: !(changed as any)?.is_confidential ? { ...payload, releasedSnapshot: undefined, releasedAt: (changed as any)?.released_at, releasedBy: (changed as any)?.released_by } : null };
           latestReleasedSnapshot = changedPayload?.releasedSnapshot && typeof changedPayload.releasedSnapshot === "object" ? changedPayload.releasedSnapshot : latestReleasedSnapshot;
           finalConfidential = Boolean((changed as any)?.is_confidential ?? isConfidential);
         }
       } else {
-        recordId = `document-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        recordId = targetRecordId;
         const requestedConfidential = isConfidential;
         const { error } = await client.from("clinical_records").insert({
           id: recordId,
@@ -1240,13 +1244,14 @@ export default function DocumentsPage() {
           payload,
         });
         if (error) throw error;
+        setEditingRecordId(recordId); setLoadedIsConfidential(true);
         finalConfidential = true;
         if (!requestedConfidential) {
           const { data: changed, error: visibilityError } = await client.rpc("set_clinical_record_visibility", {
             target_record_id: recordId,
             confidential: false,
           });
-          if (visibilityError) throw visibilityError;
+          if (visibilityError) throw new Error("O documento foi salvo, mas não foi possível atualizar a liberação ao Portal: " + clinicalSaveError(visibilityError));
           const changedPayload = (changed as any)?.payload || { releasedSnapshot: !(changed as any)?.is_confidential ? { ...payload, releasedSnapshot: undefined, releasedAt: (changed as any)?.released_at, releasedBy: (changed as any)?.released_by } : null };
           latestReleasedSnapshot = changedPayload?.releasedSnapshot && typeof changedPayload.releasedSnapshot === "object" ? changedPayload.releasedSnapshot : null;
           finalConfidential = false;
@@ -1268,7 +1273,7 @@ export default function DocumentsPage() {
     } catch (error) {
       setAppDialog({
         title: "Não foi possível salvar o documento",
-        message: error instanceof Error ? error.message : "Ocorreu um erro inesperado durante o salvamento.",
+        message: clinicalSaveError(error),
         actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
       });
     } finally {

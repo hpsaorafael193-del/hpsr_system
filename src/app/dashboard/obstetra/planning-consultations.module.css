@@ -44,3 +44,61 @@
 .draftActions { display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap; }
 .workspace button:focus-visible,.workspace input:focus-visible,.draftDialog textarea:focus-visible,.draftDialog button:focus-visible { outline:2px solid #672614; outline-offset:2px; }
 @media(max-width:700px) { .workspace { padding:14px 12px; }.heading { gap:12px; }.heading h3 { font-size:17px; }.heading > div > span { font-size:12px; }.icon { width:44px; height:44px; }.toolbar { width:100%; gap:8px; }.toolbar > button { flex:1; }.participants { padding:14px 0; gap:12px; }.participantInfo { gap:8px; }.participantInfo > p { flex-basis:100%; border:0; padding:0; }.participants > button { width:100%; }.table th,.table td { padding:12px 14px; }.draftDialog { padding:16px; } }
+
+/* HPSR DARK MODULE PALETTE */
+@media screen {
+:global(html[data-theme="dark"]) .icon { background:linear-gradient(135deg,#302016,#1d1611); color:#f3ede7; box-shadow:0 5px 15px #30201612
+}
+:global(html[data-theme="dark"]) .heading p { color:#e9b495
+}
+:global(html[data-theme="dark"]) .heading h3 { color:#e9b495
+}
+:global(html[data-theme="dark"]) .heading > div > span { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .workspace button,:global(html[data-theme="dark"]) .draftDialog button { color:#e9b495; background:#231c17
+}
+:global(html[data-theme="dark"]) .workspace button:hover:not(:disabled),:global(html[data-theme="dark"]) .draftDialog button:hover { background:#2b231d
+}
+:global(html[data-theme="dark"]) .workspace .primary,:global(html[data-theme="dark"]) .draftDialog .primary { color:#f3ede7; background:#302016; border-color:#463326
+}
+:global(html[data-theme="dark"]) .workspace .primary:hover:not(:disabled),:global(html[data-theme="dark"]) .draftDialog .primary:hover { background:#302016
+}
+:global(html[data-theme="dark"]) .participantInfo > strong { background:#2b231d; color:#e9b495
+}
+:global(html[data-theme="dark"]) .participantInfo > p { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .tableScroll { scrollbar-color:#38291f #231c17
+}
+:global(html[data-theme="dark"]) .table { color:#e9b495
+}
+:global(html[data-theme="dark"]) .table th { background:#2b231d; color:#e9b495
+}
+:global(html[data-theme="dark"]) .table td { background:#231c17
+}
+:global(html[data-theme="dark"]) .table tr:nth-child(even) td { background:#231c17
+}
+:global(html[data-theme="dark"]) .stageName > span { background:#2b231d
+}
+:global(html[data-theme="dark"]) .table input[type="date"] { background:#231c17
+}
+:global(html[data-theme="dark"]) .table td:nth-child(4) button { border-color:#4d3d31; background:#231c17
+}
+:global(html[data-theme="dark"]) .summary { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .rowActions .remove { color:#e9b495
+}
+:global(html[data-theme="dark"]) .unsaved { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .released { color:#83e5c0
+}
+:global(html[data-theme="dark"]) .empty { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .empty strong { color:#e9b495
+}
+:global(html[data-theme="dark"]) .draftDialog { color:#e9b495
+}
+:global(html[data-theme="dark"]) .draftHeading p { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .draftHint { color:#c9b9ac
+}
+}

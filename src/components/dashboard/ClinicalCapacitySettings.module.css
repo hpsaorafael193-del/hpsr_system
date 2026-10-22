@@ -17,3 +17,23 @@
 .message { margin-top: 10px; padding: 9px 12px; border: 1px solid #c99576; border-radius: 10px; background: #f8e3d1; font-size: 12px; line-height: 1.5; color: #421a0e; }
 @media (max-width: 1279px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 599px) { .panel { padding: 13px; } .heading { flex-wrap: wrap; } .grid { grid-template-columns: minmax(0, 1fr); } .save { width: 100%; } }
+
+/* HPSR DARK MODULE PALETTE */
+@media screen {
+:global(html[data-theme="dark"]) .panel { background: linear-gradient(115deg, #2b231d, #2b231d)
+}
+:global(html[data-theme="dark"]) .card { background: #2b231d
+}
+:global(html[data-theme="dark"]) .icon { color: #e9b495; background: #231c17
+}
+:global(html[data-theme="dark"]) .input { background: #231c17; color: #e9b495
+}
+:global(html[data-theme="dark"]) .input:focus { box-shadow: 0 0 0 2px #30201620
+}
+:global(html[data-theme="dark"]) .save { color: #f3ede7; background: linear-gradient(120deg, #463022, #302016)
+}
+:global(html[data-theme="dark"]) .save:hover { background: #302016
+}
+:global(html[data-theme="dark"]) .message { background: #231c17; color: #e9b495
+}
+}

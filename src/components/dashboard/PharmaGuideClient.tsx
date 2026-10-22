@@ -1,5 +1,6 @@
 "use client";
 
+import { useTheme } from "@/components/theme/ThemeProvider";
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { useMemo, useState } from "react";
 import { Bone, BookOpen, Bookmark, FileText, FlaskConical, Info,
@@ -355,7 +356,15 @@ const badgeColors: Record<string, string> = {
   "Calmantes / Controlados": "#e9def0",
 };
 
+const darkBadgeColors: Record<string, string> = {
+  "Hormonal / Endócrino / Fertilidade": "#39283f", "Dor / Analgésicos": "#422822",
+  "Estômago / Digestivo": "#3e301b", "Alergia / Respiratório": "#183831",
+  "Gripe / Sintomas gerais": "#243147", "Antibióticos": "#263b22",
+  "Anti-inflamatórios": "#382b23", "Vitaminas / Suplementos": "#20374b",
+  "Calmantes / Controlados": "#34263e",
+};
 export function PharmaGuideClient() {
+  const { theme } = useTheme();
   const [query, setQuery] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("Todos");
   const [selectedName, setSelectedName] = useState("Analgex");
@@ -381,7 +390,7 @@ export function PharmaGuideClient() {
   }
   function categoryBadge(item: Medication) {
     const title = getGroupForCategory(item.category)?.title || item.category;
-    return <span className={styles.badge} style={{ background: badgeColors[title] || "#eee2d8" }}>{title}</span>;
+    return <span className={styles.badge} style={{ background: theme === "dark" ? (darkBadgeColors[title] || "#2b231d") : (badgeColors[title] || "#eee2d8") }}>{title}</span>;
   }
 
   return (

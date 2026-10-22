@@ -138,7 +138,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           collapsed ? "lg:pl-[92px]" : "lg:pl-[292px]"
         )}
       >
-        <div className="fixed right-3 top-3 z-[90] flex max-w-[calc(100vw-1.5rem)] items-center gap-2 lg:right-5 lg:top-4">
+        <div className="hpsr-account-controls fixed right-3 top-3 z-[90] flex max-w-[calc(100vw-1.5rem)] items-center gap-2 lg:right-5 lg:top-4">
           <ManualRefreshButton compact globalControl />
           <UserMenu />
         </div>

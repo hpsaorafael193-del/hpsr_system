@@ -65,3 +65,87 @@
 .report tbody tr:nth-child(even) { background:#f5e5d9; }
 .ranking { background:#f7ecdf; border-color:#dec6b7; }
 .dialog { background:#f6eae0; border-color:#dec6bb; }
+
+
+@container (max-width:900px) { .topGrid { grid-template-columns:minmax(0,1fr); } .actions { margin-left:0; width:100%; } }
+@media (max-width:480px) { .header { gap:8px; } .header h2 { overflow-wrap:anywhere; } .report button,.dialog button { min-height:36px; } .archiveControls { flex-wrap:wrap; } .search input { width:100%; } }
+
+/* HPSR DARK MODULE PALETTE */
+@media screen {
+:global(html[data-theme="dark"]) .report { color:#e9b495
+}
+:global(html[data-theme="dark"]) .panel { background:linear-gradient(120deg,#231c17,#231c17)
+}
+:global(html[data-theme="dark"]) .icon { background:#302016; color:#f3ede7
+}
+:global(html[data-theme="dark"]) .header h2 { color:#e9b495
+}
+:global(html[data-theme="dark"]) .header p { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .report button,:global(html[data-theme="dark"]) .dialog button { color:#e9b495; background:#231c17
+}
+:global(html[data-theme="dark"]) .report button:hover:not(:disabled),:global(html[data-theme="dark"]) .dialog button:hover { background:#231c17
+}
+:global(html[data-theme="dark"]) .tableScroll { scrollbar-color:#38291f #231c17
+}
+:global(html[data-theme="dark"]) .report thead th { background:#2b231d; color:#e9b495
+}
+:global(html[data-theme="dark"]) .report tbody tr { background:#231c17
+}
+:global(html[data-theme="dark"]) .report tbody tr:nth-child(even) { background:#231c17
+}
+:global(html[data-theme="dark"]) .report td button { border-color:#4d3d31
+}
+:global(html[data-theme="dark"]) .person svg { color:#e9b495
+}
+:global(html[data-theme="dark"]) .status { background:#2b231d
+}
+:global(html[data-theme="dark"]) .status::before { background:#38291f
+}
+:global(html[data-theme="dark"]) .status[data-active="true"]::before { background:#15382c
+}
+:global(html[data-theme="dark"]) .ranking { scrollbar-color:#38291f #231c17
+}
+:global(html[data-theme="dark"]) .ranking strong { color:#e9b495
+}
+:global(html[data-theme="dark"]) .position { background:#231c17
+}
+:global(html[data-theme="dark"]) .position[data-position="1"] { background:#38291f
+}
+:global(html[data-theme="dark"]) .position[data-position="2"] { background:#2b231d
+}
+:global(html[data-theme="dark"]) .position[data-position="3"] { background:#38291f
+}
+:global(html[data-theme="dark"]) .archiveEmpty { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .search { background:#231c17
+}
+:global(html[data-theme="dark"]) .search input { color:#e9b495
+}
+:global(html[data-theme="dark"]) .empty { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .notice { background:#231c17; color:#e9b495
+}
+:global(html[data-theme="dark"]) .error { background:#231c17; color:#e9b495
+}
+:global(html[data-theme="dark"]) .dialog { background:#231c17; color:#e9b495
+}
+:global(html[data-theme="dark"]) .dialog::backdrop { background:#1d161180
+}
+:global(html[data-theme="dark"]) .dialog dt { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .panel { background:linear-gradient(155deg,#231c17 0%,#231c17 58%,#231c17 100%); border-color:#4d3d31
+}
+:global(html[data-theme="dark"]) .icon { background:linear-gradient(135deg,#302016,#1d1611)
+}
+:global(html[data-theme="dark"]) .report thead th { background:#2b231d; border-color:#4d3d31
+}
+:global(html[data-theme="dark"]) .report tbody tr { background:#231c17
+}
+:global(html[data-theme="dark"]) .report tbody tr:nth-child(even) { background:#231c17
+}
+:global(html[data-theme="dark"]) .ranking { background:#231c17; border-color:#4d3d31
+}
+:global(html[data-theme="dark"]) .dialog { background:#231c17; border-color:#4d3d31
+}
+}

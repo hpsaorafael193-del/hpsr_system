@@ -24,7 +24,7 @@ export function Sidebar({ collapsed, onToggle, onOpenSystemInfo, hasPendingAppoi
   );
 
   return (
-    <aside
+    <aside data-hpsr-sidebar="true"
       className={cn(
         "fixed left-0 top-0 z-40 hidden h-screen flex-col border-r border-white/12 bg-[linear-gradient(180deg,#6f2b17_0%,#4a160c_54%,#260600_100%)] text-white transition-all duration-300 lg:flex",
         collapsed ? "w-[92px]" : "w-[292px]"
@@ -124,7 +124,7 @@ function SidebarGroup({
                   notifyPending && !active && "border border-red-300/35 bg-red-500/10 shadow-[0_0_18px_rgba(239,68,68,0.22)] animate-[pulse_2.4s_ease-in-out_infinite]"
                 )}
               >
-                <span className="relative shrink-0"><Icon size={19} />{notifyPending && <span className="absolute -right-1.5 -top-1.5 h-2.5 w-2.5 rounded-full border border-white/80 bg-red-500 shadow-[0_0_9px_rgba(239,68,68,0.85)]" />}</span>
+                <span className="relative shrink-0"><Icon size={19} />{notifyPending && <span data-hpsr-notification-dot="true" className="absolute -right-1.5 -top-1.5 h-2.5 w-2.5 rounded-full border border-white/80 bg-red-500 shadow-[0_0_9px_rgba(239,68,68,0.85)]" />}</span>
                 {!collapsed && (
                   <>
                     <span className="flex-1">{item.label}</span>

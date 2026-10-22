@@ -1,0 +1,24 @@
+/* test.144 — interface geometry only. Clinical page dimensions are unchanged. */
+.hpsr-account-controls { min-width:0; }
+.hpsr-profile-menu { overscroll-behavior-y:contain; }
+.hpsr-profile-menu button { overflow-wrap:anywhere; }
+.hpsr-profile-menu svg { flex-shrink:0; }
+.hpsr-profile-preferences>* { min-width:0; }
+.hpsr-exams-workspace, .hpsr-documents-workspace { min-width:0; }
+.hpsr-exams-workspace>*,.hpsr-documents-workspace>* { min-width:0; }
+.hpsr-exams-editor-viewport,.hpsr-documents-editor-viewport { overscroll-behavior-y:auto; }
+@media(max-width:639px) {
+ .hpsr-profile-menu { width:min(24rem,calc(100vw - 20px)); max-height:calc(100dvh - 76px); }
+ .hpsr-account-controls { right:10px; max-width:calc(100vw - 64px); gap:5px; }
+ .hpsr-profile-trigger { gap:5px; padding-inline:7px; }
+ .hpsr-exam-toolbar,.hpsr-document-toolbar { flex-wrap:wrap; max-width:100%; }
+ .hpsr-exam-toolgroup,.hpsr-document-toolgroup { min-width:0; max-width:100%; flex-wrap:wrap; }
+ .hpsr-document-editor-heading,.hpsr-exam-editor-heading { min-width:0; }
+ .hpsr-document-editor-heading h1,.hpsr-document-editor-heading h2,.hpsr-exam-editor-heading h1,.hpsr-exam-editor-heading h2 { overflow-wrap:anywhere; }
+}
+@media(max-height:600px) and (orientation:landscape) {
+ .hpsr-profile-menu { max-height:calc(100dvh - 88px); }
+}
+@media(min-width:1920px) {
+ .hpsr-exams-page .hpsr-exams-workspace,.hpsr-documents-page .hpsr-documents-workspace { grid-template-columns:minmax(360px,.72fr) minmax(0,1.28fr); }
+}

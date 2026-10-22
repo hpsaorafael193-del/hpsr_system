@@ -80,6 +80,8 @@ import { usePatientSelection } from "@/components/patients/PatientSelectionProvi
 import { createClient } from "@/lib/supabase";
 import { ExamEditorCaret } from "@/components/dashboard/ExamEditorCaret";
 import { renderExamPage } from "@/lib/exam-page-canvas";
+import { persistClinicalImages, clinicalSaveError } from "@/lib/clinical-image-assets";
+import { optimizeClinicalImage } from "@/lib/clinical-image-optimization";
 import { captureExamSnapshot } from "@/lib/clinical-render-snapshot";
 import { useVirtualPngPreview } from "@/lib/use-virtual-png-preview";
 import { useExamDraft } from "@/lib/use-exam-draft";
@@ -710,6 +712,8 @@ function AppDialog({
 
 
 export default function ExamesPage() {
+  const examSaveLock = useRef(false);
+  const [savingExam, setSavingExam] = useState(false);
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const { patients: sharedPatients, selectedPatient: sharedSelectedPatient, selectPatient: selectSharedPatient, upsertPatient: upsertSharedPatient, loading: patientsLoading } = usePatientSelection();
   const initialDoctor: DoctorDraft = {
@@ -1549,7 +1553,7 @@ export default function ExamesPage() {
               size: formatAttachmentSize(file.size),
             });
           reader.onerror = reject;
-          reader.readAsDataURL(file);
+          void optimizeClinicalImage(file, "attachment").then(blob => reader.readAsDataURL(blob)).catch(reject);
         }),
     );
 
@@ -1648,6 +1652,8 @@ export default function ExamesPage() {
   }
 
   async function saveExam() {
+    if (examSaveLock.current) return;
+    examSaveLock.current = true; setSavingExam(true);
     try {
       if (!patient.passport?.trim() || !patient.name?.trim()) throw new Error("Selecione ou cadastre o paciente antes de salvar.");
       if (patient.name.trim().toLowerCase() === doctor.name.trim().toLowerCase()) throw new Error("Paciente e médico responsável não podem ser o mesmo registro.");
@@ -1662,13 +1668,13 @@ export default function ExamesPage() {
       if (!client) throw new Error("Não foi possível conectar ao banco de dados.");
       {
         const recordId = `exam-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-        const payload = {
-          schemaVersion: 3,
+        const payload = await persistClinicalImages({
+          schemaVersion: 4,
           renderSnapshot,
           examKind: "structured-exam",
           protocol: document.metadata.protocol,
           patient: document.metadata.patient,
-          doctor: { ...document.metadata.doctor, id: selectedDoctorId, signatureImage: document.metadata.signatureImage },
+          doctor: { ...document.metadata.doctor, id: selectedDoctorId },
           examId: selectedExam?.id || selectedExamId,
           examName: document.metadata.examName,
           examDate: document.metadata.date,
@@ -1677,13 +1683,14 @@ export default function ExamesPage() {
           reportHtml: html,
           attachments: attachments.map(({ id, name, size }) => ({ id, name, size })),
           savedAt,
-        };
+        }, { recordId });
         const { error } = await client.from("clinical_records").insert({
           id: recordId,
           patient_passport: document.metadata.patient.passport || null,
           record_type: "Exame",
           is_confidential: true,
           released_at: null,
+          image_asset_paths: payload.imageAssets,
           history_title: document.metadata.examName,
           history_patient_name: document.metadata.patient.name || null,
           history_doctor_name: document.metadata.doctor.name || null,
@@ -1695,7 +1702,7 @@ export default function ExamesPage() {
             target_record_id: recordId,
             confidential: false,
           });
-          if (releaseError) throw releaseError;
+          if (releaseError) { setPreview({ open: false, document: null, pageIndex: 0 }); setSaveStatus("Salvo em sigilo · liberação pendente"); hpsrSuccess("Exame salvo em sigilo. A liberação ao Portal falhou: " + clinicalSaveError(releaseError), "Exame salvo"); return; }
         }
       }
 
@@ -1711,7 +1718,7 @@ export default function ExamesPage() {
       hpsrSuccess(`${document.metadata.examName} foi salvo no prontuário de ${patient.name}.`, "Exame salvo");
     } catch (error) {
       console.error("[HPSR][Exames] Falha ao salvar ou preparar o preview:", error);
-      const message = error instanceof Error ? error.message : "Erro desconhecido ao salvar o exame.";
+      const message = clinicalSaveError(error);
       setSaveStatus("Falha ao salvar");
       setAppDialog({
         title: "Não foi possível salvar o exame",
@@ -1719,7 +1726,7 @@ export default function ExamesPage() {
         tone: "danger",
         actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }],
       });
-    }
+    } finally { examSaveLock.current = false; setSavingExam(false); }
   }
 
   const renderPreviewPage = renderExamPage;
@@ -2616,9 +2623,10 @@ export default function ExamesPage() {
                 <button
                   type="button"
                   onClick={saveExam}
+                  disabled={savingExam}
                   className="inline-flex h-10 items-center gap-2 rounded-[12px] bg-hpsr-wine px-4 text-xs font-black text-white"
                 >
-                  <Save size={15} /> Salvar no sistema
+                  <Save size={15} /> {savingExam ? "Salvando…" : "Salvar no sistema"}
                 </button>
               </div>
             </div>

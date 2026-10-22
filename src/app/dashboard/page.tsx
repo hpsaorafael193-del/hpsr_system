@@ -93,7 +93,7 @@ export default function DashboardHomePage() {
           priority
           className="object-cover object-center scale-[1.16] sm:scale-[1.08] lg:scale-100"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(42,7,0,0.84)_0%,rgba(103,38,20,0.66)_34%,rgba(42,7,0,0.44)_58%,rgba(42,7,0,0.70)_100%)]" />
+        <div data-hpsr-home-overlay="true" className="absolute inset-0 bg-[linear-gradient(90deg,rgba(42,7,0,0.84)_0%,rgba(103,38,20,0.66)_34%,rgba(42,7,0,0.44)_58%,rgba(42,7,0,0.70)_100%)]" />
         <div className="relative z-10 grid min-h-[clamp(220px,28vw,255px)] gap-3 px-[clamp(1rem,3vw,2rem)] py-[clamp(1.25rem,3vw,1.75rem)] lg:grid-cols-[minmax(0,1.1fr)_clamp(170px,18vw,235px)] lg:items-center">
           <div className="max-w-3xl min-w-0">
             <span className="inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#f9ead8]">

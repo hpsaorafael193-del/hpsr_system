@@ -1,0 +1,66 @@
+/* Theme UI is independent of the clinical document palette. */
+html[data-theme="dark"] { color-scheme: dark; --background:#17130f; --foreground:#f3ede7; --hpsr-bg:#17130f; --hpsr-paper:#231c17; --hpsr-surface:#231c17; --hpsr-surface-strong:#2d241e; --hpsr-border:#4d3d31; --hpsr-wine:#e9b495; --hpsr-wine-dark:#f3ede7; --hpsr-wine-soft:#e9b495; --hpsr-muted:#c9b9ac; }
+html[data-theme="dark"] body { background:#17130f; color:#f3ede7; }
+html[data-theme="dark"] .hpsr-dashboard-shell { --hpsr-dashboard-cream:#231c17; --hpsr-dashboard-paper:#2b231d; --hpsr-dashboard-warm:#2d241e; --hpsr-dashboard-outline:#4d3d31; }
+html[data-theme="dark"] :is(input,select,textarea):not(:where(.hpsr-render-page *,[data-hpsr-document] *)) { color:#f3ede7; background-color:#2b231d; border-color:#a08068; accent-color:#d68a61; }
+html[data-theme="dark"] :is(input,textarea)::placeholder { color:#b7a598; opacity:1; }
+html[data-theme="dark"] [contenteditable="true"] { color:#f3ede7; background-color:#201a16; caret-color:#fff1df; }
+html[data-theme="dark"] [contenteditable="true"] ::selection { color:#fff1df; background:#6b412d; }
+html[data-theme="dark"] :focus-visible { outline:2px solid #f1b48b; outline-offset:3px; }
+html[data-theme="dark"] * { scrollbar-color:#92745d #201a16; }
+html[data-theme="dark"] :is(.hpsr-render-page,[data-hpsr-document]) { color-scheme:light; color:#2a0700; --background:#fbf4ec; --foreground:#2a0700; --hpsr-bg:#f5eadf; --hpsr-paper:#fffaf4; --hpsr-surface:rgba(255,252,247,.88); --hpsr-surface-strong:rgba(255,255,255,.94); --hpsr-border:#e7d8c8; --hpsr-wine:#672614; --hpsr-wine-dark:#2a0700; --hpsr-wine-soft:#8a4b32; --hpsr-muted:#755d54; --hpsr-dashboard-cream:#fbf5ed; --hpsr-dashboard-paper:#f8efe4; --hpsr-dashboard-warm:#f1e1d1; --hpsr-dashboard-outline:#e3d1bf; }
+.hpsr-profile-trigger { box-shadow:0 4px 18px #2a07000c; }
+.hpsr-profile-menu { border-radius:22px; width:min(24rem,calc(100vw - 1.5rem)); max-height:calc(100dvh - 6rem); overflow-y:auto; box-shadow:0 24px 70px #1b0d032e; background:#fffaf5; }
+.hpsr-profile-heading { padding:20px; background:linear-gradient(130deg,#fbecdd,#fffaf5); }
+.hpsr-profile-menu [role="menuitem"],.hpsr-theme-toggle { min-height:42px; }
+.hpsr-profile-preferences { display:grid; grid-template-columns:1fr 1fr; gap:6px; padding-top:8px; border-top:1px solid var(--hpsr-border); }
+.hpsr-theme-toggle { display:flex; align-items:center; justify-content:center; gap:7px; padding:8px; border:1px solid var(--hpsr-border); border-radius:12px; color:#672614; font-size:11px; font-weight:700; }
+.hpsr-theme-switch { flex-shrink:0; display:inline-flex; align-items:center; width:30px; height:18px; padding:2px; background:#a68c79; border-radius:999px; }
+.hpsr-theme-switch>span { width:14px; height:14px; border-radius:50%; background:#fff5ea; transition:transform .16s ease; }
+.hpsr-theme-switch[data-active="true"] { background:#a65031; }
+.hpsr-theme-switch[data-active="true"]>span { transform:translateX(12px); }
+html[data-theme="dark"] .hpsr-profile-trigger { background:#231c17; border-color:#4d3d31; }
+html[data-theme="dark"] .hpsr-profile-menu { background:#231c17; border-color:#4d3d31; box-shadow:0 24px 70px #0008; }
+html[data-theme="dark"] .hpsr-profile-heading { background:linear-gradient(130deg,#34251b,#231c17); }
+html[data-theme="dark"] .hpsr-theme-toggle { color:#f3ede7; background:#2b231d; }
+@media(max-width:420px) { .hpsr-profile-preferences { grid-template-columns:1fr; } }
+@media(prefers-reduced-motion:reduce) { .hpsr-theme-switch>span { transition:none; } }
+@media print { html[data-theme="dark"] body { background:white; color:#2a0700; } .hpsr-profile-menu { display:none; } }
+
+/* Revision: keep clinical status and notification colors meaningful. */
+@media screen {
+html[data-theme="dark"] [data-hpsr-notification-dot="true"] { background:#ef4444!important; border-color:#ffdad5; box-shadow:0 0 9px #ef444477; }
+html[data-theme="dark"] [data-cast-status="recuperacao"] { border-color:#34d399!important; }
+html[data-theme="dark"] [data-cast-status="reavaliacao"] { border-color:#fbbf24!important; }
+html[data-theme="dark"] [data-cast-status="atrasada"] { border-color:#ef4444!important; }
+html[data-theme="dark"] [data-cast-status="retirado"] { border-color:#a1a1aa!important; }
+html[data-theme="dark"] [data-cast-status="recuperacao"]>div:first-child { background-color:#10b981; }
+html[data-theme="dark"] [data-cast-status="reavaliacao"]>div:first-child { background-color:#fbbf24; }
+html[data-theme="dark"] [data-cast-status="atrasada"]>div:first-child { background-color:#ef4444; }
+html[data-theme="dark"] [data-cast-status="retirado"]>div:first-child { background-color:#a1a1aa; }
+html[data-theme="dark"] button:disabled { opacity:.55; }
+html[data-theme="dark"] .hpsr-profile-heading { background:linear-gradient(130deg,#34251b,#231c17); }
+}
+
+/* Warm identity accents: intentionally retained, without recoloring large work panels. */
+@media screen {
+html[data-theme="dark"] [data-hpsr-sidebar="true"] {
+  background:linear-gradient(180deg,#59301e 0%,#382014 54%,#21110b 100%);
+}
+html[data-theme="dark"] [data-hpsr-home-overlay="true"] {
+  background:linear-gradient(90deg,rgba(42,7,0,.84) 0%,rgba(103,38,20,.66) 34%,rgba(42,7,0,.44) 58%,rgba(42,7,0,.70) 100%);
+}
+html[data-theme="dark"] :is(.h-8,.h-9,.h-10,.h-11,.h-12)[class*="bg-[linear-gradient"]:not(:where(.hpsr-render-page *,[data-hpsr-document] *)) {
+  background:linear-gradient(135deg,#6c3a26,#3c1c11);
+}
+html[data-theme="dark"] :is(.h-8,.h-9,.h-10,.h-11,.h-12).bg-hpsr-wine:not(:where(.hpsr-render-page *,[data-hpsr-document] *)) { background:#6c3a26; color:#fff1e4; }
+html[data-theme="dark"] button.bg-hpsr-wine:not(:where(.hpsr-render-page *,[data-hpsr-document] *)) { background:#713b26; color:#fff1e4; }
+html[data-theme="dark"] button.bg-hpsr-wine:hover:not(:disabled) { background:#854a31; }
+html[data-theme="dark"] button[class*="bg-[linear-gradient"]:not(:where(.hpsr-render-page *,[data-hpsr-document] *)) { background:linear-gradient(135deg,#6c3a26,#4b2518); color:#fff1e4; }
+}
+
+@media screen {
+/* Spacing and surfaces separate the personal actions, without an extra divider. */
+html[data-theme="dark"] .hpsr-profile-preferences { border-top-color:transparent; }
+html[data-theme="dark"] .hpsr-profile-heading { border-bottom-color:transparent; }
+}

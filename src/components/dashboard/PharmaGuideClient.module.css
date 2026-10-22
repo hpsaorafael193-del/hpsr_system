@@ -128,3 +128,125 @@
   .medicationButton .badge { flex-shrink: 1; max-width: 35%; overflow-wrap: anywhere; }
   .listHeader { flex-wrap: wrap; }
 }
+
+
+@media (min-width:641px) and (max-width:900px) { .workspace { grid-template-columns:minmax(0,1fr); min-height:0; } .listPanel { height:420px; max-height:420px; flex:none; } .details { max-height:none; overflow:visible; } }
+@media (max-width:480px) { .header { align-items:flex-start; padding-inline:12px; } .headerIcon { flex-shrink:0; } .header>div { min-width:0; } .filters { min-width:0; } .search { min-width:0; padding-inline:10px; } .medicationButton { flex-wrap:wrap; } .medicationName { min-width:0; overflow-wrap:anywhere; } .medicationButton .badge { margin-left:43px; max-width:calc(100% - 43px); } .allergies { gap:10px; } .allergies button { width:100%; } }
+@media (min-width:1920px) { .workspace { grid-template-columns:minmax(360px,.38fr) minmax(0,.62fr); } }
+
+
+@media(max-width:480px) { .medicationName { flex:1 1 calc(100% - 55px); } .medicationButton .badge { flex-basis:auto; } }
+
+/* HPSR DARK MODULE PALETTE */
+@media screen {
+:global(html[data-theme="dark"]) .page { color:#e9b495
+}
+:global(html[data-theme="dark"]) .header { background:linear-gradient(110deg,#302016,#302016 58%,#463022); color:#f3ede7
+}
+:global(html[data-theme="dark"]) .headerIcon { background:#231c1716
+}
+:global(html[data-theme="dark"]) .header h1 { color:#f3ede7
+}
+:global(html[data-theme="dark"]) .header p { color:#f3ede7
+}
+:global(html[data-theme="dark"]) .filters { background:#2b231d99
+}
+:global(html[data-theme="dark"]) .search { background:#231c17dc
+}
+:global(html[data-theme="dark"]) .search svg { color:#e9b495
+}
+:global(html[data-theme="dark"]) .search input { color:#e9b495
+}
+:global(html[data-theme="dark"]) .search input::placeholder { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .select > span:last-child { color:#e9b495
+}
+:global(html[data-theme="dark"]) .page .select { background:#231c17; color:#e9b495
+}
+:global(html[data-theme="dark"]) .counters span { background:#231c17cf; color:#e9b495
+}
+:global(html[data-theme="dark"]) .listPanel,:global(html[data-theme="dark"]) .details { background:linear-gradient(120deg,#231c17aa,#231c17a8)
+}
+:global(html[data-theme="dark"]) .listHeader h2 { color:#e9b495
+}
+:global(html[data-theme="dark"]) .listHeader h2 span { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .listHeader select { color:#e9b495
+}
+:global(html[data-theme="dark"]) .list { scrollbar-color:#2b231d #2b231d
+}
+:global(html[data-theme="dark"]) .list::-webkit-scrollbar-track { background:#2b231d
+}
+:global(html[data-theme="dark"]) .list::-webkit-scrollbar-thumb { background:#2b231d
+}
+:global(html[data-theme="dark"]) .row.selected { background:linear-gradient(100deg,#2b231d,#2b231dd9)
+}
+:global(html[data-theme="dark"]) .row.selected::before { background:#302016
+}
+:global(html[data-theme="dark"]) .medicationButton { color:#e9b495
+}
+:global(html[data-theme="dark"]) .row:hover { background:#231c17cc
+}
+:global(html[data-theme="dark"]) .pillIcon { background:#231c17; color:#e9b495
+}
+:global(html[data-theme="dark"]) .medicationName strong { color:#e9b495
+}
+:global(html[data-theme="dark"]) .medicationName > span { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .badge { color:#e9b495
+}
+:global(html[data-theme="dark"]) .bookmark { color:#e9b495
+}
+:global(html[data-theme="dark"]) .bookmark[aria-pressed="true"],:global(html[data-theme="dark"]) .detailBookmark[aria-pressed="true"] { color:#e9b495
+}
+:global(html[data-theme="dark"]) .eyebrow { color:#e9b495
+}
+:global(html[data-theme="dark"]) .detailTitle h2 { color:#e9b495
+}
+:global(html[data-theme="dark"]) .detailBookmark { background:#231c1740; color:#e9b495
+}
+:global(html[data-theme="dark"]) .reference { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .reference span { color:#e9b495
+}
+:global(html[data-theme="dark"]) .sectionIcon { background:#2b231dbb; color:#e9b495
+}
+:global(html[data-theme="dark"]) .detailSection h3,:global(html[data-theme="dark"]) .allergies h3 { color:#e9b495
+}
+:global(html[data-theme="dark"]) .detailSection p { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .allergies { background:#231c17d9
+}
+:global(html[data-theme="dark"]) .warningIcon { background:#2b231d; color:#e9b495
+}
+:global(html[data-theme="dark"]) .allergies h3 { color:#e9b495
+}
+:global(html[data-theme="dark"]) .allergies p { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .allergies button { background:#231c17; color:#e9b495
+}
+:global(html[data-theme="dark"]) .alternatives { background:#2b231d; color:#e9b495
+}
+:global(html[data-theme="dark"]) .footer { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .footer svg { color:#e9b495
+}
+:global(html[data-theme="dark"]) .empty { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .empty h3 { color:#e9b495
+}
+:global(html[data-theme="dark"]) .page .listHeader h2,:global(html[data-theme="dark"]) .page .detailTitle h2,:global(html[data-theme="dark"]) .page .medicationName strong,:global(html[data-theme="dark"]) .page .detailSection h3 { color: #e9b495
+}
+:global(html[data-theme="dark"]) .page .allergies h3 { color: #e9b495
+}
+:global(html[data-theme="dark"]) .page .reference { color: #e9b495
+}
+:global(html[data-theme="dark"]) .page .reference span { color: #e9b495
+}
+:global(html[data-theme="dark"]) .page .detailSection p,:global(html[data-theme="dark"]) .page .allergies p,:global(html[data-theme="dark"]) .page .alternatives { color: #e9b495
+}
+:global(html[data-theme="dark"]) .page .medicationName > span,:global(html[data-theme="dark"]) .page .listHeader h2 span { color: #e9b495
+}
+:global(html[data-theme="dark"]) .page .badge { color: #e9b495
+}
+}

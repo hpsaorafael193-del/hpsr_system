@@ -793,7 +793,7 @@ function AutoAttachmentContent({ attachment }: { attachment: AutomaticAttachment
 function ManualAttachmentsContent({ attachments }: { attachments: RenderAttachmentFile[] }) {
   const file = attachments[0];
   if (!file) return null;
-  const isImage = /^data:image\//i.test(file.url) || /\.(png|jpe?g|webp|gif)$/i.test(file.name);
+  const isImage = /^(data:image\/|\/api\/clinical-assets\?)/i.test(file.url) || /\.(png|jpe?g|webp|gif)$/i.test(file.name);
   return (
     <div className="flex h-full items-center justify-center">
       {isImage ? (

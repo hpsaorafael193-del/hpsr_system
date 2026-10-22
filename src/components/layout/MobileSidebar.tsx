@@ -52,7 +52,7 @@ export function MobileSidebar({ onOpenSystemInfo, hasPendingAppointmentRequest =
       {open && (
         <div className="fixed inset-0 z-[100] lg:hidden">
           <button className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} aria-label="Fechar menu" />
-          <aside className="absolute left-0 top-0 h-full w-[min(86vw,360px)] overflow-y-auto bg-[linear-gradient(180deg,#672614_0%,#5d2012_46%,#2a0700_100%)] p-4 text-white shadow-2xl">
+          <aside data-hpsr-sidebar="true" className="absolute left-0 top-0 h-full w-[min(86vw,360px)] overflow-y-auto bg-[linear-gradient(180deg,#672614_0%,#5d2012_46%,#2a0700_100%)] p-4 text-white shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <div className="flex min-w-0 items-center gap-3">
                 <div className="relative h-12 w-12 overflow-hidden rounded-2xl bg-[#fcf6ee] p-1">
@@ -84,7 +84,7 @@ export function MobileSidebar({ onOpenSystemInfo, hasPendingAppointmentRequest =
                             aria-current={active ? "page" : undefined}
                             className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-medium transition ${active ? "border-[#e4d2c1] bg-[#fffaf4] text-hpsr-wine shadow-[inset_4px_0_0_#98523b]" : "border-transparent text-orange-50/95 hover:border-white/15 hover:bg-white/10 hover:text-white"} ${notifyPending ? "border border-red-300/30 bg-red-500/10 shadow-[0_0_16px_rgba(239,68,68,0.2)]" : ""}`}
                           >
-                            <span className="relative shrink-0"><Icon size={19} />{notifyPending && <span className="absolute -right-1.5 -top-1.5 h-2.5 w-2.5 rounded-full border border-white/80 bg-red-500 shadow-[0_0_9px_rgba(239,68,68,0.85)]" />}</span>
+                            <span className="relative shrink-0"><Icon size={19} />{notifyPending && <span data-hpsr-notification-dot="true" className="absolute -right-1.5 -top-1.5 h-2.5 w-2.5 rounded-full border border-white/80 bg-red-500 shadow-[0_0_9px_rgba(239,68,68,0.85)]" />}</span>
                             <span className="min-w-0 flex-1 truncate">{item.label}</span>
                             {hasChildren && <ChevronDown size={15} />}
                           </Link>

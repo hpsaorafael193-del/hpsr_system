@@ -1,3 +1,4 @@
+import { optimizeClinicalImage, blobDataUrl } from "@/lib/clinical-image-optimization";
 import type { RenderedExamDocument, RenderPatient, RenderDoctor } from "@/data/exames/final-renderer";
 import { measureDocumentReportHtml } from "@/lib/document-page-canvas";
 import { splitClinicalReportHtmlIntoPages } from "@/data/exames/final-renderer";
@@ -9,26 +10,32 @@ export type ClinicalRenderSnapshot = ExamRenderSnapshot | DocumentRenderSnapshot
 
 // Preserve original signature bytes, not the generated report PNG. Profile uploads
 // overwrite signature.png; a mutable URL alone would change historical reports.
+const preservedAssets = new Map<string, Promise<string>>();
 export async function preserveOriginalAsset(source: string | null | undefined, signature = false): Promise<string | null> {
   if (!source) return null;
-  if (source.startsWith("data:")) return source;
-  if (!signature && !source.startsWith("blob:")) return source;
-  const response = await fetch(source, { cache: "no-store" });
-  if (!response.ok) throw new Error("Não foi possível preservar a assinatura ou o anexo original. Tente novamente antes de salvar.");
-  const blob = await response.blob();
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("Falha ao ler a assinatura ou o anexo original."));
-    reader.readAsDataURL(blob);
-  });
+  if (source.startsWith("/api/clinical-assets?")) return source;
+  if (!signature && !/^(data:image\/|blob:)/.test(source)) return source;
+  const key = `${signature}:${source}`;
+  const cacheable = /^(data:|blob:)/.test(source) || /\/[a-f0-9]{64}\.png(?:\?|$)/i.test(source);
+  if (cacheable && preservedAssets.has(key)) return preservedAssets.get(key)!;
+  const task = (async () => {
+    const response = await fetch(source); if (!response.ok) throw new Error("Não foi possível preservar a imagem. Tente novamente antes de salvar.");
+    const original = await response.blob();
+    const optimized = await optimizeClinicalImage(original, signature ? "signature" : "attachment");
+    return optimized === original && source.startsWith("data:") ? source : blobDataUrl(optimized);
+  })();
+  if (cacheable && key.length < 12000000) {
+    while (preservedAssets.size && (preservedAssets.size >= 8 || [...preservedAssets.keys()].reduce((n,k)=>n+k.length,0)+key.length>12000000)) preservedAssets.delete(preservedAssets.keys().next().value!);
+    preservedAssets.set(key, task); task.catch(()=>preservedAssets.delete(key));
+  }
+  return task;
 }
 export async function captureExamSnapshot(document: RenderedExamDocument): Promise<ExamRenderSnapshot> {
   if (!document.metadata.signatureImage) throw new Error("Cadastre ou selecione a imagem da assinatura do médico antes de gerar ou salvar o laudo.");
   const frozen = JSON.parse(JSON.stringify(document)) as RenderedExamDocument;
   frozen.metadata.signatureImage = await preserveOriginalAsset(frozen.metadata.signatureImage, true);
   for (const page of frozen.pages) for (const file of page.manualAttachments || []) {
-    file.url = await preserveOriginalAsset(file.url, true) || "";
+    file.url = await preserveOriginalAsset(file.url, false) || "";
   }
   return { kind: "exam", rendererVersion: frozen.contentRendererVersion === 4 ? 4 : frozen.contentRendererVersion === 3 ? 3 : 2, layout: { ...CLINICAL_RENDER_LAYOUT, patientNameFont: (frozen.contentRendererVersion === 3 || frozen.contentRendererVersion === 4) ? 12 : CLINICAL_RENDER_LAYOUT.patientNameFont, template: frozen.contentRendererVersion === 4 ? "hpsr-exam-sheet-v4" : frozen.contentRendererVersion === 3 ? "hpsr-exam-sheet-v3" : CLINICAL_RENDER_LAYOUT.template, ...(frozen.contentRendererVersion === 4 ? { unsignedBodyHeight: 834, signedBodyHeight: 714, sectionGap: 12 } : {}) }, document: frozen };
 }
