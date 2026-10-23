@@ -1,4 +1,6 @@
 "use client";
+
+import { dnaParticipants, syncDnaParticipants } from "@/lib/dna-participants";
 import { AttachmentPasteArea } from "@/components/ui/AttachmentPasteArea";
 import { normalizeClinicalPasteHtml } from "@/lib/clinical-paste";
 import { clinicalEditorGuideTops } from "@/lib/clinical-editor-guides";
@@ -748,6 +750,9 @@ export default function ExamesPage() {
   const lastRange = useRef<Range | null>(null);
 
   const [patient, setPatient] = useState<PatientDraft>(emptyPatient);
+  const [secondPatient, setSecondPatient] = useState<PatientDraft | null>(null);
+  const [primaryDnaRole, setPrimaryDnaRole] = useState("Filho(a)");
+  const [secondaryDnaRole, setSecondaryDnaRole] = useState("Suposto pai");
   const patientOptions = sharedPatients as PatientDraft[];
   const [quickPatientOpen, setQuickPatientOpen] = useState(false);
   const [quickPatientDraft, setQuickPatientDraft] = useState<PatientDraft>(emptyPatient);
@@ -831,11 +836,11 @@ export default function ExamesPage() {
   const [editorPaginationError, setEditorPaginationError] = useState("");
 
   const draftPayload = useMemo(() => ({
-    schemaVersion: 1, patient, doctor, selectedDoctorId, selectedCategory, selectedExamId,
+    schemaVersion: 1, patient, secondPatient, primaryDnaRole, secondaryDnaRole, doctor, selectedDoctorId, selectedCategory, selectedExamId,
     adaptiveConfig, examNameInput, protocol, manualExamDateTime, examDate, examTime,
     signatureImage, attachments, attachmentOverrideActive, automaticAttachmentRemoved,
     automaticAttachmentNotes, isConfidential, showCatalog, reportHtml: draftHtml,
-  }), [patient, doctor, selectedDoctorId, selectedCategory, selectedExamId, adaptiveConfig,
+  }), [patient, secondPatient, primaryDnaRole, secondaryDnaRole, doctor, selectedDoctorId, selectedCategory, selectedExamId, adaptiveConfig,
     examNameInput, protocol, manualExamDateTime, examDate, examTime, signatureImage,
     attachments, attachmentOverrideActive, automaticAttachmentRemoved,
     automaticAttachmentNotes, isConfidential, showCatalog, draftHtml]);
@@ -845,6 +850,9 @@ export default function ExamesPage() {
     draftDoctorRef.current = draft.selectedDoctorId;
     skipAttachmentResetRef.current = true;
     setPatient(draft.patient || emptyPatient);
+    setSecondPatient(draft.secondPatient || null);
+    setPrimaryDnaRole(draft.primaryDnaRole || "Filho(a)");
+    setSecondaryDnaRole(draft.secondaryDnaRole || "Suposto pai");
     setDoctor(draft.doctor || initialDoctor);
     setSelectedDoctorId(draft.selectedDoctorId);
     setSelectedCategory(draft.selectedCategory);
@@ -1477,7 +1485,7 @@ export default function ExamesPage() {
       nextConfig = { ...adaptiveConfig, generationSeed };
       const refreshedModel = resolveIntelligentExamModel(selectedExam, nextConfig.adapterValue);
       const refreshedExam = resolveAdaptiveExam(refreshedModel, nextConfig, { age: patient.age, bloodType: patient.bloodType });
-      const generated = renderAdaptiveExamReport(refreshedExam);
+      const generated = syncDnaParticipants(renderAdaptiveExamReport(refreshedExam), dnaIdentity);
       const currentText = textFromHtml(current).trim();
       const onlyBase = !currentText || currentText === selectedExam.nome;
       merged = onlyBase ? generated : mergeAutomaticBlocks(current, generated);
@@ -1488,6 +1496,21 @@ export default function ExamesPage() {
     setAdaptiveConfig(nextConfig);
     setEditorContent(merged, { moveCaretToEnd: true });
   }
+
+  const isDnaExam = selectedExamId === "lab_teste_dna";
+  const dnaIdentity = isDnaExam && secondPatient ? [
+    { name: patient.name, passport: patient.passport, role: primaryDnaRole },
+    { name: secondPatient.name, passport: secondPatient.passport, role: secondaryDnaRole },
+  ] : [];
+  const dnaIdentityKey = JSON.stringify(dnaIdentity);
+  useEffect(() => {
+    if (!draftPersistence.ready) return;
+    const current = editorRef.current?.innerHTML || editorHtmlRef.current;
+    const next = syncDnaParticipants(current, JSON.parse(dnaIdentityKey));
+    if (next !== current) setEditorContent(next);
+    // Identity changes update only their own block, never the clinical results.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dnaIdentityKey, draftPersistence.ready]);
 
   function clearEditor() {
     setEditorContent("", { moveCaretToEnd: true });
@@ -1506,6 +1529,9 @@ export default function ExamesPage() {
           onClick: () => {
             setAppDialog(null);
             setPatient(emptyPatient);
+            setSecondPatient(null);
+            setPrimaryDnaRole("Filho(a)");
+            setSecondaryDnaRole("Suposto pai");
             setDoctor(initialDoctor);
             setSelectedDoctorId(currentUserProfile.id);
             draftDoctorRef.current = "";
@@ -1624,9 +1650,9 @@ export default function ExamesPage() {
   }
 
   function buildPreviewDocument() {
-    const html = cleanEditorHtml(
+    const html = syncDnaParticipants(cleanEditorHtml(
       editorRef.current?.innerHTML || editorHtmlRef.current,
-    );
+    ), dnaIdentity);
     const effectiveMetadata = manualExamDateTime
       ? metadata
       : { ...metadata, date: todayISO(), time: nowHHMM() };
@@ -1657,6 +1683,9 @@ export default function ExamesPage() {
     try {
       if (!patient.passport?.trim() || !patient.name?.trim()) throw new Error("Selecione ou cadastre o paciente antes de salvar.");
       if (patient.name.trim().toLowerCase() === doctor.name.trim().toLowerCase()) throw new Error("Paciente e médico responsável não podem ser o mesmo registro.");
+      const participants = isDnaExam ? dnaParticipants(
+        { ...patient, role: primaryDnaRole }, secondPatient ? { ...secondPatient, role: secondaryDnaRole } : null,
+      ) : [{ ...patient, role: "Paciente" }];
       syncEditorFromDom();
       const renderSnapshot = await captureExamSnapshot(preview.open && preview.document ? preview.document : buildPreviewDocument());
       const document = renderSnapshot.document;
@@ -1668,41 +1697,59 @@ export default function ExamesPage() {
       if (!client) throw new Error("Não foi possível conectar ao banco de dados.");
       {
         const recordId = `exam-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-        const payload = await persistClinicalImages({
-          schemaVersion: 4,
-          renderSnapshot,
-          examKind: "structured-exam",
-          protocol: document.metadata.protocol,
-          patient: document.metadata.patient,
-          doctor: { ...document.metadata.doctor, id: selectedDoctorId },
-          examId: selectedExam?.id || selectedExamId,
-          examName: document.metadata.examName,
-          examDate: document.metadata.date,
-          examTime: document.metadata.time,
-          examPerformedAt: brazilDateTimeIso(document.metadata.date, document.metadata.time),
-          reportHtml: html,
-          attachments: attachments.map(({ id, name, size }) => ({ id, name, size })),
-          savedAt,
-        }, { recordId });
-        const { error } = await client.from("clinical_records").insert({
-          id: recordId,
-          patient_passport: document.metadata.patient.passport || null,
-          record_type: "Exame",
-          is_confidential: true,
-          released_at: null,
-          image_asset_paths: payload.imageAssets,
-          history_title: document.metadata.examName,
-          history_patient_name: document.metadata.patient.name || null,
-          history_doctor_name: document.metadata.doctor.name || null,
-          payload,
-        });
-        if (error) throw error;
-        if (!isConfidential) {
-          const { error: releaseError } = await client.rpc("set_clinical_record_visibility", {
-            target_record_id: recordId,
-            confidential: false,
+        const records = [];
+        for (const [index, participant] of participants.entries()) {
+          const patientRecordId = index === 0 ? recordId : `${recordId}-participant-${index + 1}`;
+          const payload = await persistClinicalImages({
+            schemaVersion: 4,
+            renderSnapshot,
+            examKind: "structured-exam",
+            protocol: document.metadata.protocol,
+            patient: participant,
+            participants,
+            relatedExamId: recordId,
+            recordPatient: participant,
+            doctor: { ...document.metadata.doctor, id: selectedDoctorId },
+            examId: selectedExam?.id || selectedExamId,
+            examName: document.metadata.examName,
+            examDate: document.metadata.date,
+            examTime: document.metadata.time,
+            examPerformedAt: brazilDateTimeIso(document.metadata.date, document.metadata.time),
+            reportHtml: html,
+            attachments: attachments.map(({ id, name, size }) => ({ id, name, size })),
+            savedAt,
+          }, { recordId: patientRecordId });
+          records.push({
+            id: patientRecordId,
+            patient_passport: participant.passport || null,
+            record_type: "Exame",
+            is_confidential: true,
+            released_at: null,
+            image_asset_paths: payload.imageAssets,
+            history_title: document.metadata.examName,
+            history_patient_name: participant.name || null,
+            history_doctor_name: document.metadata.doctor.name || null,
+            payload,
           });
-          if (releaseError) { setPreview({ open: false, document: null, pageIndex: 0 }); setSaveStatus("Salvo em sigilo · liberação pendente"); hpsrSuccess("Exame salvo em sigilo. A liberação ao Portal falhou: " + clinicalSaveError(releaseError), "Exame salvo"); return; }
+        }
+        const { error } = await client.from("clinical_records").insert(records);
+        if (error) throw error;
+        const releaseFailures: string[] = [];
+        if (!isConfidential) {
+          for (const record of records) {
+            const { error: releaseError } = await client.rpc("set_clinical_record_visibility", {
+              target_record_id: record.id,
+              confidential: false,
+            });
+            if (releaseError) releaseFailures.push(record.history_patient_name || "Paciente");
+          }
+        }
+        if (releaseFailures.length) {
+          setPreview({ open: false, document: null, pageIndex: 0 });
+          setSaveStatus("Salvo · liberação pendente");
+          window.dispatchEvent(new CustomEvent("hpsr:clinical-record-saved", { detail: { recordType: "Exame" } }));
+          hpsrSuccess(`Exame salvo nos prontuários selecionados. A liberação ao portal ficou pendente para: ${releaseFailures.join(", ")}. Libere pelo histórico.`, "Exame salvo");
+          return;
         }
       }
 
@@ -1715,7 +1762,7 @@ export default function ExamesPage() {
       setPreview({ open: false, document: null, pageIndex: 0 });
       registerSystemActivity({ module: "Exames", action: "Exame salvo", description: `${document.metadata.examName} salvo para ${patient.name || "paciente não informado"}.`, actor: currentUserProfile.systemName, reference: currentUserProfile.passport });
       window.dispatchEvent(new CustomEvent("hpsr:clinical-record-saved", { detail: { recordType: "Exame" } }));
-      hpsrSuccess(`${document.metadata.examName} foi salvo no prontuário de ${patient.name}.`, "Exame salvo");
+      hpsrSuccess(`${document.metadata.examName} foi salvo ${participants.length > 1 ? "nos prontuários de" : "no prontuário de"} ${participants.map(item => item.name).join(" e ")}.`, "Exame salvo");
     } catch (error) {
       console.error("[HPSR][Exames] Falha ao salvar ou preparar o preview:", error);
       const message = clinicalSaveError(error);
@@ -2023,6 +2070,37 @@ export default function ExamesPage() {
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e6f0e8] px-2.5 py-1 text-[12px] font-black text-[#2f634c]"><Check size={12} /> Ligado</span>
                 </div>
                 <div className="space-y-3">
+                  {isDnaExam && (
+                    <div className="space-y-3">
+                      <div>
+                        <FieldLabel htmlFor="dna-second-patient">Segundo paciente (opcional)</FieldLabel>
+                        <SelectInput id="dna-second-patient" value={secondPatient?.passport || ""} onChange={(passport) => {
+                          const found = patientOptions.find(item => item.passport === passport) || null;
+                          setSecondPatient(found);
+                          if (found) updateVariable("participantes", "2");
+                        }}>
+                          <option value="">Sem segundo paciente</option>
+                          {patientOptions.filter(item => item.passport.trim().toUpperCase() !== patient.passport.trim().toUpperCase()).map(item => (
+                            <option key={item.passport} value={item.passport}>{item.name} · {item.passport}</option>
+                          ))}
+                        </SelectInput>
+                      </div>
+                      {secondPatient && (
+                        <>
+                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div><FieldLabel>Participação de {patient.name || "paciente principal"}</FieldLabel><SelectInput value={primaryDnaRole} onChange={setPrimaryDnaRole}>
+                              {["Filho(a)", "Suposto pai", "Suposta mãe", "Familiar", "Participante"].map(role => <option key={role} value={role}>{role}</option>)}
+                            </SelectInput></div>
+                            <div><FieldLabel>Participação de {secondPatient.name}</FieldLabel><SelectInput value={secondaryDnaRole} onChange={setSecondaryDnaRole}>
+                              {["Filho(a)", "Suposto pai", "Suposta mãe", "Familiar", "Participante"].map(role => <option key={role} value={role}>{role}</option>)}
+                            </SelectInput></div>
+                          </div>
+                          <p className="text-[12px] font-semibold text-hpsr-muted">O mesmo laudo será salvo nos dois prontuários. O sigilo e a liberação poderão ser gerenciados individualmente no histórico.</p>
+                        </>
+                      )}
+                    </div>
+                  )}
+
                   {selectedExam?.adapter.enabled && selectedExam.adapter.kind !== "clinical-context" && adaptiveConfig && (
                     <div>
                       <FieldLabel>{selectedExam.adapter.label}</FieldLabel>

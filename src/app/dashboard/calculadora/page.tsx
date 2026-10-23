@@ -38,6 +38,7 @@ type Product = {
   categoria?: string;
   preco: number;
   descontoPmValor?: number;
+  semDescontoConvenio?: boolean;
   imagem: string;
 };
 
@@ -114,6 +115,7 @@ const procedimentos: Product[] = [
   {
     id: "p1",
     nome: "DESLOCAMENTO",
+    semDescontoConvenio: true,
     descricao: "Atendimento com deslocamento para a região Sul.",
     preco: 150000,
     imagem: "Icones/procedimentos/Tratamento.webp",
@@ -121,6 +123,7 @@ const procedimentos: Product[] = [
   {
     id: "p10",
     nome: "DESLOCAMENTO (ILHAS)",
+    semDescontoConvenio: true,
     descricao: "Atendimento com deslocamento para as Ilhas.",
     preco: 300000,
     imagem: "Icones/procedimentos/Tratamento.webp",
@@ -272,7 +275,10 @@ export default function CalculatorPage() {
   );
 
   const subtotal = selectedItems.reduce((total, item) => total + item.unitPrice * item.quantity, 0);
-  const discountValue = subtotal * selectedConvenio.discount;
+  const discountableSubtotal = selectedItems
+    .filter((item) => !item.product.semDescontoConvenio)
+    .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+  const discountValue = discountableSubtotal * selectedConvenio.discount;
   const total = Math.round(subtotal - discountValue);
   const tabletHpSubtotal = selectedItems
     .filter((item) => tabletHpProductIds.has(item.product.id))
