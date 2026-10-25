@@ -48,7 +48,7 @@ const medicamentos: Product[] = [
     nome: "KIT MÉDICO",
     descricao: "Kit completo para primeiros socorros.",
     preco: 200000,
-    descontoPmValor: 100000,
+    descontoPmValor: 50000,
     imagem: "Icones/produtos/Kit medico.png",
   },
   {
@@ -63,7 +63,7 @@ const medicamentos: Product[] = [
     nome: "ATADURA",
     descricao: "Faixa de suporte e imobilização.",
     preco: 30000,
-    descontoPmValor: 20000,
+    descontoPmValor: 10000,
     imagem: "Icones/produtos/Atadura.png",
   },
   {

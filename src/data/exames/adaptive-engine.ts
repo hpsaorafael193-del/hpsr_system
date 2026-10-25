@@ -1170,7 +1170,7 @@ function guidedRuntimeOverride(
     const legacyValues: Record<string, Record<string, string>> = {
       indeterminado: {
         tipo_exame: "Quantitativo",
-        resultado_qualitativo: "Indeterminado",
+        resultado_qualitativo: "Inconclusivo",
         beta_hcg_quantitativo: `${formatPtNumber(deterministicBetween(`beta:indeterminado:${generationSeed}`, 6, 24), "0", "mUI/mL")} mUI/mL`,
         correspondencia_gestacional: "Faixa limítrofe, sem definição isolada",
         evolucao_seriada: "Repetir em 48–72 horas conforme avaliação clínica",
@@ -1519,14 +1519,21 @@ function contextualMethodFocus(resolved: AdaptiveResolvedExam) {
     parts.push(`considerando o tipo sanguíneo informado (${resolved.patientContext.bloodType})`);
   }
 
+  if (resolved.model.id === "gineco_usg_monitorizacao_folicular" && !monitoringBaselineFocus(resolved.variables)) {
+    const focus = normalizedFieldKey(String(resolved.variables.foco_monitorizacao ?? resolved.variables.papel_no_protocolo ?? ""));
+    const field = /endometr|receptora|gestante/.test(focus) ? "dia_preparo_endometrial" : "dia_estimulacao";
+    const day = String(resolved.variables[field] ?? "").trim();
+    if (day) parts.push(`${field === "dia_estimulacao" ? "dia de estimulação" : "dia de preparo endometrial"}: ${day}`);
+  }
+
   const gestationalAge = String(resolved.variables.idade_gestacional ?? resolved.variables.idade_gestacional_referida ?? "").trim();
   const fetuses = String(resolved.variables.numero_fetos ?? "").trim();
   const fiv = String(resolved.variables.fiv ?? "").trim();
   const risk = String(resolved.variables.risco ?? "").trim();
   if (gestationalAge) parts.push(`considerando idade gestacional informada de ${gestationalAge}${/sem/i.test(gestationalAge) ? "" : " semanas"}`);
   if (fetuses && Number(fetuses) > 1) parts.push(`com avaliação de gestação múltipla (${fetuses} fetos informados)`);
-  if (/^sim$/i.test(fiv)) parts.push("no contexto de gestação por fertilização in vitro");
-  if (/^sim$/i.test(risk)) parts.push("com atenção adicional ao contexto de gestação de risco informado");
+  if (/^(sim|true)$/i.test(fiv)) parts.push("no contexto de gestação por fertilização in vitro");
+  if (/^(sim|true)$/i.test(risk)) parts.push("com atenção adicional ao contexto de gestação de risco informado");
 
   if (resolved.model.id === "lab_teste_dna") {
     const participants = String(resolved.variables.participantes ?? "").trim();
@@ -1883,8 +1890,8 @@ function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][
   if (resolved.model.id === "gineco_usg_monitorizacao_folicular" && resolved.profile.status === "normal") {
     const focus = monitoringBaselineFocus(resolved.variables);
     if (focus) return develop(focus === "follicles"
-      ? "Esta é uma avaliação basal, com dia de estimulação informado como zero. Os pequenos folículos descritos representam o aspecto observado antes do tratamento; não há resposta ao estímulo nem maturidade folicular a presumir neste modelo. A comparação posterior permitirá avaliar a resposta ao protocolo, sem assumir crescimento apenas pela passagem dos dias."
-      : "Esta avaliação foi configurada antes do início do preparo endometrial. O padrão e a espessura descritos são basais; não representam resposta ao tratamento nem confirmação de que o endométrio esteja preparado para transferência. O acompanhamento posterior deve considerar a evolução dos achados e o protocolo informado.");
+      ? "Avaliação basal, antes do início da estimulação. Os pequenos folículos descritos representam o aspecto ovariano inicial, sem evidência de resposta ao estímulo ou maturidade folicular."
+      : "Avaliação basal, antes do início do preparo endometrial. A espessura e o padrão descritos representam o aspecto inicial, sem demonstrar resposta ao tratamento ou prontidão para transferência.");
   }
   if (resolved.model.id === "hormonal_painel_hormonal_completo" && resolved.profile.id !== "personalizado") {
     const profile = resolved.profile.id;
@@ -1905,9 +1912,7 @@ function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][
   const repeated = isRepeatedEvidenceNarrative(resolved.profile.interpretation);
   let narrative = reviewedInterpretation(resolved.model.id, resolved.profile.id, original);
   if (repeated && !narrative && resolved.profile.status !== "normal" && resolved.profile.id !== "normal") {
-    narrative = resolved.profile.status === "indefinido"
-      ? "O resultado não permite uma definição segura por si só. A avaliação deve considerar os sintomas, o histórico e, quando disponíveis, exames anteriores."
-      : "A importância das alterações depende dos sintomas, do histórico e dos demais exames do paciente.";
+    narrative = "";
   }
   // The clinical context and protocol are already recorded in Method. Keep only
   // context-specific limitations here, without describing how the system worked.
@@ -1938,6 +1943,7 @@ function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
     };
     if (reviewed[profile.id]) return reviewed[profile.id];
   }
+  if (model.id === "lab_beta_hcg_completo" && profile.id === "indeterminado") return "β-hCG inconclusivo (faixa indeterminada).";
   let conclusion = refreshedNarrative(resolved, profile.conclusion, "conclusion");
   if (isRepeatedEvidenceConclusion(profile.conclusion)) {
     const impression = rows.find(row => /impressão|impressao|conclusão|conclusao|diagnóstico|diagnostico/i.test(row[0] || ""))?.[1]

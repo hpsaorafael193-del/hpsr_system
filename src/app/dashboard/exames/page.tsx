@@ -915,7 +915,7 @@ export default function ExamesPage() {
   const visibleExamProfiles = useMemo(() => {
     if (!activeExamModel) return [];
     if (activeExamModel.id !== "lab_beta_hcg_completo") return activeExamModel.profiles;
-    return activeExamModel.profiles.filter((profile) => profile.id === "negativo" || profile.id === "positivo");
+    return activeExamModel.profiles.filter((profile) => profile.id === "negativo" || profile.id === "positivo" || profile.id === "indeterminado");
   }, [activeExamModel]);
 
   const availableClinicalContexts = useMemo(() => activeExamModel?.clinicalContexts || [], [activeExamModel]);

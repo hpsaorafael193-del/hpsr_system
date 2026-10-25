@@ -27,11 +27,11 @@ for(const model of models){
   assert(parse(changed.html).querySelector('table') || parse(changed.html).textContent.includes(marker));
   assert(changed.html.includes(marker),model.id+'/'+parameter.id);fields++;
  }
- // Free clinical context must participate in the clinical reading in all catalogue branches.
+ // Clinical context remains recorded once in Method; do not duplicate it as reading boilerplate.
  const contextual=render(model,{variables:{contexto_clinico:'Dor persistente após trauma'}});
  if(contextual.resolved.dynamicFields.some(f=>f.id==='contexto_clinico')){
   const reading=parse(contextual.html).querySelector('[data-hpsr-block="interpretacao"]')?.textContent||'';
-  assert(reading.includes('Dor persistente após trauma'),model.id);assert(reading.includes('localização'),model.id);
+  assert(parse(contextual.html).textContent.includes('Dor persistente após trauma'),model.id);assert(!reading.includes('A avaliação considera o contexto informado'),model.id);
  }
 }
 const ctg=models.find(m=>m.id==='obst_cardiotocografia');
@@ -72,7 +72,7 @@ for(const model of models){
  }
  if(initial.resolved.dynamicFields.some(f=>f.id==='contexto_clinico')){
   const contextual=render(model,{variables:{contexto_clinico:'Dor persistente após trauma'}});
-  assert(parse(contextual.html).querySelector('[data-hpsr-block="interpretacao"]').textContent.includes('localização'),model.id);contextModels++;
+  assert(parse(contextual.html).textContent.includes('Dor persistente após trauma'),model.id);contextModels++;
  }
 }
 console.log(`PASS ${variableChecks} active-variable mutation checks and ${contextModels} context-aware catalogue readings, including models without a custom profile`);

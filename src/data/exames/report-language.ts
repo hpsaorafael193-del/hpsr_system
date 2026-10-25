@@ -8,6 +8,7 @@ export function clearReportLanguage(value: string): string {
     .replace(/sem definição diagnóstica isolada/gi, 'sem permitir um diagnóstico por si só')
     .replace(/de significado inespecífico isoladamente/gi, 'que, isoladamente, não indica uma causa específica')
     .replace(/conforme os resultados efetivamente informados/gi, 'conforme os resultados registrados')
+    .replace(/(?:^|(?<=[.!?])\s+)(?:A avaliação deve considerar|A interpretação deve considerar|Correlacionar (?:com|clinicamente)|Recomenda-se correlação clínica)[^.!?]*(?:[.!?]|$)/gi, '')
     .replace(/[ \t]+/g, ' ').trim();
 }
 
@@ -89,9 +90,9 @@ export const interpretationCopy: Record<string, Record<string, string>> = {
     indefinido: 'O resultado isolado não permite definir a causa das alterações.',
   },
   lab_beta_hcg_completo: {
-    negativo: 'A avaliação deve considerar a data da coleta, o atraso menstrual e o uso de medicamentos, quando necessário.',
-    positivo: 'A avaliação deve considerar a idade gestacional estimada, a data da última menstruação, o contexto de FIV e a evolução entre coletas.',
-    indeterminado: 'A ausência de definição pode estar relacionada a uma fase muito inicial, variação da análise ou acompanhamento após um evento gestacional.',
+    negativo: 'A concentração está abaixo do limite de detecção de gravidez adotado pelo método. Uma coleta muito precoce pode preceder a elevação do hormônio.',
+    positivo: 'A concentração supera o limite de positividade do método. A dosagem isolada não determina a localização nem a viabilidade da gestação.',
+    indeterminado: 'A concentração está na faixa intermediária do método, sem permitir confirmar ou excluir gestação nesta amostra. Nova dosagem permite verificar se há elevação ou queda do hormônio.',
     seguimento: 'A comparação deve considerar o intervalo entre coletas e a tendência de elevação, estabilização ou queda.',
   },
   lab_teste_dna: {
@@ -175,7 +176,7 @@ export function reviewedInterpretation(modelId: string, profileId: string, origi
   if (profileId === 'personalizado') return original;
   const meaning = specificExamMeaning(modelId);
   const selected = interpretationCopy[modelId]?.[profileId];
-  if (selected !== undefined) return selected || meaning;
+  if (selected !== undefined) return clearReportLanguage(selected || "") || meaning;
   if (isRepeatedEvidenceNarrative(original)) return meaning;
   if (modelId === 'lab_hba1c_completa' && profileId !== 'personalizado') {
     return 'A hemoglobina glicada resume o controle da glicose nos últimos dois a três meses. A interpretação deve considerar o histórico e os critérios clínicos aplicáveis.';

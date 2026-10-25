@@ -35,6 +35,10 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
         {
           "valor": "positivo",
           "label": "Positivo"
+        },
+        {
+          "valor": "indeterminado",
+          "label": "Inconclusivo / indeterminado"
         }
       ],
       "referencia": "Negativo"
@@ -44,7 +48,7 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "tipo": "number",
       "label": "β-hCG Quantitativo",
       "unidade": "mUI/mL",
-      "referencia": "< 5"
+      "referencia": "Negativo: < 5; inconclusivo: 5–25; positivo: > 25 mUI/mL"
     },
     {
       "id": "correspondencia_gestacional",
@@ -166,7 +170,7 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
         "evolucao_seriada": "Sem indicação de curva seriada neste resultado isolado",
         "impressao": "β-hCG negativo"
       },
-      "interpretation": "Resultado de β-hCG dentro da faixa considerada negativa para o método utilizado. Correlacionar com data da coleta, atraso menstrual, uso de medicações e contexto clínico quando necessário.",
+      "interpretation": "A concentração de β-hCG está abaixo do limite de detecção de gravidez adotado pelo método. Uma coleta muito precoce pode preceder a elevação do hormônio.",
       "conclusion": "β-hCG negativo no material analisado."
     },
     {
@@ -183,25 +187,25 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
         "evolucao_seriada": "Controle seriado somente quando clinicamente indicado",
         "impressao": "β-hCG positivo"
       },
-      "interpretation": "Resultado positivo para β-hCG. A interpretação deve considerar idade gestacional estimada, data da última menstruação, contexto de FIV quando aplicável e evolução seriada dos valores.",
+      "interpretation": "A concentração de β-hCG supera o limite de positividade do método. A dosagem isolada não determina a localização nem a viabilidade da gestação.",
       "conclusion": "β-hCG positivo. Recomenda-se correlação clínica e acompanhamento conforme avaliação médica."
     },
     {
       "id": "indeterminado",
-      "name": "Indeterminado / limítrofe",
+      "name": "Inconclusivo / indeterminado",
       "status": "indefinido",
       "description": "Valor baixo ou limítrofe, sem definição isolada.",
       "resultSummary": "β-hCG em faixa limítrofe/indeterminada.",
       "results": {
         "tipo_exame": "Quantitativo",
-        "resultado_qualitativo": "Indeterminado",
+        "resultado_qualitativo": "Inconclusivo",
         "beta_hcg_quantitativo": "14",
         "correspondencia_gestacional": "Faixa limítrofe, sem definição isolada",
         "evolucao_seriada": "Repetir em 48–72 horas conforme avaliação clínica",
         "impressao": "β-hCG em faixa indeterminada"
       },
-      "interpretation": "Valor de β-hCG em faixa limítrofe, sem definição diagnóstica isolada. Pode ocorrer em fase muito inicial, variação analítica, seguimento pós-evento gestacional ou outras situações clínicas.",
-      "conclusion": "β-hCG indeterminado/limítrofe. Recomenda-se repetir a dosagem e correlacionar clinicamente."
+      "interpretation": "A concentração está na faixa intermediária do método, sem permitir confirmar ou excluir gestação nesta amostra. Nova dosagem permite verificar se há elevação ou queda do hormônio.",
+      "conclusion": "β-hCG inconclusivo (faixa indeterminada)."
     },
     {
       "id": "seguimento",
