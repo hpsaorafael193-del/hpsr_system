@@ -7,3 +7,5 @@
 5. O sistema não gera PDF. Documentos visuais gerados pelo HPSR são PNG somente sob demanda; anexos de modelos não aceitam PDF.
 6. Identidade profissional é o UUID do perfil. Mudança de nome deve propagar o nome de exibição aos registros vinculados sem criar um “novo médico”.
 7. Diretora e Vice Diretor / Dev preservam acesso administrativo total conforme as regras de cada módulo.
+
+8. Pequenas correções podem avançar automaticamente o número sequencial da versão. Em conjuntos de muitas mudanças, acumular os ajustes e gerar uma versão consolidada, sem criar um pacote a cada solicitação.

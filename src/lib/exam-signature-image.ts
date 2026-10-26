@@ -72,7 +72,7 @@ export function loadSignaturePreview(source: string): Promise<string | null> {
   }
   const result = new Promise<string | null>((resolve) => {
     const image = new Image();
-    if (!source.startsWith("data:")) image.crossOrigin = "anonymous";
+    if (!/^(data:|blob:)/i.test(source)) image.crossOrigin = "anonymous";
     image.onerror = () => { signaturePreviews.delete(source); resolve(null); };
     image.onload = () => {
       try {

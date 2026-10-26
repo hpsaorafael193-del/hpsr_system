@@ -26,8 +26,15 @@ export async function GET(request: NextRequest) {
       }
     }
     if(!allowed)return NextResponse.json({error:"Acesso não autorizado."},{status:403});
-    const {data,error}=await getServiceClient().storage.from('clinical-assets').createSignedUrl(path,120);
-    if(error||!data)return NextResponse.json({error:"Imagem não encontrada."},{status:404});
-    return NextResponse.redirect(data.signedUrl,{status:302,headers:{'Cache-Control':'private, no-store','Referrer-Policy':'no-referrer'}});
+    const {data:file,error}=await getServiceClient().storage.from('clinical-assets').download(path);
+    if(error||!file)return NextResponse.json({error:"Imagem não encontrada."},{status:404});
+    // Keep authorized asset bytes on the site's origin. A redirect can taint a canvas
+    // even when its initial URL is relative and the signature itself is unchanged.
+    const types:Record<string,string>={png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',webp:'image/webp',gif:'image/gif',avif:'image/avif',bmp:'image/bmp'};
+    const contentType=types[path.split('.').pop()!.toLowerCase()] || 'application/octet-stream';
+    return new NextResponse(file.stream(),{status:200,headers:{
+      'Content-Type':contentType,'Cache-Control':'private, no-store',
+      'X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer',
+    }});
   } catch {return NextResponse.json({error:"Não foi possível carregar a imagem."},{status:503});}
 }

@@ -22,12 +22,12 @@ function load(file,mocks={}) {const m=new Module(path.resolve(file),module);m.pa
  const row=()=>record?{patient_passport:'338',image_asset_paths:[assetPath],released_image_asset_paths:published?[assetPath]:[]}:null;
  function chain(isPatient=false){return{select(){return this},eq(k,v){if(isPatient&&k==='is_confidential'&&v===false&&!published)this.blocked=true;return this},not(){return this},maybeSingle:async function(){return {data:this.blocked?null:row()}}};}
  const caller={auth:{getUser:async()=>({data:{user:user?{id:user}:null}})},rpc:async()=>({data:staff}),from:()=>chain()};
- const service={storage:{from:()=>({createSignedUrl:async()=>({data:{signedUrl:'https://storage.invalid/image'}})})}};
+ const service={storage:{from:()=>({download:async()=>({data:new Blob([new Uint8Array([137,80,78,71])],{type:'image/png'})})})}};
  const route=load('src/app/api/clinical-assets/route.ts',{'@supabase/ssr':{createServerClient:()=>caller},'@/lib/patient-portal/server':{getServiceClient:()=>service,getValidPatientSession:async()=>patient?{supabase:{from:()=>chain(true)}}:null,resolvePortalPatientPassport:async()=>accessible?'338':null}});
  process.env.NEXT_PUBLIC_SUPABASE_URL='https://project.invalid';process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY='test';
  const {NextRequest}=require('next/server');const req=(suffix='')=>new NextRequest('https://site.invalid/api/clinical-assets?path='+encodeURIComponent(assetPath)+'&recordId=exam-test'+suffix);
- assert.equal((await route.GET(req())).status,302);staff=false;user=null;assert.equal((await route.GET(req())).status,403);
- patient=true;assert.equal((await route.GET(req())).status,302);accessible=false;assert.equal((await route.GET(req())).status,403);accessible=true;published=false;assert.equal((await route.GET(req())).status,403);published=true;patient=false;user=owner;staff=true;record=false;assert.equal((await route.GET(req())).status,403);
+ const originalResponse=await route.GET(req());assert.equal(originalResponse.status,200);assert.equal(originalResponse.headers.get('location'),null);assert.equal(originalResponse.headers.get('content-type'),'image/png');assert.equal(originalResponse.headers.get('cache-control'),'private, no-store');assert.equal(originalResponse.headers.get('x-content-type-options'),'nosniff');assert.deepEqual(new Uint8Array(await originalResponse.arrayBuffer()),new Uint8Array([137,80,78,71]));staff=false;user=null;assert.equal((await route.GET(req())).status,403);
+ patient=true;assert.equal((await route.GET(req())).status,200);accessible=false;assert.equal((await route.GET(req())).status,403);accessible=true;published=false;assert.equal((await route.GET(req())).status,403);published=true;patient=false;user=owner;staff=true;record=false;assert.equal((await route.GET(req())).status,403);
  assert.equal((await route.GET(new NextRequest('https://site.invalid/api/clinical-assets?path=bad'))).status,400);
  console.log('PASS: real asset route denies anonymous, missing record, revoked release and guardian denial; authorizes staff and allowed published patient.');
  // Real canvas encoding verifies signature geometry, alpha and legibility-preserving caps.

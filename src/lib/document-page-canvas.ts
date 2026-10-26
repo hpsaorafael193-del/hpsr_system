@@ -4,7 +4,7 @@ import { drawRichTextElement, measureRichTextElement } from "@/lib/rich-text-can
   function loadImage(src: string) {
     return new Promise<HTMLImageElement | null>((resolve) => {
       const image = new Image();
-      const isRemote = /^https?:\/\//i.test(src);
+      const isRemote = !/^(data:|blob:)/i.test(src);
       if (isRemote) image.crossOrigin = "anonymous";
       image.onload = () => resolve(image);
       image.onerror = () => resolve(null);

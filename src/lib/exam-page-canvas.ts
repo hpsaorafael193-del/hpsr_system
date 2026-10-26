@@ -27,7 +27,7 @@ export async function renderExamPage(
     const loadImage = (src: string) =>
       new Promise<HTMLImageElement | null>((resolve) => {
         const image = new Image();
-        const isRemoteImage = /^https?:\/\//i.test(src);
+        const isRemoteImage = !/^(data:|blob:)/i.test(src);
         if (isRemoteImage) {
           image.crossOrigin = "anonymous";
           image.referrerPolicy = "no-referrer";
