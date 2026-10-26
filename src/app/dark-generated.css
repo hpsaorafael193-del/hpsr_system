@@ -312,9 +312,6 @@ html[data-theme="dark"] :is(.border-\[\#d2b49c\]):not(:where(.hpsr-render-page,.
 html[data-theme="dark"] :is(.border-\[\#d2b5a4\]):not(:where(.hpsr-render-page,.hpsr-render-page *,[data-hpsr-document],[data-hpsr-document] *)) {
   border-color: rgb(77 61 49 / var(--tw-border-opacity, 1))
 }
-html[data-theme="dark"] :is(.border-\[\#d2b7a8\]):not(:where(.hpsr-render-page,.hpsr-render-page *,[data-hpsr-document],[data-hpsr-document] *)) {
-  border-color: rgb(77 61 49 / var(--tw-border-opacity, 1))
-}
 html[data-theme="dark"] :is(.border-\[\#d2b8a8\]):not(:where(.hpsr-render-page,.hpsr-render-page *,[data-hpsr-document],[data-hpsr-document] *)) {
   border-color: rgb(77 61 49 / var(--tw-border-opacity, 1))
 }
@@ -4899,9 +4896,6 @@ html[data-theme="dark"] :is(.hover\:bg-\[\#f1dfcd\]:hover):not(:where(.hpsr-rend
   background-color: rgb(43 35 29 / var(--tw-bg-opacity, 1))
 }
 html[data-theme="dark"] :is(.hover\:bg-\[\#f1dfd4\]:hover):not(:where(.hpsr-render-page,.hpsr-render-page *,[data-hpsr-document],[data-hpsr-document] *)) {
-  background-color: rgb(43 35 29 / var(--tw-bg-opacity, 1))
-}
-html[data-theme="dark"] :is(.hover\:bg-\[\#f2dfd2\]:hover):not(:where(.hpsr-render-page,.hpsr-render-page *,[data-hpsr-document],[data-hpsr-document] *)) {
   background-color: rgb(43 35 29 / var(--tw-bg-opacity, 1))
 }
 html[data-theme="dark"] :is(.hover\:bg-\[\#f2e2d7\]:hover):not(:where(.hpsr-render-page,.hpsr-render-page *,[data-hpsr-document],[data-hpsr-document] *)) {

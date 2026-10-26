@@ -1,5 +1,7 @@
 "use client";
 
+import { isLinkedActiveFollowup } from "@/lib/followup-plan-visibility";
+
 import { individualReleaseState } from "@/lib/planning-release-state";
 import { mergeIndividualIntoDraft, individualDraftKey, parseIndividualDraft, individualEditorFields } from "@/lib/planning-edit-persistence";
 import planningStyles from "./planning-consultations.module.css";
@@ -212,6 +214,7 @@ function ObstetricianWorkspace() {
   const reviewedFivVersions=useRef<Record<string,string>>({});
   const [editingPlanId, setEditingPlanId] = useState("");
   const [plans, setPlans] = useState<ObstetricPlan[]>([]);
+  const [activePlanLinks, setActivePlanLinks] = useState<{doctor_id:string;patient_passport:string;specialty:string}[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState("");
   const [occurrences, setOccurrences] = useState<FollowupOccurrence[]>([]);
   const [selectedOccurrenceId, setSelectedOccurrenceId] = useState("");
@@ -238,7 +241,6 @@ function ObstetricianWorkspace() {
   const [scheduleAvailabilityNote, setScheduleAvailabilityNote] = useState("");
   const [historyShortcutActive, setHistoryShortcutActive] = useState(false);
   const [historySearch, setHistorySearch] = useState("");
-  const [historyTypeFilter, setHistoryTypeFilter] = useState<"all" | PlanningKind>("all");
   const [expandedHistoryPlanId, setExpandedHistoryPlanId] = useState("");
   const [historyTimeline, setHistoryTimeline] = useState<Record<string, HistoryTimelineEvent[]>>({});
   const [historyTimelineLoading, setHistoryTimelineLoading] = useState("");
@@ -257,17 +259,18 @@ function ObstetricianWorkspace() {
   const scheduleConfirmed = Boolean(confirmedKey && confirmedKey === scheduleKey && confirmedSteps.length);
   const manageablePlans = useMemo(() => plans.filter((plan) => canManageReproductivePlan(profile.role, profile.specialty, plan.plan_type)), [plans, profile.role, profile.specialty]);
   const contextPlans = useMemo(() => manageablePlans.filter((plan) => plan.plan_type === planType), [manageablePlans, planType]);
-  const primaryPlans = manageablePlans.filter(plan => plan.fiv_role !== "doadora" || !manageablePlans.some(other => other.fiv_project_id === plan.fiv_project_id && other.fiv_role === "gestante"));
+  const primaryPlans = contextPlans.filter(plan => plan.fiv_role !== "doadora" || !contextPlans.some(other => other.fiv_project_id === plan.fiv_project_id && other.fiv_role === "gestante"));
+  const isActivePlanning = (plan: ObstetricPlan) => isLinkedActiveFollowup(plan, activePlanLinks, specialty => linkMatchesPlan(plan.plan_type, specialty));
+  const activePrimaryPlans = primaryPlans.filter(isActivePlanning);
   const filteredHistoryPlans = useMemo(() => {
     const query = historySearch.trim().toLocaleLowerCase("pt-BR");
-    return manageablePlans.filter((plan) => {
+    return contextPlans.filter((plan) => {
       if (plan.fiv_role === "doadora" && manageablePlans.some(other => other.fiv_project_id === plan.fiv_project_id && other.fiv_role === "gestante")) return false;
-      if (historyTypeFilter !== "all" && plan.plan_type !== historyTypeFilter) return false;
       if (!query) return true;
       return [plan.patient_name, plan.patient_passport, plan.doctor_name, ...manageablePlans.filter(other => other.fiv_project_id && other.fiv_project_id === plan.fiv_project_id).flatMap(other => [other.patient_name, other.patient_passport]), plan.start_date, plan.end_date || "", planTypeLabel(plan.plan_type)]
         .some((value) => String(value || "").toLocaleLowerCase("pt-BR").includes(query));
     });
-  }, [manageablePlans, historySearch, historyTypeFilter]);
+  }, [contextPlans, manageablePlans, historySearch]);
   const editingPlan = manageablePlans.find((plan) => plan.id === editingPlanId) || null;
   const selectedPlan = plans.find((plan) => plan.id === selectedPlanId) || null;
   const selectedOccurrence = occurrences.find((occurrence) => occurrence.id === selectedOccurrenceId) || null;
@@ -618,6 +621,16 @@ function ObstetricianWorkspace() {
       records = [...new Map([...records, ...(partners || [])].map(plan => [plan.id, plan])).values()];
     }
     const normalized = records.map((plan) => ({ ...plan, consultation_schedule: normalizePlanningSteps(plan.plan_type as PlanningKind, plan.consultation_schedule) })) as ObstetricPlan[];
+    // Fetch only current links; archived plans remain in the history query above.
+    let links: {doctor_id:string;patient_passport:string;specialty:string}[] = [];
+    const passports = [...new Set(normalized.map(plan => plan.patient_passport))];
+    if (passports.length) {
+      const {data: currentLinks, error: currentLinksError} = await client.from("patient_doctor_links")
+        .select("doctor_id,patient_passport,specialty").in("patient_passport", passports);
+      if (currentLinksError) { setError(currentLinksError.message); return; }
+      links = currentLinks || [];
+    }
+    setActivePlanLinks(links);
     setPlans(normalized);
     if(reviewVersions) reviewedFivVersions.current=Object.fromEntries(normalized.map(plan=>[plan.id,plan.updated_at]));
     if (preselectId) setSelectedPlanId(preselectId);
@@ -1111,7 +1124,8 @@ function ObstetricianWorkspace() {
             <Field label="Planejamento ativo" hint={editingPlanId ? "Troque rapidamente entre acompanhamentos já salvos." : "Comece um novo planejamento ou carregue um registro existente."}>
               <StyledSelect value={editingPlanId} onChange={(event) => { const nextId = event.target.value; if (!nextId) { openNewPlanningModal(); return; } const plan = manageablePlans.find((item) => item.id === nextId); if (plan) beginEditing(plan); }} searchable disabled={busy}>
                 <option value="">Novo planejamento · ainda não salvo</option>
-                {primaryPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.patient_name} · {planTypeLabel(plan.plan_type)} · {formatDate(plan.start_date)}</option>)}
+                {editingPlan && !activePrimaryPlans.some(plan => plan.id === editingPlan.id) && <option value={editingPlan.id}>{editingPlan.patient_name} · histórico</option>}
+                {activePrimaryPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.patient_name} · {planTypeLabel(plan.plan_type)} · {formatDate(plan.start_date)}</option>)}
               </StyledSelect>
             </Field>
             </div>
@@ -1229,8 +1243,8 @@ function ObstetricianWorkspace() {
         <div className="flex items-center gap-3"><div className="hpsr-obstetric-icon grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><History size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Acompanhamentos salvos</p><h3 className="text-lg font-black text-hpsr-text">Histórico de planejamentos</h3><p className="text-sm text-hpsr-muted">Linha do tempo das alterações do planejamento. A edição acontece somente na Definição médica acima.</p></div></div>
         <span className="w-fit rounded-full border border-[#d8b9a9] bg-[#f5e8dc] px-3 py-1.5 text-xs font-black text-hpsr-wine">{primaryPlans.length} {primaryPlans.length === 1 ? "planejamento" : "planejamentos"}</span>
       </div>
-      {manageablePlans.length > 0 && <div className="mt-4 flex max-w-[900px] flex-col gap-3 md:flex-row md:items-center"><div className="relative min-w-0 flex-1 md:max-w-[520px]"><Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-hpsr-wineLight" /><input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} className={`${inputClass} pl-10`} placeholder="Buscar paciente, passaporte, médica ou modalidade" aria-label="Buscar no histórico de planejamentos" /></div><div className="flex flex-wrap gap-1.5" aria-label="Filtrar histórico por modalidade"><button type="button" aria-pressed={historyTypeFilter === "all"} onClick={() => setHistoryTypeFilter("all")} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${historyTypeFilter === "all" ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-[#d2b7a8] bg-transparent text-hpsr-wine hover:bg-[#f2dfd2]"}`}>Todos</button>{canManageReproductivePlan(profile.role, profile.specialty, "gestacional") && <button type="button" aria-pressed={historyTypeFilter === "gestacional"} onClick={() => setHistoryTypeFilter("gestacional")} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${historyTypeFilter === "gestacional" ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-[#d2b7a8] bg-transparent text-hpsr-wine hover:bg-[#f2dfd2]"}`}>Gestacional</button>}{canManageReproductivePlan(profile.role, profile.specialty, "in_vitro") && <button type="button" aria-pressed={historyTypeFilter === "in_vitro"} onClick={() => setHistoryTypeFilter("in_vitro")} className={`rounded-full border px-3 py-1.5 text-xs font-black transition ${historyTypeFilter === "in_vitro" ? "border-hpsr-wine bg-hpsr-wine text-white" : "border-[#d2b7a8] bg-transparent text-hpsr-wine hover:bg-[#f2dfd2]"}`}>FIV</button>}</div></div>}
-      {manageablePlans.length === 0 ? <div className="mt-5 border-t border-[#d9c1b4] pt-6 text-sm font-semibold text-hpsr-muted">Nenhum planejamento criado por esta médica.</div> : filteredHistoryPlans.length === 0 ? <div className="mt-5 border-t border-[#d9c1b4] pt-6 text-sm font-semibold text-hpsr-muted">Nenhum planejamento corresponde aos filtros atuais.</div> : <div className="mt-5 divide-y divide-[#d9c1b4] border-t border-[#d9c1b4]">{filteredHistoryPlans.map((plan) => { const events = historyTimeline[plan.id] || []; const expanded = expandedHistoryPlanId === plan.id; return <article key={plan.id} className="py-4 first:pt-4 last:pb-0"><button type="button" onClick={() => void toggleHistoryTimeline(plan)} className="flex w-full flex-col gap-3 text-left lg:flex-row lg:items-start lg:justify-between"><div className="min-w-0"><p className="truncate font-black text-hpsr-text">{plan.patient_name}</p><div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"><span className="font-black text-hpsr-wine">{planTypeLabel(plan.plan_type)}</span><span className="text-hpsr-muted">{formatDate(plan.start_date)} → referência {formatDate(plan.end_date)}</span><span className="text-hpsr-muted">Passaporte {plan.patient_passport}</span><span className="font-semibold text-hpsr-muted">Responsável: {plan.doctor_name}</span></div></div><div className="flex items-center gap-2"><span className="rounded-full bg-[#ead7ca] px-2 py-1 text-[10px] font-black text-hpsr-wine">{plan.status}</span><span className="text-xs font-black text-hpsr-wine">{expanded ? "Fechar linha do tempo" : "Ver linha do tempo"}</span></div></button><div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={()=>beginEditing(plan)} className="inline-flex min-h-10 items-center gap-2 rounded-[12px] border border-hpsr-wine px-3 text-xs font-bold text-hpsr-wine"><Pencil size={14}/>Abrir acompanhamento</button><button type="button" disabled={busy} onClick={()=>void openIndividualEditor(plan)} className="inline-flex min-h-10 items-center gap-2 rounded-[12px] border border-hpsr-wine px-3 text-xs font-bold text-hpsr-wine"><ClipboardList size={14}/>Consultas e evoluções</button></div>{expanded && <div className="mt-4 rounded-[16px] border border-[#dfc8bb] bg-[#fff8f3] p-4">{historyTimelineLoading === plan.id ? <div className="flex items-center gap-2 text-sm font-bold text-hpsr-muted"><Loader2 size={15} className="animate-spin" />Carregando histórico...</div> : events.length ? <div className="space-y-0">{events.map((event, index) => <div key={`${event.at}-${index}`} className="relative grid grid-cols-[18px_1fr] gap-3 pb-4 last:pb-0"><div className="relative"><span className="absolute left-[6px] top-2 h-2.5 w-2.5 rounded-full bg-hpsr-wine" />{index < events.length - 1 && <span className="absolute left-[10px] top-5 h-[calc(100%-8px)] w-px bg-[#d9bdae]" />}</div><div><p className="text-xs font-black text-hpsr-text">{event.title}</p><p className="mt-0.5 text-[11px] font-semibold text-hpsr-wine">{formatDateTime(event.at)}</p>{event.detail && <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">{event.detail}</p>}</div></div>)}</div> : <p className="text-sm text-hpsr-muted">Nenhuma movimentação registrada além da criação do planejamento.</p>}</div>}</article>; })}</div>}
+      {contextPlans.length > 0 && <div className="relative mt-4 max-w-[520px]"><Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-hpsr-wineLight" /><input value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} className={`${inputClass} pl-10`} placeholder="Buscar paciente, passaporte ou médica" aria-label="Buscar no histórico de planejamentos" /></div>}
+      {contextPlans.length === 0 ? <div className="mt-5 border-t border-[#d9c1b4] pt-6 text-sm font-semibold text-hpsr-muted">Nenhum planejamento salvo nesta modalidade.</div> : filteredHistoryPlans.length === 0 ? <div className="mt-5 border-t border-[#d9c1b4] pt-6 text-sm font-semibold text-hpsr-muted">Nenhum planejamento corresponde aos filtros atuais.</div> : <div role="region" aria-label="Lista do histórico de planejamentos" tabIndex={0} className="mt-5 max-h-[min(52vh,480px)] overflow-y-auto overscroll-auto pr-2 [scrollbar-gutter:stable] divide-y divide-[#d9c1b4] border-t border-[#d9c1b4]">{filteredHistoryPlans.map((plan) => { const events = historyTimeline[plan.id] || []; const expanded = expandedHistoryPlanId === plan.id; return <article key={plan.id} className="py-4 first:pt-4 last:pb-0"><button type="button" onClick={() => void toggleHistoryTimeline(plan)} className="flex w-full flex-col gap-3 text-left lg:flex-row lg:items-start lg:justify-between"><div className="min-w-0"><p className="truncate font-black text-hpsr-text">{plan.patient_name}</p><div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"><span className="font-black text-hpsr-wine">{planTypeLabel(plan.plan_type)}</span><span className="text-hpsr-muted">{formatDate(plan.start_date)} → referência {formatDate(plan.end_date)}</span><span className="text-hpsr-muted">Passaporte {plan.patient_passport}</span><span className="font-semibold text-hpsr-muted">Responsável: {plan.doctor_name}</span></div></div><div className="flex items-center gap-2"><span className="rounded-full bg-[#ead7ca] px-2 py-1 text-[10px] font-black text-hpsr-wine">{isActivePlanning(plan) ? plan.status : plan.status === "Ativo" ? "Vínculo encerrado" : plan.status}</span><span className="text-xs font-black text-hpsr-wine">{expanded ? "Fechar linha do tempo" : "Ver linha do tempo"}</span></div></button><div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={()=>beginEditing(plan)} className="inline-flex min-h-10 items-center gap-2 rounded-[12px] border border-hpsr-wine px-3 text-xs font-bold text-hpsr-wine"><Pencil size={14}/>Abrir acompanhamento</button><button type="button" disabled={busy} onClick={()=>void openIndividualEditor(plan)} className="inline-flex min-h-10 items-center gap-2 rounded-[12px] border border-hpsr-wine px-3 text-xs font-bold text-hpsr-wine"><ClipboardList size={14}/>Consultas e evoluções</button></div>{expanded && <div className="mt-4 rounded-[16px] border border-[#dfc8bb] bg-[#fff8f3] p-4">{historyTimelineLoading === plan.id ? <div className="flex items-center gap-2 text-sm font-bold text-hpsr-muted"><Loader2 size={15} className="animate-spin" />Carregando histórico...</div> : events.length ? <div className="space-y-0">{events.map((event, index) => <div key={`${event.at}-${index}`} className="relative grid grid-cols-[18px_1fr] gap-3 pb-4 last:pb-0"><div className="relative"><span className="absolute left-[6px] top-2 h-2.5 w-2.5 rounded-full bg-hpsr-wine" />{index < events.length - 1 && <span className="absolute left-[10px] top-5 h-[calc(100%-8px)] w-px bg-[#d9bdae]" />}</div><div><p className="text-xs font-black text-hpsr-text">{event.title}</p><p className="mt-0.5 text-[11px] font-semibold text-hpsr-wine">{formatDateTime(event.at)}</p>{event.detail && <p className="mt-1 text-xs leading-relaxed text-hpsr-muted">{event.detail}</p>}</div></div>)}</div> : <p className="text-sm text-hpsr-muted">Nenhuma movimentação registrada além da criação do planejamento.</p>}</div>}</article>; })}</div>}
     </section>
     </>}
 
