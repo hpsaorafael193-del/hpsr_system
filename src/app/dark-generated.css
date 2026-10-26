@@ -96,6 +96,9 @@ html[data-theme="dark"] :is(.divide-\[\#dfc9bb\] > :not([hidden]) ~ :not([hidden
 html[data-theme="dark"] :is(.divide-\[\#ead9ce\] > :not([hidden]) ~ :not([hidden])):not(:where(.hpsr-render-page,.hpsr-render-page *,[data-hpsr-document],[data-hpsr-document] *)) {
   border-color: rgb(77 61 49 / var(--tw-divide-opacity, 1))
 }
+html[data-theme="dark"] :is(.divide-hpsr-border > :not([hidden]) ~ :not([hidden])):not(:where(.hpsr-render-page,.hpsr-render-page *,[data-hpsr-document],[data-hpsr-document] *)) {
+  border-color: rgb(77 61 49 / var(--tw-divide-opacity, 1))
+}
 html[data-theme="dark"] :is(.divide-hpsr-border\/80 > :not([hidden]) ~ :not([hidden])):not(:where(.hpsr-render-page,.hpsr-render-page *,[data-hpsr-document],[data-hpsr-document] *)) {
   border-color: rgb(77 61 49 / 0.8)
 }
@@ -2060,6 +2063,9 @@ html[data-theme="dark"] :is(.bg-black\/55):not(:where(.hpsr-render-page,.hpsr-re
 }
 html[data-theme="dark"] :is(.bg-black\/60):not(:where(.hpsr-render-page,.hpsr-render-page *,[data-hpsr-document],[data-hpsr-document] *)) {
   background-color: rgb(29 22 17 / 0.6)
+}
+html[data-theme="dark"] :is(.bg-black\/70):not(:where(.hpsr-render-page,.hpsr-render-page *,[data-hpsr-document],[data-hpsr-document] *)) {
+  background-color: rgb(29 22 17 / 0.7)
 }
 html[data-theme="dark"] :is(.bg-blue-100):not(:where(.hpsr-render-page,.hpsr-render-page *,[data-hpsr-document],[data-hpsr-document] *)) {
   background-color: rgb(35 28 23 / var(--tw-bg-opacity, 1))
