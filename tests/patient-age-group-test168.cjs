@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
+const m={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/lib/patient-age-group.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,{module:m,exports:m.exports});
+const {patientAgeGroup:group,patientAgeLabel:label,filterPediatricPatients:filter}=m.exports;
+for(const age of ['0','5 meses','24 meses','1 ano e 6 meses','17 anos','215 meses','6 semanas','20 dias','0,5'])assert.equal(group(age),'child',age);
+for(const age of ['18','18 anos','216 meses','25','70 anos'])assert.equal(group(age),'adult',age);
+for(const age of ['',null,undefined,'—','Não informado','2026-10-30','-5','texto 3','999'])assert.equal(group(age),'unknown',String(age));
+assert.equal(label('5 meses'),'5 meses');assert.equal(label('5'),'5 anos');assert.equal(label('1'),'1 ano');assert.equal(label(''),'Idade não informada');
+const rows=[{name:'Adulto',passport:'A1',age:'30'},{name:'Criança sem vínculo',passport:'C1',age:'5 meses'},{name:'Érica',passport:'C2',age:'8'},{name:'Sem idade',passport:'U1',age:''}];
+assert.equal(filter(rows,'children').length,2);assert.equal(filter(rows,'unknown')[0].passport,'U1');assert.equal(filter(rows,'all').length,4);assert.equal(filter(rows,'children','ERICA')[0].passport,'C2');assert.equal(filter(rows,'children','c1')[0].passport,'C1');assert.equal(filter(rows,'children','adulto').length,0);assert.equal(rows[0].passport,'A1');
+console.log('PASS: childhood boundaries, months/weeks/days, missing and invalid ages, age labels, registered children without links, search and filters.');

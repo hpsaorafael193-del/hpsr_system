@@ -1,4 +1,5 @@
 "use client";
+import { patientAgeGroup, patientAgeLabel } from "@/lib/patient-age-group";
 import {registerManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh";
 import { SavedClinicalSheet } from "@/components/dashboard/SavedClinicalSheet";
 
@@ -51,7 +52,7 @@ const PatientAccessRecoveryModal = dynamic(
 );
 
 type RecordTab = "geral" | "timeline" | "consultas" | "exames" | "vacinas" | "documentos" | "prescricoes" | "procedimentos";
-type PatientFilter = "all" | "mine" | "routine";
+type PatientFilter = "all" | "mine" | "routine" | "children";
 type DoctorLink = { doctor_id: string; doctor_name: string; specialty: string };
 
 type PatientRecord = {
@@ -627,6 +628,7 @@ export default function RecordsPage() {
       const matchesSearch = !normalized || patient.passport.toLowerCase().includes(normalized) || patient.name.toLowerCase().includes(normalized);
       if (!matchesSearch) return false;
       if (patientFilter === "mine") return patient.doctorLinks.some((assignment) => assignment.doctor_id === currentUserProfile.id);
+      if (patientFilter === "children") return patientAgeGroup(patient.age) === "child";
       if (patientFilter === "routine") return patient.followUp === "Rotina";
       return true;
     });
@@ -1164,9 +1166,10 @@ export default function RecordsPage() {
                   <p className="mt-0.5 text-xs font-semibold text-hpsr-muted">{visiblePatients.length} resultado{visiblePatients.length === 1 ? "" : "s"}</p>
                 </div>
               </div>
-              <div className="mt-2 grid grid-cols-3 gap-1 rounded-[12px] border border-hpsr-border bg-[#fffaf5] p-1">
+              <div className="mt-2 grid grid-cols-2 gap-1 rounded-[12px] border border-hpsr-border bg-[#fffaf5] p-1">
                 {([
                   ["all", "Todos"],
+                  ["children", "Infantis"],
                   ["mine", "Meus acompanhamentos"],
                   ["routine", "Rotineiros"],
                 ] as Array<[PatientFilter, string]>).map(([value, label]) => (
@@ -1204,12 +1207,13 @@ export default function RecordsPage() {
                       >
                         <div className="flex min-w-0 items-center gap-2">
                           <p className="break-words [overflow-wrap:anywhere] text-sm font-black leading-snug text-hpsr-text">{patient.name}</p>
+                          {patientAgeGroup(patient.age) === "child" && <span className="shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-black text-emerald-800">Infantil</span>}
                           <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-black ${statusClasses(patient.status)}`}>
                             {patient.followUp === "Rotina" ? "Rotineiro" : "Em acompanhamento"}
                           </span>
                         </div>
                         <p className="mt-1 break-words [overflow-wrap:anywhere] text-[11px] font-semibold leading-relaxed text-hpsr-muted">
-                          Passaporte {patient.passport} · {patient.age} anos · {patient.bloodType}
+                          Passaporte {patient.passport} · {patientAgeLabel(patient.age)} · {patient.bloodType}
                         </p>
                       </button>
 
@@ -1259,11 +1263,12 @@ export default function RecordsPage() {
                         <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-black ${statusClasses(selectedPatient.status)}`}>
                           {selectedPatient.status}
                         </span>
+                        {patientAgeGroup(selectedPatient.age) === "child" && <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-800">Paciente infantil</span>}
                       </div>
 
                       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[12px] border border-hpsr-border bg-white/80 px-3 py-2">
                         <PatientMetaItem label="Passaporte" value={selectedPatient.passport} />
-                        <PatientMetaItem label="Paciente" value={`${selectedPatient.age && selectedPatient.age !== "—" ? `${selectedPatient.age} anos` : "Idade não informada"} · ${selectedPatient.sex || "Sexo não informado"}`} />
+                        <PatientMetaItem label="Paciente" value={`${patientAgeLabel(selectedPatient.age)} · ${selectedPatient.sex || "Sexo não informado"}`} />
                         <PatientMetaItem label="Sangue" value={selectedPatient.bloodType} />
                         <PatientMetaItem label="Discord" value={selectedPatient.discord || "Não informado"} preferred />
                         <PatientMetaItem label="Cidade" value={formatPhoneDisplay(selectedPatient.cityPhone, "Não informado")} />
