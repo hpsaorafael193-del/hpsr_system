@@ -12,18 +12,19 @@ export async function GET(request: NextRequest) {
     if (!valid) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
     const passport = await resolvePortalPatientPassport(request, valid);
     if (!passport) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
-    const [plans, links] = await Promise.all([
+    const [plans, links, pediatric] = await Promise.all([
       valid.supabase.from("clinical_followup_plans").select("id,plan_type,specialty,status")
         .eq("patient_passport", passport).in("plan_type", ["gestacional", "in_vitro"]).neq("status", "Arquivado").limit(30),
       valid.supabase.from("patient_doctor_links").select("specialty")
         .eq("patient_passport", passport).limit(50),
+      valid.supabase.from("pediatric_plan_publications").select("id").eq("patient_passport",passport).eq("published",true).limit(1),
     ]);
-    if (plans.error || links.error) throw plans.error || links.error;
+    if (plans.error || links.error || pediatric.error) throw plans.error || links.error || pediatric.error;
     const specialties = (links.data || []).map((row) => String(row.specialty || "").toLocaleLowerCase("pt-BR"));
     const obstetricsLink = specialties.some((name) => name.includes("obstetr"));
     const gestational = (plans.data || []).some((plan) => plan.plan_type === "gestacional");
     const fertility = (plans.data || []).some((plan) => plan.plan_type === "in_vitro");
-    return NextResponse.json({ ok: true, showGestation: gestational || obstetricsLink, showIVF: fertility },
+    return NextResponse.json({ ok: true, showPediatrics: Boolean(pediatric.data?.length), showGestation: gestational || obstetricsLink, showIVF: fertility },
       { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("[patient-portal] context", error);

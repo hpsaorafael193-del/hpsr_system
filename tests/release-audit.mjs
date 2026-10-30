@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from 'node:fs';
 
 const read = (path) => readFileSync(path, 'utf8');
 const pkg = JSON.parse(read('package.json'));
-assert.equal(pkg.version, '1.1.16-test.168');
+assert.equal(pkg.version, '1.1.16-test.174');
 
 const rules = read('SYSTEM_ENVIRONMENT_RULES.md');
 assert(rules.includes('barra fina escura'));
@@ -12,8 +12,8 @@ assert(rules.includes('Supabase é a fonte persistente oficial'));
 assert(rules.includes('O sistema não gera PDF'));
 assert(rules.includes('Identidade profissional é o UUID do perfil'));
 
-const obstetra = read('src/app/dashboard/obstetra/page.tsx');
-const direction = read('src/app/dashboard/direcao/page.tsx');
+const obstetra = read('src/app/dashboard/acompanhamento/page.tsx');
+const direction = read('src/app/dashboard/relatorios/page.tsx');
 const userMenu = read('src/components/layout/UserMenu.tsx');
 const timeClock = read('src/components/dashboard/TimeClockAdministrativeReport.tsx');
 for (const source of [obstetra, direction, userMenu, timeClock]) {
@@ -35,7 +35,7 @@ assert(examTypes.includes('documentModel'));
 const legacyAssistant = read('src/app/dashboard/assistente-clinico/page.tsx');
 const legacyObstetrics = read('src/app/dashboard/obstetricia/page.tsx');
 assert(legacyAssistant.includes('redirect("/dashboard")'));
-assert(legacyObstetrics.includes('redirect("/dashboard/obstetra")'));
+assert(legacyObstetrics.includes("legacyDashboardDestination('/dashboard/acompanhamento'"));
 
 const migration = read('supabase/migrations/20261006200000_sync_professional_names_and_release_cleanup.sql');
 assert(migration.includes('hpsr_sync_professional_display_name'));
@@ -54,4 +54,4 @@ assert(patientLinks.includes('appointmentManagementStatus: "Sem resposta"'));
 assert(patientLinks.includes('.update({ status: "Arquivado", updated_at: endedAt })'));
 
 assert(existsSync('tests/portal-audit.mjs'));
-console.log('PASS release audit v1.1.16-test.168');
+console.log('PASS release audit v1.1.16-test.174');

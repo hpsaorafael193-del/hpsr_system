@@ -5,7 +5,7 @@ function convert(hex,prop){
  const alpha=v.length===8?v.slice(6):'';
  const [r,g,b]=[0,2,4].map(i=>parseInt(v.slice(i,i+2),16));
  const light=(r*.2126+g*.7152+b*.0722)/255,max=Math.max(r,g,b),min=Math.min(r,g,b);
- const text=/^(color|caret-color|fill|stroke|text-decoration-color)$/.test(prop)||/foreground|muted|wine|text/.test(prop);
+ const text=/^(color|caret-color|fill|stroke|text-decoration-color)$/.test(prop)||/foreground|muted|wine|text/.test(prop)||prop==='--baby-ink';
  const semantic=g>r*1.18&&g>b*1.05?'green':max>150&&r>g*1.35&&r>b*1.2&&Math.abs(g-b)<r*.3?'red':r>b*1.35&&b>g*1.12?'red':max>150&&r>g*1.08&&g>b*1.5?'amber':b>r*1.25&&b>g*1.08?'blue':null;
  // Saturated focus/alert rings remain bright; only the surrounding surface darkens.
  if(prop==='--tw-ring-color' && max-min>70 && max>100) return hex;

@@ -18,7 +18,7 @@ assert.equal(validateFivParticipants('G','D',source),'');assert.match(validateFi
 assert.equal(validateFivParticipants('G','',g),'');
 assert.equal(validatePlanningSteps('in_vitro',source),'');
 assert.match(validatePlanningSteps('in_vitro',[...source,{...source[1]}]),/mesma data/);
-const view=readFileSync('src/app/dashboard/obstetra/page.tsx','utf8');
+const view=readFileSync('src/app/dashboard/acompanhamento/page.tsx','utf8');
 assert.match(view,/p_release_gestante: releaseIntegralOnSave, p_release_doadora: releaseDonorOnSave/);
 assert.match(view,/p_expected_versions: Object.fromEntries/);
 assert.match(view,/mergeFivProjectSteps\(members\)/);

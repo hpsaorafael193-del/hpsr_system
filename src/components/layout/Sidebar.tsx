@@ -21,7 +21,7 @@ export function Sidebar({ collapsed, onToggle, onOpenSystemInfo, hasPendingAppoi
   const visibleAdminNavigation = canSeeTeamAdmin ? adminNavigation.filter((item) => !item.internalOnly || ["Diretora", "Vice Diretor / Dev"].includes(currentUserProfile.role)) : [];
   const visibleToolsNavigation = toolsNavigation.filter((item) =>
     canSeeNavigationItem(item, currentUserProfile.role) &&
-    (item.href !== "/dashboard/obstetra" || canAccessObstetra(currentUserProfile.role, currentUserProfile.specialty) || canAccessPediatrics(currentUserProfile.role, currentUserProfile.specialty))
+    (item.href !== "/dashboard/acompanhamento" || canAccessObstetra(currentUserProfile.role, currentUserProfile.specialty) || canAccessPediatrics(currentUserProfile.role, currentUserProfile.specialty))
   );
 
   return (

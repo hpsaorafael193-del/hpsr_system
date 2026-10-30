@@ -1,14 +1,14 @@
 'use client';
 import Link from 'next/link';
 import { Baby,HeartPulse,Sparkles,Syringe } from 'lucide-react';
-import { followupNavigation,type FollowupTab } from '@/lib/followup-navigation';
+import { followupNavigation,followupTabHref,type FollowupTab } from '@/lib/followup-navigation';
 import styles from './followup-navigation.module.css';
 const items={
- gestacional:{label:'Gestacional',href:'/dashboard/obstetra?specialty=obstetra',icon:HeartPulse},
- in_vitro:{label:'Fertilização in vitro',href:'/dashboard/obstetra?specialty=ginecologia',icon:Sparkles},
- pediatria:{label:'Pediatria',href:'/dashboard/obstetra/pediatria',icon:Baby},
- vacina_gestacional:{label:'Gestacional',href:'/dashboard/obstetra?view=vaccination',icon:Syringe},
- vacina_infantil:{label:'Infantil',href:'/dashboard/obstetra/pediatria?view=vaccination',icon:Syringe},
+ gestacional:{label:'Gestacional',href:'/dashboard/acompanhamento?specialty=obstetra',icon:HeartPulse},
+ in_vitro:{label:'Fertilização in vitro',href:'/dashboard/acompanhamento?specialty=ginecologia',icon:Sparkles},
+ pediatria:{label:'Pediatria',href:followupTabHref('pediatria'),icon:Baby},
+ vacina_gestacional:{label:'Gestacional',href:'/dashboard/acompanhamento?view=vaccination',icon:Syringe},
+ vacina_infantil:{label:'Infantil',href:followupTabHref('vacina_infantil'),icon:Syringe},
 };
 export function FollowupNavigation({role,specialty,active,onSelect}:{role:string;specialty:string;active:FollowupTab;onSelect?:(tab:FollowupTab)=>boolean|void}){
  const sections=followupNavigation(role,specialty);

@@ -6,7 +6,7 @@ const document={documentElement:{dataset:{}}};vm.runInNewContext(bootstrap,{docu
 const css=postcss.parse(fs.readFileSync('src/app/dark-generated.css','utf8'));let count=0;
 css.walkRules(r=>{assert(r.selector.includes('data-theme="dark"'));assert(r.selector.includes('data-hpsr-document')||r.selector==='html[data-theme="dark"]');r.walkDecls(d=>assert(/color|background|shadow|fill|stroke|^--/.test(d.prop),`Layout changed: ${d.prop}`));count++;});assert(count>100);
 const menu=fs.readFileSync('src/components/layout/UserMenu.tsx','utf8');assert(menu.includes('role="menuitemcheckbox"'));assert(menu.includes('onClick={toggleTheme}'));
-assert.equal(JSON.parse(fs.readFileSync('package.json')).version,'1.1.16-test.168');
+assert.equal(JSON.parse(fs.readFileSync('package.json')).version,'1.1.16-test.174');
 console.log(`PASS: startup preference, denied storage, ${count} scoped color-only rules, sheet exclusion, menu toggle, version 144.`);
 const {transform}=require('../scripts/generate-dark-theme.cjs');
 assert.match(transform('linear-gradient(110deg,#612d1c,#482016)','background'),/^linear-gradient/);
@@ -14,7 +14,7 @@ assert.equal(transform('linear-gradient(to right,var(--tw-gradient-stops))','bac
 assert.equal(transform('#34d399','border-color'),'#34d399');
 assert.equal(transform('#fbbf24','border-color'),'#fbbf24');
 assert.equal(transform('#ef4444','border-color'),'#ef4444');
-for(const file of ['src/components/dashboard/PharmaGuideClient.module.css','src/components/dashboard/time-clock-report.module.css','src/app/dashboard/direcao/overview.module.css']) {
+for(const file of ['src/components/dashboard/PharmaGuideClient.module.css','src/components/dashboard/time-clock-report.module.css','src/app/dashboard/relatorios/overview.module.css']) {
  const source=fs.readFileSync(file,'utf8');assert(source.includes('HPSR DARK MODULE PALETTE'));assert(source.includes(':global(html[data-theme="dark"])'));}
 const themeCSS=fs.readFileSync('src/app/theme.css','utf8');assert(themeCSS.includes('[data-hpsr-notification-dot="true"] { background:#ef4444'));
 assert(fs.readFileSync('src/app/dashboard/traumatologia/page.tsx','utf8').includes('data-cast-status={statusKey}'));

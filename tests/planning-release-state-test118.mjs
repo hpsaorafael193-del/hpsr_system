@@ -9,7 +9,7 @@ assert.equal(withdrawn.portal_released_at,null);assert.equal(withdrawn.planning_
 const visitWithdrawn={...old,...individualReleaseState(false,null,'now')};
 assert.equal(visitWithdrawn.individual_released_at,null);assert.equal(visitWithdrawn.individual_released_snapshot,null);assert.equal(visitWithdrawn.portal_released_at,'old');
 assert.deepEqual(integralReleaseState(true,{current:true},'now').planning_released_snapshot,{current:true});assert.equal(individualReleaseState(true,{current:true},'now').individual_released_at,'now');
-const page=readFileSync('src/app/dashboard/obstetra/page.tsx','utf8');
+const page=readFileSync('src/app/dashboard/acompanhamento/page.tsx','utf8');
 assert.ok(page.includes('p_release: releaseIntegralOnSave'));
 assert.ok(page.includes('save_gestational_planning_atomic'));
 assert.ok(page.includes('persistIndividual(releaseIndividualOnSave, true)'));

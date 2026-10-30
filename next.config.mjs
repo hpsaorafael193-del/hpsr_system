@@ -10,8 +10,8 @@ const nextConfig = {
     return [
       {
         source: "/dashboard/obstetricia",
-        destination: "/dashboard/assistente-clinico",
-        permanent: true
+        destination: "/dashboard/acompanhamento",
+        permanent: false
       }
     ];
   }

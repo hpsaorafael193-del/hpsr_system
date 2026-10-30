@@ -15,7 +15,7 @@ assert.equal(ob.canManageReproductivePlan('Médico Supervisor','Obstetra','in_vi
 const vaccine=load('src/lib/gestational-vaccination-access.ts',{'@/lib/staff-specialties':specialties});
 assert.equal(vaccine.canManageGestationalVaccination('Médico Supervisor','Clínico Geral'),false);
 assert.equal(vaccine.canManageGestationalVaccination('Médico Supervisor','Obstetra'),true);
-const team=readFileSync('src/app/dashboard/equipe/page.tsx','utf8');const ast=ts.createSourceFile('team.tsx',team,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+const team=readFileSync('src/app/dashboard/direcao/page.tsx','utf8');const ast=ts.createSourceFile('team.tsx',team,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
 function extract(name){const node=ast.statements.find(n=>ts.isFunctionDeclaration(n)&&n.name?.text===name);assert.ok(node);return ts.transpileModule(node.getText(ast),{compilerOptions:{target:ts.ScriptTarget.ES2020}}).outputText;}
 const contract=vm.runInNewContext(`${extract('getContractInfo')};getContractInfo`,{daysSince:()=>45});
 assert.equal(contract({hospitalRole:'Médico Supervisor',joinedAt:'2026-01-01'}),null);

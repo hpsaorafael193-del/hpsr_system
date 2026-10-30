@@ -12,7 +12,7 @@ assert.equal(active(plan,[],matches),false);
 assert.equal(active(plan,[{...links[0],doctor_id:'replacement'}],matches),false);
 assert.equal(active(plan,[{...links[0],specialty:'Ginecologia'}],matches),false);
 for(const status of ['Concluído','Encerrado','Arquivado','Cancelada']) assert.equal(active({...plan,status},links,matches),false);
-const source=fs.readFileSync('src/app/dashboard/obstetra/page.tsx','utf8');
+const source=fs.readFileSync('src/app/dashboard/acompanhamento/page.tsx','utf8');
 assert(source.includes('return contextPlans.filter((plan) => {'));
 assert(source.includes('{activePrimaryPlans.map'));
 assert(!source.includes('historyTypeFilter'));

@@ -8,6 +8,7 @@ import {
   Loader2, LockKeyhole, LogIn, MailX, Plus, ShieldCheck, Trash2, UserPlus, UserRound, Users, X,
   type LucideIcon,
 } from "lucide-react";
+import { PatientPediatricPlansPanel } from "@/components/public/PatientPediatricPlansPanel";
 import { PatientGestationalPlansPanel } from "@/components/public/PatientGestationalPlansPanel";
 import { PatientFollowupFormsPanel } from "@/components/public/PatientFollowupFormsPanel";
 import { PatientRecordsPanel } from "@/components/public/PatientRecordsPanel";
@@ -62,6 +63,7 @@ export function PatientAccessPanel() {
   const [patientName, setPatientName] = useState("Paciente");
   const [accountId, setAccountId] = useState("");
   const [showGestation, setShowGestation] = useState(false);
+  const [pediatricPassport,setPediatricPassport]=useState('');
   const [showIVF, setShowIVF] = useState(false);
   const [hasOwnProfile,setHasOwnProfile] = useState(true);
   const [accessiblePatients, setAccessiblePatients] = useState<PortalPatient[]>([]);
@@ -215,14 +217,15 @@ export function PatientAccessPanel() {
   }, [stage, accessiblePatients, hasOwnProfile, openPortalSection, checkSession]);
 
   useEffect(() => {
-    if (stage !== "portal" || !selectedPassport) { setShowGestation(false); setShowIVF(false); return; }
+    if (stage !== "portal" || !selectedPassport) { setShowGestation(false); setShowIVF(false); setPediatricPassport(''); return; }
     let active = true;
     setShowGestation(false);
     setShowIVF(false);
+    setPediatricPassport('');
     fetch(`/api/paciente/contexto?passport=${encodeURIComponent(selectedPassport)}`, { cache: "no-store" })
       .then(async (response) => response.ok ? response.json() : null)
-      .then((data) => { if (active) { setShowGestation(Boolean(data?.showGestation)); setShowIVF(Boolean(data?.showIVF)); } })
-      .catch(() => { if (active) { setShowGestation(false); setShowIVF(false); } });
+      .then((data) => { if (active) { setShowGestation(Boolean(data?.showGestation)); setShowIVF(Boolean(data?.showIVF)); setPediatricPassport(data?.showPediatrics?selectedPassport:''); } })
+      .catch(() => { if (active) { setShowGestation(false); setShowIVF(false); setPediatricPassport(''); } });
     return () => { active = false; };
   }, [selectedPassport, stage]);
 
@@ -471,6 +474,7 @@ export function PatientAccessPanel() {
   if (stage === "portal") {
     const selectedProfile = accessiblePatients.find((item) => item.passport === selectedPassport);
     const activeFollowups = followupPassport === selectedPassport ? followupData : null;
+    const showPediatrics=pediatricPassport===selectedPassport&&Boolean(selectedPassport);
     const isChildProfile = selectedProfile?.access_type !== "self" && Boolean(selectedProfile);
     const activeName = selectedProfile?.name || patientName;
 
@@ -585,7 +589,7 @@ export function PatientAccessPanel() {
                     <div className="mt-5 grid gap-5 lg:grid-cols-[1.08fr_.92fr]">
                       <section className="rounded-[18px] border border-[#ddcfc2] bg-[#f6efe7] p-5 sm:p-6">
                         <div className="flex items-center justify-between gap-3"><div><p className="text-[11px] font-black uppercase tracking-[.15em] text-[#927566]">Meu acompanhamento</p><h2 className="mt-1 text-xl font-bold text-[#4e291c]">Seu cuidado, etapa por etapa</h2></div><HeartPulse size={24} className="text-[#672614]"/></div>
-                        {showGestation || showIVF ? <div className="mt-4 grid gap-3 sm:grid-cols-2">{showGestation && <button type="button" onClick={() => openPortalSection("gestation")} className="flex items-center gap-3 rounded-[14px] border border-[#ddcfc2] bg-[#fcf8f3] px-4 py-4 text-left"><Baby size={21} className="text-[#672614]"/><span className="flex-1"><strong className="block text-sm text-[#4e291c]">Gestação</strong><span className="mt-1 block text-xs text-[#82736a]">Ver planejamento</span></span><ArrowRight size={15}/></button>}{showIVF && <button type="button" onClick={() => openPortalSection("ivf")} className="flex items-center gap-3 rounded-[14px] border border-[#ddcfc2] bg-[#fcf8f3] px-4 py-4 text-left"><HeartPulse size={21} className="text-[#672614]"/><span className="flex-1"><strong className="block text-sm text-[#4e291c]">Fertilização in vitro</strong><span className="mt-1 block text-xs text-[#82736a]">Ver etapas</span></span><ArrowRight size={15}/></button>}</div> : <p className="mt-4 text-sm text-[#82736a]">Nenhum acompanhamento liberado no momento.</p>}
+                        {showGestation || showIVF || showPediatrics ? <div className="mt-4 grid gap-3 sm:grid-cols-2">{showPediatrics&&<button type="button" onClick={()=>openPortalSection("accompaniment")} className="flex items-center gap-3 rounded-[14px] border border-[#ddcfc2] bg-[#fcf8f3] px-4 py-4 text-left"><Baby size={21} className="text-[#672614]"/><span className="flex-1"><strong className="block text-sm text-[#4e291c]">Pediatria</strong><span className="mt-1 block text-xs text-[#82736a]">Ver planejamento</span></span><ArrowRight size={15}/></button>}{showGestation && <button type="button" onClick={() => openPortalSection("gestation")} className="flex items-center gap-3 rounded-[14px] border border-[#ddcfc2] bg-[#fcf8f3] px-4 py-4 text-left"><Baby size={21} className="text-[#672614]"/><span className="flex-1"><strong className="block text-sm text-[#4e291c]">Gestação</strong><span className="mt-1 block text-xs text-[#82736a]">Ver planejamento</span></span><ArrowRight size={15}/></button>}{showIVF && <button type="button" onClick={() => openPortalSection("ivf")} className="flex items-center gap-3 rounded-[14px] border border-[#ddcfc2] bg-[#fcf8f3] px-4 py-4 text-left"><HeartPulse size={21} className="text-[#672614]"/><span className="flex-1"><strong className="block text-sm text-[#4e291c]">Fertilização in vitro</strong><span className="mt-1 block text-xs text-[#82736a]">Ver etapas</span></span><ArrowRight size={15}/></button>}</div> : <p className="mt-4 text-sm text-[#82736a]">Nenhum acompanhamento liberado no momento.</p>}
                       </section>
 
                       <section className="rounded-[18px] border border-[#ddcfc2] bg-[#f6efe7] p-5 sm:p-6">
@@ -610,15 +614,16 @@ export function PatientAccessPanel() {
 
                 {portalSection === "accompaniment" && <div className="px-5 py-7 sm:px-8 lg:px-10">
                   <SectionIntro eyebrow="Acompanhamento" title="Meu acompanhamento" text="Planejamentos, etapas e formulários enviados pela sua equipe ficam reunidos aqui."/>
+                  {(isChildProfile||showPediatrics)&&<PatientPediatricPlansPanel key={`pediatric:${selectedPassport}`} passport={selectedPassport} onSessionExpired={handleSessionExpired}/>}
                   <div className="grid gap-4 lg:grid-cols-[1.15fr_.85fr]">
-                    <section className="rounded-[18px] border border-[#ddcfc2] bg-[#f6efe7] p-5">
+                    {(!isChildProfile||showGestation||showIVF)&&<section className="rounded-[18px] border border-[#ddcfc2] bg-[#f6efe7] p-5">
                       <p className="text-[11px] font-black uppercase tracking-[.14em] text-[#927566]">Planos de cuidado</p>
                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
                         {showGestation && <button type="button" onClick={() => openPortalSection("gestation")} className="flex min-h-[96px] items-center gap-4 rounded-[14px] border border-[#ddcfc2] bg-[#fcf8f3] px-4 text-left"><Baby size={25} className="text-[#672614]"/><span className="flex-1"><strong className="block text-base text-[#4e291c]">Gestação</strong><span className="mt-1 block text-xs text-[#82736a]">Planejamento e etapas</span></span><ArrowRight size={16}/></button>}
                         {showIVF && <button type="button" onClick={() => openPortalSection("ivf")} className="flex min-h-[96px] items-center gap-4 rounded-[14px] border border-[#ddcfc2] bg-[#fcf8f3] px-4 text-left"><HeartPulse size={25} className="text-[#672614]"/><span className="flex-1"><strong className="block text-base text-[#4e291c]">Fertilização in vitro</strong><span className="mt-1 block text-xs text-[#82736a]">Planejamento e etapas</span></span><ArrowRight size={16}/></button>}
-                        {!showGestation && !showIVF && <div className="sm:col-span-2 rounded-[14px] border border-dashed border-[#d7c8ba] px-4 py-8 text-center"><HeartPulse size={25} className="mx-auto text-[#672614]"/><p className="mt-2 text-sm font-bold text-[#4e291c]">Nenhum plano liberado</p></div>}
+                        {!isChildProfile && !showPediatrics && !showGestation && !showIVF && <div className="sm:col-span-2 rounded-[14px] border border-dashed border-[#d7c8ba] px-4 py-8 text-center"><HeartPulse size={25} className="mx-auto text-[#672614]"/><p className="mt-2 text-sm font-bold text-[#4e291c]">Nenhum plano liberado</p></div>}
                       </div>
-                    </section>
+                    </section>}
                     <section className="rounded-[18px] border border-[#ddcfc2] bg-[#f4eee7] p-5">
                       <div className="mb-4 flex items-start gap-3"><span className="grid h-10 w-10 place-items-center rounded-full bg-[#e5ded5] text-[#672614]"><ClipboardList size={19}/></span><div><p className="text-[11px] font-black uppercase tracking-[.14em] text-[#927566]">Fichas</p><h3 className="mt-1 text-lg font-bold text-[#4e291c]">Fichas do acompanhamento</h3><p className="mt-1 text-xs text-[#82736a]">Quando sua equipe solicitar uma atualização, ela aparecerá aqui.</p></div></div>
                       <PatientFollowupFormsPanel key={selectedPassport} passport={selectedPassport} onSessionExpired={handleSessionExpired}/>
@@ -642,7 +647,7 @@ export function PatientAccessPanel() {
 
               <section className="mx-5 mb-5 flex flex-col gap-4 rounded-[8px] bg-[#eee6dc] px-5 py-5 sm:mx-8 sm:flex-row sm:items-center sm:justify-between lg:mx-10">
                 <div className="flex items-center gap-4"><span className="grid h-12 w-12 place-items-center rounded-full bg-[#e8dbc6] text-[#672614]"><HeartPulse size={24}/></span><div><h3 className="text-lg font-bold text-[#4e291c]">Seu acompanhamento, organizado</h3><p className="mt-1 text-sm text-[#82736a]">Planejamentos e etapas em um só lugar.</p></div></div>
-                {(showGestation || showIVF) && <button type="button" onClick={() => openPortalSection(showGestation ? "gestation" : "ivf")} className="inline-flex shrink-0 items-center gap-2 text-sm font-black text-[#672614] underline underline-offset-4">Ver meu acompanhamento <ArrowRight size={16}/></button>}
+                {(showGestation || showIVF || showPediatrics) && <button type="button" onClick={() => openPortalSection(showPediatrics ? "accompaniment" : showGestation ? "gestation" : "ivf")} className="inline-flex shrink-0 items-center gap-2 text-sm font-black text-[#672614] underline underline-offset-4">Ver meu acompanhamento <ArrowRight size={16}/></button>}
               </section>
             </>
           ) : (

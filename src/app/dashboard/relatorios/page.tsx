@@ -1,0 +1,502 @@
+"use client";
+import {registerManualRefresh} from "@/lib/manual-data-refresh";
+
+import styles from "./overview.module.css";
+
+import { StyledSelect } from "@/components/ui/StyledSelect";
+import { useEffect, useMemo, useState } from "react";
+import { Activity, CalendarDays, ClipboardCheck, Database, Download, Eye, Filter, RotateCcw, FlaskConical, PieChart, Search, ShieldCheck, Stethoscope, UserPlus, Users, WalletCards } from "lucide-react";
+import { PageHeader } from "@/components/dashboard/PageHeader";
+import { type SystemActivity } from "@/lib/administrative-storage";
+import { createClient } from "@/lib/supabase";
+import { exportAdministrativeReport, type AdministrativeMember } from "@/lib/export-administrative-report";
+import { TimeClockAdministrativeReport } from "@/components/dashboard/TimeClockAdministrativeReport";
+import { ApplicationHistoryModal } from "@/components/dashboard/ApplicationHistoryModal";
+import { isStaffApplicationPending } from "@/lib/staff-application-status";
+import { hpsrAlert } from "@/components/ui/HpsrDialogProvider";
+
+type GenericRecord = Record<string, any>;
+type SupabaseActivityRow = { id: string; module: string; action: string; description: string; actor?: string | null; reference?: string | null; created_at: string };
+
+
+export default function DirectionPage() {
+  const [activities, setActivities] = useState<SystemActivity[]>([]);
+  const [staffRequests, setStaffRequests] = useState<GenericRecord[]>([]);
+  const [applications, setApplications] = useState<GenericRecord[]>([]);
+  const [appointments, setAppointments] = useState<GenericRecord[]>([]);
+  const [receiptCount, setReceiptCount] = useState(0);
+  const [receipts, setReceipts] = useState<GenericRecord[]>([]);
+  const [teamMembers, setTeamMembers] = useState<AdministrativeMember[]>([]);
+  const [search, setSearch] = useState("");
+  const [activityFilters, setActivityFilters] = useState({ module: "all", action: "all", from: "", to: "" });
+  const [appliedFilters, setAppliedFilters] = useState(activityFilters);
+  const [activityPage, setActivityPage] = useState(1);
+  const [selectedActivity, setSelectedActivity] = useState<SystemActivity | null>(null);
+  const [reportPeriod, setReportPeriod] = useState("all");
+  const [activityChartFilter, setActivityChartFilter] = useState<"modules" | "plans" | "exams" | "services">("modules");
+  const [exportingReport, setExportingReport] = useState(false);
+  const [applicationHistoryOpen, setApplicationHistoryOpen] = useState(false);
+  const [reportSection, setReportSection] = useState<"overview" | "activities" | "time">("overview");
+
+  useEffect(() => {
+    async function loadDirectionData() {
+      const client = createClient();
+      if (!client) {
+        setActivities([]);
+        setStaffRequests([]);
+        setApplications([]);
+        setAppointments([]);
+        setReceiptCount(0);
+        setTeamMembers([]);
+        return;
+      }
+
+      const [activityResult, staffResult, applicationsResult, appointmentsResult, receiptsResult, teamResult] = await Promise.all([
+        client.from("system_activities").select("id, module, action, description, actor, reference, created_at").order("created_at", { ascending: false }).limit(600),
+        client.from("staff_registration_requests").select("id, passport, name, requested_role, status, payload, created_at").order("created_at", { ascending: false }).limit(300),
+        client.from("staff_applications").select("id, passport, name, desired_role, status, payload, created_at").order("created_at", { ascending: false }).limit(300),
+        client.from("appointments").select("id, passport, patient, status, payload, created_at").order("created_at", { ascending: false }).limit(500),
+        client.from("financial_receipts").select("id, number, total, payload, created_at").order("created_at", { ascending: false }).limit(500),
+        client.from("profiles").select("id,name,passport,crm,role,specialty,service_status,access_status,staff_metadata,created_at,updated_at").order("created_at", { ascending: false }).limit(300),
+      ]);
+
+      if (!activityResult.error) {
+        setActivities(((activityResult.data || []) as SupabaseActivityRow[]).map((row) => ({
+          id: row.id,
+          module: row.module,
+          action: row.action,
+          description: row.description,
+          actor: row.actor || undefined,
+          reference: row.reference || undefined,
+          createdAt: row.created_at,
+        })));
+      }
+      if (!staffResult.error) setStaffRequests((staffResult.data || []).map((row) => ({ ...((row.payload || {}) as GenericRecord), ...row, createdAt: row.created_at, requestedRole: row.requested_role })));
+      if (!applicationsResult.error) setApplications((applicationsResult.data || []).map((row) => ({ ...((row.payload || {}) as GenericRecord), ...row, protocol: row.id, createdAt: row.created_at, desiredRole: row.desired_role })));
+      if (!appointmentsResult.error) setAppointments((appointmentsResult.data || []).map((row) => ({ ...((row.payload || {}) as GenericRecord), ...row, patientName: row.patient, createdAt: row.created_at })));
+      if (!receiptsResult.error) {
+        const rows = (receiptsResult.data || []).map((row: GenericRecord) => ({ ...((row.payload || {}) as GenericRecord), ...row, createdAt: row.created_at }));
+        setReceipts(rows);
+        setReceiptCount(rows.length);
+      }
+      if (!teamResult.error) {
+        setTeamMembers((teamResult.data || []).filter((row: GenericRecord) => row.access_status === "Aprovado").map((row: GenericRecord) => {
+          const metadata = (row.staff_metadata || {}) as GenericRecord;
+          return {
+            name: row.name || "Profissional",
+            passport: row.passport || "",
+            crm: row.crm || "",
+            hospitalRole: row.role || "Não informado",
+            specialty: row.specialty || "",
+            department: metadata.department || "Hospital São Rafael",
+            joinedAt: metadata.joinedAt || row.created_at || "",
+            history: Array.isArray(metadata.history) ? metadata.history : [],
+          };
+        }));
+      }
+    }
+    const releaseManualRefresh=[registerManualRefresh("src/app/dashboard/relatorios/page.tsx:loadDirectionData",loadDirectionData)];
+
+
+    void loadDirectionData();
+  
+    return ()=>releaseManualRefresh.forEach(release=>release());
+}, []);
+
+  const periodActivities = useMemo(() => {
+    const derived: SystemActivity[] = [
+      ...staffRequests.map((item) => ({ id: `staff-${item.id}`, createdAt: item.createdAt || "1970-01-01T00:00:00-03:00", module: "Cadastros médicos", action: `Solicitação ${item.status || "Pendente"}`, description: `${item.name || "Profissional"} solicitou acesso como ${item.requestedRole || "cargo não informado"}.`, reference: item.passport })),
+      ...applications.map((item) => ({ id: `application-${item.protocol}`, createdAt: item.createdAt || "1970-01-01T00:00:00-03:00", module: "Candidaturas", action: item.status || "Em análise", description: `${item.name || "Candidato"} · ${item.desiredRole || "cargo não informado"}.`, reference: item.protocol })),
+      ...appointments.map((item, index) => ({ id: `appointment-${item.id || index}`, createdAt: item.createdAt || item.requestedAt || "1970-01-01T00:00:00-03:00", module: "Agendamentos", action: item.status || "Solicitação recebida", description: `${item.patientName || item.name || "Paciente"} · ${item.specialty || item.type || "Atendimento"}.`, reference: item.passport })),
+    ];
+    const start = getPeriodStart(reportPeriod);
+    return [...activities, ...derived]
+      .sort((a,b)=>new Date(b.createdAt).getTime()-new Date(a.createdAt).getTime())
+      .filter((item) => !start || new Date(item.createdAt).getTime() >= start);
+  }, [activities, staffRequests, applications, appointments, reportPeriod]);
+
+  const unified = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return periodActivities.filter((item)=> {
+      const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(item.createdAt));
+      return (!q || [item.module,item.action,item.description,item.actor,item.reference].join(" ").toLowerCase().includes(q))
+        && (appliedFilters.module === "all" || item.module === appliedFilters.module)
+        && (appliedFilters.action === "all" || item.action === appliedFilters.action)
+        && (!appliedFilters.from || day >= appliedFilters.from) && (!appliedFilters.to || day <= appliedFilters.to);
+    });
+  }, [periodActivities, search, appliedFilters]);
+  useEffect(() => setActivityPage(1), [search, appliedFilters, reportPeriod]);
+  const pageCount = Math.max(1, Math.ceil(unified.length / 20));
+  const currentPage = Math.min(activityPage, pageCount);
+  const visibleActivities = unified.slice((currentPage - 1) * 20, currentPage * 20);
+
+  const periodStart = useMemo(() => getPeriodStart(reportPeriod), [reportPeriod]);
+  const periodReceipts = useMemo(
+    () => receipts.filter((item) => !periodStart || new Date(item.createdAt || item.created_at || 0).getTime() >= periodStart),
+    [receipts, periodStart],
+  );
+
+  const analytics = useMemo(() => {
+    const countMap = (values: string[]) => {
+      const map = new Map<string, number>();
+      values.filter(Boolean).forEach((value) => map.set(value, (map.get(value) || 0) + 1));
+      return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+    };
+
+    const planRanking = countMap([
+      ...periodReceipts.map((item) => String(item.convenio || item.planName || "Sem Convênio")),
+    ]);
+
+    const serviceRanking = countMap(
+      periodReceipts.flatMap((receipt) => Array.isArray(receipt.items) ? receipt.items.map((item: GenericRecord) => String(item.name || item.nome || "Serviço")) : [])
+    );
+
+    const examRanking = countMap(
+      periodActivities
+        .filter((item) => item.module?.toLowerCase() === "exames")
+        .map((item) => {
+          const full = `${item.action || ""} ${item.description || ""}`;
+          const match = full.match(/(?:^|\s)([A-ZÀ-Úa-zà-ú0-9][A-ZÀ-Úa-zà-ú0-9\-\s]{2,60})(?=\s+salvo|\s+emitido|\.|$)/);
+          return match?.[1]?.trim() || item.action || "Exame";
+        })
+    );
+
+    const moduleRanking = countMap(periodActivities.map((item) => item.module || "Sistema"));
+
+    return {
+      planRanking,
+      serviceRanking,
+      examRanking,
+      moduleRanking,
+      topPlan: planRanking[0],
+      topService: serviceRanking[0],
+      topExam: examRanking[0],
+    };
+  }, [periodActivities, periodReceipts]);
+
+  const pendingRegistrations = staffRequests.filter((item)=>item.status === "Pendente").length;
+  const pendingApplications = applications.filter(isStaffApplicationPending).length;
+  const pendingAppointments = appointments.filter((item)=>!["aceito","confirmado","recusado"].includes(String(item.status).toLowerCase())).length;
+  const periodRevenue = periodReceipts.reduce((sum, item) => sum + Number(item.total || 0), 0);
+  const periodLabel = reportPeriod === "all" ? "Todo o histórico" : `Últimos ${reportPeriod} dias`;
+
+
+
+  async function handleExportReport() {
+    const client = createClient();
+    if (!client || exportingReport) return;
+    setExportingReport(true);
+    try {
+      // O relatório administrativo sempre cobre todo o histórico disponível.
+      // O filtro de período continua valendo apenas para a visualização do painel.
+      const fromIso = "";
+      const reportWarnings: string[] = [];
+      const reportColumns: Record<string, string> = {
+        profiles: "id,name,passport,crm,role,specialty,service_status,access_status,staff_metadata,created_at,updated_at",
+        system_activities: "created_at,module,action,description,actor,reference",
+        staff_applications: "id,name,passport,desired_role,status,payload,created_at,updated_at",
+        staff_registration_requests: "id,name,passport,requested_role,status,payload,created_at,updated_at",
+        patient_registry: "name,passport,birth_date,age,blood_type,city_phone,discord,created_at,updated_at,created_by",
+        patient_accounts: "patient_passport,email",
+        patient_portal_access: "patient_passport,email",
+        appointments: "id,patient,passport,status,payload,created_at,updated_at",
+        clinical_records: "id,patient_passport,record_type,payload,created_by,created_at,updated_at",
+        financial_receipts: "number,total,payload,created_at",
+        financial_plan_entries: "plan_name,holder_passport,value,payload,created_at",
+        time_clock_entries: "user_id,status,opened_at,closed_at,worked_seconds,created_at",
+        time_clock_audit: "created_at,action,reason,target_user_id,actor_user_id,previous_data,new_data",
+      };
+      const fetchAll = async (table: string, orderColumn = "created_at") => {
+        const pageSize = 1000;
+        const rows: GenericRecord[] = [];
+        const columns = reportColumns[table] || "*"; // Seções extras preservam todos os campos do relatório histórico.
+        for (let offset = 0; ; offset += pageSize) {
+          let query: any = client.from(table).select(columns).order(orderColumn, { ascending: false }).range(offset, offset + pageSize - 1);
+          if (fromIso && orderColumn !== "month_start") query = query.gte(orderColumn, fromIso);
+          const { data, error } = await query;
+          if (error) { reportWarnings.push(`${table}: ${error.message}`); break; }
+          const page = (data || []) as GenericRecord[];
+          rows.push(...page);
+          if (page.length < pageSize) break;
+          await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+        }
+        return rows;
+      };
+
+      const [profileRows, activityRows, applicationRows, registrationRows, patientRows, patientAccountRows, patientPortalRows, appointmentRows, clinicalRows, receiptRows, planRows, timeRows, auditRows, bedRows, donationRows, castRows, followupPlanRows, followupOccurrenceRows, guardianRows, availabilityRows, slotRows, timeBreakRows, timeSegmentRows, monthlyTimeRows, bedHistoryRows] = await Promise.all([
+        fetchAll("profiles"),
+        fetchAll("system_activities"),
+        fetchAll("staff_applications"),
+        fetchAll("staff_registration_requests"),
+        fetchAll("patient_registry"),
+        fetchAll("patient_accounts"),
+        fetchAll("patient_portal_access"),
+        fetchAll("appointments"),
+        fetchAll("clinical_records"),
+        fetchAll("financial_receipts"),
+        fetchAll("financial_plan_entries"),
+        fetchAll("time_clock_entries", "opened_at"),
+        fetchAll("time_clock_audit"),
+        fetchAll("hospital_beds", "updated_at"),
+        fetchAll("blood_donations"),
+        fetchAll("cast_records"),
+        fetchAll("clinical_followup_plans"),
+        fetchAll("clinical_followup_occurrences"),
+        fetchAll("patient_guardian_links"),
+        fetchAll("clinical_availability_series"),
+        fetchAll("clinical_appointment_slots"),
+        fetchAll("time_clock_breaks", "started_at"),
+        fetchAll("time_clock_segments", "started_at"),
+        fetchAll("time_clock_monthly_reports", "month_start"),
+        fetchAll("hospital_bed_history"),
+      ]);
+
+      const allStartCandidates = [
+        ...profileRows, ...activityRows, ...applicationRows, ...registrationRows,
+      ].map((row) => row.created_at).filter(Boolean).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+      const anneStart = [...profileRows]
+        .filter((row) => /\banne\b/i.test(String(row.name || "")))
+        .map((row) => row.created_at)
+        .filter(Boolean)
+        .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0];
+
+      await exportAdministrativeReport({
+        periodLabel: "Todo o histórico disponível",
+        operationalStart: anneStart || allStartCandidates[0] || "",
+        warnings: reportWarnings,
+        profiles: profileRows,
+        activities: activityRows,
+        teamMembers: [],
+        applications: applicationRows,
+        registrationRequests: registrationRows,
+        patients: patientRows,
+        patientAccounts: patientAccountRows,
+        patientPortalAccess: patientPortalRows,
+        appointments: appointmentRows,
+        clinicalRecords: clinicalRows,
+        receipts: receiptRows,
+        planEntries: planRows,
+        timeEntries: timeRows,
+        timeAudits: auditRows,
+        extraSections: [
+          { name: "Leitos", title: "Situação atual dos leitos", rows: bedRows },
+          { name: "Histórico de leitos", title: "Internações, atualizações, altas e visitas dos leitos", rows: bedHistoryRows },
+          { name: "Doações de sangue", title: "Registros de doações de sangue", rows: donationRows },
+          { name: "Traumatologia", title: "Registros de gesso e traumatologia", rows: castRows },
+          { name: "Acompanhamentos", title: "Planos de acompanhamento clínico", rows: followupPlanRows },
+          { name: "Ocorrências acomp.", title: "Ocorrências dos acompanhamentos clínicos", rows: followupOccurrenceRows },
+          { name: "Responsáveis", title: "Vínculos de responsáveis por pacientes", rows: guardianRows },
+          { name: "Disponibilidade médica", title: "Séries de disponibilidade publicadas pelos médicos", rows: availabilityRows },
+          { name: "Horários clínicos", title: "Horários clínicos livres, ocupados e encerrados", rows: slotRows },
+          { name: "Pausas do ponto", title: "Pausas registradas durante as jornadas", rows: timeBreakRows },
+          { name: "Segmentos do ponto", title: "Segmentos trabalhados das jornadas", rows: timeSegmentRows },
+          { name: "Fechamentos mensais", title: "Relatórios mensais consolidados de ponto", rows: monthlyTimeRows },
+        ],
+      });
+    } catch (error) {
+      await hpsrAlert(error instanceof Error ? `Não foi possível gerar o relatório completo. ${error.message}` : "Não foi possível gerar o relatório completo.", "Relatório administrativo");
+    } finally {
+      setExportingReport(false);
+    }
+  }
+
+  return <div className={`hpsr-page hpsr-warm-page hpsr-direction-page gap-3 lg:h-[calc(100dvh-2.4rem)] lg:min-h-0 lg:overflow-hidden ${`${styles.overview} ${reportSection === "activities" ? styles.activities : ""}`}`}>
+    <PageHeader eyebrow="Administração" title="Relatórios" description="Acompanhe os principais indicadores por área, sem misturar todas as informações na mesma visão." />
+
+    <section className={`${styles.reportShell} !flex-none shrink-0 overflow-hidden rounded-[20px] border border-[#d7bfab] bg-[linear-gradient(135deg,#f4ebdf_0%,#ebdfd1_100%)] shadow-[0_10px_26px_rgba(79,42,21,0.055)]`}>
+      <div className={`${styles.hero} hpsr-dark-section-header hpsr-direction-primary-header flex flex-col gap-3 border-b border-[#a6786b]/50 bg-[linear-gradient(110deg,#3f1d1b,#613128_64%,#744239)] px-4 py-3.5 xl:flex-row xl:items-center xl:justify-between`}>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><Database size={18}/></span>
+          <div className="min-w-0"><h2 className="text-sm font-black text-hpsr-text">Central de relatórios</h2><p className="text-xs text-hpsr-muted">{periodLabel} · {periodActivities.length} atividades analisadas</p></div>
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <label className="flex min-h-[40px] min-w-[165px] items-center gap-2 rounded-[13px] border border-hpsr-border bg-white px-3 text-xs font-black text-hpsr-wine"><CalendarDays size={15}/><StyledSelect value={reportPeriod} onChange={(event)=>setReportPeriod(event.target.value)} className="min-w-0 flex-1 bg-transparent text-xs font-bold text-hpsr-text outline-none"><option value="all">Todo o histórico</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option></StyledSelect></label>
+          <button type="button" onClick={handleExportReport} disabled={exportingReport} className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[13px] bg-hpsr-wine px-4 text-xs font-black text-white transition hover:opacity-90 disabled:cursor-wait disabled:opacity-60"><Download size={15}/> {exportingReport ? "Gerando..." : "Exportar relatório"}</button>
+        </div>
+      </div>
+      <div className={`${styles.navigation} grid gap-2 bg-[#eee0d0] p-2 sm:grid-cols-3`}>
+        <ReportNavButton active={reportSection === "overview"} onClick={()=>setReportSection("overview")} icon={<PieChart size={16}/>} title="Visão geral" description="Indicadores e distribuição" />
+        <ReportNavButton active={reportSection === "activities"} onClick={()=>setReportSection("activities")} icon={<Activity size={16}/>} title="Atividades" description="Linha do tempo e solicitações" />
+        <ReportNavButton active={reportSection === "time"} onClick={()=>setReportSection("time")} icon={<CalendarDays size={16}/>} title="Ponto" description="Jornada e fechamentos" />
+      </div>
+    </section>
+
+    {reportSection === "overview" && <div className={`${styles.metrics} grid shrink-0 flex-none auto-rows-min gap-3 sm:grid-cols-2 xl:grid-cols-4`}>
+      <Stat icon={<Activity size={18}/>} label="Atividades no período" value={String(periodActivities.length)}/>
+      <Stat icon={<UserPlus size={18}/>} label="Cadastros pendentes" value={String(pendingRegistrations)}/>
+      <Stat icon={<CalendarDays size={18}/>} label="Agendas pendentes" value={String(pendingAppointments)}/>
+      <Stat icon={<WalletCards size={18}/>} label="Receita registrada" value={formatMoney(periodRevenue)}/>
+    </div>}
+
+    <div className="hpsr-page-scroll min-h-0 flex-1 overscroll-contain pr-1" style={{ overflowY: "auto", overflowX: "hidden" }}>
+      <div className="min-h-full pb-3">
+        {reportSection === "overview" && <div className={`${styles.main} grid gap-3 xl:grid-cols-[minmax(0,1fr)_300px]`}>
+          <ActivityPiePanel filter={activityChartFilter} onFilterChange={setActivityChartFilter} datasets={{ modules: analytics.moduleRanking, plans: analytics.planRanking, exams: analytics.examRanking, services: analytics.serviceRanking }} />
+          <aside className={`${styles.sidebar} grid content-start gap-3`}>
+            <div className={`${styles.structure} rounded-[18px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] p-4 shadow-[0_10px_26px_rgba(79,42,21,0.05)]`}><p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight"><ClipboardCheck size={19}/>Estrutura</p><div className="mt-3 grid gap-2"><MiniMetric label="Equipe cadastrada" value={String(teamMembers.length)} icon={<Users size={15}/>} /><MiniMetric label="Candidaturas em fluxo" value={String(pendingApplications)} icon={<ClipboardCheck size={15}/>} /><MiniMetric label="Recibos registrados" value={String(receiptCount)} icon={<WalletCards size={15}/>} /></div></div>
+            <Summary title="Governança" icon={<ShieldCheck size={17}/>} items={["Histórico centralizado no Supabase", "Solicitações públicas consolidadas", "Recibos vinculados ao Financeiro", "Registros compartilhados entre usuários autorizados"]}/>
+          </aside>
+        </div>}
+
+        {reportSection === "activities" && <section className={styles.activityLayout}>
+          <form className={styles.activityToolbar} onSubmit={(e)=>{e.preventDefault(); setAppliedFilters(activityFilters);}}>
+            <label className={styles.activitySearch}><Search size={19}/><input aria-label="Buscar atividades" value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Buscar por médico, paciente ou atividade..."/></label>
+            <label>Módulo<StyledSelect value={activityFilters.module} onChange={(e)=>setActivityFilters({...activityFilters,module:e.target.value})}><option value="all">Todos os módulos</option>{Array.from(new Set(periodActivities.map(item=>item.module))).sort().map(value=><option key={value}>{value}</option>)}</StyledSelect></label>
+            <label>Tipo<StyledSelect value={activityFilters.action} onChange={(e)=>setActivityFilters({...activityFilters,action:e.target.value})}><option value="all">Todas as ações</option>{Array.from(new Set(periodActivities.map(item=>item.action))).sort().map(value=><option key={value}>{value}</option>)}</StyledSelect></label>
+            <label>De<input type="date" value={activityFilters.from} max={activityFilters.to || undefined} onChange={(e)=>setActivityFilters({...activityFilters,from:e.target.value})}/></label>
+            <label>Até<input type="date" value={activityFilters.to} min={activityFilters.from || undefined} onChange={(e)=>setActivityFilters({...activityFilters,to:e.target.value})}/></label>
+            <button type="submit"><Filter size={17}/>Aplicar filtros</button><button type="button" className={styles.clearFilters} onClick={()=>{const empty={module:"all",action:"all",from:"",to:""};setActivityFilters(empty);setAppliedFilters(empty);setSearch("");}}><RotateCcw size={17}/>Limpar</button>
+          </form>
+          <div className={styles.historyPanel}>
+            <div className={styles.historyHeader}><span><PieChart size={24}/></span><div><h2>Histórico de atividades</h2><p>Ações registradas nos módulos do sistema.</p></div><strong>{unified.length} registros</strong></div>
+            <div className={styles.tableScroll}><table className={styles.activityTable}><thead><tr><th>Data e hora</th><th>Responsável</th><th>Atividade</th><th>Módulo</th><th>Detalhes</th></tr></thead><tbody>
+              {visibleActivities.map((item,index)=>{const day=formatDateTime(item.createdAt).split(",")[0];const previous=index ? formatDateTime(visibleActivities[index-1].createdAt).split(",")[0] : null;return <ActivityTableEntry key={item.id} item={item} day={day !== previous ? day : undefined} onDetails={()=>setSelectedActivity(item)}/>;})}
+              {!unified.length && <tr><td colSpan={5} className={styles.emptyHistory}>Nenhuma atividade encontrada para os filtros selecionados.</td></tr>}
+            </tbody></table></div>
+            <div className={styles.pagination}><span>{unified.length ? (currentPage-1)*20+1 : 0} – {Math.min(currentPage*20,unified.length)} de {unified.length} registros</span><div><button disabled={currentPage===1} onClick={()=>setActivityPage(currentPage-1)}>Anterior</button><strong>{currentPage} / {pageCount}</strong><button disabled={currentPage===pageCount} onClick={()=>setActivityPage(currentPage+1)}>Próxima</button></div></div>
+          </div>
+        </section>}
+
+        {reportSection === "time" && <TimeClockAdministrativeReport />}
+      </div>
+    </div>
+    {selectedActivity && <ActivityDetails item={selectedActivity} onClose={()=>setSelectedActivity(null)}/>}
+    {applicationHistoryOpen && <ApplicationHistoryModal items={applications} onClose={() => setApplicationHistoryOpen(false)} />}
+  </div>;
+}
+
+function ReportNavButton({ active, onClick, icon, title, description }: { active: boolean; onClick: () => void; icon: React.ReactNode; title: string; description: string }) {
+  return <button type="button" onClick={onClick} aria-pressed={active} className={`${styles.navButton} flex items-center gap-3 rounded-[14px] px-3.5 py-3 text-left transition ${active ? "bg-white text-hpsr-wine shadow-sm ring-1 ring-hpsr-border" : "text-hpsr-muted hover:bg-white/60"}`}><span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] ${active ? "bg-hpsr-wine text-white" : "bg-white text-hpsr-wine"}`}>{icon}</span><span className="min-w-0"><span className="block text-xs font-black">{title}</span><span className="mt-0.5 block truncate text-[10px] font-semibold opacity-75">{description}</span></span></button>;
+}
+
+function MiniMetric({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+  return <div className={`${styles.miniMetric} flex items-center justify-between gap-3 rounded-[13px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5`}><span className="flex min-w-0 items-center gap-2 text-xs font-bold text-hpsr-muted"><span className="text-hpsr-wine">{icon}</span><span className="truncate">{label}</span></span><strong className="text-sm font-black text-hpsr-text">{value}</strong></div>;
+}
+
+function getPeriodStart(period: string) {
+  if (period === "all") return 0;
+  const days = Number(period);
+  return Number.isFinite(days) ? Date.now() - days * 24 * 60 * 60 * 1000 : 0;
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
+
+
+function formatMoney(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+}
+
+function Stat({icon,label,value}:{icon:React.ReactNode;label:string;value:string}) {
+  return <div className={`${styles.stat} min-h-[74px] self-start rounded-[17px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] px-3.5 py-3 shadow-[0_8px_22px_rgba(79,42,21,0.05)]`}>
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2.5"><span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[11px] bg-[#fff1e5] text-hpsr-wine">{icon}</span><p className="truncate text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{label}</p></div>
+      <span className="shrink-0 truncate text-lg font-black text-hpsr-text xl:text-xl">{value}</span>
+    </div>
+  </div>;
+}
+
+type ActivityChartFilter = "modules" | "plans" | "exams" | "services";
+
+function ActivityPiePanel({
+  filter,
+  onFilterChange,
+  datasets,
+}: {
+  filter: ActivityChartFilter;
+  onFilterChange: (value: ActivityChartFilter) => void;
+  datasets: Record<ActivityChartFilter, Array<[string, number]>>;
+}) {
+  const filterMeta: Record<ActivityChartFilter, { label: string; title: string; description: string; icon: React.ReactNode }> = {
+    modules: { label: "Atividades", title: "Atividades por módulo", description: "Distribuição das movimentações registradas no período.", icon: <Activity size={16}/> },
+    plans: { label: "Planos", title: "Planos utilizados", description: "Participação dos planos nos registros financeiros do período.", icon: <WalletCards size={16}/> },
+    exams: { label: "Exames", title: "Exames realizados", description: "Distribuição dos exames registrados no período.", icon: <FlaskConical size={16}/> },
+    services: { label: "Serviços", title: "Serviços realizados", description: "Participação dos serviços lançados nos atendimentos.", icon: <Stethoscope size={16}/> },
+  };
+  const rawItems = datasets[filter] || [];
+  const primary = rawItems.slice(0, 7);
+  const remainder = rawItems.slice(7).reduce((sum, [, value]) => sum + value, 0);
+  const items = remainder > 0 ? [...primary, ["Outros", remainder] as [string, number]] : primary;
+  const total = items.reduce((sum, [, value]) => sum + value, 0);
+  const colors = ["#672614", "#613128", "#875447", "#a47863", "#bd9880", "#70574f", "#b5957d", "#d3b8a4"];
+  let cursor = 0;
+  const gradient = total > 0
+    ? `conic-gradient(${items.map(([, value], index) => {
+        const start = cursor;
+        cursor += (value / total) * 100;
+        return `${colors[index % colors.length]} ${start}% ${cursor}%`;
+      }).join(", ")})`
+    : "conic-gradient(#d3b8a4 0 100%)";
+  const selected = filterMeta[filter];
+
+  return <section className={`${styles.activityPanel} shrink-0 overflow-hidden rounded-[22px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] shadow-[0_12px_30px_rgba(79,42,21,0.06)]`}>
+    <div className={`${styles.panelHeader} flex flex-col gap-3 border-b border-hpsr-border px-4 py-4 xl:flex-row xl:items-center xl:justify-between`}>
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-hpsr-wine text-white"><PieChart size={19}/></span>
+        <div><h2 className="font-black text-hpsr-text">Painel de atividades</h2><p className="text-xs text-hpsr-muted">Distribuição dos registros no período.</p></div>
+      </div>
+      <div className={`${styles.filters} grid grid-cols-2 gap-2 sm:grid-cols-4`}>
+        {(Object.keys(filterMeta) as ActivityChartFilter[]).map((key) => {
+          const item = filterMeta[key];
+          const active = filter === key;
+          return <button key={key} type="button" onClick={() => onFilterChange(key)} aria-pressed={active} className={`inline-flex min-h-[40px] items-center justify-center gap-2 rounded-[12px] border px-3 text-xs font-black transition ${active ? "border-hpsr-wine bg-hpsr-wine text-white shadow-sm" : "border-hpsr-border bg-[#fffaf4] text-hpsr-text hover:border-hpsr-wine/40"}`}>{item.icon}{item.label}</button>;
+        })}
+      </div>
+    </div>
+
+    <div className={`${styles.chartBody} grid gap-5 p-5 lg:grid-cols-[minmax(280px,.8fr)_minmax(0,1.2fr)] lg:items-center`}>
+      <div className="flex flex-col items-center justify-center">
+        <div role="img" aria-label={`${selected.title}: ${total} registros. Distribuição detalhada ao lado.`} className={`${styles.donut} relative grid h-[250px] w-[250px] place-items-center rounded-full shadow-[0_18px_36px_rgba(79,42,21,0.10)]`} style={{ background: gradient }}>
+          <div className={`${styles.donutCenter} grid h-[132px] w-[132px] place-items-center rounded-full border border-hpsr-border bg-white text-center shadow-inner`}>
+            <div><p className="text-3xl font-black text-hpsr-text">{total}</p><p className="mt-1 text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Registros</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="min-w-0">
+        
+        <h3 className="mt-1 text-xl font-black text-hpsr-text">{selected.title}</h3>
+        <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">{selected.description}</p>
+        <div className={`${styles.legend} mt-4 grid gap-2 sm:grid-cols-2`}>
+          {items.map(([label, value], index) => {
+            const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+            return <div key={`${label}-${index}`} className="flex min-w-0 items-center gap-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5">
+              <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: colors[index % colors.length] }}/>
+              <div className="min-w-0 flex-1"><p className="truncate text-xs font-black text-hpsr-text" title={label}>{label}</p><p className="text-[10px] font-semibold text-hpsr-muted">{value} registro(s)</p></div>
+              <span className="shrink-0 text-sm font-black text-hpsr-wine">{percentage}%</span>
+            </div>;
+          })}
+          {!items.length && <div className="sm:col-span-2 rounded-[15px] border border-dashed border-hpsr-border p-8 text-center text-sm font-semibold text-hpsr-muted">Nenhum dado disponível para este filtro.</div>}
+        </div>
+      </div>
+    </div>
+  </section>;
+}
+
+function ActivityRow({ item }: { item: SystemActivity }) {
+  return <article className="grid gap-2 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5 transition hover:border-[#c79b7d] sm:grid-cols-[128px_1fr_auto] sm:items-center">
+    <div><p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{item.module}</p><p className="mt-1 text-[10px] text-hpsr-muted">{new Date(item.createdAt).getTime() ? new Date(item.createdAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "Data não registrada"}</p></div>
+    <div className="min-w-0"><p className="truncate text-xs font-black text-hpsr-text" title={item.action}>{item.action}</p><p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-hpsr-muted">{item.description}</p></div>
+    {item.reference && <span className="max-w-[150px] truncate rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[9px] font-black text-hpsr-wine" title={item.reference}>{item.reference}</span>}
+  </article>;
+}
+
+function Summary({title,icon,items,actionLabel,onAction,totalCount}:{title:string;icon:React.ReactNode;items:string[];actionLabel?:string;onAction?:()=>void;totalCount?:number}) {
+  return <section className={`${styles.summary} rounded-[18px] border border-[#d5b99f] bg-[linear-gradient(155deg,#f7ecde_0%,#ecdbc8_100%)] p-3.5 shadow-[0_10px_26px_rgba(79,42,21,0.05)]`}>
+    <div className="flex items-center justify-between gap-2 border-b border-hpsr-border pb-2.5"><div className="flex min-w-0 items-center gap-2 text-hpsr-wine">{icon}<h3 className="truncate text-sm font-black text-hpsr-text">{title}</h3></div><div className="flex items-center gap-2">{actionLabel && onAction && <button type="button" onClick={onAction} className="rounded-[10px] border border-hpsr-border bg-white px-2 py-1 text-[9px] font-black text-hpsr-wine">{actionLabel}</button>}<span className="shrink-0 rounded-full bg-[#fff1e5] px-2 py-0.5 text-[9px] font-black text-hpsr-wine">{totalCount ?? items.length}</span></div></div>
+    <div className="mt-2.5 grid content-start gap-1.5">{items.map((item,index)=><div key={`${item}-${index}`} className="min-h-[34px] rounded-[11px] border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-[11px] font-semibold leading-[1.35] text-hpsr-muted" title={item}>{item}</div>)}{!items.length&&<p className="py-4 text-center text-xs text-hpsr-muted">Nenhum registro disponível.</p>}</div>
+  </section>;
+}
+
+function ActivityTableEntry({item,day,onDetails}:{item:SystemActivity;day?:string;onDetails:()=>void}) {
+ return <>{day && <tr className={styles.dayRow}><th colSpan={5}><CalendarDays size={16}/>{day}</th></tr>}<tr><td>{formatDateTime(item.createdAt)}</td><td><span className={styles.cellContent}><Users size={16}/>{item.actor || "Não informado"}</span></td><td>{item.action}</td><td><span className={styles.moduleBadge}>{item.module}</span></td><td><button className={styles.detailsButton} onClick={onDetails}><Eye size={16}/>Ver detalhes</button></td></tr></>;
+}
+function ActivityDetails({item,onClose}:{item:SystemActivity;onClose:()=>void}) {
+ const [element,setElement]=useState<HTMLDialogElement|null>(null);
+ useEffect(()=>{if(element && !element.open) element.showModal();},[element]);
+ return <dialog ref={setElement} onCancel={onClose} className={`hpsr-modal-tone ${styles.detailsDialog}`}><h2>Detalhes da atividade</h2><dl>{[["Data e hora",formatDateTime(item.createdAt)],["Responsável",item.actor || "Não informado"],["Atividade",item.action],["Módulo",item.module],["Descrição",item.description],["Referência",item.reference || "Não informado"]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl><button autoFocus onClick={onClose}>Fechar</button></dialog>;
+}

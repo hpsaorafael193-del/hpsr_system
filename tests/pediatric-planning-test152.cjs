@@ -6,7 +6,7 @@ assert(lib.canAccessPediatrics('Médico Especialista','Clínico Geral, Pediatria
 assert(!lib.canAccessPediatrics('Residente','Pediatria'));
 assert(!lib.canAccessPediatrics('Médico Especialista','Obstetra'));
 const first=lib.pediatricVisit('2026-10-29',0),second=lib.pediatricVisit('2026-10-29',1);
-assert.equal(second.date,'2026-11-13');assert(second.planned.includes('revisar os resultados'));assert(first.planned.includes('Conferir a caderneta'));
+assert.equal(second.date,'2026-11-13');assert.equal(second.planned,lib.PEDIATRIC_DEFAULT_PLANS[1]);assert(first.planned.includes('caderneta'));
 assert.equal(lib.validatePediatricPlan({start_date:'2026-10-29',next_return:second.date,consultations:[first,second]}),'');
 assert(lib.validatePediatricPlan({start_date:'2026-10-29',consultations:[first,{...second,date:first.date}]}));
 assert(lib.validatePediatricPlan({start_date:'2026-10-29',consultations:[{...first,status:'realizada'}]}));
@@ -24,3 +24,12 @@ assert.equal(nav('Residente','Pediatria').followups.length,0);
 assert.equal(nav('Vice Diretor / Dev','').followups.length,3);
 assert.equal(nav('Diretora','').vaccination.length,2);
 console.log('PASS: specialty-only navigation, stable group order, multiple specialties and existing administrative exceptions');
+
+const done={...first,status:'realizada',actual_date:'2026-10-29',health:'Avaliação registrada'};
+const conversation={...lib.pediatricGuardianReturn('2026-11-20'),status:'realizada',actual_date:'2026-11-20',conduct:'Orientações explicadas'};
+assert.equal(conversation.kind,'guardian_return');assert(conversation.planned.includes('não entra na contagem'));
+assert.equal(lib.nextPediatricConsultation([done,conversation],'2026-10-29'),'2026-11-13');
+assert.equal(lib.nextPediatricConsultation([done,conversation,second],'2026-10-29'),'2026-11-13');
+const legacy={...done};delete legacy.kind;assert.equal(lib.nextPediatricConsultation([legacy,conversation],'2026-10-29'),'2026-11-13');
+assert.equal(lib.validatePediatricPlan({start_date:'2026-10-29',consultations:[done,conversation]}),'');
+console.log('PASS: guardian return has independent date, does not reset 15-day cycle, legacy records preserved.');

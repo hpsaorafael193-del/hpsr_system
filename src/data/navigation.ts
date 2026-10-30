@@ -43,16 +43,16 @@ export const toolsNavigation = [
   { label: "Documentos", href: "/dashboard/documentos", icon: FileText },
   { label: "Traumatologia", href: "/dashboard/traumatologia", icon: Bone },
   { label: "Banco de Sangue", href: "/dashboard/banco-de-sangue", icon: Droplets },
-  { label: "Acompanhamento", href: "/dashboard/obstetra", icon: Baby },
+  { label: "Acompanhamento", href: "/dashboard/acompanhamento", icon: Baby },
   { label: "Vacinação", href: "/dashboard/vacinacao", icon: Syringe },
   { label: "Gestão de Leitos", href: "/dashboard/gestao-de-leitos", icon: Bed },
   { label: "Financeiro", href: "/dashboard/financeiro", icon: WalletCards },
 ];
 
 export const adminNavigation = [
-  { label: "Direção", href: "/dashboard/equipe", icon: Users },
+  { label: "Direção", href: "/dashboard/direcao", icon: Users },
   { label: "Interno", href: "/dashboard/interno", icon: ShieldCheck, internalOnly: true },
-  { label: "Relatório", href: "/dashboard/direcao", icon: Landmark },
+  { label: "Relatórios", href: "/dashboard/relatorios", icon: Landmark },
 ];
 
 export const publicCards = [

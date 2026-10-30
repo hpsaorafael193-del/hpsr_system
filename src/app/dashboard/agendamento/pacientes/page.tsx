@@ -772,7 +772,7 @@ function PatientLinkCard({
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             {["obstetra","ginecologia"].includes(normalizeSpecialty(row.specialty)) && <span className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-[9px] px-2.5 text-[10px] font-black ${formStatusClass}`}><ClipboardList size={12}/> Ficha: {formStatusLabel}</span>}
             <div className="ml-auto flex flex-wrap justify-end gap-2">
-            {["obstetra","ginecologia"].includes(normalizeSpecialty(row.specialty)) && <Link href={`/dashboard/obstetra?patient=${encodeURIComponent(row.patient_passport)}&specialty=${encodeURIComponent(row.specialty)}`} className="inline-flex min-h-[36px] items-center gap-1.5 rounded-[10px] bg-hpsr-wine px-3 text-xs font-black text-white transition hover:brightness-105"><HeartPulse size={13}/> Ver acompanhamento</Link>}
+            {["obstetra","ginecologia"].includes(normalizeSpecialty(row.specialty)) && <Link href={`/dashboard/acompanhamento?patient=${encodeURIComponent(row.patient_passport)}&specialty=${encodeURIComponent(row.specialty)}`} className="inline-flex min-h-[36px] items-center gap-1.5 rounded-[10px] bg-hpsr-wine px-3 text-xs font-black text-white transition hover:brightness-105"><HeartPulse size={13}/> Ver acompanhamento</Link>}
             <button
               type="button"
               onClick={onEdit}

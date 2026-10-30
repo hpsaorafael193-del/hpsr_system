@@ -1,0 +1,302 @@
+/* Paleta institucional compartilhada pelas três categorias de Relatórios. */
+.overview { container-type:inline-size; color:#2a0700; gap:12px; }
+.overview .reportShell { overflow:visible; border:0!important; border-radius:0; background:transparent; box-shadow:none; }
+.overview.overview .reportShell .hero { min-height:88px; padding:16px 18px; border:0; border-radius:8px; background:linear-gradient(110deg,#3f1d1b,#613128 65%,#744239)!important; box-shadow:0 10px 25px #5428140c; }
+.overview .hero > div:first-child > span { width:54px; height:54px; border-radius:18px; background:#672614; }
+.overview .hero > div:first-child > span svg { width:25px; height:25px; }
+.overview .hero h2 { font-size:23px; letter-spacing:.02em; line-height:1.2; }
+.overview .hero p { margin-top:5px; font-size:14px; }
+.overview.overview .reportShell .hero label { min-height:48px; min-width:230px; background:#f5e8dc!important; border-color:#ddc1b1!important; border-radius:14px; }
+.overview .hero > div:last-child > button { min-height:48px; border:1px solid #c8a992; background:transparent; font-size:13px; border-radius:13px; }
+.overview .navigation { gap:10px; padding:10px 0 0; background:transparent; }
+.overview .navButton { position:relative; min-height:74px; border:1px solid #ddc1b1; border-radius:14px; padding:12px 18px; background:linear-gradient(120deg,#f8ecdf,#f4e3d7); box-shadow:none; color:#70574f; }
+.overview .navButton[aria-pressed="true"] { color:#2a0700; background:linear-gradient(120deg,#f5e5d9,#f5e5d9); }
+.overview .navButton[aria-pressed="true"]::after { position:absolute; content:""; height:5px; bottom:0; left:5px; right:5px; border-radius:5px; background:#672614; }
+.overview .navButton > span:first-child { width:45px; height:45px; border-radius:15px; background:#f5e8dc; }
+.overview .navButton[aria-pressed="true"] > span:first-child { color:#fff5e8; background:#672614; }
+.overview .navButton svg { width:23px; height:23px; }
+.overview .navButton > span:last-child > span:first-child { font-size:15px; }
+.overview .navButton > span:last-child > span:last-child { font-size:12px; opacity:1; white-space:normal; }
+.overview .metrics { gap:12px; }
+.overview .stat { min-height:76px; align-self:stretch; display:flex; align-items:center; border-color:#ddc1b1; background:linear-gradient(115deg,#f8ecdf,#f4e3d7); padding:12px; box-shadow:none; }
+.overview .stat > div { width:100%; gap:8px; }
+.overview .stat > div > div { gap:10px; }
+.overview .stat p { white-space:normal; line-height:1.3; font-size:10px; letter-spacing:.035em; color:#672614; }
+.overview .stat > div > span { max-width:100%; font-size:21px; color:#2a0700; }
+.overview .stat > div > div > span { width:40px; height:40px; border-radius:14px; background:#f5e8dc; }
+.overview .main { gap:14px; align-items:stretch; }
+.overview .activityPanel,.overview .structure,.overview .summary { border-color:#ddc1b1; background:linear-gradient(120deg,#fbf0e6,#f5e4d8); box-shadow:none; border-radius:18px; }
+.overview .activityPanel { min-width:0; }
+.overview .panelHeader { padding:16px 18px; border-color:#d6b9a9; }
+.overview .panelHeader h2 { font-size:19px; }
+.overview .panelHeader p { font-size:12px; color:#70574f; }
+.overview .panelHeader > div:first-child > span { width:46px; height:46px; background:#672614; border-radius:16px; }
+.overview .filters { gap:7px; }
+.overview .filters button { min-height:40px; padding:0 11px; font-size:12px; background:#dbc5b4; border-color:#d6b9a9; color:#2a0700; }
+.overview .filters button[aria-pressed="true"] { background:#672614; border-color:#672614; color:#fff6ec; }
+.overview .chartBody { gap:24px; padding:26px 20px 30px; min-height:340px; }
+.overview .chartBody h3 { margin-top:0; font-size:19px; color:#2a0700; }
+.overview .chartBody h3 + p { font-size:12px; color:#70574f; }
+.overview .donut { width:min(100%,290px); height:auto; aspect-ratio:1; box-shadow:0 18px 36px #63371915; }
+.overview .donutCenter { width:54%; height:auto; aspect-ratio:1; background:#dcc5b2; border:0; box-shadow:none; }
+.overview .donutCenter p:first-child { font-size:34px; line-height:1; color:#2a0700; }
+.overview .donutCenter p:last-child { color:#2a0700; }
+.overview .legend { gap:9px; }
+.overview .legend > div { min-height:58px; background:#f7ecdf; border-color:#d6b9a9; border-radius:15px; padding:10px 12px; }
+.overview .legend > div > span:first-child { width:15px; height:15px; }
+.overview .legend > div p:first-child { font-size:12px; white-space:normal; line-height:1.25; color:#2a0700; }
+.overview .legend > div p:last-child { margin-top:3px; font-size:11px; color:#70574f; }
+.overview .legend > div > span:last-child { font-size:15px; color:#672614; }
+.overview .sidebar { gap:14px; }
+.overview .structure { padding:16px 14px; }
+.overview .structure > p,.overview .summary h3 { font-size:12px; text-transform:uppercase; letter-spacing:.09em; color:#672614; }
+.overview .miniMetric { min-height:43px; border-color:#d6b9a9; background:#f7ecdf; }
+.overview .miniMetric > span { font-weight:500; color:#70574f; }
+.overview .miniMetric > strong { color:#2a0700; }
+.overview .summary { padding:14px; }
+.overview .summary > div:first-child { border:0; padding-bottom:2px; }
+.overview .summary > div:first-child > div:last-child > span { width:26px; height:26px; display:grid; place-items:center; padding:0; font-size:12px; background:#f5e8dc; }
+.overview .summary > div:last-child { gap:7px; }
+.overview .summary > div:last-child > div { min-height:38px; padding:10px 12px; font-size:11px; font-weight:500; background:#f7ecdf; border-color:#d6b9a9; color:#70574f; }
+@container (min-width:1100px) {
+ .overview .main { grid-template-columns:minmax(0,1fr) 280px; }
+ .overview .panelHeader { flex-direction:row; align-items:center; justify-content:space-between; }
+ .overview .chartBody { grid-template-columns:minmax(210px,.7fr) minmax(0,1.3fr); }
+}
+@container (min-width:1450px) {
+ .overview .main { grid-template-columns:minmax(0,1fr) 320px; }
+ .overview .hero h2 { font-size:26px; }
+ .overview .stat p { font-size:12px; }
+ .overview .stat > div > span { font-size:25px; }
+ .overview .chartBody { min-height:420px; padding:28px 34px; grid-template-columns:minmax(270px,.75fr) minmax(0,1.25fr); }
+ .overview .donut { width:330px; max-width:100%; }
+ .overview .legend > div { min-height:63px; }
+}
+@container (max-width:1099px) {
+ .overview .main { grid-template-columns:minmax(0,1fr); }
+ .overview .sidebar { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .overview .chartBody { grid-template-columns:minmax(180px,.7fr) minmax(0,1.3fr); }
+ .overview .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@container (max-width:650px) {
+ .overview .hero { padding:14px; }
+ .overview .hero h2 { font-size:19px; }
+ .overview .hero p { font-size:12px; }
+ .overview .hero > div:last-child { width:100%; }
+ .overview.overview .reportShell .hero label { flex:1; min-width:0; width:100%; }
+ .overview .hero > div:last-child > button { flex:1; font-size:11px; padding:0 10px; }
+ .overview .chartBody { grid-template-columns:minmax(0,1fr); padding:20px 14px; gap:24px; }
+ .overview .sidebar { grid-template-columns:minmax(0,1fr); }
+ .overview .donut { width:245px; }
+ .overview .panelHeader { padding:14px; }
+ .overview .panelHeader h2 { font-size:17px; }
+ .overview .stat { min-height:80px; }
+ .overview .stat > div { align-items:flex-start; flex-direction:column; }
+ .overview .stat > div > span { align-self:flex-end; font-size:18px; }
+ .overview .legend { grid-template-columns:minmax(0,1fr); }
+ .overview .navButton { padding:10px 12px; }
+}
+
+/* Histórico de atividades: filtros e tabela conforme a referência. */
+.activityLayout { display:grid; gap:14px; min-width:0; }
+.activityToolbar { display:flex; flex-wrap:wrap; align-items:end; gap:14px; padding:16px; border:1px solid #ddc1b1; border-radius:16px; background:linear-gradient(120deg,#f8ecdf,#f4e3d7); }
+.activityToolbar label { display:grid; gap:5px; min-width:130px; flex:1; font-size:12px; font-weight:700; color:#2a0700; }
+.activityToolbar input,.activityToolbar select { width:100%; min-width:0; min-height:40px; border:1px solid #d6b9a9; border-radius:10px; padding:8px 10px; background:#f5e8dc; color:#2a0700; font-size:12px; }
+.activityToolbar .activitySearch { display:flex; align-items:center; gap:8px; flex:2; min-width:230px; border:1px solid #d6b9a9; border-radius:10px; background:#f5e8dc; padding:0 12px; }
+.activitySearch input { border:0; background:transparent; }
+.activityToolbar button,.pagination button,.detailsDialog button { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:40px; border-radius:10px; border:1px solid #c8a992; padding:8px 14px; background:#672614; color:#fff5e9; font-size:12px; font-weight:700; }
+.activityToolbar .clearFilters { background:#f5e8dc; color:#672614; }
+.historyPanel { overflow:hidden; min-width:0; border:1px solid #ddc1b1; border-radius:16px; background:linear-gradient(120deg,#fbf0e6,#f5e4d8); }
+.historyHeader { display:flex; align-items:center; gap:14px; padding:14px 18px; }
+.historyHeader > span { display:grid; place-items:center; width:48px; height:48px; flex-shrink:0; border-radius:16px; background:#672614; color:#fff5e9; }
+.historyHeader h2 { font-size:18px; font-weight:800; color:#2a0700; }
+.historyHeader p { margin-top:4px; font-size:12px; color:#70574f; }
+.historyHeader > strong { margin-left:auto; flex-shrink:0; padding:8px 15px; border-radius:24px; background:#ead4c2; font-size:13px; }
+.tableScroll { overflow:auto; max-height:560px; scrollbar-color:#a98770 #f6eae0; }
+.activityTable { width:100%; min-width:790px; border-collapse:collapse; font-size:12px; color:#2a0700; }
+.activityTable th,.activityTable td { padding:9px 16px; text-align:left; border:1px solid #d6b9a9; }
+.activityTable thead th { position:sticky; top:0; z-index:1; background:#eee0d2; font-weight:800; color:#2a0700; }
+.activityTable tbody tr { background:#f7ecdf; }
+.activityTable tbody tr:nth-child(even) { background:#f5e5d9; }
+.activityTable .dayRow th { background:#ead4c2; color:#672614; font-size:13px; }
+.dayRow svg { display:inline-block; margin-right:10px; vertical-align:middle; }
+.cellContent { display:flex; align-items:center; gap:10px; }
+.moduleBadge { display:inline-block; padding:4px 12px; border:1px solid #d6b9a9; border-radius:14px; background:#eee0d2; }
+.detailsButton { display:inline-flex; align-items:center; gap:8px; white-space:nowrap; border:1px solid #d6b9a9; border-radius:14px; padding:4px 12px; }
+.detailsButton:hover { background:#f6e5da; }
+.pagination { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:14px 18px; font-size:12px; color:#70574f; }
+.pagination > div { display:flex; align-items:center; gap:12px; }
+.pagination button { background:#f5e8dc; color:#672614; border-color:#d6b9a9; }
+.pagination button:disabled { opacity:.45; cursor:default; }
+.emptyHistory { text-align:center!important; padding:35px!important; }
+.detailsDialog { width:min(520px,calc(100vw - 32px)); max-height:85dvh; overflow:auto; border:1px solid #ddc1b1; border-radius:18px; background:#f6eae0; padding:24px; color:#2a0700; }
+.detailsDialog::backdrop { background:#26140f80; }
+.detailsDialog h2 { font-size:20px; font-weight:800; }
+.detailsDialog dl { display:grid; gap:12px; margin:20px 0; }
+.detailsDialog dt { font-size:11px; font-weight:700; color:#70574f; }
+.detailsDialog dd { font-size:14px; overflow-wrap:anywhere; }
+.activities input:focus-visible,.activities button:focus-visible,.detailsDialog button:focus-visible { outline:2px solid #672614; outline-offset:3px; }
+@container (max-width:650px) { .activityToolbar { gap:10px; padding:12px; } .activityToolbar .activitySearch { flex-basis:100%; min-width:0; } .activityToolbar label { min-width:calc(50% - 10px); } .activityToolbar button { flex:1; } .historyHeader { padding:12px; gap:10px; flex-wrap:wrap; } .historyHeader h2 { font-size:16px; } .historyHeader > strong { margin-left:58px; } .pagination { padding:12px; } }
+
+/* Mesma base de superfícies da Definição médica e histórico do Acompanhamento. */
+.overview .activityPanel,.overview .structure,.overview .summary,.overview .historyPanel { background:linear-gradient(155deg,#fbf0e6 0%,#f5e4d8 58%,#f6eae0 100%); border-color:#dec6bb; }
+.overview.overview .reportShell .hero { background:linear-gradient(120deg,#f8ecdf 0%,#f4e3d7 100%)!important; border:1px solid #ddc1b1; }
+.overview.overview.overview .hero h2 { color:#2a0700!important; }
+.overview.overview.overview .hero p { color:#70574f!important; }
+.overview .hero > div:first-child > span { background:linear-gradient(135deg,#672614,#2a0700); }
+.overview.overview.overview .hero > div:last-child > button { background:#672614; border-color:#672614; color:#fff8f2; }
+.overview .navButton { background:#f5e5d9; border-color:#ddc1b1; }
+.overview .navButton[aria-pressed="true"] { background:#672614; color:#fff8f2; }
+.overview .navButton[aria-pressed="true"]::after { background:#2a0700; }
+.overview .navButton[aria-pressed="true"] > span:first-child { background:#ffffff1a; }
+.overview .navButton > span:first-child { background:#f8ecdf; }
+.overview .stat { background:linear-gradient(120deg,#f8ecdf,#f4e3d7); border-color:#ddc1b1; }
+.overview .detailsDialog { background:#f6eae0; border-color:#dec6bb; }
+
+/* HPSR DARK MODULE PALETTE */
+@media screen {
+:global(html[data-theme="dark"]) .overview { color:#e9b495
+}
+:global(html[data-theme="dark"]) .overview.overview .reportShell .hero { background:linear-gradient(110deg,#672614,#48160c 65%,#2a0700)!important; box-shadow:0 10px 25px #3020160c
+}
+:global(html[data-theme="dark"]) .overview .hero > div:first-child > span { background:#302016
+}
+:global(html[data-theme="dark"]) .overview.overview .reportShell .hero label { background:#231c17!important; border-color:#4d3d31!important
+}
+:global(html[data-theme="dark"]) .overview .navButton { background:linear-gradient(120deg,#231c17,#231c17); color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .overview .navButton[aria-pressed="true"] { color:#e9b495; background:linear-gradient(120deg,#231c17,#231c17)
+}
+:global(html[data-theme="dark"]) .overview .navButton[aria-pressed="true"]::after { background:#302016
+}
+:global(html[data-theme="dark"]) .overview .navButton > span:first-child { background:#231c17
+}
+:global(html[data-theme="dark"]) .overview .navButton[aria-pressed="true"] > span:first-child { color:#f3ede7; background:#302016
+}
+:global(html[data-theme="dark"]) .overview .stat { border-color:#4d3d31; background:linear-gradient(115deg,#231c17,#231c17)
+}
+:global(html[data-theme="dark"]) .overview .stat p { color:#e9b495
+}
+:global(html[data-theme="dark"]) .overview .stat > div > span { color:#e9b495
+}
+:global(html[data-theme="dark"]) .overview .stat > div > div > span { background:#231c17
+}
+:global(html[data-theme="dark"]) .overview .activityPanel,:global(html[data-theme="dark"]) .overview .structure,:global(html[data-theme="dark"]) .overview .summary { border-color:#4d3d31; background:linear-gradient(120deg,#231c17,#231c17)
+}
+:global(html[data-theme="dark"]) .overview .panelHeader { border-color:#4d3d31
+}
+:global(html[data-theme="dark"]) .overview .panelHeader p { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .overview .panelHeader > div:first-child > span { background:#302016
+}
+:global(html[data-theme="dark"]) .overview .filters button { background:#2b231d; border-color:#4d3d31; color:#e9b495
+}
+:global(html[data-theme="dark"]) .overview .filters button[aria-pressed="true"] { background:#302016; border-color:#463326; color:#f3ede7
+}
+:global(html[data-theme="dark"]) .overview .chartBody h3 { color:#e9b495
+}
+:global(html[data-theme="dark"]) .overview .chartBody h3 + p { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .overview .donut { box-shadow:0 18px 36px #46302215
+}
+:global(html[data-theme="dark"]) .overview .donutCenter { background:#2b231d
+}
+:global(html[data-theme="dark"]) .overview .donutCenter p:first-child { color:#e9b495
+}
+:global(html[data-theme="dark"]) .overview .donutCenter p:last-child { color:#e9b495
+}
+:global(html[data-theme="dark"]) .overview .legend > div { background:#231c17; border-color:#4d3d31
+}
+:global(html[data-theme="dark"]) .overview .legend > div p:first-child { color:#e9b495
+}
+:global(html[data-theme="dark"]) .overview .legend > div p:last-child { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .overview .legend > div > span:last-child { color:#e9b495
+}
+:global(html[data-theme="dark"]) .overview .structure > p,:global(html[data-theme="dark"]) .overview .summary h3 { color:#e9b495
+}
+:global(html[data-theme="dark"]) .overview .miniMetric { border-color:#4d3d31; background:#231c17
+}
+:global(html[data-theme="dark"]) .overview .miniMetric > span { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .overview .miniMetric > strong { color:#e9b495
+}
+:global(html[data-theme="dark"]) .overview .summary > div:first-child > div:last-child > span { background:#231c17
+}
+:global(html[data-theme="dark"]) .overview .summary > div:last-child > div { background:#231c17; border-color:#4d3d31; color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .activityToolbar { background:linear-gradient(120deg,#231c17,#231c17)
+}
+:global(html[data-theme="dark"]) .activityToolbar label { color:#e9b495
+}
+:global(html[data-theme="dark"]) .activityToolbar input,:global(html[data-theme="dark"]) .activityToolbar select { background:#231c17; color:#e9b495
+}
+:global(html[data-theme="dark"]) .activityToolbar .activitySearch { background:#231c17
+}
+:global(html[data-theme="dark"]) .activityToolbar button,:global(html[data-theme="dark"]) .pagination button,:global(html[data-theme="dark"]) .detailsDialog button { background:#302016; color:#f3ede7
+}
+:global(html[data-theme="dark"]) .activityToolbar .clearFilters { background:#231c17; color:#e9b495
+}
+:global(html[data-theme="dark"]) .historyPanel { background:linear-gradient(120deg,#231c17,#231c17)
+}
+:global(html[data-theme="dark"]) .historyHeader > span { background:#302016; color:#f3ede7
+}
+:global(html[data-theme="dark"]) .historyHeader h2 { color:#e9b495
+}
+:global(html[data-theme="dark"]) .historyHeader p { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .historyHeader > strong { background:#2b231d
+}
+:global(html[data-theme="dark"]) .tableScroll { scrollbar-color:#38291f #231c17
+}
+:global(html[data-theme="dark"]) .activityTable { color:#e9b495
+}
+:global(html[data-theme="dark"]) .activityTable thead th { background:#2b231d; color:#e9b495
+}
+:global(html[data-theme="dark"]) .activityTable tbody tr { background:#231c17
+}
+:global(html[data-theme="dark"]) .activityTable tbody tr:nth-child(even) { background:#231c17
+}
+:global(html[data-theme="dark"]) .activityTable .dayRow th { background:#2b231d; color:#e9b495
+}
+:global(html[data-theme="dark"]) .moduleBadge { background:#2b231d
+}
+:global(html[data-theme="dark"]) .detailsButton:hover { background:#231c17
+}
+:global(html[data-theme="dark"]) .pagination { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .pagination button { background:#231c17; color:#e9b495; border-color:#4d3d31
+}
+:global(html[data-theme="dark"]) .detailsDialog { background:#231c17; color:#e9b495
+}
+:global(html[data-theme="dark"]) .detailsDialog::backdrop { background:#1d161180
+}
+:global(html[data-theme="dark"]) .detailsDialog dt { color:#c9b9ac
+}
+:global(html[data-theme="dark"]) .overview .activityPanel,:global(html[data-theme="dark"]) .overview .structure,:global(html[data-theme="dark"]) .overview .summary,:global(html[data-theme="dark"]) .overview .historyPanel { background:linear-gradient(155deg,#231c17 0%,#231c17 58%,#231c17 100%); border-color:#4d3d31
+}
+:global(html[data-theme="dark"]) .overview.overview .reportShell .hero { background:linear-gradient(110deg,#672614,#48160c 65%,#2a0700)!important
+}
+:global(html[data-theme="dark"]) .overview.overview.overview .hero h2 { color:#e9b495!important
+}
+:global(html[data-theme="dark"]) .overview.overview.overview .hero p { color:#c9b9ac!important
+}
+:global(html[data-theme="dark"]) .overview .hero > div:first-child > span { background:linear-gradient(110deg,#672614,#48160c 65%,#2a0700)
+}
+:global(html[data-theme="dark"]) .overview.overview.overview .hero > div:last-child > button { background:#302016; border-color:#463326; color:#f3ede7
+}
+:global(html[data-theme="dark"]) .overview .navButton { background:#231c17; border-color:#4d3d31
+}
+:global(html[data-theme="dark"]) .overview .navButton[aria-pressed="true"] { background:#302016; color:#f3ede7
+}
+:global(html[data-theme="dark"]) .overview .navButton[aria-pressed="true"]::after { background:#1d1611
+}
+:global(html[data-theme="dark"]) .overview .navButton[aria-pressed="true"] > span:first-child { background:#231c171a
+}
+:global(html[data-theme="dark"]) .overview .navButton > span:first-child { background:#231c17
+}
+:global(html[data-theme="dark"]) .overview .stat { background:linear-gradient(120deg,#231c17,#231c17); border-color:#4d3d31
+}
+:global(html[data-theme="dark"]) .overview .detailsDialog { background:#231c17; border-color:#4d3d31
+}
+}

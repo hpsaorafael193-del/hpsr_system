@@ -23,8 +23,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const isTraumatologyFixedPage = pathname === "/dashboard/traumatologia";
-  const refreshVisual = ["/dashboard/direcao", "/dashboard/interno", "/dashboard/financeiro", "/dashboard/calculadora", "/dashboard/traumatologia", "/dashboard/banco-de-sangue"].includes(pathname);
-  const routesWithOwnTopbar = ["/dashboard", "/dashboard/prontuarios", "/dashboard/direcao", "/dashboard/interno", "/dashboard/financeiro", "/dashboard/calculadora", "/dashboard/traumatologia", "/dashboard/banco-de-sangue", "/dashboard/documentos", "/dashboard/exames", "/dashboard/convenios", "/dashboard/perfil", "/dashboard/gestao-de-leitos", "/dashboard/obstetra", "/dashboard/obstetra/pediatria", "/dashboard/vacinacao", "/dashboard/parcerias", "/dashboard/agendamento", "/dashboard/equipe", "/dashboard/agendamento/pacientes", "/dashboard/agendamento/clinica" ];
+  const refreshVisual = ["/dashboard/relatorios", "/dashboard/interno", "/dashboard/financeiro", "/dashboard/calculadora", "/dashboard/traumatologia", "/dashboard/banco-de-sangue"].includes(pathname);
+  const routesWithOwnTopbar = ["/dashboard", "/dashboard/prontuarios", "/dashboard/relatorios", "/dashboard/interno", "/dashboard/financeiro", "/dashboard/calculadora", "/dashboard/traumatologia", "/dashboard/banco-de-sangue", "/dashboard/documentos", "/dashboard/exames", "/dashboard/convenios", "/dashboard/perfil", "/dashboard/gestao-de-leitos", "/dashboard/acompanhamento", "/dashboard/vacinacao", "/dashboard/parcerias", "/dashboard/agendamento", "/dashboard/direcao", "/dashboard/agendamento/pacientes", "/dashboard/agendamento/clinica" ];
   const hasPageTopbar = routesWithOwnTopbar.includes(pathname);
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
