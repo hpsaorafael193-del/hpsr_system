@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await valid.supabase
       .from("appointments")
-      .select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,date:payload->>date,preferred_period:payload->>preferredPeriod,preferred_time:payload->>preferredTime,time:payload->>time,physician:payload->>physician,doctor:payload->>doctor,reason:payload->>reason,notes:payload->>notes,proposed_date:payload->>proposedDate,proposed_time:payload->>proposedTime,reschedule_reason:payload->>rescheduleReason,patient_availability:payload->>patientAvailability,patient_alternative_date:payload->>patientAlternativeDate,patient_alternative_time:payload->>patientAlternativeTime,patient_response:payload->>patientResponse,answer:payload->>answer,flow_type:payload->>flowType,flow_details:payload->>flowDetails,attendance_summary:payload->>attendanceSummary,attendance_status:payload->>attendanceStatus")
+      .select("id,passport,patient,status,created_at,updated_at,specialty:payload->>specialty,preferred_date:payload->>preferredDate,date:payload->>date,preferred_period:payload->>preferredPeriod,preferred_time:payload->>preferredTime,time:payload->>time,physician:payload->>physician,doctor:payload->>doctor,reason:payload->>reason,notes:payload->>notes,proposed_date:payload->>proposedDate,proposed_time:payload->>proposedTime,reschedule_reason:payload->>rescheduleReason,patient_availability:payload->>patientAvailability,patient_alternative_date:payload->>patientAlternativeDate,patient_alternative_time:payload->>patientAlternativeTime,patient_response:payload->>patientResponse,answer:payload->>answer,flow_type:payload->>flowType,flow_details:payload->>flowDetails,attendance_summary:payload->>attendanceSummary,attendance_status:payload->>attendanceStatus,awaiting_reschedule:payload->>awaitingReschedule,schedule_archived:payload->>scheduleArchived,archived_reason:payload->>archivedReason,previous_appointment_id:payload->>previousAppointmentId,rescheduled_to_id:payload->>rescheduledToId")
       .eq("passport", targetPassport)
       .order("created_at", { ascending: false })
       .limit(100);
@@ -52,6 +52,8 @@ export async function GET(request: NextRequest) {
         id: row.id,
         patient: row.patient,
         status,
+        awaitingReschedule: row.awaiting_reschedule === "true", scheduleArchived: row.schedule_archived === "true",
+        archivedReason: String(row.archived_reason || ""), previousAppointmentId: String(row.previous_appointment_id || ""), rescheduledToId: String(row.rescheduled_to_id || ""),
         specialty: String(row.specialty || "Não informada"),
         preferredDate: String(row.preferred_date || row.date || ""),
         preferredPeriod: String(row.preferred_period || ""),

@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PublicShell } from "@/components/public/PublicShell";
 import { createClient } from "@/lib/supabase";
-import { setAuthContext, setLoginPersistence } from "@/lib/auth-persistence";
+import { setAuthContext } from "@/lib/auth-persistence";
 
 function AuthCallbackContent() {
   const router = useRouter();
@@ -69,7 +69,7 @@ function AuthCallbackContent() {
 
       await fetch("/api/paciente/sair", { method: "POST" }).catch(() => undefined);
       setAuthContext("professional");
-      setLoginPersistence(true);
+
       router.replace(next);
     }
 

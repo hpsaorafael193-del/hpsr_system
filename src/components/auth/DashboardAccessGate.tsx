@@ -14,8 +14,10 @@ export function DashboardAccessGate({ children }: { children: React.ReactNode })
     let active = true;
 
     async function validateAccess() {
-      window.localStorage.removeItem("hpsr-local-auth-session");
-      window.localStorage.removeItem("hpsr-demo-session");
+      try {
+        window.localStorage.removeItem("hpsr-local-auth-session");
+        window.localStorage.removeItem("hpsr-demo-session");
+      } catch { /* Local storage is optional; access still requires Supabase approval. */ }
       if (!isSupabaseConfigured()) {
         if (active) setState("unavailable");
         return;

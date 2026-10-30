@@ -17,8 +17,8 @@ type MedicalNotification = {
   id: string;
   title: string;
   description: string;
-  category: "Acompanhamento" | "Consulta" | "Reagendamento" | "Exame" | "Formulário";
-  source: "appointments" | "staff_applications";
+  category: "Acompanhamento" | "Consulta" | "Reagendamento" | "Exame" | "Formulário" | "Comunicado";
+  source: "appointments" | "staff_applications" | "internal_notices";
   createdAt: string;
   unread: boolean;
   payload: Record<string, unknown>;
@@ -199,6 +199,9 @@ export function UserMenu() {
         }
       }
 
+      const {data: notices,error:noticeError}=await client.rpc("hpsr_notice_inbox");
+      if(noticeError) console.warn("[HPSR] Falha ao carregar comunicados.",noticeError);
+      for(const n of notices||[]) combined.push({id:`internal:${n.id}`,title:n.title,description:n.body,category:"Comunicado",source:"internal_notices",createdAt:n.created_at,unread:!n.read_at,payload:{deliveryId:n.id,senderName:n.sender_name},status:"Comunicado do hospital"});
       combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       if (notificationsOwnerRef.current === currentUserProfile.id) {
         setNotifications(combined.slice(0, 60));
@@ -263,6 +266,11 @@ export function UserMenu() {
     if (!client || !currentUserProfile.id || ids.length === 0) return;
     const selected = notifications.filter((item) => ids.includes(item.id));
     await Promise.all(selected.map(async (item) => {
+      if(item.source === "internal_notices") {
+        const {error:readError}=await client.from("internal_notice_deliveries").update({read_at:new Date().toISOString()}).eq("id",String(item.payload.deliveryId)).eq("doctor_id",currentUserProfile.id);
+        if(readError) throw readError;
+        return;
+      }
       if (item.source === "staff_applications") {
         const currentReadBy = Array.isArray(item.payload.directorNotificationReadBy) ? item.payload.directorNotificationReadBy.map(String) : [];
         const directorNotificationReadBy = Array.from(new Set([...currentReadBy, String(currentUserProfile.id)]));
@@ -444,7 +452,7 @@ export function UserMenu() {
         aria-expanded={open}
         aria-haspopup="menu"
       >
-        <div className={cn("relative flex h-8 w-8 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#672614,#74321e,#a67a5f)] text-white", unreadNotificationCount > 0 && "ring-2 ring-red-500 ring-offset-2 ring-offset-white animate-pulse")}><UserRound size={18} />{unreadNotificationCount > 0 && <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-white bg-red-600 px-1 text-[8px] font-black leading-none text-white">{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</div>
+        <div data-hpsr-notification-trigger={unreadNotificationCount > 0} className={cn("relative flex h-8 w-8 items-center justify-center rounded-xl bg-[linear-gradient(135deg,#672614,#74321e,#a67a5f)] text-white", unreadNotificationCount > 0 && "ring-2 ring-red-500 ring-offset-2 ring-offset-white animate-pulse")}><UserRound size={18} />{unreadNotificationCount > 0 && <span data-hpsr-notification-count="true" className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border-2 border-white bg-red-600 px-1 text-[8px] font-black leading-none text-white">{unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}</span>}</div>
         <div className="hidden min-w-0 max-w-[160px] text-left sm:block"><p className="truncate text-xs font-semibold text-hpsr-text">{currentUserProfile.systemName}</p></div>
         <span className={cn("hidden items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold md:inline-flex", statusClass)}>
           <Circle size={7} className={cn("fill-current text-current")} />{clock.status}
@@ -484,7 +492,7 @@ export function UserMenu() {
             </div>
 
             {!currentUserProfile.signaturePath && <button type="button" role="menuitem" onClick={() => { setOpen(false); router.push("/dashboard/perfil#assinatura"); }} className="flex w-full items-center justify-center gap-2 rounded-[12px] border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] font-black text-amber-800 transition hover:bg-amber-100"><UserRound size={15}/> Perfil incompleto · falta assinatura</button>}
-            {canUseNotifications && <button type="button" role="menuitem" onClick={() => { setOpen(false); setNotificationsOpen(true); void loadNotifications(true); }} className="relative flex w-full items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5 text-[11px] font-black text-hpsr-wine transition hover:bg-[#f7f2ea]"><BellRing size={15}/> Minhas notificações{unreadNotificationCount > 0 && <span className="ml-auto rounded-full bg-red-600 px-2 py-0.5 text-[9px] font-black text-white">{unreadNotificationCount}</span>}</button>}
+            {canUseNotifications && <button type="button" role="menuitem" onClick={() => { setOpen(false); setNotificationsOpen(true); void loadNotifications(true); }} className="relative flex w-full items-center justify-center gap-2 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5 text-[11px] font-black text-hpsr-wine transition hover:bg-[#f7f2ea]"><BellRing size={15}/> Minhas notificações{unreadNotificationCount > 0 && <span data-hpsr-notification-count="true" className="ml-auto rounded-full bg-red-600 px-2 py-0.5 text-[9px] font-black text-white">{unreadNotificationCount}</span>}</button>}
             <div className="hpsr-profile-preferences">
             <button type="button" role="menuitem" onClick={() => { setOpen(false); router.push("/dashboard/perfil"); }} className="flex w-full items-center justify-center gap-2 rounded-[12px] px-3 py-2 text-[11px] font-bold text-hpsr-wine transition hover:bg-[#f7f2ea]"><UserRound size={15}/> Ver perfil completo</button>
               <button type="button" role="menuitemcheckbox" aria-checked={theme === "dark"} onClick={toggleTheme} className="hpsr-theme-toggle">
@@ -500,17 +508,17 @@ export function UserMenu() {
       {notificationsOpen && (
         <div className="hpsr-modal-tone fixed inset-0 z-[1200] flex items-center justify-center px-3 py-4 sm:px-5">
           <button type="button" aria-label="Fechar notificações" onClick={() => setNotificationsOpen(false)} className="absolute inset-0 bg-[#2a0700]/45" />
-          <section className="relative z-10 flex max-h-[min(720px,92dvh)] w-full max-w-[620px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf5] shadow-[0_28px_90px_rgba(42,7,0,.28)]">
+          <section data-hpsr-notification-panel="true" className="relative z-10 flex max-h-[min(720px,92dvh)] w-full max-w-[620px] flex-col overflow-hidden rounded-[22px] border border-white/80 bg-[#fffaf5] shadow-[0_28px_90px_rgba(42,7,0,.28)]">
             <header className="flex shrink-0 items-start justify-between gap-4 border-b border-hpsr-border bg-white px-5 py-4">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-hpsr-wine text-white"><BellRing size={20}/>{unreadNotificationCount > 0 && <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-red-600 animate-pulse" />}</div>
+                <div className="relative grid h-11 w-11 shrink-0 place-items-center rounded-[15px] bg-hpsr-wine text-white"><BellRing size={20}/>{unreadNotificationCount > 0 && <span data-hpsr-notification-dot="true" className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-red-600 animate-pulse" />}</div>
                 <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.17em] text-hpsr-wineLight">Central pessoal</p><h2 className="mt-0.5 text-xl font-black text-hpsr-text">Minhas notificações</h2><p className="mt-1 text-xs font-semibold text-hpsr-muted">Pendências, formulários e movimentações relacionadas à sua atuação.</p></div>
               </div>
               <button type="button" onClick={() => setNotificationsOpen(false)} className="grid h-10 w-10 shrink-0 place-items-center rounded-[14px] border border-hpsr-border bg-white text-hpsr-muted hover:bg-[#fff8f0] hover:text-hpsr-wine"><X size={18}/></button>
             </header>
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-hpsr-border bg-[#fffaf5] px-5 py-3">
               <p className="text-xs font-bold text-hpsr-muted">{unreadNotificationCount ? `${unreadNotificationCount} não lida${unreadNotificationCount === 1 ? "" : "s"}` : "Tudo em dia"}</p>
-              {unreadNotificationCount > 0 && <button type="button" onClick={() => void markNotificationsRead(notifications.filter((item) => item.unread).map((item) => item.id))} className="text-xs font-black text-hpsr-wine hover:underline">Marcar todas como lidas</button>}
+              {unreadNotificationCount > 0 && <button type="button" onClick={() => void markNotificationsRead(notifications.filter((item) => item.unread).map((item) => item.id)).catch(error=>console.warn("[HPSR] Leitura não salva",error))} className="text-xs font-black text-hpsr-wine hover:underline">Marcar todas como lidas</button>}
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 [scrollbar-gutter:stable]">
               {notificationsLoading && notifications.length === 0 ? (
@@ -520,11 +528,11 @@ export function UserMenu() {
               ) : (
                 <div className="grid gap-2.5">
                   {notifications.map((notification) => {
-                    const Icon = notification.category === "Acompanhamento" ? Stethoscope : notification.category === "Reagendamento" ? CalendarCheck2 : notification.category === "Exame" ? FlaskConical : ClipboardList;
+                    const Icon = notification.category === "Comunicado" ? BellRing : notification.category === "Acompanhamento" ? Stethoscope : notification.category === "Reagendamento" ? CalendarCheck2 : notification.category === "Exame" ? FlaskConical : ClipboardList;
                     const notificationSpecialty = typeof notification.payload.specialty === "string" ? notification.payload.specialty.trim() : "";
-                    return <button key={notification.id} type="button" onClick={() => { if (notification.unread) void markNotificationsRead([notification.id]); setNotificationsOpen(false); router.push(notification.source === "staff_applications" ? "/dashboard/equipe" : "/dashboard/agendamento"); }} className={cn("group flex w-full items-start gap-3 rounded-[17px] border p-3.5 text-left transition", notification.unread ? "border-red-200 bg-white shadow-sm" : "border-hpsr-border bg-white/70 hover:bg-white")}>
-                      <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-[14px]", notification.unread ? "bg-red-50 text-red-700" : "bg-[#f7eee9] text-hpsr-wine")}><Icon size={18}/></div>
-                      <div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><p className="text-sm font-black text-hpsr-text">{notification.title}</p>{notification.unread && <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-600 animate-pulse" />}</div><p className="mt-1 text-xs font-semibold leading-relaxed text-hpsr-muted">{notification.description}</p><div className="mt-2 flex flex-wrap items-center gap-2"><span className="rounded-full bg-[#f7eee9] px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-hpsr-wine">{notification.category}</span>{notificationSpecialty && <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[9px] font-black text-hpsr-muted">{notificationSpecialty}</span>}<span className="text-[10px] font-semibold text-hpsr-muted">{formatNotificationDate(notification.createdAt)}</span></div></div>
+                    return <button key={notification.id} data-hpsr-notification-item="true" data-unread={notification.unread} type="button" onClick={() => { if (notification.unread) void markNotificationsRead([notification.id]).catch(error=>console.warn("[HPSR] Leitura não salva",error)); if(notification.source === "internal_notices") return; setNotificationsOpen(false); router.push(notification.source === "staff_applications" ? "/dashboard/equipe" : "/dashboard/agendamento"); }} className={cn("group flex w-full items-start gap-3 rounded-[17px] border p-3.5 text-left transition", notification.unread ? "border-red-200 bg-white shadow-sm" : "border-hpsr-border bg-white/70 hover:bg-white")}>
+                      <div data-hpsr-notification-icon="true" className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-[14px]", notification.unread ? "bg-red-50 text-red-700" : "bg-[#f7eee9] text-hpsr-wine")}><Icon size={18}/></div>
+                      <div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><p className="text-sm font-black text-hpsr-text">{notification.title}</p>{notification.unread && <span data-hpsr-notification-dot="true" className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-red-600 animate-pulse" />}</div><p className="mt-1 whitespace-pre-wrap break-words text-xs font-semibold leading-relaxed text-hpsr-muted">{notification.description}</p>{notification.source === "internal_notices" && <p className="mt-2 text-xs text-hpsr-muted">Enviado por {String(notification.payload.senderName || "Hospital São Rafael")}</p>}<div className="mt-2 flex flex-wrap items-center gap-2"><span className="rounded-full bg-[#f7eee9] px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-hpsr-wine">{notification.category}</span>{notificationSpecialty && <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[9px] font-black text-hpsr-muted">{notificationSpecialty}</span>}<span className="text-[10px] font-semibold text-hpsr-muted">{formatNotificationDate(notification.createdAt)}</span></div></div>
                     </button>;
                   })}
                 </div>

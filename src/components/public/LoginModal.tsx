@@ -6,10 +6,10 @@ import { formatPhoneNumber } from "@/lib/phone";
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { BadgeInfo, Hash, IdCard, Lock, LogIn, Mail, Phone, ShieldCheck, Stethoscope, UserRound, X } from "lucide-react";
+import { BadgeInfo, Eye, EyeOff, Hash, IdCard, Lock, LogIn, Mail, Phone, ShieldCheck, Stethoscope, UserRound, X } from "lucide-react";
 import { createClient, createPasswordRecoveryClient, isSupabaseConfigured } from "@/lib/supabase";
 import { registerSystemActivity } from "@/lib/administrative-storage";
-import { setAuthContext, setLoginPersistence } from "@/lib/auth-persistence";
+import { getAuthContext, getRememberLoginPreference, hasValidLoginPersistence, setAuthContext, setLoginPersistence } from "@/lib/auth-persistence";
 
 type AccessMode = "login" | "register";
 
@@ -21,7 +21,6 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
   const [rememberConnected, setRememberConnected] = useState(true);
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [showRegisterPassword, setShowRegisterPassword] = useState(false);
-  const [rememberEmail, setRememberEmail] = useState(true);
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [registerForm, setRegisterForm] = useState({
     name: "",
@@ -36,10 +35,12 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
 
   useEffect(() => {
     setMounted(true);
-    localStorage.removeItem("hpsr-local-auth-session");
-    localStorage.removeItem("hpsr-demo-session");
-    const savedEmail = localStorage.getItem("hpsr-saved-login-email") || "";
-    if (savedEmail) setLoginForm((current) => ({ ...current, email: savedEmail }));
+    setRememberConnected(getRememberLoginPreference("professional"));
+    try {
+      localStorage.removeItem("hpsr-local-auth-session");
+      localStorage.removeItem("hpsr-demo-session");
+      localStorage.removeItem("hpsr-saved-login-email");
+    } catch { /* Legacy browser storage cleanup is optional. */ }
   }, []);
 
   useEffect(() => {
@@ -61,8 +62,21 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
   }, [open, onClose]);
 
   useEffect(() => {
-    if (open) setMode("login");
-  }, [open]);
+    if (!open) return;
+    setMode("login");
+    setAuthLoading(false);
+    let active = true;
+    if (getAuthContext() === "professional" && hasValidLoginPersistence()) {
+      const client = createClient();
+      if (client) {
+        setAuthLoading(true);
+        void client.auth.getSession().then(({ data }) => {
+          if (active && data.session) { onClose(); router.push("/dashboard"); }
+        }).catch(() => undefined).finally(() => { if (active) setAuthLoading(false); });
+      }
+    }
+    return () => { active = false; };
+  }, [open, onClose, router]);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -85,6 +99,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
     }
 
     setAuthLoading(true);
+    setLoginPersistence(rememberConnected, "professional");
     const { data, error } = await client.auth.signInWithPassword({
       email: loginForm.email.trim(),
       password: loginForm.password,
@@ -129,9 +144,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
 
     await fetch("/api/paciente/sair", { method: "POST" }).catch(() => undefined);
     setAuthContext("professional");
-    setLoginPersistence(true);
-    if (rememberEmail) localStorage.setItem("hpsr-saved-login-email", loginForm.email.trim());
-    else localStorage.removeItem("hpsr-saved-login-email");
+    setLoginForm(current => ({ ...current, password: "" }));
     setAuthLoading(false);
     onClose();
     router.push("/dashboard");
@@ -291,6 +304,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
 
   return createPortal(
     <div
+      id="medical-login-modal"
       role="dialog"
       aria-modal="true"
       aria-labelledby="medical-login-title"
@@ -303,14 +317,14 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
         className="hpsr-modal-backdrop"
       />
 
-      <div className="hpsr-modal-shell my-auto max-w-xl overflow-hidden">
+      <div className="hpsr-modal-shell medical-login-shell my-auto max-w-xl overflow-hidden">
         <div className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-hpsr-wine/12 blur-2xl" />
         <div className="pointer-events-none absolute -bottom-20 -left-16 h-48 w-48 rounded-full bg-[#d7b89f]/20 blur-2xl" />
 
-        <div className="relative border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f6eadc_58%,#ead8c6_100%)] p-3.5 md:p-5">
+        <div className="medical-login-header relative border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f6eadc_58%,#ead8c6_100%)] p-3.5 md:p-5">
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-3">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[15px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white shadow-[0_8px_18px_rgba(42,7,0,0.14)]">
+              <div className="medical-login-icon flex h-8 w-8 shrink-0 items-center justify-center rounded-[15px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white shadow-[0_8px_18px_rgba(42,7,0,0.14)]">
                 <Stethoscope size={19} />
               </div>
               <div>
@@ -318,7 +332,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
                 <h2 id="medical-login-title" className="mt-0.5 text-lg font-black text-hpsr-text">Acesso Médico</h2>
                 <p className="mt-0.5 max-w-xl text-xs leading-relaxed text-hpsr-muted">
                   {mode === "login"
-                    ? "Entre com suas credenciais para acessar o painel interno do Hospital São Rafael."
+                    ? "Entre com suas credenciais para acessar o painel interno."
                     : "Cadastre seu acesso para solicitar entrada no painel interno."}
                 </p>
               </div>
@@ -327,7 +341,8 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
             <button
               type="button"
               onClick={onClose}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-hpsr-border bg-white/[0.86] text-hpsr-muted transition hover:bg-white hover:text-hpsr-wine"
+              aria-label="Fechar acesso médico"
+              className="medical-login-close flex h-8 w-8 shrink-0 items-center justify-center rounded-[14px] border border-hpsr-border bg-white/[0.86] text-hpsr-muted transition hover:bg-white hover:text-hpsr-wine"
             >
               <X size={16} />
             </button>
@@ -346,10 +361,11 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           </div>
         </div>
 
-        <div className="relative p-3.5 md:p-5">
-          <div className="mb-4 grid grid-cols-2 gap-1.5 rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+        <div className="medical-login-body relative p-3.5 md:p-5">
+          <div className="medical-login-tabs mb-4 grid grid-cols-2 gap-1.5 rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
             <button
               type="button"
+              aria-pressed={mode === "login"}
               onClick={() => setMode("login")}
               className={`rounded-[13px] px-3 py-2 text-sm font-black transition ${
                 mode === "login" ? "bg-[linear-gradient(135deg,#672614,#2a0700)] text-white shadow-[0_8px_18px_rgba(42,7,0,0.13)]" : "text-hpsr-text hover:bg-white"
@@ -359,6 +375,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
             </button>
             <button
               type="button"
+              aria-pressed={mode === "register"}
               onClick={() => setMode("register")}
               className={`rounded-[13px] px-3 py-2 text-sm font-black transition ${
                 mode === "register" ? "bg-[linear-gradient(135deg,#672614,#2a0700)] text-white shadow-[0_8px_18px_rgba(42,7,0,0.13)]" : "text-hpsr-text hover:bg-white"
@@ -369,37 +386,37 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           </div>
 
           {mode === "login" ? (
-            <form onSubmit={handleLogin} className="space-y-3 rounded-[18px] border border-hpsr-border bg-white/[0.78] p-3.5">
+            <form onSubmit={handleLogin} className="medical-login-form space-y-3 rounded-[18px] border border-hpsr-border bg-white/[0.78] p-3.5">
               {!supabaseConfigured && (
                 <div className="rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] font-bold leading-relaxed text-amber-900">
                   Acesso temporariamente indisponível. O serviço de autenticação não está configurado. Contate a administração.
                 </div>
               )}
-              <div className="mb-1 flex items-center gap-2 rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-800">
+              <div className="medical-login-notice mb-1 flex items-center gap-2 rounded-[14px] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-800">
                 <ShieldCheck size={16} />
                 Acesso restrito a profissionais autorizados.
               </div>
 
               <>
                 <AccessField label="E-mail institucional" icon={<Mail size={16} className="text-hpsr-wine" />}>
-                  <input type="email" value={loginForm.email} onChange={(event) => setLoginForm((current) => ({ ...current, email: event.target.value }))} placeholder="medico@saorafael.com" className="w-full bg-transparent text-[13px] font-semibold text-hpsr-text outline-none placeholder:text-zinc-400" />
+                  <input type="email" value={loginForm.email} onChange={(event) => setLoginForm((current) => ({ ...current, email: event.target.value }))} autoComplete="username" placeholder="seuemail@exemplo.com" className="w-full bg-transparent text-[13px] font-semibold text-hpsr-text outline-none placeholder:text-zinc-400" />
                 </AccessField>
                 <AccessField label="Senha" icon={<Lock size={16} className="text-hpsr-wine" />}>
-                  <input type={showLoginPassword ? "text" : "password"} value={loginForm.password} onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))} placeholder="Digite sua senha" className="w-full bg-transparent text-[13px] font-semibold text-hpsr-text outline-none placeholder:text-zinc-400" /><button type="button" onClick={() => setShowLoginPassword((v) => !v)} className="text-[11px] font-black text-hpsr-wine">{showLoginPassword ? "Ocultar" : "Mostrar"}</button>
+                  <input type={showLoginPassword ? "text" : "password"} value={loginForm.password} onChange={(event) => setLoginForm((current) => ({ ...current, password: event.target.value }))} autoComplete="current-password" placeholder="Digite sua senha" className="w-full bg-transparent text-[13px] font-semibold text-hpsr-text outline-none placeholder:text-zinc-400" /><button type="button" aria-label={showLoginPassword ? "Ocultar senha" : "Mostrar senha"} aria-pressed={showLoginPassword} onClick={() => setShowLoginPassword((v) => !v)} className="medical-login-eye shrink-0 text-hpsr-wine">{showLoginPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button>
                 </AccessField>
-                <div className="flex justify-end">
-                  <button type="button" onClick={() => void handleForgotPassword()} disabled={authLoading} className="text-[11px] font-black text-hpsr-wine underline-offset-4 hover:underline disabled:opacity-60">Esqueci minha senha</button>
-                </div>
               </>
-              <label className="flex cursor-pointer items-start gap-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-3">
-                <input type="checkbox" checked={rememberEmail} onChange={(event) => setRememberEmail(event.target.checked)} className="mt-0.5 h-4 w-4 accent-hpsr-wine" />
-                <span><span className="block text-[13px] font-black text-hpsr-text">Salvar e-mail</span><span className="mt-0.5 block text-[11px] text-hpsr-muted">A sessão continuará ativa e o e-mail poderá ser preenchido automaticamente.</span></span>
-              </label>
+              <div className="medical-login-options">
+                <label className="medical-login-remember flex cursor-pointer items-center gap-2.5" title="Use apenas em um dispositivo pessoal.">
+                  <input type="checkbox" checked={rememberConnected} disabled={authLoading} onChange={event => setRememberConnected(event.target.checked)} className="h-4 w-4 accent-hpsr-wine" />
+                  <span className="text-[13px] font-black text-hpsr-text">Manter conectado</span>
+                </label>
+                <button type="button" onClick={() => void handleForgotPassword()} disabled={authLoading} className="medical-login-forgot text-[11px] font-black text-hpsr-wine disabled:opacity-60">Esqueci minha senha</button>
+              </div>
 
               <button
                 type="submit"
                 disabled={authLoading || !supabaseConfigured}
-                className="disabled:cursor-not-allowed disabled:opacity-50 mt-1 inline-flex w-full items-center justify-center gap-2.5 rounded-[15px] bg-[linear-gradient(135deg,#672614,#2a0700)] px-4 py-3 text-sm font-black text-white transition hover:bg-hpsr-wineDark"
+                className="medical-login-submit disabled:cursor-not-allowed disabled:opacity-50 mt-1 inline-flex w-full items-center justify-center gap-2.5 rounded-[15px] bg-[linear-gradient(135deg,#672614,#2a0700)] px-4 py-3 text-sm font-black text-white transition hover:bg-hpsr-wineDark"
               >
                 <LogIn size={16} />
                 {authLoading ? "Validando..." : "Entrar no painel"}
@@ -499,8 +516,8 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
           )}
 
           {authMessage && <p className="mt-3 rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2.5 text-center text-[11px] font-bold text-amber-900">{authMessage}</p>}
-          <p className="mt-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5 text-center text-[11px] font-bold leading-relaxed text-hpsr-muted">
-            O dashboard só é liberado após a aprovação da solicitação pela administração.
+          <p className="medical-login-footer mt-3 rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3 py-2.5 text-center text-[11px] font-bold leading-relaxed text-hpsr-muted">
+            Acesso liberado após aprovação da administração.
           </p>
         </div>
       </div>
@@ -511,7 +528,7 @@ export function LoginModal({ open, onClose }: { open: boolean; onClose: () => vo
 
 function AccessField({ label, icon, children }: { label: string; icon: ReactNode; children: ReactNode }) {
   return (
-    <label className="block">
+    <label className="medical-login-field block">
       <span className="mb-2 block text-xs font-black uppercase tracking-[0.12em] text-hpsr-wineLight">{label}</span>
       <div className="flex min-h-[38px] items-center gap-3 rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] transition focus-within:border-hpsr-wineLight focus-within:bg-white focus-within:ring-2 focus-within:ring-hpsr-wineLight/20">
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] bg-white text-hpsr-wine">

@@ -4,7 +4,7 @@ import { getValidPatientSession, normalizePassport } from "@/lib/patient-portal/
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type Notice = { id: string; passport: string; kind: "exam" | "document" | "appointment" | "reschedule" | "guardian" | "followup_form"; title: string; description: string; at: string; section: "documents" | "records" | "appointments" | "pending" | "exam-request" | "vaccination" | "home" | "accompaniment" };
+type Notice = { id: string; passport: string; kind: "exam" | "document" | "appointment" | "reschedule" | "guardian" | "followup_form" | "administrative"; title: string; description: string; at: string; section: "documents" | "records" | "appointments" | "pending" | "exam-request" | "vaccination" | "home" | "accompaniment" };
 
 // Retorna somente avisos de prontuários ligados à sessão verificada no servidor.
 // A leitura clínica continua condicionada às rotas de cada prontuário.
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     const passports = [...allowed].filter(Boolean).slice(0, 30);
     if (!passports.length) return NextResponse.json({ ok: true, notices: guardianNotices });
     const since = new Date(Date.now() - 45 * 86400000).toISOString();
-    const [appointments, records, forms] = await Promise.all([
+    const [appointments, records, forms, administrative] = await Promise.all([
       valid.supabase.from("appointments").select("id,passport,status,updated_at,created_at,flow_type:payload->>flowType,patient_notification_title:payload->>patientNotificationTitle,patient_notification:payload->>patientNotification,patient_notification_at:payload->>patientNotificationAt")
         .in("passport", passports).gte("updated_at", since).order("updated_at", { ascending: false }).limit(120),
       valid.supabase.from("clinical_records").select("id,patient_passport,record_type,released_at")
@@ -53,9 +53,16 @@ export async function GET(request: NextRequest) {
       valid.supabase.from("followup_intake_forms").select("id,patient_passport,doctor_name,form_type,status,requested_at,updated_at")
         .in("patient_passport", passports).in("status", ["requested","draft"]).gte("requested_at", since)
         .order("requested_at", { ascending: false }).limit(120),
+      valid.supabase.from("internal_notice_deliveries").select("id,patient_passport,notice:internal_notices!inner(id,title,body,sender_name,created_at)")
+        .in("patient_passport", passports).order("created_at", {ascending:false}).limit(100),
     ]);
     if (appointments.error || records.error || forms.error) throw appointments.error || records.error || forms.error;
     const notices: Notice[] = [...guardianNotices];
+    if(administrative.error) console.warn("[patient-portal] administrative notices unavailable",administrative.error);
+    for(const delivery of administrative.data||[]) {
+      const n=Array.isArray(delivery.notice)?delivery.notice[0]:delivery.notice;
+      if(n) notices.push({id:`administrative:${delivery.id}`,passport:delivery.patient_passport,kind:"administrative",title:n.title,description:n.body,at:n.created_at,section:"home"});
+    }
     for (const a of appointments.data || []) {
       const status = String(a.status || "").toLocaleLowerCase("pt-BR");
       const customTitle = String((a as any).patient_notification_title || "").trim();

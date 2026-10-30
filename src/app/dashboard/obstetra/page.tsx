@@ -1,5 +1,8 @@
 "use client";
 
+import { FollowupNavigation } from "@/components/followup/FollowupNavigation";
+import { canAccessPediatrics } from "@/lib/pediatric-planning";
+import { PediatricWorkspace } from "@/components/pediatrics/PediatricWorkspace";
 import { isLinkedActiveFollowup } from "@/lib/followup-plan-visibility";
 
 import { individualReleaseState } from "@/lib/planning-release-state";
@@ -181,6 +184,7 @@ function linkMatchesPlan(kind: PlanningKind, specialty: string) {
 export default function ObstetricianPage() {
   const { profile, loading } = useCurrentUserProfile();
   if (loading) return <div className="hpsr-page p-5 text-sm text-hpsr-muted">Verificando acesso à especialidade...</div>;
+  if (!canAccessObstetra(profile.role, profile.specialty) && canAccessPediatrics(profile.role, profile.specialty)) return <PediatricWorkspace />;
   if (!canAccessObstetra(profile.role, profile.specialty)) {
     return <div className="hpsr-page gap-3"><PageHeader eyebrow="Acompanhamento clínico" title="Acompanhamento" description="Acesso aos acompanhamentos especializados do Hospital São Rafael." /><section className="rounded-[18px] border border-[#dcb6bd] bg-[#fff8f4] p-5"><p className="font-bold text-hpsr-text">Acesso restrito à especialidade.</p><p className="mt-2 text-sm text-hpsr-muted">Diretora e Vice Diretor / Dev possuem acesso administrativo total. Demais profissionais precisam ter Obstetrícia ou Ginecologia atribuída ao perfil.</p><Link href="/dashboard" className="mt-4 inline-flex rounded-[12px] bg-hpsr-wine px-4 py-2 text-sm font-bold text-white">Voltar ao painel</Link></section></div>;
   }
@@ -190,9 +194,11 @@ export default function ObstetricianPage() {
 function ObstetricianWorkspace() {
   const { patients, selectedPassport, selectedPatient, selectPatient, loading } = usePatientSelection();
   const { profile } = useCurrentUserProfile();
+  const initialVaccinationView = useRef(false);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const passport = params.get("patient");
+    if (!initialVaccinationView.current && params.get("view") === "vaccination" && canManageGestationalVaccination(profile.role, profile.specialty)) { initialVaccinationView.current = true; setPlanType("gestacional"); setWorkspaceView("vaccination"); }
     const specialty = normalizeStaffSpecialtyName(params.get("specialty") || "");
     if (passport && passport !== selectedPassport) selectPatient(passport);
     if (["ginecologia", "ginecologista"].includes(specialty) && canManageReproductivePlan(profile.role, profile.specialty, "in_vitro")) setPlanType("in_vitro");
@@ -1102,11 +1108,7 @@ function ObstetricianWorkspace() {
             <p className="mt-1 max-w-2xl text-sm leading-relaxed text-hpsr-muted">{workspaceView === "vaccination" ? "Registre e acompanhe a vacinação gestacional dentro do mesmo espaço de acompanhamento." : "As semanas são marcadores do RP. O cálculo usa apenas o calendário real e nunca converte esses marcadores em semanas reais."}</p>
           </div>
         </div>
-        <div className={`grid gap-2 sm:grid-cols-2 xl:min-w-[440px] ${canManageGestationalVaccination(profile.role, profile.specialty) ? "xl:grid-cols-3" : ""}`} aria-label="Alternar acompanhamento">
-          {canManageReproductivePlan(profile.role, profile.specialty, "gestacional") && <button type="button" aria-pressed={planType === "gestacional" && workspaceView === "planning"} onClick={() => changePlanType("gestacional")} className={`rounded-[16px] border px-4 py-3 text-left transition ${planType === "gestacional" && workspaceView === "planning" ? "border-hpsr-wine bg-hpsr-wine text-white shadow-sm" : "border-[#ddc1b1] bg-[#f5e5d9] text-hpsr-text hover:border-[#bc8c78]"}`}><p className={`text-[9px] font-black uppercase tracking-[.12em] ${planType === "gestacional" && workspaceView === "planning" ? "text-white/75" : "text-hpsr-wineLight"}`}>Acompanhamento</p><p className="mt-1 text-sm font-black leading-tight">Gestacional</p></button>}
-          {canManageGestationalVaccination(profile.role, profile.specialty) && <button type="button" aria-pressed={workspaceView === "vaccination"} onClick={showVaccinationView} className={`rounded-[16px] border px-4 py-3 text-left transition ${workspaceView === "vaccination" ? "border-hpsr-wine bg-hpsr-wine text-white shadow-sm" : "border-[#ddc1b1] bg-[#f5e5d9] text-hpsr-text hover:border-[#bc8c78]"}`}><p className={`text-[9px] font-black uppercase tracking-[.12em] ${workspaceView === "vaccination" ? "text-white/75" : "text-hpsr-wineLight"}`}>Gestação</p><p className="mt-1 text-sm font-black leading-tight">Vacinação gestacional</p></button>}
-          {canManageReproductivePlan(profile.role, profile.specialty, "in_vitro") && <button type="button" aria-pressed={planType === "in_vitro" && workspaceView === "planning"} onClick={() => changePlanType("in_vitro")} className={`rounded-[16px] border px-4 py-3 text-left transition ${planType === "in_vitro" && workspaceView === "planning" ? "border-hpsr-wine bg-hpsr-wine text-white shadow-sm" : "border-[#ddc1b1] bg-[#f5e5d9] text-hpsr-text hover:border-[#bc8c78]"}`}><p className={`text-[9px] font-black uppercase tracking-[.12em] ${planType === "in_vitro" && workspaceView === "planning" ? "text-white/75" : "text-hpsr-wineLight"}`}>Acompanhamento</p><p className="mt-1 text-sm font-black leading-tight">Fertilização in vitro</p></button>}
-        </div>
+        <FollowupNavigation role={profile.role} specialty={profile.specialty} active={workspaceView === "vaccination" ? "vacina_gestacional" : planType} onSelect={tab => { if(tab === "gestacional" || tab === "in_vitro") {changePlanType(tab);return true;} if(tab === "vacina_gestacional") {showVaccinationView();return true;} return false;}} />
       </div>
     </section>
 

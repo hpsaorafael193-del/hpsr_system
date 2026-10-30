@@ -563,13 +563,13 @@ export function CardPreview({
   );
 }
 
-export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | "gestational" }) {
+export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | "gestational" | "childhood" }) {
   const { patients, loading: patientsLoading, selectedPatient, selectedPassport, selectPatient, upsertPatient } = usePatientSelection();
   const { profile } = useCurrentUserProfile();
   const [patientName, setPatientName] = useState("");
   const [patientPassport, setPatientPassport] = useState("");
   const [patientPickerOpen, setPatientPickerOpen] = useState(false);
-  const [group, setGroup] = useState<VaccinationGroup>(mode === "gestational" ? "gestante" : "adulto");
+  const [group, setGroup] = useState<VaccinationGroup>(mode === "gestational" ? "gestante" : mode === "childhood" ? "crianca" : "adulto");
   const [adultVariant, setAdultVariant] = useState<AdultCardVariant>("masculino");
   const [vaccine, setVaccine] = useState("");
   const [dose, setDose] = useState("1ª dose");
@@ -736,10 +736,10 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
     ]);
     if (recordsResult.error) await hpsrAlert(recordsResult.error.message, "Não foi possível carregar o histórico vacinal");
     const parsedHistory = (recordsResult.data || []).map(parseVaccineRow).filter(Boolean) as VaccinationApplication[];
-    setHistory(parsedHistory.filter((item) => mode === "gestational" ? item.group === "gestante" : item.group !== "gestante"));
+    setHistory(parsedHistory.filter((item) => mode === "gestational" ? item.group === "gestante" : mode === "childhood" ? item.group === "crianca" : item.group !== "gestante"));
     if (cardsResult.error) throw new Error(`Falha ao consultar a caderneta: ${cardsResult.error.message}`);
     const savedCards = ((cardsResult.data || []).map(parseSavedCard).filter(Boolean) as SavedVaccinationCard[])
-      .filter((card) => mode === "gestational" ? card.card_model === "gestante" : card.card_model !== "gestante");
+      .filter((card) => mode === "gestational" ? card.card_model === "gestante" : mode === "childhood" ? card.card_model === "crianca" : card.card_model !== "gestante");
     const existingCard = savedCards[0] || null;
     setCardRecords(savedCards);
     if(!preserveDraft) setObservations(normalizeVaccinationObservations(existingCard?.observations || ""));
@@ -750,7 +750,9 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
     if(preserveDraft)return;
     // A escolha persistida na caderneta prevalece sobre o último atendimento.
     const latestApplication = parsedHistory.length ? parsedHistory[parsedHistory.length - 1] : null;
-    if (mode === "gestational") {
+    if (mode === "childhood") {
+      setGroup("crianca");
+    } else if (mode === "gestational") {
       setGroup("gestante");
     } else if (existingCard) {
       if (existingCard.card_model.startsWith("adulto-")) {
@@ -789,7 +791,7 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
   const selectedModelLabel = group === "gestante" ? "Gestante · histórico existente"
     : vaccinationModels.find((model) => model.group === group && (group !== "adulto" || model.variant === adultVariant))?.label || "Caderneta";
   function selectVaccinationModel(nextGroup: VaccinationGroup, nextVariant: AdultCardVariant = adultVariant) {
-    if (mode === "gestational" ? nextGroup !== "gestante" : nextGroup === "gestante") return;
+    if (mode === "childhood" ? nextGroup !== "crianca" : mode === "gestational" ? nextGroup !== "gestante" : nextGroup === "gestante") return;
     setGroup(nextGroup);
     if (nextGroup === "adulto") setAdultVariant(nextVariant);
     const nextKey = nextGroup === "adulto" ? `adulto-${nextVariant}` : nextGroup;
@@ -1124,7 +1126,7 @@ export function VaccinationWorkspace({ mode = "regular" }: { mode?: "regular" | 
   }
   return (
     <div className="hpsr-page hpsr-vaccination-page gap-3" data-vaccine-group={group}>
-      {mode !== "gestational" && <PageHeader eyebrow="Vacinação" title="Vacinação" description="Selecione o modelo, registre as aplicações e acompanhe a caderneta do paciente." />}
+      {mode === "regular" && <PageHeader eyebrow="Vacinação" title="Vacinação" description="Selecione o modelo, registre as aplicações e acompanhe a caderneta do paciente." />}
 
       {mode === "regular" && <section className="hpsr-vaccination-model-section rounded-[20px] border border-[#d8c8b6] bg-[#f3ece4] p-3 shadow-soft print:hidden" aria-label="Modelos de caderneta">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

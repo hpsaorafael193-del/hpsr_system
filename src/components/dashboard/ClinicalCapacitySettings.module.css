@@ -28,8 +28,6 @@
 }
 :global(html[data-theme="dark"]) .input { background: #231c17; color: #e9b495
 }
-:global(html[data-theme="dark"]) .input:focus { box-shadow: 0 0 0 2px #30201620
-}
 :global(html[data-theme="dark"]) .save { color: #f3ede7; background: linear-gradient(120deg, #463022, #302016)
 }
 :global(html[data-theme="dark"]) .save:hover { background: #302016

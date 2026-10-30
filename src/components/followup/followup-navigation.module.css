@@ -1,0 +1,14 @@
+.navigation{display:grid;gap:9px;flex-shrink:0;max-width:100%}.group{display:grid;grid-template-columns:110px minmax(0,1fr);align-items:center;gap:10px}.label{font-size:9px;font-weight:900;letter-spacing:.09em;text-transform:uppercase;color:var(--hpsr-muted)}.tabs{display:flex;align-items:stretch;flex-wrap:wrap;gap:7px}.tab{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;padding:9px 13px;border:1px solid #dbc3af;background:#fff8ef;border-radius:12px;color:#672614;font-size:12px;font-weight:800;text-decoration:none;transition:background .15s ease,border-color .15s ease}.tab:hover{border-color:#97644b;background:#f5e6d9}.tab[aria-current="page"]{background:#672614;border-color:#672614;color:white}.tab[data-childhood="true"][aria-current="page"]{background:#d7ecdf;border-color:#a4cdb5;color:#315b46}.tab:focus-visible{outline:2px solid #729b81;outline-offset:3px}
+@media(max-width:600px){.navigation{width:100%}.group{grid-template-columns:1fr;gap:5px}.tabs{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr))}.tab{justify-content:flex-start}}
+
+/* HPSR DARK MODULE PALETTE */
+@media screen {
+:global(html[data-theme="dark"]) .tab {background:#231c17;color:#e9b495
+}
+:global(html[data-theme="dark"]) .tab:hover {background:#231c17
+}
+:global(html[data-theme="dark"]) .tab[aria-current="page"] {background:#302016;border-color:#463326
+}
+:global(html[data-theme="dark"]) .tab[data-childhood="true"][aria-current="page"] {background:#231c17;border-color:#15382c;color:#83e5c0
+}
+}

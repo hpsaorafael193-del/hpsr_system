@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { Baby, ChevronDown, LogOut, Plus, RefreshCcw, ShieldCheck, UserRound } from "lucide-react";
+import { ArrowLeft, Users, Baby, ChevronDown, LogOut, Plus, RefreshCcw, ShieldCheck, UserRound } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { PublicLogo } from "./PublicLogo";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { MedicalLoginButton } from "./MedicalLoginButton";
-import { clearAuthContext } from "@/lib/auth-persistence";
+import { clearLoginPersistence } from "@/lib/auth-persistence";
 import { createClient } from "@/lib/supabase";
 import { PatientNotificationsPopover } from "./PatientNotificationsPopover";
 
@@ -107,7 +107,7 @@ export function PublicHeader({ patientPortal = false }: { patientPortal?: boolea
     setProfileMenuOpen(false);
     try {
       await fetch("/api/paciente/sair", { method: "POST" });
-      clearAuthContext();
+      clearLoginPersistence();
       const supabase = createClient();
       if (supabase) await supabase.auth.signOut();
       window.dispatchEvent(new Event("hpsr-patient-session-changed"));
@@ -126,7 +126,7 @@ export function PublicHeader({ patientPortal = false }: { patientPortal?: boolea
           </Link>
           {patientPortal && (
             <div className="hidden border-l border-hpsr-border pl-4 sm:block">
-              <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Área autenticada</p>
+              <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Portal de acesso</p>
               <p className="text-sm font-black text-hpsr-text">Portal do Paciente</p>
             </div>
           )}
@@ -194,11 +194,17 @@ export function PublicHeader({ patientPortal = false }: { patientPortal?: boolea
           </div>
         ) : (
           <>
-            <nav className="hidden items-center gap-2 md:flex">
-              <ButtonLink href="/paciente" variant="ghost">Portal do Paciente</ButtonLink>
-              <ButtonLink href="/trabalhe-conosco" variant="ghost">Equipe</ButtonLink>
-            </nav>
-            <MedicalLoginButton className="rounded-2xl px-4 py-2.5 md:px-5" />
+            {patientPortal ? <nav className="patient-access-header-nav" aria-label="Navegação do portal">
+              <MedicalLoginButton className="patient-access-medical" />
+              <Link href="/trabalhe-conosco"><Users size={17}/><span>Faça parte da equipe</span></Link>
+              <Link href="/" aria-label="Voltar ao site"><ArrowLeft size={18}/><span>Voltar ao site</span></Link>
+            </nav> : <>
+              <nav className="hidden items-center gap-2 md:flex">
+                <ButtonLink href="/paciente" variant="ghost">Portal do Paciente</ButtonLink>
+                <ButtonLink href="/trabalhe-conosco" variant="ghost">Equipe</ButtonLink>
+              </nav>
+              <MedicalLoginButton className="rounded-2xl px-4 py-2.5 md:px-5" />
+            </>}
           </>
         )}
       </div>

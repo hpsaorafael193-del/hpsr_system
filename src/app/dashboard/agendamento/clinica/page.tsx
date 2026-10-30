@@ -44,7 +44,7 @@ const BRAZIL_TIMEZONE = "America/Sao_Paulo";
 
 const weekdayLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-type Appointment = { id: string; patient: string; passport: string; specialty: string; physician: string; doctorId: string; date: string; time: string; status: string; managementStatus?: string; managementNote?: string };
+type Appointment = { id: string; patient: string; passport: string; specialty: string; physician: string; doctorId: string; date: string; time: string; status: string; managementStatus?: string; managementNote?: string; updatedAt?: string; awaitingReschedule?: boolean; scheduleArchived?: boolean; previousAppointmentId?: string; rescheduledToId?: string; archivedReason?: string };
 
 type AvailabilitySlot = {
   id: string;
@@ -71,6 +71,8 @@ type ModalMode =
 type ModalState = {
   mode: ModalMode;
   appointment?: Appointment;
+  rescheduleReason?: string;
+  rescheduleNote?: string;
 } | null;
 
 type ScheduleToolModal = "availability" | null;
@@ -225,7 +227,7 @@ export default function ClinicalSchedulePage() {
     const [{ data, error }, { data: doctorProfiles }] = await Promise.all([
       client
         .from("appointments")
-        .select("id,passport,patient,status,payload,created_at")
+        .select("id,passport,patient,status,payload,created_at,updated_at")
         .in("status", ["Aceita", "Agendada", "Confirmada", "Reagendamento aceito", "Em atendimento", "Adiada", "Atrasada", "Realizada", "Concluída", "Não compareceu", "Cancelada"])
         .order("created_at", { ascending: false })
         .limit(400),
@@ -250,6 +252,9 @@ export default function ClinicalSchedulePage() {
           status: String(row.status),
           managementStatus: String(payload.appointmentManagementStatus || payload.attendanceSituation || ""),
           managementNote: String(payload.appointmentManagementNote || payload.attendanceSummary || ""),
+          updatedAt: String(row.updated_at || ""), awaitingReschedule: payload.awaitingReschedule === true,
+          scheduleArchived: payload.scheduleArchived === true, previousAppointmentId: String(payload.previousAppointmentId || ""),
+          rescheduledToId: String(payload.rescheduledToId || ""), archivedReason: String(payload.archivedReason || ""),
         };
       }));
 
@@ -334,7 +339,8 @@ export default function ClinicalSchedulePage() {
   });
 
   const completedStatuses = new Set(["Realizada", "Concluída", "Não compareceu", "Cancelada"]);
-  const activeDoctorAppointments = doctorAppointments.filter((appointment) => !completedStatuses.has(appointment.status));
+  const activeDoctorAppointments = doctorAppointments.filter((appointment) => !completedStatuses.has(appointment.status) && !appointment.awaitingReschedule);
+  const awaitingRescheduleAppointments = doctorAppointments.filter(appointment => appointment.awaitingReschedule && !appointment.scheduleArchived);
   const completedDoctorAppointments = doctorAppointments
     .filter((appointment) => completedStatuses.has(appointment.status))
     .sort((a, b) => a.specialty.localeCompare(b.specialty, "pt-BR") || `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`));
@@ -727,6 +733,8 @@ export default function ClinicalSchedulePage() {
       </section>
 
 
+      {awaitingRescheduleAppointments.length > 0 && <section className="rounded-[18px] border border-blue-200 bg-blue-50 p-4"><h2 className="text-base font-black text-hpsr-text">Aguardando novo horário</h2><p className="mt-1 text-xs text-hpsr-muted">O compromisso anterior já está no histórico. Estes pacientes não ocupam uma data no calendário.</p><div className="mt-3 grid gap-2">{awaitingRescheduleAppointments.map(appointment=><article key={appointment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-hpsr-border bg-white p-3"><div><p className="text-sm font-black text-hpsr-text">{appointment.patient}</p><p className="text-xs text-hpsr-muted">{appointment.specialty} · {appointment.physician}</p></div><button type="button" onClick={()=>setModal({mode:"reschedule",appointment})} className="rounded-[10px] bg-hpsr-wine px-3 py-2 text-xs font-black text-white">Definir novo horário</button></article>)}</div></section>}
+
       {showCompletedAppointments && (
         <section className="rounded-[18px] border border-[#d1b69e] bg-[#eaddcd] p-4 shadow-sm">
           <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
@@ -737,8 +745,8 @@ export default function ClinicalSchedulePage() {
           <div className="hpsr-touch-scroll max-h-[420px] space-y-2 overflow-y-auto pr-1">
             {filteredCompletedDoctorAppointments.length ? filteredCompletedDoctorAppointments.map((appointment) => (
               <article key={`completed-${appointment.id}`} className="flex flex-col gap-3 rounded-[15px] border border-[#d9c2ab] bg-[#f7eee4] p-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-black", statusClasses(appointment.managementStatus || appointment.status))}>{appointment.managementStatus || appointment.status}</span><span className="text-xs font-semibold text-hpsr-muted">{appointment.date.split("-").reverse().join("/")} às {appointment.time}</span></div><p className="mt-2 truncate text-sm font-black text-hpsr-text">{appointment.patient}</p><p className="mt-1 truncate text-xs font-semibold text-hpsr-muted">{appointment.specialty} · {appointment.physician} · Passaporte {appointment.passport}</p></div>
-                <div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => setModal({ mode: "patient", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Ver dados</button><button type="button" onClick={() => setModal({ mode: "reschedule", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Editar/Reagendar</button></div>
+                <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-black", statusClasses(appointment.managementStatus || appointment.status))}>{appointment.managementStatus || appointment.status}</span><span className="text-xs font-semibold text-hpsr-muted">{appointment.date.split("-").reverse().join("/")} às {appointment.time}</span></div><p className="mt-2 truncate text-sm font-black text-hpsr-text">{appointment.patient}</p><p className="mt-1 truncate text-xs font-semibold text-hpsr-muted">{appointment.specialty} · {appointment.physician} · Passaporte {appointment.passport}</p>{appointment.archivedReason && <p className="mt-1 text-xs text-hpsr-muted">{appointment.archivedReason}{appointment.managementNote ? ` · ${appointment.managementNote}` : ""} · Novo agendamento vinculado</p>}</div>
+                <div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => setModal({ mode: "patient", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Ver dados</button>{!appointment.scheduleArchived && !["Realizada","Concluída"].includes(appointment.status) && <button type="button" onClick={() => setModal({ mode: "reschedule", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Reagendar</button>}</div>
               </article>
             )) : <div className="rounded-[15px] border border-dashed border-[#d8c0aa] bg-[#f3e7da] p-6 text-center text-sm text-hpsr-muted">Nenhuma consulta finalizada encontrada.</div>}
           </div>
@@ -875,10 +883,10 @@ function AgendaModal({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto bg-[#fffaf5] p-4 sm:p-5 [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]">
           {modal.mode === "new" && <NewAppointmentForm selectedDate={selectedDate} onClose={onClose} appointments={appointments} />}
           {modal.mode === "export" && <ExportReportForm onClose={onClose} />}
-          {modal.mode === "open" && appointment && <OpenAttendanceForm appointment={appointment} onClose={onClose} onChanged={onChanged} onReschedule={() => onNavigate({ mode: "reschedule", appointment })} />}
+          {modal.mode === "open" && appointment && <OpenAttendanceForm appointment={appointment} onClose={onClose} onChanged={onChanged} onReschedule={(reason, note) => onNavigate({ mode: "reschedule", appointment, rescheduleReason: reason, rescheduleNote: note })} />}
           {modal.mode === "patient" && appointment && <PatientDetails appointment={appointment} />}
           {modal.mode === "reschedule" && appointment && (
-            <RescheduleForm appointment={appointment} onClose={onClose} appointments={appointments} onChanged={onChanged} />
+            <RescheduleForm appointment={appointment} onClose={onClose} appointments={appointments} onChanged={onChanged} initialReason={modal.rescheduleReason} initialNote={modal.rescheduleNote} />
           )}
         </div>
       </div>
@@ -1169,7 +1177,7 @@ function OpenAttendanceForm({
   appointment: Appointment;
   onClose: () => void;
   onChanged: () => Promise<void>;
-  onReschedule: () => void;
+  onReschedule: (reason?: string, note?: string) => void;
 }) {
   const statusOptions = [
     { value: "agendada", label: "Agendada", canonical: "Agendada", description: "A consulta permanece marcada e aguardando o atendimento." },
@@ -1207,7 +1215,7 @@ function OpenAttendanceForm({
 
   async function handleSave() {
     if (status === "reagendada") {
-      onReschedule();
+      onReschedule(undefined, summary);
       return;
     }
 
@@ -1300,7 +1308,7 @@ function OpenAttendanceForm({
 
       {status === "reagendada" && (
         <div className="rounded-[14px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold leading-relaxed text-blue-800">
-          Para marcar como reagendada, defina a nova data e o novo horário. O sistema atualiza o compromisso e a vaga correspondente.
+          Para marcar como reagendada, defina a nova data e o novo horário. O compromisso anterior fica no histórico, e um novo agendamento é criado sem apagar a data original. Você também pode deixar a nova data para depois.
         </div>
       )}
 
@@ -1308,6 +1316,7 @@ function OpenAttendanceForm({
 
       <div className="flex flex-col-reverse gap-2 border-t border-[#e4cfc1] pt-3 sm:flex-row sm:justify-end">
         <button type="button" onClick={onClose} disabled={saving} className="rounded-[12px] border border-[#d8bbaa] bg-[#fffaf6] px-4 py-2.5 text-xs font-black text-hpsr-text transition hover:bg-[#f7ebe3] disabled:opacity-50">Fechar</button>
+        {["ausente", "sem_resposta", "paciente_adiou", "medico_indisponivel"].includes(status) && <button type="button" disabled={saving} onClick={() => onReschedule(status === "ausente" ? "Paciente não compareceu" : status === "sem_resposta" ? "Paciente não respondeu" : status === "paciente_adiou" ? "Pedido do paciente" : "Indisponibilidade médica", summary)} className="rounded-[12px] border border-hpsr-wine bg-white px-4 py-2.5 text-xs font-black text-hpsr-wine">Registrar e reagendar</button>}
         <button type="button" onClick={() => void handleSave()} disabled={saving} className="rounded-[12px] bg-[linear-gradient(135deg,#672614,#2a0700)] px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:brightness-105 disabled:opacity-50">{status === "reagendada" ? "Definir novo horário" : saving ? "Salvando..." : "Salvar situação"}</button>
       </div>
     </div>
@@ -1335,137 +1344,55 @@ function PatientDetails({ appointment }: { appointment: Appointment }) {
   );
 }
 
-function RescheduleForm({
-  appointment,
-  onClose,
-  appointments,
-  onChanged,
-}: {
-  appointment: Appointment;
-  onClose: () => void;
-  appointments: Appointment[];
-  onChanged: () => Promise<void>;
+function RescheduleForm({ appointment, onClose, appointments, onChanged, initialReason, initialNote }: {
+  appointment: Appointment; onClose: () => void; appointments: Appointment[]; onChanged: () => Promise<void>;
+  initialReason?: string; initialNote?: string;
 }) {
-  const [date, setDate] = useState(appointment.date);
-  const [time, setTime] = useState(appointment.time);
-  const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
-  const [reason, setReason] = useState("");
-  const [notes, setNotes] = useState("");
+  const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
+  const [mode, setMode] = useState<"now" | "later">("now");
+  const [reason, setReason] = useState(initialReason || (appointment.status === "Não compareceu" ? "Paciente não compareceu" : ""));
+  const [notes, setNotes] = useState(initialNote || "");
   const [saving, setSaving] = useState(false);
-  const { profile: currentUserProfile } = useCurrentUserProfile();
+  const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+  const requestId = useRef("");
+  const busyRef = useRef(false);
+  function change(action: () => void) { requestId.current = ""; setMessage(null); action(); }
 
   async function handleSave() {
-    const conflict = findSpecialtyScheduleConflict({
-      appointments,
-      date,
-      time,
-      specialty: appointment.specialty,
-      ignoreId: appointment.id,
-    });
-
-    if (conflict) {
-      setMessage({
-        type: "error",
-        text: `Conflito: já existe ${conflict.specialty} às ${conflict.time} nesta data. Mantenha pelo menos 1 hora de intervalo para a mesma especialidade.`,
-      });
-      return;
-    }
-
+    if (busyRef.current) return;
+    if (!reason || (mode === "now" && (!date || !time))) { setMessage({ type:"error", text:"Informe o motivo e, para confirmar agora, a nova data e o horário." }); return; }
     const client = createClient();
-    if (!client) {
-      setMessage({ type: "error", text: "Não foi possível acessar o banco de dados." });
-      return;
-    }
-
-    setSaving(true);
-    setMessage(null);
+    if (!client) { setMessage({type:"error",text:"Não foi possível acessar o banco de dados."}); return; }
+    busyRef.current=true; setSaving(true); setMessage(null);
+    requestId.current ||= crypto.randomUUID();
     try {
-      const { data, error } = await client.rpc("reschedule_clinical_appointment", {
-        p_appointment_id: appointment.id,
-        p_new_date: date,
-        p_new_time: time,
-        p_reason: reason || "Ajuste combinado com o paciente",
-        p_notes: notes || null,
+      const {data,error} = await client.rpc("hpsr_reschedule_with_history", {
+        p_appointment_id:appointment.id, p_request_id:requestId.current,
+        p_new_date:mode === "now" ? date : null, p_new_time:mode === "now" ? time : null,
+        p_reason:reason, p_notes:notes.trim() || null, p_expected_updated_at:appointment.updatedAt || null,
       });
-      if (error) throw error;
-      const result = (data || {}) as { ok?: boolean; error?: string; date?: string; time?: string };
-      if (!result.ok) throw new Error(result.error || "Não foi possível confirmar o novo horário.");
-
-      const managementUpdatedAt = brazilIso();
-      const { data: refreshedAppointment } = await client
-        .from("appointments")
-        .select("payload")
-        .eq("id", appointment.id)
-        .maybeSingle();
-      if (refreshedAppointment) {
-        const refreshedPayload = (refreshedAppointment.payload || {}) as Record<string, unknown>;
-        await client
-          .from("appointments")
-          .update({
-            payload: {
-              ...refreshedPayload,
-              appointmentManagementStatus: "Reagendada",
-              appointmentManagementCode: "reagendada",
-              appointmentManagementNote: notes.trim() || reason || null,
-              attendanceSituation: "Reagendada",
-              attendanceUpdatedAt: managementUpdatedAt,
-              attendanceUpdatedBy: currentUserProfile.systemName,
-            },
-            updated_at: managementUpdatedAt,
-          })
-          .eq("id", appointment.id);
-      }
-
-      await onChanged();
-      setMessage({
-        type: "success",
-        text: `Novo horário confirmado para ${date.split("-").reverse().join("/")} às ${time}. O Portal do Paciente já passa a mostrar esse compromisso.`,
-      });
-      window.setTimeout(() => onClose(), 750);
-    } catch (caught) {
-      setMessage({ type: "error", text: caught instanceof Error ? caught.message : "Não foi possível reagendar a consulta." });
-    } finally {
-      setSaving(false);
-    }
+      if(error) throw error;
+      if(!data?.ok) throw new Error(data?.error || "Não foi possível salvar o reagendamento.");
+      let refreshed=true;
+      try { await onChanged(); } catch { refreshed=false; }
+      setMessage({type:"success",text:(mode === "later" ? "Horário anterior registrado no histórico. O paciente está em Aguardando novo horário." : `Novo agendamento confirmado para ${date.split("-").reverse().join("/")} às ${time}. O compromisso anterior permanece no histórico.`)+(refreshed ? "" : " Use Atualizar para recarregar a agenda.")});
+      window.setTimeout(onClose,900);
+    } catch(caught) { setMessage({type:"error",text:caught instanceof Error ? caught.message : "Não foi possível salvar. Tente novamente; a mesma operação não cria duplicatas."}); }
+    finally {busyRef.current=false;setSaving(false);}
   }
-
-  return (
-    <div className="grid gap-3">
-      <AppointmentSummary appointment={appointment} />
-
-      <div className="rounded-2xl border border-hpsr-border bg-[#fcf6ee] p-3.5 text-sm leading-relaxed text-hpsr-muted">
-        Combine o novo horário com o paciente pelo canal de contato habitual e confirme aqui. Depois de salvo, o novo compromisso aparece para os dois lados do sistema.
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Nova data">
-          <input className={inputClass} type="date" value={date} onChange={(event) => setDate(event.target.value)} />
-        </Field>
-        <Field label="Novo horário de Brasília">
-          <input className={inputClass} type="time" value={time} onChange={(event) => setTime(event.target.value)} />
-        </Field>
-        <Field label="Motivo do ajuste">
-          <StyledSelect className={inputClass} value={reason} onChange={(event) => setReason(event.target.value)}>
-            <option value="" disabled>Selecione</option>
-            <option>Pedido do paciente</option>
-            <option>Indisponibilidade médica</option>
-            <option>Reorganização da agenda</option>
-            <option>Outro</option>
-          </StyledSelect>
-        </Field>
-        <Field label="Observação">
-          <input className={inputClass} value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Opcional" />
-        </Field>
-      </div>
-
-      {message && <ValidationMessage type={message.type} text={message.text} />}
-
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <button type="button" onClick={onClose} disabled={saving} className="rounded-[14px] border border-hpsr-border bg-white px-4 py-3 text-xs font-black text-hpsr-text disabled:opacity-50">Cancelar</button>
-        <button type="button" onClick={() => void handleSave()} disabled={saving || !date || !time} className="rounded-[14px] bg-hpsr-wine px-4 py-3 text-xs font-black text-white disabled:opacity-50">{saving ? "Confirmando..." : "Confirmar novo horário"}</button>
-      </div>
-    </div>
-  );
+  return <div className="grid gap-4" data-reschedule-history="true">
+    <AppointmentSummary appointment={appointment}/>
+    <div className="rounded-[14px] border border-blue-200 bg-blue-50 px-4 py-3 text-sm leading-relaxed text-blue-900">{appointment.awaitingReschedule ? "O horário anterior já está no histórico. Defina agora o novo compromisso." : "O horário anterior sairá da agenda ativa e permanecerá no histórico com a data original e o motivo. Nenhum registro clínico será apagado."}</div>
+    <fieldset disabled={saving} className="grid gap-4">
+      <Field label="Motivo do reagendamento"><StyledSelect className={inputClass} value={reason} onChange={event=>change(()=>setReason(event.target.value))}><option value="" disabled>Selecione o motivo</option>{["Paciente não compareceu","Paciente não respondeu","Pedido do paciente","Indisponibilidade médica","Reorganização da agenda","Outro"].map(item=><option key={item}>{item}</option>)}</StyledSelect></Field>
+      {!appointment.awaitingReschedule && <fieldset className="grid gap-2 sm:grid-cols-2"><legend className="mb-2 text-xs font-black text-hpsr-text">Novo agendamento</legend><label className="flex cursor-pointer items-center gap-2 rounded-[12px] border border-hpsr-border bg-white p-3 text-xs font-bold text-hpsr-text"><input type="radio" name="reschedule-mode" value="now" checked={mode === "now"} onChange={()=>change(()=>setMode("now"))}/>Definir novo horário agora</label><label className="flex cursor-pointer items-center gap-2 rounded-[12px] border border-hpsr-border bg-white p-3 text-xs font-bold text-hpsr-text"><input type="radio" name="reschedule-mode" value="later" checked={mode === "later"} onChange={()=>change(()=>setMode("later"))}/>Combinar novo horário depois</label></fieldset>}
+      {mode === "now" && <div className="grid gap-3 sm:grid-cols-2"><Field label="Nova data"><input className={inputClass} type="date" value={date} onChange={event=>change(()=>setDate(event.target.value))}/></Field><Field label="Novo horário de Brasília"><input className={inputClass} type="time" value={time} onChange={event=>change(()=>setTime(event.target.value))}/></Field></div>}
+      <Field label="Observação"><textarea className={inputClass} rows={3} maxLength={4000} value={notes} onChange={event=>change(()=>setNotes(event.target.value))} placeholder="Ex.: tentativas de contato ou combinação feita com o paciente."/></Field>
+    </fieldset>
+    {message && <ValidationMessage type={message.type} text={message.text}/>}
+    <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"><button type="button" disabled={saving} onClick={onClose} className="rounded-[12px] border border-hpsr-border bg-white px-4 py-3 text-xs font-black text-hpsr-text">Cancelar</button><button type="button" disabled={saving || !reason || (mode === "now" && (!date || !time))} onClick={()=>void handleSave()} className="rounded-[12px] bg-hpsr-wine px-4 py-3 text-xs font-black text-white disabled:opacity-50">{saving ? "Salvando..." : mode === "later" ? "Registrar e aguardar novo horário" : "Confirmar novo agendamento"}</button></div>
+  </div>;
 }
 
 function AppointmentSummary({ appointment }: { appointment: Appointment }) {
@@ -1482,7 +1409,7 @@ function AppointmentSummary({ appointment }: { appointment: Appointment }) {
 
       <h3 className="mt-3 text-lg font-semibold text-hpsr-text">{appointment.patient}</h3>
       <p className="mt-1 text-sm text-hpsr-muted">
-        Passaporte {appointment.passport} · {appointment.specialty} · {appointment.date.split("-").reverse().join("/")} às {appointment.time} Brasília
+        Passaporte {appointment.passport} · {appointment.specialty} · {appointment.awaitingReschedule ? "Novo horário a definir" : `${appointment.date.split("-").reverse().join("/")} às ${appointment.time} Brasília`}
       </p>
     </div>
   );

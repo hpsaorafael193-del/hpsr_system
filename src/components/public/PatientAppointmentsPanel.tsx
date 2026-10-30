@@ -10,6 +10,7 @@ import { formatServicePrice, servicePricing } from "@/data/service-pricing";
 
 type Appointment = {
   id: string;
+  awaitingReschedule?: boolean; scheduleArchived?: boolean; archivedReason?: string; previousAppointmentId?: string; rescheduledToId?: string;
   patient: string;
   status: string;
   specialty: string;
@@ -88,7 +89,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
   const pendingStatuses = ["aguard", "solicit", "pend", "reagendamento", "justific", "recus", "negad", "não aprovado", "nao aprovado"];
   const visibleAppointments = appointments.filter((appointment) => {
     const normalized = appointment.status.toLowerCase();
-    const isPending = pendingStatuses.some((status) => normalized.includes(status));
+    const isPending = appointment.awaitingReschedule || pendingStatuses.some((status) => normalized.includes(status));
     return view === "pending" ? isPending : !isPending;
   });
 
@@ -237,7 +238,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
                       <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">{appointment.physician || "Médico a definir"}</p>
                       <p className="mt-1 text-[11px] font-black uppercase tracking-[0.1em] text-hpsr-wineLight">{appointment.flowType || "Consulta comum"}</p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2"><span className="rounded-full bg-[#f1dfcd] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{appointment.status}</span>{isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</div>
+                    <div className="flex shrink-0 items-center gap-2"><span className="rounded-full bg-[#f1dfcd] px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{appointment.scheduleArchived ? "Histórico · " : ""}{appointment.awaitingReschedule ? "Aguardando novo horário" : appointment.status}</span>{isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</div>
                   </button>
                   {isExpanded && <div className="mt-3 grid gap-2 border-t border-hpsr-border pt-3 text-xs font-semibold text-hpsr-muted sm:grid-cols-2"><p><strong className="text-hpsr-text">Protocolo:</strong> {appointment.id}</p><p><strong className="text-hpsr-text">Médico:</strong> {appointment.physician}</p><p className="sm:col-span-2"><strong className="text-hpsr-text">Motivo:</strong> {appointment.reason || "Não informado"}</p>{["Acompanhamento", "Outros"].includes(appointment.flowType || "") && appointment.flowDetails && <p className="sm:col-span-2"><strong className="text-hpsr-text">Objetivo informado:</strong> {appointment.flowDetails}</p>}{appointment.notes && <p className="sm:col-span-2"><strong className="text-hpsr-text">Observações:</strong> {appointment.notes}</p>}{hasConsultationSummary && (
                     <div className="sm:col-span-2 overflow-hidden rounded-[18px] border border-hpsr-border bg-[#f7f0e8] shadow-[0_7px_18px_rgba(76,31,18,.06)]">
@@ -318,7 +319,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
                         )}
                       </div>
                     </div>
-                  )}{appointment.answer && <div className={`sm:col-span-2 rounded-[14px] border p-3 ${appointment.status.toLowerCase().includes("recus") ? "border-rose-200 bg-rose-50 text-rose-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}><p className="font-black">Resposta da equipe</p><p className="mt-1 leading-relaxed">{appointment.answer}</p></div>}{appointment.status === "Reagendamento solicitado" && (
+                  )}{appointment.scheduleArchived && <p className="sm:col-span-2 rounded-xl border border-hpsr-border bg-white p-3">Horário anterior encerrado: {appointment.archivedReason}. O novo agendamento possui um registro separado.</p>}{appointment.awaitingReschedule && <p className="sm:col-span-2 rounded-xl border border-blue-200 bg-blue-50 p-3">O horário anterior foi encerrado. Aguarde o contato do médico para combinar uma nova data.</p>}{appointment.answer && <div className={`sm:col-span-2 rounded-[14px] border p-3 ${appointment.status.toLowerCase().includes("recus") ? "border-rose-200 bg-rose-50 text-rose-900" : "border-amber-200 bg-amber-50 text-amber-950"}`}><p className="font-black">Resposta da equipe</p><p className="mt-1 leading-relaxed">{appointment.answer}</p></div>}{appointment.status === "Reagendamento solicitado" && (
                     <div className="sm:col-span-2 mt-2 rounded-[18px] border border-amber-300 bg-amber-50 p-4">
                       <p className="font-black text-amber-950"><CalendarClock className="mr-2 inline" size={16}/>Ajuste de agendamento em andamento</p>
                       <p className="mt-2 text-xs font-semibold leading-relaxed text-amber-900">Você não precisa escolher outro horário pelo Portal. O médico combina o novo horário com você pelo Discord ou dentro do RP.</p>

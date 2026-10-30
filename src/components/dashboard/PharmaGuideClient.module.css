@@ -157,7 +157,7 @@
 }
 :global(html[data-theme="dark"]) .search input { color:#e9b495
 }
-:global(html[data-theme="dark"]) .search input::placeholder { color:#c9b9ac
+:global(html[data-theme="dark"]) .search input::placeholder { color:#ffb4bf
 }
 :global(html[data-theme="dark"]) .select > span:last-child { color:#e9b495
 }
@@ -169,7 +169,7 @@
 }
 :global(html[data-theme="dark"]) .listHeader h2 { color:#e9b495
 }
-:global(html[data-theme="dark"]) .listHeader h2 span { color:#c9b9ac
+:global(html[data-theme="dark"]) .listHeader h2 span { color:#ffb4bf
 }
 :global(html[data-theme="dark"]) .listHeader select { color:#e9b495
 }
@@ -187,17 +187,17 @@
 }
 :global(html[data-theme="dark"]) .row:hover { background:#231c17cc
 }
-:global(html[data-theme="dark"]) .pillIcon { background:#231c17; color:#e9b495
+:global(html[data-theme="dark"]) .pillIcon { background:#231c17; color:#ffb4bf
 }
 :global(html[data-theme="dark"]) .medicationName strong { color:#e9b495
 }
-:global(html[data-theme="dark"]) .medicationName > span { color:#c9b9ac
+:global(html[data-theme="dark"]) .medicationName > span { color:#ffb4bf
 }
 :global(html[data-theme="dark"]) .badge { color:#e9b495
 }
 :global(html[data-theme="dark"]) .bookmark { color:#e9b495
 }
-:global(html[data-theme="dark"]) .bookmark[aria-pressed="true"],:global(html[data-theme="dark"]) .detailBookmark[aria-pressed="true"] { color:#e9b495
+:global(html[data-theme="dark"]) .bookmark[aria-pressed="true"],:global(html[data-theme="dark"]) .detailBookmark[aria-pressed="true"] { color:#ffb4bf
 }
 :global(html[data-theme="dark"]) .eyebrow { color:#e9b495
 }
@@ -205,7 +205,7 @@
 }
 :global(html[data-theme="dark"]) .detailBookmark { background:#231c1740; color:#e9b495
 }
-:global(html[data-theme="dark"]) .reference { color:#c9b9ac
+:global(html[data-theme="dark"]) .reference { color:#ffb4bf
 }
 :global(html[data-theme="dark"]) .reference span { color:#e9b495
 }
@@ -217,11 +217,11 @@
 }
 :global(html[data-theme="dark"]) .allergies { background:#231c17d9
 }
-:global(html[data-theme="dark"]) .warningIcon { background:#2b231d; color:#e9b495
+:global(html[data-theme="dark"]) .warningIcon { background:#2b231d; color:#fcd34d
 }
 :global(html[data-theme="dark"]) .allergies h3 { color:#e9b495
 }
-:global(html[data-theme="dark"]) .allergies p { color:#c9b9ac
+:global(html[data-theme="dark"]) .allergies p { color:#ffb4bf
 }
 :global(html[data-theme="dark"]) .allergies button { background:#231c17; color:#e9b495
 }

@@ -1,0 +1,26 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
+const cache={};function load(name){if(cache[name])return cache[name];const filename=`src/lib/${name}.ts`;const m={exports:{}};cache[name]=m.exports;const js=ts.transpileModule(fs.readFileSync(filename,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;vm.runInNewContext(js,{require:p=>p.startsWith('@/lib/')?load(p.slice(6)):require(p),module:m,exports:m.exports,console,crypto,Date,Intl,Set});cache[name]=m.exports;return m.exports}
+const lib=load('pediatric-planning');
+assert(lib.canAccessPediatrics('Vice Diretor / Dev',''));
+assert(lib.canAccessPediatrics('Médico Especialista','Clínico Geral, Pediatria'));
+assert(!lib.canAccessPediatrics('Residente','Pediatria'));
+assert(!lib.canAccessPediatrics('Médico Especialista','Obstetra'));
+const first=lib.pediatricVisit('2026-10-29',0),second=lib.pediatricVisit('2026-10-29',1);
+assert.equal(second.date,'2026-11-13');assert(second.planned.includes('revisar os resultados'));assert(first.planned.includes('Conferir a caderneta'));
+assert.equal(lib.validatePediatricPlan({start_date:'2026-10-29',next_return:second.date,consultations:[first,second]}),'');
+assert(lib.validatePediatricPlan({start_date:'2026-10-29',consultations:[first,{...second,date:first.date}]}));
+assert(lib.validatePediatricPlan({start_date:'2026-10-29',consultations:[{...first,status:'realizada'}]}));
+const v=lib.pediatricVaccineGuidance('5 meses',['nascer','2-meses']);assert.deepEqual(Array.from(v,s=>s.id),['4-meses']);
+assert.equal(lib.pediatricVaccineGuidance('',[]).length,0);
+const source=fs.readFileSync('src/components/vaccination/VaccinationWorkspace.tsx','utf8');assert(source.includes('mode === "childhood" ? item.group === "crianca"'));assert(source.includes('mode === "childhood" ? card.card_model === "crianca"'));
+console.log('PASS: pediatric permissions, 15-day planning, return, vaccine guidance, duplicate dates and childhood card isolation');
+const nav=load('followup-navigation').followupNavigation;
+assert.deepEqual(Array.from(nav('Médico Especialista','Pediatria').followups),['pediatria']);
+assert.deepEqual(Array.from(nav('Médico Especialista','Pediatria').vaccination),['vacina_infantil']);
+assert.deepEqual(Array.from(nav('Médico Especialista','Obstetra').followups),['gestacional']);
+assert.deepEqual(Array.from(nav('Médico Especialista','Ginecologia').followups),['in_vitro']);
+assert.deepEqual(Array.from(nav('Médico Especialista','Pediatria, Obstetra').followups),['gestacional','pediatria']);
+assert.equal(nav('Residente','Pediatria').followups.length,0);
+assert.equal(nav('Vice Diretor / Dev','').followups.length,3);
+assert.equal(nav('Diretora','').vaccination.length,2);
+console.log('PASS: specialty-only navigation, stable group order, multiple specialties and existing administrative exceptions');

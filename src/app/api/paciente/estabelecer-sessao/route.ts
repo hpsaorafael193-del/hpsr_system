@@ -44,8 +44,10 @@ export async function POST(request: NextRequest) {
     }
     if (!portalAccess.access_enabled) return NextResponse.json({ error: "O acesso deste paciente está desativado." }, { status: 403 });
 
+    const body = await request.json().catch(() => ({}));
+    const rememberConnected = body?.rememberConnected === true;
     const token = generateSessionToken();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + (rememberConnected ? 30 : 1) * 24 * 60 * 60 * 1000);
     const fingerprint = requestFingerprint(request);
     const { error: sessionError } = await supabase.from("patient_portal_sessions").insert({
       portal_access_id: portalAccess.id,
@@ -63,7 +65,7 @@ export async function POST(request: NextRequest) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      expires: expiresAt,
+      ...(rememberConnected ? { expires: expiresAt } : {}),
     });
     return response;
   } catch (error) {

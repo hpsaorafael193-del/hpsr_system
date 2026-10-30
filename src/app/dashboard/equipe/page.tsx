@@ -1,12 +1,13 @@
 "use client";
 import {useManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh";
 
+import styles from "./team-direction.module.css";
 import { brazilDate, brazilIso } from "@/lib/brazil-datetime";
 import { formatPhoneDisplay } from "@/lib/phone";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
 import { isStaffApplicationPending } from "@/lib/staff-application-status";
-import { FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, FormEvent, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   BadgeCheck,
@@ -16,6 +17,7 @@ import {
   ClipboardCheck,
   Code2,
   Crown,
+  GraduationCap,
   FileText,
   History,
   Trash2,
@@ -373,6 +375,8 @@ export default function TeamPage() {
   const canAccessTeamPage = hasTeamAdminAccess || isClinicalDirectorUser;
   const [members, setMembers] = useState<TeamMember[]>(initialTeamMembers);
   const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [serviceFilter, setServiceFilter] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isPendingModalOpen, setIsPendingModalOpen] = useState(false);
@@ -572,13 +576,14 @@ export default function TeamPage() {
         )
       : members;
 
-    return [...filtered].sort((first, second) => {
+    return filtered.filter(member => (!roleFilter || member.hospitalRole === roleFilter) && (!serviceFilter || member.serviceStatus === serviceFilter)).sort((first, second) => {
       const firstRole = first.systemRole || first.hospitalRole;
       const secondRole = second.systemRole || second.hospitalRole;
+      const categoryDifference = categoryOrder.indexOf(first.category) - categoryOrder.indexOf(second.category);
       const hierarchyDifference = (roleHierarchy[firstRole] ?? 99) - (roleHierarchy[secondRole] ?? 99);
-      return hierarchyDifference || first.name.localeCompare(second.name, "pt-BR");
+      return categoryDifference || hierarchyDifference || first.name.localeCompare(second.name, "pt-BR");
     });
-  }, [members, searchTerm]);
+  }, [members, searchTerm, roleFilter, serviceFilter]);
 
   const allApplications: PublicStaffApplication[] = publicApplications;
   const pendingApplications = allApplications.filter(isStaffApplicationPending);
@@ -1040,32 +1045,13 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="hpsr-page hpsr-team-direction-page gap-3 lg:h-[calc(100dvh-2.4rem)] lg:min-h-0 lg:overflow-hidden">
-      <PageHeader
-        eyebrow="Administração"
-        title="Direção"
-        description="Gestão da equipe, cargos, permissões e candidaturas do Hospital São Rafael."
-      />
-
-      <div className="min-h-0 flex flex-1 flex-col gap-3 overflow-hidden md:gap-4">
-      <section className="shrink-0 overflow-hidden rounded-[16px] border border-[#b79580] bg-[#eee1d4] md:rounded-[16px]">
-        <div className="hpsr-team-direction-hero border-b border-[#926958] bg-[linear-gradient(112deg,#3f211d_0%,#61342d_63%,#74453a_100%)] p-3 md:p-3.5">
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(480px,0.82fr)] xl:items-center">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#edc7ac]">
-                Administração da equipe
-              </p>
-              <h1 className="mt-1.5 text-[clamp(1.18rem,1.8vw,1.55rem)] font-black text-[#fff9f2]">
-                Gestão administrativa da equipe
-              </h1>
-              <p className="mt-1 max-w-3xl text-xs leading-relaxed text-[#efdbcd] sm:text-sm">
-                A Diretoria administra vínculos e permissões. O Diretor Clínico acompanha exclusivamente o histórico assistencial para orientação técnica.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap justify-end gap-2">
+    <div className={`hpsr-page ${styles.page}`} data-team-direction="true">
+      <PageHeader eyebrow="Administração" title="Direção" description="Gestão da equipe, cargos, permissões e candidaturas do Hospital São Rafael." />
+      <header className={styles.hero}>
+        <div><p className={styles.eyebrow}>Administração da equipe</p><h1>Gestão administrativa da equipe</h1><p className={styles.description}>A Diretoria administra vínculos e permissões. O Diretor Clínico acompanha o histórico assistencial para orientação técnica.</p></div>
+                    <div className={styles.actions}>
               {hasTeamAdminAccess && (<>
-              <button type="button" onClick={() => setIsAddOpen(true)} className="relative inline-flex min-h-[38px] w-full items-center justify-center gap-2 rounded-[16px] border border-hpsr-border bg-white px-3.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0] md:min-h-[46px] md:w-auto md:px-4 md:text-sm">
+              <button type="button" onClick={() => setIsAddOpen(true)} data-team-primary="true" className="relative inline-flex min-h-[38px] w-full items-center justify-center gap-2 rounded-[16px] border border-hpsr-border bg-white px-3.5 text-xs font-black text-hpsr-wine transition hover:bg-[#fff8f0] md:min-h-[46px] md:w-auto md:px-4 md:text-sm">
                 <UserCog size={16}/> Gerenciar médico
                 {registrationRequests.filter((item) => item.status === "Pendente" && !item.hiddenAt && !item.historical).length > 0 && <span className="inline-flex min-w-[1.5rem] items-center justify-center rounded-full bg-hpsr-wine px-2 py-0.5 text-[11px] font-black text-white">{registrationRequests.filter((item) => item.status === "Pendente" && !item.hiddenAt && !item.historical).length}</span>}
               </button>
@@ -1090,130 +1076,40 @@ export default function TeamPage() {
 
               </>)}
             </div>
-          </div>
 
-          <div className="hpsr-team-direction-metrics mt-3 grid gap-2 grid-cols-2 md:grid-cols-5">
-            <PracticalMetric label="Pendências" value={String(pendingApplications.length)} />
-            <PracticalMetric label="Contratos" value={String(contractAlerts.length)} />
-            <PracticalMetric label="Membros" value={String(members.length)} />
-            <PracticalMetric label="Em operação" value={String(inServiceCount)} />
-            <PracticalMetric label="Formação" value={String(traineeCount)} />
+      </header>
+      <section className={styles.metrics} aria-label="Resumo administrativo">
+        {([{label:"Pendências",value:pendingApplications.length,icon:FileText,tone:"rose"},{label:"Contratos",value:contractAlerts.length,icon:CalendarClock,tone:"peach"},{label:"Membros",value:members.length,icon:UserRound,tone:"peach"},{label:"Em operação",value:inServiceCount,icon:CheckCircle2,tone:"green"},{label:"Formação",value:traineeCount,icon:GraduationCap,tone:"rose"}]).map(({label,value,icon:Icon,tone})=><div key={label} className={styles.metric}><span className={styles.metricIcon} data-tone={tone}><Icon size={25}/></span><div><p>{label}</p><strong>{value}</strong></div></div>)}
+      </section>
+      <section className={styles.team} aria-label="Equipe cadastrada">
+        <div className={styles.toolbar}>
+          <div className={styles.listHeading}><h2>Equipe cadastrada</h2><p>Clique em um membro para expandir detalhes, contrato, permissões e ações administrativas.</p></div>
+          <div className={styles.filters}>
+            <label className={styles.search}><Search size={17}/><input aria-label="Buscar na equipe cadastrada" value={searchTerm} onChange={event=>setSearchTerm(event.target.value)} placeholder="Buscar na equipe cadastrada"/></label>
+            <select aria-label="Filtrar por cargo" value={roleFilter} onChange={event=>setRoleFilter(event.target.value)}><option value="">Todos os cargos</option>{Array.from(new Set(members.map(member=>member.hospitalRole))).sort((a,b)=>a.localeCompare(b,"pt-BR")).map(role=><option key={role} value={role}>{role}</option>)}</select>
+            <select aria-label="Filtrar por status" value={serviceFilter} onChange={event=>setServiceFilter(event.target.value)}><option value="">Todos os status</option>{(["Em serviço","Fora de serviço","Em atendimento","Em procedimento"] as const).map(status=><option key={status} value={status}>{status}</option>)}</select>
+            <span className={styles.count} aria-live="polite">{visibleMembers.length} membro{visibleMembers.length===1?"":"s"}</span>
           </div>
+        </div>
+        <div className={styles.list}>
+          {visibleMembers.map((member,index)=>{
+                const selected=selectedId===member.id,contract=getContractInfo(member);
+                return <Fragment key={member.id}>
+                  {(index===0||visibleMembers[index-1].category!==member.category)&&<div className={styles.categoryHeading}><h3>{member.category}</h3><span>{visibleMembers.filter(item=>item.category===member.category).length} membro{visibleMembers.filter(item=>item.category===member.category).length===1?"":"s"}</span></div>}
+                  <article className={styles.member} data-expanded={selected}>
+                  <button type="button" aria-expanded={selected} onClick={()=>setSelectedId(selected?"":member.id)} className={styles.memberButton}>
+                    <span className={styles.avatar} data-tone={member.category==="Direção"?"rose":member.category==="Sistema"||member.category==="Formação"?"purple":index%2?"green":"blue"}>{member.name.trim().charAt(0).toLocaleUpperCase("pt-BR")}</span>
+                    <span className={styles.identity}><span className={styles.identityTop}><strong>{member.name}</strong></span><span className={styles.meta}>{member.crm||"CRM não informado"} · Passaporte {member.passport}</span></span>
+                    <span className={styles.roleColumn}><strong>{member.systemRole?"Dev":member.hospitalRole}</strong><span>{member.specialty}</span></span>
+                    <span className={styles.statusColumn}><span className={styles.serviceLabel} data-status={member.serviceStatus}><i aria-hidden="true"/>{member.serviceStatus}</span></span>
+                    <span className={styles.rowActions}><span className={styles.open}>{selected?"Fechar":"Detalhes"}<ChevronDown size={15} className={selected?"rotate-180":""}/></span></span>
+                  </button>
+                  {selected&&<><div className={styles.quickFacts}><div><small>Status</small><strong>{member.serviceStatus}</strong></div><div><small>Advertências</small><strong>{member.warnings}</strong></div><div><small>Suspensões</small><strong>{member.suspensions}</strong></div><div><small>{member.hospitalRole==="Médico Supervisor"?"Tempo de contrato":"Entrada"}</small><strong>{member.hospitalRole==="Médico Supervisor"?`${daysSince(member.joinedAt)} dias · ${formatDate(member.joinedAt)}`:formatDate(member.joinedAt)}</strong></div>{contract&&<div className={styles.contract}><small>Contrato</small><strong>{contract.workedDays} de {contract.limit} dias cumpridos</strong><div className={styles.progressRow}><div className={styles.progress} role="progressbar" aria-label="Dias de contrato cumpridos" aria-valuemin={0} aria-valuemax={contract.limit} aria-valuenow={Math.min(contract.limit,Math.max(0,contract.workedDays))}><span style={{width:`${Math.min(100,Math.max(0,contract.workedDays/contract.limit*100))}%`}}/></div><span>{Math.max(0,contract.limit-contract.workedDays)} dias restantes</span></div></div>}</div><div className={styles.expanded}><TeamMemberExpandedContent member={member} onContractAction={handleContractAction} onAdministrativeAction={handleAdministrativeAction}/></div></>}
+                </article></Fragment>;
+          })}
+          {!visibleMembers.length&&<div className={styles.empty}><Search size={24}/><h3>Nenhum médico encontrado.</h3><p>Ajuste a busca ou os filtros para encontrar um membro da equipe.</p>{(searchTerm||roleFilter||serviceFilter)&&<button type="button" onClick={()=>{setSearchTerm("");setRoleFilter("");setServiceFilter("")}}>Limpar filtros</button>}</div>}
         </div>
       </section>
-
-      <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[16px] border border-[#d4b9a3] bg-[#eee2d6] shadow-[0_7px_24px_rgba(92,56,38,.055)] md:rounded-[16px]">
-        <div className="shrink-0 border-b border-[#d7bba4] bg-[#e9d9c9] px-4 py-3 md:px-5 md:py-4">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(320px,.65fr)_auto] lg:items-center">
-            <div><h2 className="text-base font-black text-hpsr-text md:text-lg">Equipe cadastrada</h2><p className="mt-1 text-xs text-hpsr-muted md:text-sm">Clique em um resumo para expandir detalhes, contrato, permissões e ações administrativas.</p></div>
-            <label className="flex min-h-[42px] items-center gap-3 rounded-[16px] border border-hpsr-border bg-white px-3.5 focus-within:border-hpsr-wineLight focus-within:ring-2 focus-within:ring-hpsr-wineLight/20"><Search size={17} className="text-hpsr-muted"/><input className="w-full bg-transparent text-sm font-semibold text-hpsr-text outline-none placeholder:text-zinc-400" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Buscar na equipe cadastrada"/></label>
-            <span className="rounded-full border border-hpsr-border bg-white px-3 py-1 text-xs font-black text-hpsr-wine">{visibleMembers.length} membro{visibleMembers.length === 1 ? "" : "s"}</span>
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-hidden bg-[#efe3d6] p-3 md:p-4">
-          <div className="grid h-full min-h-0 content-start gap-3 overflow-y-auto overscroll-contain pr-1" style={{ scrollbarGutter: "stable" }}>
-            {categoryOrder.map((category) => {
-              const categoryMembers = visibleMembers.filter((member) => member.category === category);
-              if (categoryMembers.length === 0) return null;
-
-              return (
-                <div key={category} className="grid gap-2.5">
-                  <div className="sticky top-0 z-[1] col-span-full flex items-center justify-between gap-3 rounded-[14px] border border-[#d7bba4] bg-[#e8d5c4]/95 px-3 py-2 backdrop-blur md:px-4 md:py-2.5">
-                    <p className="text-[10px] font-black uppercase tracking-[0.16em] text-hpsr-wineLight">{category}</p>
-                    <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-wine">
-                      {categoryMembers.length} item{categoryMembers.length === 1 ? "" : "s"}
-                    </span>
-                  </div>
-
-                  {categoryMembers.map((member) => {
-                    const selected = selectedId === member.id;
-                    const contract = getContractInfo(member);
-
-                    return (
-                      <article
-                        key={member.id}
-                        className={`min-w-0 overflow-hidden rounded-[16px] border transition ${
-                          selected
-                            ? "border-hpsr-wine/70 bg-[#f8f0e8] shadow-[0_12px_34px_rgba(42,7,0,0.08)]"
-                            : "border-[#ddc6b2] bg-[#f6ecdf]"
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setSelectedId(selected ? "" : member.id)}
-                          className={`w-full text-left ${selected ? "px-4 py-4" : "px-3.5 py-3"}`}
-                        >
-                          <div className={`grid items-start gap-3 ${selected ? "grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto]" : "grid-cols-[minmax(0,1fr)_auto]"}`}>
-                            <div className="min-w-0">
-                              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-                                <p className={`max-w-full truncate font-black text-hpsr-text ${selected ? "text-base" : "text-sm"}`}>{member.name}</p>
-                                <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${categoryClasses(member.category)}`}>
-                                  {member.systemRole ? "Dev" : member.hospitalRole}
-                                </span>
-                                <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${serviceClasses(member.serviceStatus)}`}>
-                                  {member.serviceStatus}
-                                </span>
-                                {contract && (
-                                  <span className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${contractToneClasses(contract.tone)}`}>
-                                    {contract.kind}
-                                  </span>
-                                )}
-                              </div>
-                              <p className={`mt-1 truncate font-semibold text-hpsr-muted ${selected ? "text-sm" : "text-xs"}`}>{member.crm || "CRM não informado"}</p>
-                              <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-relaxed text-hpsr-muted">{member.department} · {member.specialty} · Passaporte {member.passport}</p>
-                            </div>
-                            <div className="flex shrink-0 items-center justify-end gap-1.5">
-                              <span className="max-w-[120px] truncate rounded-[12px] border border-hpsr-border bg-white px-3 py-2 text-[10px] font-black text-hpsr-wine">
-                                {member.accessLevel}
-                              </span>
-                              <span className="inline-flex items-center gap-1 rounded-[12px] bg-[#fff2e4] px-2.5 py-2 text-[10px] font-black text-hpsr-wine">
-                                {selected ? "Recolher" : "Abrir"}
-                                <ChevronDown size={15} className={`shrink-0 transition ${selected ? "rotate-180" : ""}`} />
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-hpsr-border pt-2.5 sm:grid-cols-4">
-                            <MiniStat label="Status" value={member.serviceStatus} />
-                            <MiniStat label="Advertências" value={String(member.warnings)} />
-                            <MiniStat label="Suspensões" value={String(member.suspensions)} />
-                            <MiniStat label={member.hospitalRole === "Médico Supervisor" ? "Tempo de contrato" : "Entrada"} value={member.hospitalRole === "Médico Supervisor" ? `${daysSince(member.joinedAt)} dias · ${formatDate(member.joinedAt)}` : formatDate(member.joinedAt)} />
-                          </div>
-
-                          {contract && (
-                            <div className={`rounded-[16px] border px-3 py-2 ${contractToneClasses(contract.tone)}`}>
-                              <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="text-[11px] font-black uppercase tracking-[0.14em]">{contract.kind}</p>
-                                <span className="text-[11px] font-black">{contract.workedDays}/{contract.limit} dias</span>
-                              </div>
-                              <p className={`${selected ? "mt-1 text-xs leading-relaxed" : "mt-1 line-clamp-2 text-[11px] leading-snug"} font-semibold`}>{contract.message}</p>
-                            </div>
-                          )}
-                        </button>
-
-                        {selected && (
-                          <div className="border-t border-[#decab7] bg-[#f4e8db] p-3.5">
-                            <TeamMemberExpandedContent member={member} onContractAction={handleContractAction} onAdministrativeAction={handleAdministrativeAction} />
-                          </div>
-                        )}
-                      </article>
-                    );
-                  })}
-                </div>
-              );
-            })}
-            {visibleMembers.length === 0 && (
-              <div className="rounded-[16px] border border-dashed border-hpsr-border bg-[#fff8f0] p-3.5 text-center">
-                <p className="font-black text-hpsr-text">Nenhum médico encontrado.</p>
-                <p className="mt-1 text-sm text-hpsr-muted">Ajuste a busca ou selecione outro médico.</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      </div>
 
       {hasTeamAdminAccess && isRegistrationRequestsOpen && (
         <RegistrationRequestsModal

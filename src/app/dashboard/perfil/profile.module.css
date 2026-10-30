@@ -170,8 +170,6 @@
 }
 :global(html[data-theme="dark"]) .input { background: #231c17
 }
-:global(html[data-theme="dark"]) .input:focus { box-shadow: 0 0 0 2px #30201620
-}
 :global(html[data-theme="dark"]) .readOnlyField { background: #231c17
 }
 :global(html[data-theme="dark"]) .subPanel { background: #231c17

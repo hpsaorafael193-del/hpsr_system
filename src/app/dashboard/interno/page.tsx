@@ -3,13 +3,14 @@ import {useManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ClipboardCheck, Eye, EyeOff, FilePenLine, FileText, History, RefreshCw, Search, ShieldCheck, TriangleAlert, UsersRound } from "lucide-react";
+import { BellRing, ClipboardCheck, Eye, EyeOff, FilePenLine, FileText, History, RefreshCw, Search, ShieldCheck, TriangleAlert, UsersRound } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { InternalNoticesPanel } from "@/components/dashboard/InternalNoticesPanel";
 import { GuardianApprovalPanel } from "@/components/dashboard/GuardianApprovalPanel";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
 import { createClient } from "@/lib/supabase";
 
-type Section = "vinculos"|"cadastros"|"documentos"|"ocorrencias"|"historico";
+type Section = "vinculos"|"cadastros"|"documentos"|"ocorrencias"|"historico"|"comunicados";
 type Patient = {passport:string;name:string;age:string|null;follow_up:string};
 type Activity = {id:string;module:string;action:string;description:string;actor:string|null;reference:string|null;created_at:string};
 type InternalDocument = {id:string;record_type:string;patient_passport:string|null;history_title:string|null;history_patient_name:string|null;history_doctor_name:string|null;is_confidential:boolean;released_at:string|null;updated_at:string};
@@ -18,6 +19,7 @@ const sections: {id:Section;label:string;detail:string;icon:typeof UsersRound}[]
   {id:"cadastros",label:"Cadastros",detail:"Conferência e correção",icon:FilePenLine},
   {id:"documentos",label:"Documentos",detail:"Metadados e publicação",icon:FileText},
   {id:"ocorrencias",label:"Ocorrências",detail:"Pendências internas",icon:TriangleAlert},
+  {id:"comunicados",label:"Comunicados",detail:"Notificar pacientes e médicos",icon:BellRing},
   {id:"historico",label:"Histórico",detail:"Rastreabilidade",icon:History},
 ];
 const inputClass="w-full min-h-[43px] rounded-[12px] border border-hpsr-border bg-[#fffdfa] px-3 py-2 text-sm text-hpsr-text outline-none focus:border-[#b88c75] focus:ring-2 focus:ring-[#ead4c4]";
@@ -139,9 +141,10 @@ export default function InternalPage(){
     <section className="rounded-[18px] border border-[#d7c2b0] bg-[#f1e4d5] px-4 py-4 sm:px-5">
       <div className="flex items-center gap-3"><span className="rounded-xl border border-[#d0b39d] bg-[#fff8f0] p-2"><ShieldCheck className="text-hpsr-wine" size={23}/></span><div><p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wine">Gestão interna</p><h1 className="text-xl font-black text-hpsr-text">Central Interno</h1><p className="text-xs font-semibold text-hpsr-muted">{profile.characterName} · {profile.role} · uso administrativo com auditoria</p></div></div>
     </section>
-    <nav aria-label="Seções do Interno" className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">{sections.map(s=>{const Icon=s.icon;return <button key={s.id} type="button" onClick={()=>{setSection(s.id);setNotice("");setError("");}} aria-current={section===s.id?"page":undefined} className={`flex min-w-0 items-center gap-3 rounded-[15px] border px-4 py-3 text-left transition ${section===s.id?"border-[#ae856b] bg-[#e9d7c6] shadow-[inset_4px_0_0_#75442e]":"border-hpsr-border bg-[#faf3ea] hover:border-[#d0ad92]"}`}><Icon size={21} className="shrink-0 text-hpsr-wine"/><span><span className="block text-sm font-black text-hpsr-text">{s.label}</span><span className="text-xs text-hpsr-muted">{s.detail}</span></span></button>;})}</nav>
+    <nav aria-label="Seções do Interno" className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">{sections.map(s=>{const Icon=s.icon;return <button key={s.id} type="button" onClick={()=>{setSection(s.id);setNotice("");setError("");}} aria-current={section===s.id?"page":undefined} className={`flex min-w-0 items-center gap-3 rounded-[15px] border px-4 py-3 text-left transition ${section===s.id?"border-[#ae856b] bg-[#e9d7c6] shadow-[inset_4px_0_0_#75442e]":"border-hpsr-border bg-[#faf3ea] hover:border-[#d0ad92]"}`}><Icon size={21} className="shrink-0 text-hpsr-wine"/><span><span className="block text-sm font-black text-hpsr-text">{s.label}</span><span className="text-xs text-hpsr-muted">{s.detail}</span></span></button>;})}</nav>
     {error&&<p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">{error}</p>}
     {notice&&<p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">{notice}</p>}
+    {section==="comunicados"&&<InternalNoticesPanel/>}
     {section==="vinculos"&&<GuardianApprovalPanel/>}
     {section==="cadastros"&&<section className="space-y-4 rounded-[19px] border border-hpsr-border bg-[#f7f0e7] p-4 sm:p-5">
       <div className="flex flex-wrap justify-between gap-3"><div><h2 className="flex items-center gap-2 font-black text-hpsr-text"><ClipboardCheck size={19}/>Conferência de pacientes</h2><p className="text-xs text-hpsr-muted">Corrija apenas dados administrativos. Passaportes, históricos e registros médicos não são alterados aqui.</p></div><Link className="rounded-xl border border-hpsr-border bg-[#fffaf4] px-3 py-2 text-xs font-bold text-hpsr-wine" href="/dashboard/prontuarios">Abrir Prontuários</Link></div>

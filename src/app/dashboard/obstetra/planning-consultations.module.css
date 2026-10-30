@@ -47,7 +47,7 @@
 
 /* HPSR DARK MODULE PALETTE */
 @media screen {
-:global(html[data-theme="dark"]) .icon { background:linear-gradient(135deg,#302016,#1d1611); color:#f3ede7; box-shadow:0 5px 15px #30201612
+:global(html[data-theme="dark"]) .icon { background:linear-gradient(135deg,#302016,#1d1611); color:#f3ede7
 }
 :global(html[data-theme="dark"]) .heading p { color:#e9b495
 }
@@ -67,7 +67,7 @@
 }
 :global(html[data-theme="dark"]) .participantInfo > p { color:#c9b9ac
 }
-:global(html[data-theme="dark"]) .tableScroll { scrollbar-color:#38291f #231c17
+:global(html[data-theme="dark"]) .tableScroll { scrollbar-color:#481d25 #231c17
 }
 :global(html[data-theme="dark"]) .table { color:#e9b495
 }
@@ -85,7 +85,7 @@
 }
 :global(html[data-theme="dark"]) .summary { color:#c9b9ac
 }
-:global(html[data-theme="dark"]) .rowActions .remove { color:#e9b495
+:global(html[data-theme="dark"]) .rowActions .remove { color:#ffb4bf
 }
 :global(html[data-theme="dark"]) .unsaved { color:#c9b9ac
 }

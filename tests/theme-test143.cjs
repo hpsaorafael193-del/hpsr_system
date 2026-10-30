@@ -6,7 +6,7 @@ const document={documentElement:{dataset:{}}};vm.runInNewContext(bootstrap,{docu
 const css=postcss.parse(fs.readFileSync('src/app/dark-generated.css','utf8'));let count=0;
 css.walkRules(r=>{assert(r.selector.includes('data-theme="dark"'));assert(r.selector.includes('data-hpsr-document')||r.selector==='html[data-theme="dark"]');r.walkDecls(d=>assert(/color|background|shadow|fill|stroke|^--/.test(d.prop),`Layout changed: ${d.prop}`));count++;});assert(count>100);
 const menu=fs.readFileSync('src/components/layout/UserMenu.tsx','utf8');assert(menu.includes('role="menuitemcheckbox"'));assert(menu.includes('onClick={toggleTheme}'));
-assert.equal(JSON.parse(fs.readFileSync('package.json')).version,'1.1.16-test.150');
+assert.equal(JSON.parse(fs.readFileSync('package.json')).version,'1.1.16-test.167');
 console.log(`PASS: startup preference, denied storage, ${count} scoped color-only rules, sheet exclusion, menu toggle, version 144.`);
 const {transform}=require('../scripts/generate-dark-theme.cjs');
 assert.match(transform('linear-gradient(110deg,#612d1c,#482016)','background'),/^linear-gradient/);
@@ -45,3 +45,10 @@ for(const pathname of ['/dashboard','/dashboard/','/dashboard/perfil','/dashboar
  const document={documentElement:{dataset:{}}};vm.runInNewContext(bootstrap,{document,window:{location:{pathname}},localStorage:{getItem:()=> 'dark'}});assert.equal(document.documentElement.dataset.theme,'dark',pathname);
 }
 console.log('PASS: saved dark preference is applied only to exact dashboard routes; public and patient routes stay light.');
+
+assert.equal(transform('0 0 24px rgba(239,68,68,0.4)','box-shadow'),'0 0 24px rgb(239 68 68 / 0.4)');
+assert.equal(transform('0 0 16px #10b98180','--tw-shadow'),'0 0 16px #10b98180');
+assert.equal(transform('#ef4444','background-color'),'#481d25');
+assert.equal(transform('#fbbf24','color'),'#fcd34d');
+assert(fs.readFileSync('src/app/dashboard/gestao-de-leitos/page.tsx','utf8').includes('data-bed-status={bed.status}'));
+console.log('PASS: red and amber statuses, original colored glow and explicit bed status hooks.');

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ChevronDown, Code2, Menu } from "lucide-react";
 import { adminNavigation, mainNavigation, toolsNavigation } from "@/data/navigation";
 import { useCurrentUserProfile } from "@/components/auth/CurrentUserProfileProvider";
+import { canAccessPediatrics } from "@/lib/pediatric-planning";
 import { canAccessObstetra } from "@/lib/obstetra-access";
 import { isFullAccessAdministrativeRole } from "@/lib/staff-specialties";
 import { cn } from "@/lib/utils";
@@ -20,7 +21,7 @@ export function Sidebar({ collapsed, onToggle, onOpenSystemInfo, hasPendingAppoi
   const visibleAdminNavigation = canSeeTeamAdmin ? adminNavigation.filter((item) => !item.internalOnly || ["Diretora", "Vice Diretor / Dev"].includes(currentUserProfile.role)) : [];
   const visibleToolsNavigation = toolsNavigation.filter((item) =>
     canSeeNavigationItem(item, currentUserProfile.role) &&
-    (item.href !== "/dashboard/obstetra" || canAccessObstetra(currentUserProfile.role, currentUserProfile.specialty))
+    (item.href !== "/dashboard/obstetra" || canAccessObstetra(currentUserProfile.role, currentUserProfile.specialty) || canAccessPediatrics(currentUserProfile.role, currentUserProfile.specialty))
   );
 
   return (

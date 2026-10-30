@@ -1,4 +1,5 @@
-import { createBrowserClient } from "@supabase/ssr";
+import { loginCookieOptions, rememberCurrentSession, renewLoginPersistence } from "@/lib/auth-persistence";
+import { createBrowserClient, parseCookieHeader, serializeCookieHeader, type CookieOptions } from "@supabase/ssr";
 import { createClient as createSupabaseJsClient, type SupabaseClient } from "@supabase/supabase-js";
 
 function getSupabasePublicKey() {
@@ -29,7 +30,19 @@ export function createClient() {
 
   // Mantém uma única instância por aba. Isso evita recriar o cliente,
   // listeners de autenticação e estruturas internas a cada consulta.
-  browserClient = createBrowserClient(url, key);
+  browserClient = createBrowserClient(url, key, {
+    cookies: {
+      getAll: () => typeof document === "undefined" ? [] : parseCookieHeader(document.cookie),
+      setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+        if (typeof document === "undefined") return;
+        const remember = rememberCurrentSession();
+        cookiesToSet.forEach(({ name, value, options }) => {
+          document.cookie = serializeCookieHeader(name, value, loginCookieOptions({ ...options, secure: window.location.protocol === "https:" }, remember));
+        });
+        renewLoginPersistence();
+      },
+    },
+  });
   return browserClient;
 }
 

@@ -1,0 +1,74 @@
+/* Medical access: scoped to the existing portal so other dialogs retain their appearance. */
+#medical-login-modal { --login-ink:#35150d; --login-muted:#766257; --login-edge:#cbaa94; --login-field:#f4e8dd; --login-panel:#fbf5ef; --login-accent:#672614; color:var(--login-ink); padding:20px 12px; }
+#medical-login-modal .medical-login-shell { width:100%; max-width:560px; border:1px solid var(--login-edge)!important; border-radius:20px; background:linear-gradient(135deg,#f8eee3,#f0e0cf)!important; box-shadow:0 28px 90px #16070366; }
+#medical-login-modal .medical-login-header { padding:22px 24px 18px; background:transparent!important; border-color:var(--login-edge)!important; }
+#medical-login-modal .medical-login-header h2 { font-size:26px; line-height:1.25; color:var(--login-ink)!important; margin-top:5px; }
+#medical-login-modal .medical-login-header p { color:var(--login-muted)!important; }
+#medical-login-modal .medical-login-header p:first-child { font-size:10px; letter-spacing:.22em; color:var(--login-accent)!important; }
+#medical-login-modal .medical-login-icon { width:46px; height:46px; border-radius:50%; margin-top:1px; }
+#medical-login-modal .medical-login-close { width:40px; height:40px; background:var(--login-panel)!important; border-color:var(--login-edge)!important; color:var(--login-muted)!important; border-radius:12px; }
+#medical-login-modal .medical-login-header .grid > div { background:#fbf5ef99!important; border-color:var(--login-edge)!important; color:var(--login-accent)!important; font-size:10px; padding:7px 4px; }
+#medical-login-modal .medical-login-body { padding:18px 20px 16px; }
+#medical-login-modal .medical-login-tabs { border-color:var(--login-edge)!important; background:#fbf5ef88!important; margin-bottom:12px; border-radius:17px; }
+#medical-login-modal .medical-login-tabs button { min-height:42px; font-size:16px; border-radius:13px; }
+#medical-login-modal .medical-login-tabs button[aria-pressed="true"],
+#medical-login-modal .medical-login-submit { background:linear-gradient(115deg,#702d19,#310c04)!important; color:#fff8f1!important; }
+#medical-login-modal .medical-login-tabs button[aria-pressed="false"] { color:var(--login-ink)!important; }
+#medical-login-modal .medical-login-form { padding:14px 16px; background:var(--login-panel)!important; border-color:var(--login-edge)!important; border-radius:20px; }
+#medical-login-modal .medical-login-notice { border-color:#a2dfcd!important; background:#ecfbf4!important; color:#176b59!important; padding:10px 12px; font-size:11px; margin-bottom:20px; }
+#medical-login-modal .medical-login-field > span { text-transform:none; letter-spacing:normal; color:var(--login-ink)!important; font-size:14px; margin-bottom:7px; }
+#medical-login-modal .medical-login-field > div { min-height:48px; border-radius:11px; padding:7px 12px; gap:10px; background:var(--login-field)!important; border-color:var(--login-edge)!important; box-shadow:none; }
+#medical-login-modal .medical-login-field > div > span { width:22px; height:24px; border-radius:0; background:transparent!important; }
+#medical-login-modal .medical-login-field svg { color:var(--login-accent)!important; }
+#medical-login-modal .medical-login-field input { background:transparent!important; color:var(--login-ink)!important; font-weight:500; min-width:0; font-size:14px; }
+#medical-login-modal .medical-login-field input::placeholder { color:var(--login-muted)!important; opacity:.8; }
+#medical-login-modal .medical-login-eye { padding:5px; border-radius:6px; }
+#medical-login-modal .medical-login-remember { padding:9px 2px 12px; border:0; background:transparent!important; }
+#medical-login-modal .medical-login-remember input { width:15px; height:15px; margin-top:2px; accent-color:var(--login-accent); flex-shrink:0; }
+#medical-login-modal .medical-login-remember span { color:var(--login-ink)!important; }
+#medical-login-modal .medical-login-remember span span:last-child { color:var(--login-muted)!important; font-weight:400; }
+#medical-login-modal .medical-login-submit { min-height:50px; border-radius:12px; font-size:16px; }
+#medical-login-modal .medical-login-footer { background:var(--login-panel)!important; color:var(--login-muted)!important; border-color:var(--login-edge)!important; padding:9px 14px; border-radius:12px; font-weight:400; font-size:12px; }
+#medical-login-modal button:focus-visible, #medical-login-modal input[type="checkbox"]:focus-visible { outline:2px solid var(--login-accent); outline-offset:3px; }
+#medical-login-modal .medical-login-field > div:focus-within { outline:2px solid var(--login-accent); outline-offset:2px; }
+:root[data-theme="dark"] #medical-login-modal { --login-ink:#f5e4d6; --login-muted:#c4ad9c; --login-edge:#6d4938; --login-field:#36241d; --login-panel:#291b16; --login-accent:#efb48c; }
+:root[data-theme="dark"] #medical-login-modal .medical-login-shell { background:linear-gradient(135deg,#36241d,#241713)!important; }
+:root[data-theme="dark"] #medical-login-modal .medical-login-tabs,
+:root[data-theme="dark"] #medical-login-modal .medical-login-header .grid > div { background:#291b16!important; }
+:root[data-theme="dark"] #medical-login-modal .medical-login-notice { background:#143b32!important; border-color:#2c7967!important; color:#b1f0d8!important; }
+@media(max-width:480px) {
+ #medical-login-modal { padding:12px 8px; }
+ #medical-login-modal .medical-login-header { padding:18px 16px 15px; }
+ #medical-login-modal .medical-login-header h2 { font-size:21px; }
+ #medical-login-modal .medical-login-body { padding:14px 12px; }
+ #medical-login-modal .medical-login-form { padding:14px; }
+ #medical-login-modal .medical-login-icon { width:32px; height:32px; }
+ #medical-login-modal .medical-login-header .grid > div { font-size:9px; }
+ #medical-login-modal .medical-login-notice { font-size:10px; }
+}
+
+/* Reference alignment: one compact options row and balanced form spacing. */
+#medical-login-modal .medical-login-header > div:first-child { gap:18px; }
+#medical-login-modal .medical-login-header > div:first-child > div { gap:16px; }
+#medical-login-modal .medical-login-header p:last-child { font-size:14px; line-height:1.5; margin-top:5px; }
+#medical-login-modal .medical-login-header .grid { margin-top:24px; gap:8px; }
+#medical-login-modal .medical-login-header .grid > div { min-height:36px; display:flex; align-items:center; justify-content:center; font-size:12px; border-radius:14px; }
+#medical-login-modal .medical-login-form { display:flex; flex-direction:column; gap:18px; }
+#medical-login-modal .medical-login-form > * { margin-top:0; }
+#medical-login-modal .medical-login-notice { margin-bottom:0; min-height:42px; font-size:12px; }
+#medical-login-modal .medical-login-options { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+#medical-login-modal .medical-login-options .medical-login-remember { padding:0; gap:9px; }
+#medical-login-modal .medical-login-options .medical-login-remember input { width:19px; height:19px; margin:0; }
+#medical-login-modal .medical-login-options .medical-login-remember span { color:var(--login-ink)!important; font-size:12px; font-weight:700; }
+#medical-login-modal .medical-login-forgot { font-size:12px; color:var(--login-accent)!important; }
+#medical-login-modal .medical-login-form .medical-login-field > div { min-height:48px; }
+#medical-login-modal .medical-login-footer { margin-top:10px; }
+@media(max-width:480px) {
+ #medical-login-modal .medical-login-header h2 { font-size:23px; }
+ #medical-login-modal .medical-login-header p:last-child { font-size:12px; }
+ #medical-login-modal .medical-login-header .grid { margin-top:18px; }
+ #medical-login-modal .medical-login-header .grid > div { font-size:10px; min-height:32px; }
+ #medical-login-modal .medical-login-form { gap:16px; }
+ #medical-login-modal .medical-login-options { gap:10px; }
+ #medical-login-modal .medical-login-forgot { font-size:11px; }
+}

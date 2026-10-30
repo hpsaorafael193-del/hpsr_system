@@ -324,6 +324,7 @@ export default function BedsPage() {
             return (
               <article
                 key={bed.id}
+                data-bed-status={bed.status}
                 onClick={() => openAdmissionForm(bed)}
                 className={`relative flex min-h-[240px] flex-col overflow-visible rounded-[18px] border p-3.5 text-center transition ${
                   bed.type === "normal" ? "xl:col-span-3" : "xl:col-span-2"

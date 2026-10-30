@@ -110,11 +110,11 @@
 }
 :global(html[data-theme="dark"]) .position { background:#231c17
 }
-:global(html[data-theme="dark"]) .position[data-position="1"] { background:#38291f
+:global(html[data-theme="dark"]) .position[data-position="1"] { background:#423114
 }
 :global(html[data-theme="dark"]) .position[data-position="2"] { background:#2b231d
 }
-:global(html[data-theme="dark"]) .position[data-position="3"] { background:#38291f
+:global(html[data-theme="dark"]) .position[data-position="3"] { background:#423114
 }
 :global(html[data-theme="dark"]) .archiveEmpty { color:#c9b9ac
 }
@@ -126,7 +126,7 @@
 }
 :global(html[data-theme="dark"]) .notice { background:#231c17; color:#e9b495
 }
-:global(html[data-theme="dark"]) .error { background:#231c17; color:#e9b495
+:global(html[data-theme="dark"]) .error { background:#231c17; color:#ffb4bf
 }
 :global(html[data-theme="dark"]) .dialog { background:#231c17; color:#e9b495
 }

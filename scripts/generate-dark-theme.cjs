@@ -6,10 +6,14 @@ function convert(hex,prop){
  const [r,g,b]=[0,2,4].map(i=>parseInt(v.slice(i,i+2),16));
  const light=(r*.2126+g*.7152+b*.0722)/255,max=Math.max(r,g,b),min=Math.min(r,g,b);
  const text=/^(color|caret-color|fill|stroke|text-decoration-color)$/.test(prop)||/foreground|muted|wine|text/.test(prop);
- const semantic=g>r*1.18&&g>b*1.05?'green':r>b*1.35&&b>g*1.12?'red':b>r*1.25&&b>g*1.08?'blue':null;
+ const semantic=g>r*1.18&&g>b*1.05?'green':max>150&&r>g*1.35&&r>b*1.2&&Math.abs(g-b)<r*.3?'red':r>b*1.35&&b>g*1.12?'red':max>150&&r>g*1.08&&g>b*1.5?'amber':b>r*1.25&&b>g*1.08?'blue':null;
+ // Saturated focus/alert rings remain bright; only the surrounding surface darkens.
+ if(prop==='--tw-ring-color' && max-min>70 && max>100) return hex;
+ // Colored glows carry status information: keep their original hue and alpha.
+ if(/shadow/.test(prop) && max-min>70 && max>100) return hex;
  let out;
  if(/border|outline/.test(prop) && max-min>70 && max>150) return hex;
- if(semantic)out=text?({green:'#83e5c0',red:'#ffb4bf',blue:'#a9cefa'}[semantic]):({green:'#15382c',red:'#481d25',blue:'#1b3046'}[semantic]);
+ if(semantic)out=text?({green:'#83e5c0',red:'#ffb4bf',blue:'#a9cefa',amber:'#fcd34d'}[semantic]):({green:'#15382c',red:'#481d25',blue:'#1b3046',amber:'#423114'}[semantic]);
  else if(text)out=light>.83?'#f3ede7':light>.35?'#c9b9ac':'#e9b495';
  else if(/border|outline|ring/.test(prop))out=light>.55?'#4d3d31':'#463326';
  else if(light>.9)out='#231c17';else if(light>.7)out='#2b231d';else if(light>.4)out='#38291f';

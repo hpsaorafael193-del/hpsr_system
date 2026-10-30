@@ -54,7 +54,7 @@ export function PatientNotificationsPopover({ accountId, profiles, pending, onNa
       const initializedKey = `${storageKey}:initialized`;
       try {
         if (!window.localStorage.getItem(initializedKey)) {
-          const old = list.filter((n) => Date.now() - new Date(n.at).getTime() > 86400000).map((n) => n.id);
+          const old = list.filter((n) => n.kind !== "administrative" && Date.now() - new Date(n.at).getTime() > 86400000).map((n) => n.id);
           const existing = JSON.parse(window.localStorage.getItem(storageKey) || "[]") as string[];
           const initial = Array.from(new Set([...existing, ...old]));
           window.localStorage.setItem(storageKey, JSON.stringify(initial.slice(-500)));
@@ -81,14 +81,14 @@ export function PatientNotificationsPopover({ accountId, profiles, pending, onNa
     try { window.localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
   };
   return <div className="relative shrink-0">
-    <button type="button" onClick={() => { setOpen((old) => !old); if (!open) void refresh(true); }}
+    <button data-hpsr-notification-trigger={unread > 0} type="button" onClick={() => { setOpen((old) => !old); if (!open) void refresh(true); }}
       aria-label={`Notificações${unread ? `, ${unread} não lidas` : ""}`} aria-expanded={open}
       className="relative inline-flex h-11 w-11 items-center justify-center rounded-[12px] border border-[#d4c0ae] bg-[#f5ede5] text-hpsr-wine shadow-[0_3px_10px_rgba(73,47,34,.045)] transition hover:bg-[#eee1d5]">
       <Bell size={19}/>
-      {unread > 0 && <span className="absolute right-1.5 top-1.5 grid min-h-4 min-w-4 place-items-center rounded-full bg-[#672614] px-1 text-[9px] font-black text-white">{unread > 9 ? "9+" : unread}</span>}
+      {unread > 0 && <span data-hpsr-notification-count="true" className="absolute right-1.5 top-1.5 grid min-h-4 min-w-4 place-items-center rounded-full bg-[#672614] px-1 text-[9px] font-black text-white">{unread > 9 ? "9+" : unread}</span>}
     </button>
     {open && <><button className="fixed inset-0 z-[1040] cursor-default" aria-label="Fechar notificações" onClick={() => setOpen(false)}/>
-      <section className="fixed left-3 right-3 top-20 z-[1050] max-h-[min(74dvh,520px)] overflow-y-auto rounded-[20px] border border-hpsr-border bg-[#f1e6db] p-3 shadow-[0_20px_65px_rgba(82,48,27,.23)] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[390px]" aria-label="Central de notificações">
+      <section data-hpsr-notification-panel="true" className="fixed left-3 right-3 top-20 z-[1050] max-h-[min(74dvh,520px)] overflow-y-auto rounded-[20px] border border-hpsr-border bg-[#f1e6db] p-3 shadow-[0_20px_65px_rgba(82,48,27,.23)] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[390px]" aria-label="Central de notificações">
         <div className="flex items-center justify-between gap-2 border-b border-hpsr-border pb-2">
           <strong className="text-sm text-hpsr-text">Avisos dos seus perfis</strong>
           <div className="flex gap-1">
@@ -99,16 +99,16 @@ export function PatientNotificationsPopover({ accountId, profiles, pending, onNa
         {error && <p role="alert" className="mt-2 text-xs font-semibold text-rose-700">{error}</p>}
         {!notices.length && !error && <p className="py-5 text-center text-sm text-hpsr-muted">Nenhuma atualização recente.</p>}
         <div className="mt-2 space-y-1.5">
-          {notices.map((notice) => <button key={notice.id} type="button"
-            onClick={() => { markRead([notice.id]); onNavigate(notice.passport, notice.section); setOpen(false); }}
+          {notices.map((notice) => <button key={notice.id} data-hpsr-notification-item="true" data-unread={!read.includes(notice.id)} type="button"
+            onClick={() => { markRead([notice.id]); if(notice.kind === "administrative") return; onNavigate(notice.passport, notice.section); setOpen(false); }}
             className={`flex w-full items-start gap-2 rounded-xl border p-3 text-left ${read.includes(notice.id) ? "border-[#ddc8b5] bg-[#f8f0e8]" : "border-hpsr-wine/25 bg-[#e9d8c9]"}`}>
-            {notice.kind === "exam" || notice.kind === "document" ? <FileCheck2 size={18} className="mt-1 shrink-0 text-hpsr-wine"/> : <CalendarClock size={18} className="mt-1 shrink-0 text-hpsr-wine"/>}
+            {notice.kind === "administrative" ? <Bell size={18} className="mt-1 shrink-0 text-hpsr-wine"/> : notice.kind === "exam" || notice.kind === "document" ? <FileCheck2 size={18} className="mt-1 shrink-0 text-hpsr-wine"/> : <CalendarClock size={18} className="mt-1 shrink-0 text-hpsr-wine"/>}
             <span className="min-w-0 flex-1">
               <strong className="block text-xs text-hpsr-wine">{allNames.get(notice.passport) || "Dependente"} · {notice.title}</strong>
-              <span className="mt-1 block text-xs text-hpsr-muted">{notice.description}</span>
+              <span className="mt-1 block whitespace-pre-wrap break-words text-xs text-hpsr-muted">{notice.description}</span>
               {notice.at && !Number.isNaN(new Date(notice.at).getTime()) && <span className="mt-1 block text-[10px] text-hpsr-muted">{new Date(notice.at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" })}</span>}
             </span>
-            {!read.includes(notice.id) && <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-hpsr-wine"/>}
+            {!read.includes(notice.id) && <span data-hpsr-notification-dot="true" className="mt-1 h-2 w-2 shrink-0 rounded-full bg-hpsr-wine"/>}
           </button>)}
         </div>
         {unread > 0 && <button type="button" onClick={() => markRead(notices.map((n) => n.id))}

@@ -1,4 +1,5 @@
 import { formatCityPhoneNumber, isValidCityPhone, isValidDiscordId, normalizeDiscordId } from "@/lib/phone";
+import { parsePatientAge } from "@/lib/patient-age";
 import { NextRequest, NextResponse } from "next/server";
 import { getServiceClient, normalizePassport } from "@/lib/patient-portal/server";
 
@@ -17,7 +18,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const name = clean(body.name, 160);
     const passport = normalizePassport(body.passport);
-    const age = clean(body.age, 30);
+    const parsedAge = parsePatientAge(body.age);
+    if (parsedAge === null) return NextResponse.json({ error: "Informe a idade do personagem em anos inteiros, de 0 a 120." }, { status: 400 });
+    const age = String(parsedAge);
     const requestedBloodType = clean(body.bloodType, 12);
     const bloodType = ["A+", "A-", "B+", "B-"].includes(requestedBloodType) ? requestedBloodType : "";
     const rawPhone = clean(body.phone, 60);
@@ -25,8 +28,7 @@ export async function POST(request: NextRequest) {
     const discord = normalizeDiscordId(body.discord);
     const requestedEmail = clean(body.email, 254).toLowerCase();
     const password = String(body.password ?? "");
-    const numericAge = Number.parseInt(age.replace(/\D/g, ""), 10);
-    const isMinor = Number.isFinite(numericAge) && numericAge < 18;
+    const isMinor = parsedAge < 18;
     const guardianPassports: string[] = Array.from(new Set<string>(
       (Array.isArray(body.guardianPassports) ? body.guardianPassports : [])
         .map((value: unknown) => normalizePassport(value))

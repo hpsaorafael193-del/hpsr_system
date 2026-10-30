@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./dark-generated.css";
 import "./theme.css";
+import "./medical-login.css";
+import "./patient-auth.css";
 import "./responsive.css";
 import { ThemeProvider, themeBootstrap } from "@/components/theme/ThemeProvider";
 import { HpsrDialogProvider } from "@/components/ui/HpsrDialogProvider";

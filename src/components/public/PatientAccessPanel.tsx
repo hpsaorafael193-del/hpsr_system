@@ -15,9 +15,11 @@ import { StyledSelect } from "@/components/ui/StyledSelect";
 import { PatientAppointmentsPanel } from "@/components/public/PatientAppointmentsPanel";
 import { PatientExamRequestsPanel } from "@/components/public/PatientExamRequestsPanel";
 import { PatientFollowupSummaryPanel, PatientFollowupsPanel, type PatientFollowupData } from "@/components/public/PatientFollowupsPanel";
+import { PatientAuthCard } from "@/components/public/PatientAuthCard";
+import { parsePatientAge } from "@/lib/patient-age";
 import { PatientProfilePanel } from "@/components/public/PatientProfilePanel";
 import { createClient, createPasswordRecoveryClient } from "@/lib/supabase";
-import { clearAuthContext, clearLoginPersistence, setAuthContext } from "@/lib/auth-persistence";
+import { clearLoginPersistence, getRememberLoginPreference, setAuthContext, setLoginPersistence } from "@/lib/auth-persistence";
 import { formatCityPhoneNumber, normalizeDiscordId } from "@/lib/phone";
 
 type Stage = "checking" | "login" | "register" | "portal";
@@ -54,6 +56,7 @@ export function PatientAccessPanel() {
   const [stage, setStage] = useState<Stage>("checking");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [rememberConnected, setRememberConnected] = useState(true);
   const [register, setRegister] = useState<RegisterForm>(EMPTY_REGISTER);
   const [registrationType, setRegistrationType] = useState<"patient" | "guardian">("patient");
   const [patientName, setPatientName] = useState("Paciente");
@@ -150,7 +153,6 @@ export function PatientAccessPanel() {
       const response = await fetch("/api/paciente/sessao", { cache: "no-store" });
       const data = await response.json() as SessionResponse;
       if (data.authenticated) {
-        clearLoginPersistence();
         setAuthContext("patient");
         setPatientName(data.patientName || "Paciente");
         setAccountId(data.accountId || "");
@@ -257,6 +259,7 @@ export function PatientAccessPanel() {
 
   useEffect(() => {
     try {
+      setRememberConnected(getRememberLoginPreference("patient"));
       const savedEmail = window.localStorage.getItem(PATIENT_EMAIL_STORAGE_KEY) || "";
       if (savedEmail) setEmail(savedEmail);
     } catch {}
@@ -270,11 +273,13 @@ export function PatientAccessPanel() {
     try {
       const supabase = createClient();
       if (!supabase) throw new Error("O serviço de acesso não está configurado.");
+      setLoginPersistence(rememberConnected, "patient");
       const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
       if (authError || !data.session) throw new Error("E-mail ou senha inválidos.");
       const response = await fetch("/api/paciente/estabelecer-sessao", {
         method: "POST",
-        headers: { Authorization: `Bearer ${data.session.access_token}` },
+        headers: { Authorization: `Bearer ${data.session.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ rememberConnected }),
       });
       const result = await response.json();
       if (!response.ok) {
@@ -282,16 +287,16 @@ export function PatientAccessPanel() {
         throw new Error(result.error || "Não foi possível abrir o portal.");
       }
       try { window.localStorage.setItem(PATIENT_EMAIL_STORAGE_KEY, email.trim().toLowerCase()); } catch {}
-      clearLoginPersistence();
       setAuthContext("patient");
+      setPassword("");
       await checkSession();
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Não foi possível entrar.");
     } finally { setBusy(false); }
   }
 
-  const numericAge = Number.parseInt(register.age.replace(/\D/g, ""), 10);
-  const isMinorRegistration = Number.isFinite(numericAge) && numericAge < 18;
+  const numericAge = parsePatientAge(register.age);
+  const isMinorRegistration = numericAge !== null && numericAge < 18;
 
   function updateGuardianPassport(index: number, value: string) {
     setRegister((current) => ({
@@ -315,6 +320,9 @@ export function PatientAccessPanel() {
 
   async function createAccount() {
     clearFeedback();
+    if (registrationType === "patient" && numericAge === null) {
+      setError("Informe a idade do personagem em anos inteiros, de 0 a 120."); return;
+    }
     if (register.password.length < 6) {
       setError("A senha deve ter no mínimo 6 caracteres."); return;
     }
@@ -336,6 +344,7 @@ export function PatientAccessPanel() {
 
       // Uma conta profissional pode também ser vinculada como paciente. Quando o e-mail
       // já pertence ao hospital, a mesma senha confirma a identidade sem criar outro usuário.
+      setLoginPersistence(false, "patient");
       const existingLogin = await supabase.auth.signInWithPassword({
         email: register.email.trim().toLowerCase(),
         password: register.password,
@@ -359,12 +368,12 @@ export function PatientAccessPanel() {
       if (accessToken) {
         const sessionResponse = await fetch("/api/paciente/estabelecer-sessao", {
           method: "POST",
-          headers: { Authorization: `Bearer ${accessToken}` },
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ rememberConnected: false }),
         });
         const sessionResult = await sessionResponse.json();
         if (!sessionResponse.ok) throw new Error(sessionResult.error || "Não foi possível abrir o portal.");
         try { window.localStorage.setItem(PATIENT_EMAIL_STORAGE_KEY, register.email.trim().toLowerCase()); } catch {}
-        clearLoginPersistence();
         setAuthContext("patient");
         setRegister(EMPTY_REGISTER);
         setMessage(data.message || "Conta vinculada ao Portal do Paciente.");
@@ -427,7 +436,7 @@ export function PatientAccessPanel() {
     setBusy(true);
     try {
       await fetch("/api/paciente/sair", { method: "POST" });
-      clearAuthContext();
+      clearLoginPersistence();
       const supabase = createClient();
       if (supabase) await supabase.auth.signOut();
     } finally {
@@ -671,107 +680,14 @@ export function PatientAccessPanel() {
 
   return (
     <>
-    <div className="mx-auto w-full max-w-7xl overflow-hidden rounded-[28px] border border-hpsr-border bg-white/96 shadow-[0_24px_60px_rgba(82,48,27,.10)]">
-      <div className="border-b border-hpsr-border bg-[linear-gradient(180deg,#fffaf4_0%,#fff6ee_100%)] px-5 py-5 sm:px-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-[11px] font-black uppercase tracking-[.18em] text-hpsr-wineLight">Portal do paciente</p>
-            <h2 className="mt-1 text-xl font-black text-hpsr-text">Acesso rápido e seguro</h2>
-            <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Entre com sua conta ou crie seu acesso para consultar atendimentos, exames, documentos e pendências do HPSR.</p>
-          </div>
-          <div className="grid grid-cols-2 gap-2 rounded-[16px] border border-hpsr-border bg-white/90 p-1.5 shadow-sm">
-            <button onClick={() => { setStage("login"); clearFeedback(); }} className={`min-h-[44px] rounded-[12px] px-4 text-sm font-black transition ${stage === "login" ? "bg-hpsr-wine text-white shadow-sm" : "text-hpsr-muted hover:bg-[#fff7ef]"}`}>Login</button>
-            <button onClick={() => { setStage("register"); clearFeedback(); }} className={`min-h-[44px] rounded-[12px] px-4 text-sm font-black transition ${stage === "register" ? "bg-hpsr-wine text-white shadow-sm" : "text-hpsr-muted hover:bg-[#fff7ef]"}`}>Cadastro</button>
-          </div>
-        </div>
-      </div>
-
-      <div className="p-5 sm:p-6">
-        {stage === "login" ? (
-          <div className="mx-auto max-w-2xl">
-            <div className="rounded-[28px] border border-hpsr-border bg-[linear-gradient(180deg,#ffffff_0%,#fffaf4_100%)] p-6 shadow-[0_18px_36px_rgba(82,48,27,.06)] sm:p-7">
-              <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-hpsr-wine text-white shadow-[0_10px_24px_rgba(103,38,20,.18)]"><LockKeyhole size={21} /></div>
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[.14em] text-hpsr-wineLight">Acesso seguro</p>
-                  <h3 className="text-[1.3rem] font-black leading-tight text-hpsr-text">Acesse sua conta</h3>
-                  <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Use o e-mail cadastrado e sua senha para abrir o painel do paciente.</p>
-                </div>
-              </div>
-
-              <div className="mt-5 rounded-[18px] border border-hpsr-border bg-[#fffaf5] px-4 py-3 text-sm font-semibold leading-relaxed text-hpsr-muted">
-                Seu e-mail pode ficar salvo neste dispositivo para agilizar os próximos acessos. <strong className="text-hpsr-text">A senha nunca é armazenada.</strong>
-              </div>
-
-              <div className="mt-5 space-y-4">
-                <Field label="E-mail"><input type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} className="portal-input" placeholder="seu@email.com" /></Field>
-                <Field label="Senha"><input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !busy) void login(); }} className="portal-input" placeholder="Sua senha" /></Field>
-              </div>
-
-              <button onClick={login} disabled={busy || !email.trim() || !password} className="mt-6 inline-flex min-h-[46px] w-full items-center justify-center gap-2 rounded-[18px] bg-hpsr-wine px-5 text-sm font-black text-white shadow-[0_14px_30px_rgba(103,38,20,.16)] transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />} Acessar Portal</button>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <button onClick={recoverPassword} disabled={busy} className="min-h-[42px] rounded-[13px] border border-hpsr-border bg-white px-3 text-center text-sm font-black text-hpsr-wineLight transition hover:border-hpsr-wine/30 hover:text-hpsr-wine">Esqueci minha senha</button>
-                <button type="button" onClick={() => { clearFeedback(); setRecoveryOpen(true); }} disabled={busy} className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[13px] border border-hpsr-border bg-[#fffaf4] px-3 text-center text-sm font-black text-hpsr-wine transition hover:border-hpsr-wine/30"><MailX size={15}/>Não acesso meu e-mail</button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="rounded-[28px] border border-hpsr-border bg-[linear-gradient(180deg,#ffffff_0%,#fffaf4_100%)] p-6 shadow-[0_18px_36px_rgba(82,48,27,.06)] sm:p-7">
-            <div className="flex items-start gap-3">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] bg-hpsr-wine text-white shadow-[0_12px_28px_rgba(103,38,20,.18)]"><UserPlus size={23} /></div>
-              <div>
-                <p className="text-xs font-black uppercase tracking-[.14em] text-hpsr-wineLight">Novo acesso</p>
-                <h3 className="text-[1.35rem] font-black leading-tight text-hpsr-text">{registrationType === "guardian" ? "Criar conta de responsável" : "Criar conta do paciente"}</h3>
-                <p className="mt-1 max-w-2xl text-sm font-semibold leading-relaxed text-hpsr-muted">Cadastre seu acesso para consultar atendimentos, exames, documentos e demais informações liberadas no Portal do Paciente.</p>
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-wrap gap-2 rounded-[15px] bg-[#f4e9df] p-2">
-              <button type="button" onClick={()=>{setRegistrationType("patient");clearFeedback();}} className={`min-h-[42px] flex-1 rounded-[12px] px-3 text-sm font-black ${registrationType==="patient"?"bg-hpsr-wine text-white":"bg-white text-hpsr-wine"}`}>Sou paciente</button>
-              <button type="button" onClick={()=>{setRegistrationType("guardian");clearFeedback();}} className={`min-h-[42px] flex-1 rounded-[12px] px-3 text-sm font-black ${registrationType==="guardian"?"bg-hpsr-wine text-white":"bg-white text-hpsr-wine"}`}>Sou responsável</button>
-            </div>
-            {registrationType === "patient" &&             <div className="mt-5 grid gap-3 rounded-[20px] border border-hpsr-border bg-white/92 p-4 sm:grid-cols-3">
-              <div className="rounded-[16px] border border-hpsr-border bg-[#fffaf5] px-4 py-3">
-                <p className="text-[11px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Vinculação</p>
-                <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">O passaporte conecta sua conta ao cadastro institucional.</p>
-              </div>
-              <div className="rounded-[16px] border border-hpsr-border bg-[#fffaf5] px-4 py-3">
-                <p className="text-[11px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Dados essenciais</p>
-                <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted"><strong className="text-hpsr-text">Nome, passaporte, e-mail e senha</strong> são obrigatórios para concluir o cadastro.</p>
-              </div>
-              <div className="rounded-[16px] border border-hpsr-border bg-[#fffaf5] px-4 py-3">
-                <p className="text-[11px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Acesso</p>
-                <p className="mt-1 text-sm font-semibold leading-relaxed text-hpsr-muted">Depois de criar a conta, o acesso já poderá ser usado no portal.</p>
-              </div>
-            </div>}
-            <div className="mt-5 rounded-[22px] border border-hpsr-border bg-white p-5 shadow-[0_10px_24px_rgba(82,48,27,.04)]">
-              <div className="mb-4 flex items-center justify-between gap-3 border-b border-hpsr-border pb-3">
-                <div>
-                  <h4 className="text-base font-black text-hpsr-text">Dados do cadastro</h4>
-                  <p className="text-sm font-semibold text-hpsr-muted">{registrationType === "guardian" ? "Uma conta própria para cadastrar seus filhos, mesmo que você não seja paciente do hospital." : "Preencha as informações para criar sua conta de paciente."}</p>
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Nome completo" wide><input value={register.name} onChange={(e) => setRegister(v => ({...v, name:e.target.value}))} className="portal-input" /></Field>
-              {registrationType === "patient" && <><Field label="Passaporte"><input value={register.passport} onChange={(e) => setRegister(v => ({...v, passport:e.target.value}))} className="portal-input" /></Field>
-              <Field label="Idade"><input inputMode="numeric" value={register.age} onChange={(e) => setRegister(v => ({...v, age:e.target.value}))} className="portal-input" /></Field>
-              <Field label="Tipo sanguíneo"><StyledSelect value={register.bloodType} onChange={(e) => setRegister(v => ({...v, bloodType:e.target.value}))} className="portal-input"><option value="">Selecione</option><option value="A+">A+</option><option value="A-">A-</option><option value="B+">B+</option><option value="B-">B-</option></StyledSelect></Field></>}
-              {registrationType === "patient" && isMinorRegistration && <p className="sm:col-span-2 rounded-[14px] border border-amber-300 bg-amber-50 p-3 text-sm font-semibold text-amber-900">Para cadastrar uma criança, utilize a conta do responsável. A criança não precisa de conta própria.</p>}
-              {registrationType === "patient" && <><Field label="Telefone"><input inputMode="numeric" maxLength={13} placeholder="(055) 626-323" value={register.phone} onChange={(e) => setRegister(v => ({...v, phone:formatCityPhoneNumber(e.target.value)}))} className="portal-input" /></Field>
-              <Field label="ID do Discord"><input inputMode="numeric" placeholder="ID numérico do seu perfil" value={register.discord} onChange={(e) => setRegister(v => ({...v, discord:normalizeDiscordId(e.target.value)}))} className="portal-input" /><span className="mt-1.5 block text-[11px] font-semibold text-hpsr-muted">Preferencial para contato da equipe. Use o ID do perfil/usuário do Discord, não o passaporte da cidade.</span></Field></>}
-              <Field label="E-mail da conta" wide><input type="email" autoComplete="email" value={register.email} onChange={(e) => setRegister(v => ({...v, email:e.target.value}))} className="portal-input" /><span className="mt-1.5 block text-[11px] font-semibold leading-relaxed text-hpsr-muted">Este e-mail é usado somente para acesso, recuperação de senha e funções do sistema. Para atendimento, a equipe usa o telefone da cidade ou o ID do Discord.</span></Field>
-              <Field label="Senha"><input type="password" autoComplete="new-password" value={register.password} onChange={(e) => setRegister(v => ({...v, password:e.target.value}))} className="portal-input" minLength={6} placeholder="Mínimo de 6 caracteres" /></Field>
-              <Field label="Confirmar senha"><input type="password" autoComplete="new-password" value={register.confirmation} minLength={6} onChange={(e) => setRegister(v => ({...v, confirmation:e.target.value}))} className="portal-input" /></Field>
-              </div>
-            </div>
-            <button onClick={createAccount} disabled={busy || !register.name || (registrationType === "patient" && !register.passport) || !register.email || !register.password || !register.confirmation} className="mt-5 inline-flex min-h-[50px] w-full items-center justify-center gap-2 rounded-[16px] bg-hpsr-wine px-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(103,38,20,.16)] transition hover:brightness-105 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <ShieldCheck size={18} />} Criar conta</button>
-          </div>
-        )}
-
-        {message && <p className="mt-5 rounded-[14px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900">{message}</p>}
-        {error && <p className="mt-5 rounded-[14px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-800">{error}</p>}
-      </div>
-    </div>
+    <PatientAuthCard stage={stage} onStage={next => { setStage(next); clearFeedback(); }}
+      email={email} setEmail={setEmail} password={password} setPassword={setPassword}
+      rememberConnected={rememberConnected} setRememberConnected={setRememberConnected}
+      register={register} setRegister={setRegister} registrationType={registrationType}
+      onRegistrationType={next => { setRegistrationType(next); clearFeedback(); }}
+      busy={busy} message={message} error={error} isMinor={isMinorRegistration}
+      onLogin={() => void login()} onRegister={() => void createAccount()} onRecover={() => void recoverPassword()}
+      onEmailRecovery={() => { clearFeedback(); setRecoveryOpen(true); }} />
     {recoveryOpen && (
       <PatientEmailRecoveryModal
         onClose={() => setRecoveryOpen(false)}

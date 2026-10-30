@@ -49,8 +49,8 @@ export function HpsrToastProvider({ children }: { children: React.ReactNode }) {
       {children}
       {toast && (
         <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[210000] flex justify-center sm:inset-x-auto sm:bottom-5 sm:right-5 sm:justify-end" role="status" aria-live="polite">
-          <div className="hpsr-modal-motion pointer-events-auto flex w-full max-w-[390px] items-start gap-3 rounded-[18px] border border-emerald-200/90 bg-white px-4 py-3.5 shadow-[0_18px_55px_rgba(27,10,7,.18)]">
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-emerald-50 text-emerald-700">
+          <div data-hpsr-toast="success" className="hpsr-modal-motion pointer-events-auto flex w-full max-w-[390px] items-start gap-3 rounded-[18px] border border-emerald-200/90 bg-white px-4 py-3.5 shadow-[0_18px_55px_rgba(27,10,7,.18)]">
+            <div data-hpsr-toast-icon="true" className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-emerald-50 text-emerald-700">
               <CheckCircle2 size={19} />
             </div>
             <div className="min-w-0 flex-1">
