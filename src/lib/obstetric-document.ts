@@ -294,7 +294,45 @@ function insetBox(box: { x: number; y: number; width: number; height: number }, 
   };
 }
 
+/** Complete defaults use the approved artwork; only text is fitted inside its fields. */
+function drawCompletePlanningStep(ctx: CanvasRenderingContext2D, step: PlanningStep, box: {x:number;y:number;width:number;height:number}) {
+  const text = String(step.planned_text || step.description || "").trim();
+  if (!text) return;
+  const paragraphs = text.split(/\n/).map(line => line.trim()).filter(Boolean);
+  const customTitle = String(step.title || "").trim();
+  if (customTitle && !/^(Consulta|Etapa)\s+\d+$/i.test(customTitle)) paragraphs.unshift(customTitle);
+  const safe = insetBox(box, 12, 4);
+  const color = "#c88363";
+  let size = 23;
+  let lines: Array<{text:string;bold:boolean;size:number;height:number}> = [];
+  do {
+    lines = paragraphs.flatMap((paragraph, index) => {
+      const bold = index === 0 || /^(VACINAS?|INJEÇÃO):/i.test(paragraph);
+      const fontSize = bold ? size : size * .9;
+      ctx.font = `${bold ? 700 : 400} ${fontSize}px Arial, sans-serif`;
+      return wrappedLines(ctx, paragraph, safe.width).map(text => ({text,bold,size:fontSize,height:Math.ceil(fontSize * 1.08)}));
+    });
+    if (lines.reduce((sum,line)=>sum+line.height,0) <= safe.height || size <= 14) break;
+    size -= .5;
+  } while (true);
+  if (lines.reduce((sum,line)=>sum+line.height,0) > safe.height) throw new Error("O conteúdo completo da consulta não cabe no modelo aprovado. Ajuste o texto antes de gerar a prévia; nenhuma informação foi cortada.");
+  ctx.save();
+  ctx.beginPath();ctx.rect(safe.x,safe.y,safe.width,safe.height);ctx.clip();
+  ctx.fillStyle = color;ctx.textAlign = "center";ctx.textBaseline = "top";
+  let y = safe.y + (safe.height - lines.reduce((sum,line)=>sum+line.height,0))/2;
+  for (const line of lines) {
+    ctx.font = `${line.bold ? 700 : 400} ${line.size}px Arial, sans-serif`;
+    if (ctx.measureText(line.text).width > safe.width) {ctx.restore();throw new Error("O texto excede o campo do modelo aprovado. Ajuste o conteúdo antes de gerar a prévia.");}
+    ctx.fillText(line.text,safe.x+safe.width/2,y);y+=line.height;
+  }
+  ctx.restore();
+}
+
 function drawIntegralStep(ctx: CanvasRenderingContext2D, step: PlanningStep, box: { x: number; y: number; width: number; height: number }, kind: PlanningKind) {
+  if (step.content_template === "gestational-v2" || step.content_template === "ivf-v2") {
+    drawCompletePlanningStep(ctx, step, box);
+    return;
+  }
   const rawTitle = String(step.title || "").trim();
   const title = /^(Consulta|Etapa)\s+\d+$/i.test(rawTitle) ? "" : rawTitle;
   const body = String(step.planned_text || step.description || "").trim();
@@ -472,7 +510,23 @@ export async function renderIntegralPlanningCanvas({ kind, patient, passport, do
 
   drawIdentity(ctx, layout, doctor, patient, passport);
 
-  if (steps.length === layout.dateRows.length) {
+  // The gestational artwork already contains nine rows, including Parto.
+  // Keep legacy snapshots on their original path; complete nine-stage plans
+  // must never enter the dynamic renderer that paints over the artwork.
+  const approvedNineRows = kind === "gestacional" && steps.length === 9 && steps.some(step => step.content_template === "gestational-v2");
+  if (approvedNineRows) {
+    const bounds = [340, 445, 558, 665, 766, 870, 975, 1075, 1170, 1264];
+    const dates = [400, 503, 610, 712, 814, 919, 1023, 1121, 1213];
+    steps.forEach((step,index) => {
+      if (index === 8 && step.date) {
+        // Replace only the last date field's printed placeholder, using the
+        // blank field texture from the same untouched source artwork.
+        ctx.drawImage(source, 354, 368, 247, 66, 354, 1179, 247, 66);
+      }
+      centeredText(ctx, formatDate(step.date), layout.dateCenterX, dates[index], layout.dateWidth, layout.dateFontSize);
+      drawCompletePlanningStep(ctx, step, {x:989,y:bounds[index]+3,width:875,height:bounds[index+1]-bounds[index]-6});
+    });
+  } else if (steps.length === layout.dateRows.length) {
     steps.forEach((step, index) => {
       centeredText(ctx, formatDate(step.date), layout.dateCenterX, layout.dateRows[index], layout.dateWidth, layout.dateFontSize);
       drawIntegralStep(ctx, step, layout.textBoxes[index], kind);

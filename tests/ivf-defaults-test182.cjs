@@ -22,7 +22,7 @@ const partition={...empty,week:4,fiv_order:4,number:1};assert.equal(p.fillEmptyP
  const canvas=await d.renderIntegralPlanningCanvas({kind:'in_vitro',patient:'Paciente teste',passport:'TEST',doctor:'Médico teste',steps:plan.steps,referenceDate:'2026-12-01'});
  const normalize=t=>t.replace(/\s+/g,' ').trim();let text=normalize(drawn.join(' '));
  for(const row of defaults.DEFAULT_IVF_CONTENT)assert(text.includes(normalize(row)),'full integral: '+row);
- assert(!text.includes('…'));fs.writeFileSync('/workspace/scratch/a2ed3f78c53f/ivf182/preview.png',canvas.toBuffer('image/png'));
+ assert(!text.includes('…'));fs.writeFileSync('/workspace/scratch/a2ed3f78c53f/layout186/ivf-preview.png',canvas.toBuffer('image/png'));
  for(const step of plan.steps){drawn=[];await d.renderIndividualPlanningCanvas({kind:'in_vitro',patient:'Paciente teste',passport:'TEST',doctor:'Médico teste',step,evolution:'',exams:'',observation:''});text=normalize(drawn.join(' '));assert(text.includes(normalize(step.planned_text)),'full individual');assert(!text.includes('…'));}
  console.log('PASS five complete IVF defaults, blank-only fill, dates/ROPA identity/custom text preserved, snapshots unchanged; integral and all individual rows drawn completely');
 })().catch(e=>{console.error(e);process.exit(1)});
