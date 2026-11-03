@@ -37,7 +37,7 @@ type Product = {
   descricao: string;
   categoria?: string;
   preco: number;
-  descontoPmValor?: number;
+  semDescontoPm?: boolean;
   semDescontoConvenio?: boolean;
   imagem: string;
 };
@@ -47,59 +47,56 @@ const medicamentos: Product[] = [
     id: "m0",
     nome: "KIT MÉDICO",
     descricao: "Kit completo para primeiros socorros.",
-    preco: 200000,
-    descontoPmValor: 50000,
+    preco: 230000,
     imagem: "Icones/produtos/Kit medico.png",
   },
   {
     id: "m1",
     nome: "BANDAGEM",
     descricao: "Utilizada para curativos rápidos.",
-    preco: 40000,
+    preco: 30000,
     imagem: "Icones/produtos/Bandagem.png",
   },
   {
     id: "m2",
     nome: "ATADURA",
     descricao: "Faixa de suporte e imobilização.",
-    preco: 30000,
-    descontoPmValor: 10000,
+    preco: 20000,
     imagem: "Icones/produtos/Atadura.png",
   },
   {
     id: "m3",
     nome: "ADRENALINA",
     descricao: "Medicamento para emergências graves.",
-    preco: 800000,
-    descontoPmValor: 100000,
+    preco: 780000,
     imagem: "Icones/produtos/Adrenalina.png",
   },
   {
     id: "m4",
     nome: "SINKALME",
     descricao: "Medicamento de suporte conforme orientação.",
-    preco: 50000,
+    preco: 30000,
     imagem: "Icones/produtos/Sinkalmy.png",
   },
   {
     id: "m5",
     nome: "RITMONEURY",
     descricao: "Medicamento de suporte conforme orientação.",
-    preco: 50000,
+    preco: 30000,
     imagem: "Icones/produtos/Ritmoneary.png",
   },
   {
     id: "m6",
     nome: "ANALGÉSICO",
     descricao: "Alívio rápido da dor.",
-    preco: 40000,
+    preco: 20000,
     imagem: "Icones/produtos/Analgesico.png",
   },
   {
     id: "m7",
     nome: "REMÉDIOS",
     descricao: "Dispensação de remédios e medicamentos gerais.",
-    preco: 20000,
+    preco: 80000,
     imagem: "Icones/produtos/Remedios.webp",
   },
 ];
@@ -109,81 +106,77 @@ const procedimentos: Product[] = [
     id: "p0",
     nome: "TRATAMENTO",
     descricao: "Tratamento médico.",
-    preco: 150000,
-    imagem: "Icones/procedimentos/Tratamento.webp",
+    preco: 180000,
+    imagem: "Icones/hpsr/tratamento.png",
   },
   {
     id: "p1",
     nome: "DESLOCAMENTO",
     semDescontoConvenio: true,
-    descricao: "Atendimento com deslocamento para a região Sul.",
-    preco: 150000,
-    imagem: "Icones/procedimentos/Tratamento.webp",
+    descricao: "Resgate e atendimento fora dos hospitais.",
+    preco: 180000,
+    imagem: "Icones/hpsr/deslocamento.png",
   },
   {
     id: "p10",
     nome: "DESLOCAMENTO (ILHAS)",
     semDescontoConvenio: true,
     descricao: "Atendimento com deslocamento para as Ilhas.",
-    preco: 300000,
-    imagem: "Icones/procedimentos/Tratamento.webp",
+    preco: 380000,
+    imagem: "Icones/hpsr/deslocamento-ilha.png",
   },
   {
     id: "p2",
     nome: "RESSONÂNCIA MAGNÉTICA",
     descricao: "Exame de ressonância magnética.",
-    preco: 500000,
-    imagem: "Icones/procedimentos/Exames_imagem.webp",
+    preco: 480000,
+    imagem: "Icones/hpsr/ressonancia.png",
   },
   {
     id: "p3",
     nome: "RAIO-X",
     descricao: "Exame radiográfico.",
-    preco: 250000,
-    imagem: "Icones/procedimentos/Exames_imagem.webp",
+    preco: 280000,
+    imagem: "Icones/hpsr/raio-x.png",
   },
   {
     id: "p4",
     nome: "EXAMES",
     descricao: "Exames clínicos e laboratoriais.",
-    preco: 350000,
-    imagem: "Icones/procedimentos/Exames_basicos.webp",
+    preco: 380000,
+    imagem: "Icones/hpsr/exames.png",
   },
   {
     id: "p5",
     nome: "GESSO",
     descricao: "Imobilização com gesso.",
-    preco: 160000,
-    imagem: "Icones/procedimentos/Gesso.webp",
+    preco: 180000,
+    imagem: "Icones/hpsr/gesso.png",
   },
   {
     id: "p6",
     nome: "CONSULTA COM ESPECIALISTA",
+    semDescontoPm: true,
     descricao: "Consulta médica especializada.",
     preco: servicePricing.specialistConsultation,
-    imagem: "Icones/procedimentos/Consultas.png",
+    imagem: "Icones/hpsr/consulta-especialista.png",
   },
   {
     id: "p7",
     nome: "CONSULTA COM PSICÓLOGO",
+    semDescontoPm: true,
     descricao: "Consulta e acompanhamento psicológico e psiquiátrico.",
     preco: servicePricing.psychologyConsultation,
-    imagem: "Icones/procedimentos/Consultas.png",
+    imagem: "Icones/hpsr/consulta-psicologica.png",
   },
   {
     id: "p8",
     nome: "INTERNAÇÃO",
     descricao: "Serviço de internação hospitalar.",
-    preco: 4000000,
-    imagem: "Icones/procedimentos/Procedimentos.webp",
+    preco: 3980000,
+    imagem: "Icones/hpsr/internacao.png",
   },
-  {
-    id: "p9",
-    nome: "URSOS MÉDICOS",
-    descricao: "Item médico institucional com a coleção de ursos do hospital.",
-    preco: 3000000,
-    imagem: "Icones/produtos/UrsinhosHP.webp",
-  },
+  { id: "p11", nome: "CIRURGIA", descricao: "Procedimento cirúrgico hospitalar.", preco: 24980000, imagem: "Icones/hpsr/cirurgia.png" },
 ];
 
 
@@ -263,7 +256,7 @@ export default function CalculatorPage() {
   const usesPmPricing = isPmSale && convenio === "sem";
 
   const getPmPrice = (product: Product) =>
-    product.descontoPmValor ? Math.max(0, product.preco - product.descontoPmValor) : product.preco;
+    product.semDescontoPm ? product.preco : Math.round(product.preco * 0.9);
 
   const getEffectivePrice = (product: Product) => usesPmPricing ? getPmPrice(product) : product.preco;
 
@@ -831,7 +824,7 @@ function ProductList({
           const quantity = cart[product.id] || 0;
           const active = quantity > 0;
           const effectivePrice = getPrice(product);
-          const hasPmPrice = isPmSale && Boolean(product.descontoPmValor);
+          const hasPmPrice = isPmSale && !product.semDescontoPm;
           return (
             <article
               key={product.id}
@@ -971,7 +964,7 @@ function ProductCard({
   isPmSale: boolean;
 }) {
   const active = quantity > 0;
-  const hasPmPrice = isPmSale && Boolean(product.descontoPmValor);
+  const hasPmPrice = isPmSale && !product.semDescontoPm;
 
   return (
     <article className={`hpsr-calculator-product relative overflow-hidden rounded-[18px] border bg-[linear-gradient(165deg,#f5e9dd_0%,#efdfcf_100%)] p-3.5 text-center shadow-[0_10px_24px_rgba(82,48,27,0.05)] transition duration-200 ${
@@ -983,11 +976,11 @@ function ProductCard({
           Selecionado
         </span>
       )}
-      <div className="mx-auto flex h-[82px] w-[82px] items-center justify-center overflow-hidden rounded-[16px] border border-hpsr-border bg-white p-2.5">
+      <div className="mx-auto flex h-[112px] w-[132px] items-center justify-center overflow-hidden rounded-[16px] border border-hpsr-border bg-[#fffaf4] p-1.5">
         <img
           src={getImagePath(product.imagem)}
           alt={product.nome}
-          className="h-full w-full scale-[1.24] object-contain"
+          className="h-full w-full object-contain"
           onError={(event) => {
             event.currentTarget.style.display = "none";
           }}

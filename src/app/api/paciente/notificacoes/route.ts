@@ -42,23 +42,33 @@ export async function GET(request: NextRequest) {
       });
     }
     const passports = [...allowed].filter(Boolean).slice(0, 30);
-    if (!passports.length) return NextResponse.json({ ok: true, notices: guardianNotices });
+    // Contas de responsáveis podem não ter passaporte próprio nem prontuário liberado.
+    const clinicalPassports = passports.length ? passports : ["__HPSR_NO_PROFILE__"];
+    const accountId = valid.access.user_id || null;
     const since = new Date(Date.now() - 45 * 86400000).toISOString();
-    const [appointments, records, forms, administrative] = await Promise.all([
+    const [appointments, records, forms, administrative, accountAdministrative] = await Promise.all([
       valid.supabase.from("appointments").select("id,passport,status,updated_at,created_at,flow_type:payload->>flowType,patient_notification_title:payload->>patientNotificationTitle,patient_notification:payload->>patientNotification,patient_notification_at:payload->>patientNotificationAt")
-        .in("passport", passports).gte("updated_at", since).order("updated_at", { ascending: false }).limit(120),
+        .in("passport", clinicalPassports).gte("updated_at", since).order("updated_at", { ascending: false }).limit(120),
       valid.supabase.from("clinical_records").select("id,patient_passport,record_type,released_at")
-        .in("patient_passport", passports).eq("is_confidential", false).not("released_at", "is", null)
+        .in("patient_passport", clinicalPassports).eq("is_confidential", false).not("released_at", "is", null)
         .gte("released_at", since).order("released_at", { ascending: false }).limit(120),
       valid.supabase.from("followup_intake_forms").select("id,patient_passport,doctor_name,form_type,status,requested_at,updated_at")
-        .in("patient_passport", passports).in("status", ["requested","draft"]).gte("requested_at", since)
+        .in("patient_passport", clinicalPassports).in("status", ["requested","draft"]).gte("requested_at", since)
         .order("requested_at", { ascending: false }).limit(120),
       valid.supabase.from("internal_notice_deliveries").select("id,patient_passport,notice:internal_notices!inner(id,title,body,sender_name,created_at)")
-        .in("patient_passport", passports).order("created_at", {ascending:false}).limit(100),
+        .in("patient_passport", clinicalPassports).order("created_at", {ascending:false}).limit(100),
+      accountId ? valid.supabase.from("internal_notice_deliveries").select("id,notice:internal_notices!inner(id,title,body,sender_name,created_at)")
+        .eq("recipient_user_id", accountId).order("created_at", {ascending:false}).limit(100)
+        : Promise.resolve({data:[],error:null}),
     ]);
     if (appointments.error || records.error || forms.error) throw appointments.error || records.error || forms.error;
     const notices: Notice[] = [...guardianNotices];
     if(administrative.error) console.warn("[patient-portal] administrative notices unavailable",administrative.error);
+    if(accountAdministrative.error) throw accountAdministrative.error;
+    for(const delivery of accountAdministrative.data||[]) {
+      const n=Array.isArray(delivery.notice)?delivery.notice[0]:delivery.notice;
+      if(n) notices.push({id:`administrative:${delivery.id}`,passport:own,kind:"administrative",title:n.title,description:n.body,at:n.created_at,section:"home"});
+    }
     for(const delivery of administrative.data||[]) {
       const n=Array.isArray(delivery.notice)?delivery.notice[0]:delivery.notice;
       if(n) notices.push({id:`administrative:${delivery.id}`,passport:delivery.patient_passport,kind:"administrative",title:n.title,description:n.body,at:n.created_at,section:"home"});

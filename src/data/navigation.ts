@@ -51,8 +51,8 @@ export const toolsNavigation = [
 
 export const adminNavigation = [
   { label: "Direção", href: "/dashboard/direcao", icon: Users },
-  { label: "Interno", href: "/dashboard/interno", icon: ShieldCheck, internalOnly: true },
   { label: "Relatórios", href: "/dashboard/relatorios", icon: Landmark },
+  { label: "Interno", href: "/dashboard/interno", icon: ShieldCheck, internalOnly: true },
 ];
 
 export const publicCards = [
