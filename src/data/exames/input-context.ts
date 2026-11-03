@@ -1,9 +1,10 @@
+import { isGestationalUltrasound } from "./gestational-ultrasound-context";
 import type { AdaptiveResolvedExam } from "./adaptive-engine";
 
 const key = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 const text = (s: unknown) => String(s ?? "").replace(/<[^>]*>/g, "").trim();
 export function hasManualFindings(resolved: AdaptiveResolvedExam) {
-  return resolved.parameters.some(parameter => text(resolved.variables[parameter.id]) !== "");
+  return resolved.parameters.some(parameter => !(isGestationalUltrasound(resolved.model) && parameter.id === "idade_gestacional") && text(resolved.variables[parameter.id]) !== "");
 }
 
 /** Context changes the question being answered, never manufactures an abnormal

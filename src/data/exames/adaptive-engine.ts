@@ -1,3 +1,4 @@
+import { contextualizeUltrasoundProfile, ultrasoundGestationalAge } from "./gestational-ultrasound-context";
 import { inputContextInterpretation, hasManualFindings } from "./input-context";
 import { monitoringBaselineFocus, normalBaselineMonitoringResult } from "./follicular-context";
 import { developClinicalInterpretation } from "./clinical-interpretation";
@@ -323,8 +324,12 @@ export function resolveAdaptiveExam(
     if (supplied !== undefined && String(supplied).trim() !== "") resolvedVariables[parameter.id] = supplied;
   }
   if (model.adapter.secondaryOptions?.length) resolvedVariables.contraste = safeConfiguration.variables.contraste ?? firstOption(model.adapter.secondaryOptions);
-  const clinicalContext = resolvedClinicalContext(model, safeConfiguration, resolvedVariables);
-  const profile = profileForClinicalContext(model, safeConfiguration, clinicalContext);
+  let clinicalContext = resolvedClinicalContext(model, safeConfiguration, resolvedVariables);
+  const age = ultrasoundGestationalAge(model, resolvedVariables);
+  if (age && /^(primeiro|segundo|terceiro)_trimestre$/.test(normalizedFieldKey(clinicalContext))) {
+    clinicalContext = `${age.trimester.charAt(0).toUpperCase()}${age.trimester.slice(1)} trimestre`;
+  }
+  const profile = contextualizeUltrasoundProfile(model, profileForClinicalContext(model, safeConfiguration, clinicalContext), resolvedVariables);
   const dynamicFields = [
     adapterField(model, safeConfiguration),
     profileField(model, { ...safeConfiguration, profileId: profile?.id || safeConfiguration.profileId }),
@@ -1303,7 +1308,8 @@ function resultForParameter(model: IntelligentExamModel, parameter: IntelligentE
     const isLegacyVariableModel = model.id === "img_raio_x_unico";
     const shouldRefreshMeasuredValue = generationSeed > 0
       && profile.status !== "personalizado"
-      && isMeasuredNumeric;
+      && isMeasuredNumeric
+      && parameter.id !== "idade_gestacional";
     const result = isLegacyVariableModel
       ? adaptiveExplicitResult(explicitResult, parameter, generationKey)
       : shouldRefreshMeasuredValue
@@ -1830,6 +1836,7 @@ function refreshedNarrative(
   kind: "interpretation" | "conclusion",
 ) {
   const selected = narrativeForSelection(resolved, value);
+  if (ultrasoundGestationalAge(resolved.model, resolved.variables)) return selected;
   if (!resolved.generationSeed || resolved.profile.status === "personalizado" || !/\d/.test(selected)) return selected;
 
   // Quando os valores são reamostrados, uma narrativa curada que contém os
@@ -1885,7 +1892,8 @@ function contextualProtocolNarrative(resolved: AdaptiveResolvedExam, kind: "inte
 
 function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][]) {
   const focusRows = resolved.profile.status === "normal" ? rows : profileChangedRows(resolved, rows);
-  const develop = (base: string) => [developClinicalInterpretation(resolved, rows, base, focusRows.length ? focusRows : rows), inputContextInterpretation(resolved, rows)].filter(Boolean).join("\n");
+  const age = ultrasoundGestationalAge(resolved.model, resolved.variables);
+  const develop = (base: string) => [age ? `Leitura para a idade gestacional informada de ${age.text}, no ${age.trimester} trimestre.` : "", developClinicalInterpretation(resolved, rows, base, focusRows.length ? focusRows : rows), inputContextInterpretation(resolved, rows)].filter(Boolean).join("\n");
   if (hasManualFindings(resolved) || resolved.profile.status === "personalizado") return develop("Os achados informados pelo profissional têm prioridade sobre o perfil inicial. A interpretação considera os resultados registrados, sem presumir que os demais parâmetros sejam normais.");
   if (resolved.model.id === "gineco_usg_monitorizacao_folicular" && resolved.profile.status === "normal") {
     const focus = monitoringBaselineFocus(resolved.variables);
@@ -1953,7 +1961,9 @@ function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
       : genericNarrativeForProfile(resolved, "conclusion");
   }
   // No sampling comments, duplicate row summaries or metadata in the conclusion.
-  return uniqueReportParagraphs(explainReportConclusion(clearReportLanguage(conclusion || profile.resultSummary)));
+  const age = ultrasoundGestationalAge(model, resolved.variables);
+  const summary = explainReportConclusion(clearReportLanguage(conclusion || profile.resultSummary));
+  return uniqueReportParagraphs(`${summary}${age ? `\nIdade gestacional informada: ${age.text}.` : ""}`);
 }
 
 function resultSummaryFromRows(resolved: AdaptiveResolvedExam, rows: string[][]) {

@@ -10,7 +10,7 @@ function price(name){const card=[...document.querySelectorAll('article')].find(a
 const civil={'KIT MÉDICO':2300,'ATADURA':200,'BANDAGEM':300,'ADRENALINA':7800,'SINKALME':300,'RITMONEURY':300,'ANALGÉSICO':200,'REMÉDIOS':800};
 const services={'CIRURGIA':249800,'TRATAMENTO':1800,'DESLOCAMENTO':1800,'DESLOCAMENTO (ILHAS)':3800,'RESSONÂNCIA MAGNÉTICA':4800,'RAIO-X':2800,'EXAMES':3800,'GESSO':1800,'CONSULTA COM ESPECIALISTA':24800,'CONSULTA COM PSICÓLOGO':24800,'INTERNAÇÃO':39800};
 const currency=v=>v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}).replace(/\s+/g,' ');
-function assertPrices(values,pm=false){for(const [name,value]of Object.entries(values)){const specialized=name.startsWith('CONSULTA');assert.equal(price(name),currency(pm&&!specialized?value*.9:value),name);}}
+function assertPrices(values,pm=false){for(const [name,value]of Object.entries(values)){const specialized=name.startsWith('CONSULTA')||name.startsWith('DESLOCAMENTO')||['CIRURGIA','INTERNAÇÃO','RESSONÂNCIA MAGNÉTICA'].includes(name);assert.equal(price(name),currency(pm&&!specialized?value*.9:value),name);}}
 async function tab(name){await act(async()=>buttons().find(b=>b.textContent.includes(name)).click());}
 async function add(name){const card=[...document.querySelectorAll('article')].find(a=>a.querySelector('h3')?.textContent===name);await act(async()=>card.querySelectorAll('button')[1].click());}
 (async()=>{

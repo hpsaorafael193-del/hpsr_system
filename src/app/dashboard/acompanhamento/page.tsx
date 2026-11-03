@@ -27,6 +27,7 @@ import { renderIndividualPlanningCanvas, renderIntegralPlanningCanvas } from "@/
 import {
   createPlanningSuggestion,
   normalizePlanningSteps,
+  fillEmptyPlanningSteps,
   planningKey,
   validatePlanningSteps,
   planningAdvisories,
@@ -396,7 +397,7 @@ function ObstetricianWorkspace({activeTab,onNavigate}:{activeTab:FollowupTab;onN
         setEditingPlanId(saved.editingPlanId);
         reviewedFivVersions.current = saved.reviewedVersions || {};
         setConfirmedKey(saved.confirmedKey);
-        setConfirmedSteps(saved.confirmedSteps);
+        setConfirmedSteps(fillEmptyPlanningSteps(saved.planType, saved.confirmedSteps));
         const shortcutPassport = new URLSearchParams(window.location.search).get("patient");
         if (!shortcutPassport && saved.selectedPassport !== selectedPassport) selectPatient(saved.selectedPassport);
       }
@@ -837,7 +838,7 @@ function ObstetricianWorkspace({activeTab,onNavigate}:{activeTab:FollowupTab;onN
     const key = planningKey(plan.plan_type, plan.start_date, plan.end_date || "");
     setSuggestion(null);
     setConfirmedKey(key);
-    setConfirmedSteps(steps);
+    setConfirmedSteps(fillEmptyPlanningSteps(plan.plan_type, steps));
     setEditingPlanId(plan.id);
     setSelectedPlanId(plan.id);
     setIntegralPreview(null);

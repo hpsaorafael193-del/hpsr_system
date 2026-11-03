@@ -112,6 +112,7 @@ const procedimentos: Product[] = [
   {
     id: "p1",
     nome: "DESLOCAMENTO",
+    semDescontoPm: true,
     semDescontoConvenio: true,
     descricao: "Resgate e atendimento fora dos hospitais.",
     preco: 180000,
@@ -120,6 +121,7 @@ const procedimentos: Product[] = [
   {
     id: "p10",
     nome: "DESLOCAMENTO (ILHAS)",
+    semDescontoPm: true,
     semDescontoConvenio: true,
     descricao: "Atendimento com deslocamento para as Ilhas.",
     preco: 380000,
@@ -128,6 +130,7 @@ const procedimentos: Product[] = [
   {
     id: "p2",
     nome: "RESSONÂNCIA MAGNÉTICA",
+    semDescontoPm: true,
     descricao: "Exame de ressonância magnética.",
     preco: 480000,
     imagem: "Icones/hpsr/ressonancia.png",
@@ -172,11 +175,12 @@ const procedimentos: Product[] = [
   {
     id: "p8",
     nome: "INTERNAÇÃO",
+    semDescontoPm: true,
     descricao: "Serviço de internação hospitalar.",
     preco: 3980000,
     imagem: "Icones/hpsr/internacao.png",
   },
-  { id: "p11", nome: "CIRURGIA", descricao: "Procedimento cirúrgico hospitalar.", preco: 24980000, imagem: "Icones/hpsr/cirurgia.png" },
+  { id: "p11", nome: "CIRURGIA", semDescontoPm: true, descricao: "Procedimento cirúrgico hospitalar.", preco: 24980000, imagem: "Icones/hpsr/cirurgia.png" },
 ];
 
 

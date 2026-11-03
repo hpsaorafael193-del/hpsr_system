@@ -10,6 +10,7 @@ import { defaultPlanningContent } from "@/lib/obstetric-default-content";
 export type PlanningKind = "gestacional" | "in_vitro";
 
 export type PlanningStep = {
+  content_template?: "gestational-v2" | "ivf-v2";
   fiv_recipient?: "gestante" | "doadora" | "ambas";
   fiv_step_id?: string;
   fiv_order?: number;
@@ -36,12 +37,12 @@ export type PlanningSuggestion = {
   suggestedStartDate: string | null;
 };
 
-export const GESTATIONAL_WEEKS = [12, 16, 20, 24, 28, 32, 36, 38] as const;
+export const GESTATIONAL_WEEKS = [12, 16, 20, 24, 28, 32, 36, 38, 40] as const;
 export const IVF_WEEKS = [1, 2, 3, 4, 5] as const;
 
 export const PLANNING_CONFIG = {
   gestacional: {
-    expectedCount: 8,
+    expectedCount: 9,
     markers: GESTATIONAL_WEEKS.map((week) => `${week === 12 ? "até " : ""}${week} semanas`),
     weeks: [...GESTATIONAL_WEEKS],
     defaultTitles: GESTATIONAL_WEEKS.map((_, index) => `Consulta ${index + 1}`),
@@ -90,6 +91,7 @@ export function createPlanningSuggestion(kind:PlanningKind, initial:string, fina
   const targetWeekdayLabel=planningWeekdayLabel(initial);
   const candidateDates=Array.from({length:config.expectedCount},(_,index)=>addPlanningDays(initial,index*7));
   const steps=candidateDates.map((date,index)=>({
+    content_template: kind === "gestacional" ? "gestational-v2" as const : "ivf-v2" as const,
     number:index+1,
     title:defaultTitle(kind,index),
     description:defaultPlanningContent(kind,index),
@@ -101,7 +103,7 @@ export function createPlanningSuggestion(kind:PlanningKind, initial:string, fina
 
   const messages=[`Cronograma sugerido em ${targetWeekdayLabel}: todas as ${kind === "in_vitro" ? "etapas" : "consultas"} mantêm o dia da semana da data inicial.`];
   if(candidateDates[candidateDates.length-1] > finalDate) {
-    messages.push(`A ${kind === "in_vitro" ? "5ª etapa" : "8ª consulta"} sugerida ultrapassa a data final de referência. Confira o período; as datas continuam editáveis.`);
+    messages.push(`A ${kind === "in_vitro" ? "5ª etapa" : "9ª consulta"} sugerida ultrapassa a data final de referência. Confira o período; as datas continuam editáveis.`);
   }
 
   return {
@@ -111,8 +113,8 @@ export function createPlanningSuggestion(kind:PlanningKind, initial:string, fina
 }
 
 export function normalizePlanningStep(step:Partial<PlanningStep>,kind:PlanningKind,index:number):PlanningStep {
-  const plannedText=typeof step.planned_text==="string"?step.planned_text:typeof step.description==="string"?step.description:"";
-  return { ...(kind === "in_vitro" ? { fiv_recipient: step.fiv_recipient === "ambas" ? "ambas" as const : step.fiv_recipient === "doadora" ? "doadora" as const : "gestante" as const, ...(step.fiv_step_id ? { fiv_step_id: step.fiv_step_id } : {}), ...(step.fiv_order ? { fiv_order: step.fiv_order } : {}) } : {}),number:index+1,title:typeof step.title==="string"&&step.title.trim()?step.title.trim():defaultTitle(kind,index),description:plannedText,planned_text:plannedText,marker:typeof step.marker==="string"&&step.marker.trim()?step.marker.trim():defaultMarker(kind,index),week:typeof step.week==="number"&&Number.isFinite(step.week)?step.week:defaultWeek(kind,index),date:typeof step.date==="string"?step.date:""};
+  const plannedText=typeof step.planned_text==="string"&&step.planned_text.trim()?step.planned_text:typeof step.description==="string"&&step.description.trim()?step.description:typeof step.planned_text==="string"?step.planned_text:"";
+  return { ...(step.content_template === "gestational-v2" || step.content_template === "ivf-v2" ? {content_template:step.content_template} : {}), ...(kind === "in_vitro" ? { fiv_recipient: step.fiv_recipient === "ambas" ? "ambas" as const : step.fiv_recipient === "doadora" ? "doadora" as const : "gestante" as const, ...(step.fiv_step_id ? { fiv_step_id: step.fiv_step_id } : {}), ...(step.fiv_order ? { fiv_order: step.fiv_order } : {}) } : {}),number:index+1,title:typeof step.title==="string"&&step.title.trim()?step.title.trim():defaultTitle(kind,index),description:plannedText,planned_text:plannedText,marker:typeof step.marker==="string"&&step.marker.trim()?step.marker.trim():defaultMarker(kind,index),week:typeof step.week==="number"&&Number.isFinite(step.week)?step.week:defaultWeek(kind,index),date:typeof step.date==="string"?step.date:""};
 }
 export function normalizePlanningSteps(kind:PlanningKind,steps:unknown):PlanningStep[]{ if(!Array.isArray(steps)) return []; return steps.map((step,index)=>normalizePlanningStep((step||{}) as Partial<PlanningStep>,kind,index)); }
 
@@ -143,4 +145,18 @@ export function planningAdvisories(kind:PlanningKind,steps:PlanningStep[],initia
 }
 
 export function renumberPlanningSteps(kind:PlanningKind,steps:PlanningStep[]){ return steps.map((step,index)=>normalizePlanningStep({...step,number:index+1},kind,index)); }
-export function newPlanningStep(kind:PlanningKind,index:number,date=""):PlanningStep { return normalizePlanningStep({date, planned_text:defaultPlanningContent(kind,index)},kind,index); }
+export function newPlanningStep(kind:PlanningKind,index:number,date=""):PlanningStep { return normalizePlanningStep({date, content_template: kind === "gestacional" ? "gestational-v2" as const : "ivf-v2" as const, planned_text:defaultPlanningContent(kind,index)},kind,index); }
+
+/** Editor only. Published snapshots and normalization deliberately never call this helper. */
+export function fillEmptyPlanningSteps(kind: PlanningKind, steps: PlanningStep[]): PlanningStep[] {
+  return steps.map((step, index) => {
+    if (String(step.planned_text || "").trim() || String(step.description || "").trim()) return step;
+    const referenceIndex = kind === "gestacional"
+      ? GESTATIONAL_WEEKS.indexOf(step.week as typeof GESTATIONAL_WEEKS[number])
+      : typeof step.fiv_order === "number" && Number.isInteger(step.fiv_order) && step.fiv_order > 0
+        ? step.fiv_order - 1
+        : IVF_WEEKS.indexOf(step.week as typeof IVF_WEEKS[number]);
+    const text = defaultPlanningContent(kind, referenceIndex >= 0 ? referenceIndex : index);
+    return text ? {...step, planned_text:text, description:text, content_template: kind === "gestacional" ? "gestational-v2" as const : "ivf-v2" as const} : step;
+  });
+}

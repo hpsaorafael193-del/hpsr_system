@@ -214,7 +214,7 @@ function wrappedLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: num
   return lines;
 }
 
-function drawWrappedText(ctx: CanvasRenderingContext2D, text: string, box: { x: number; y: number; width: number; height: number }, options?: { fontSize?: number; lineHeight?: number; weight?: number; color?: string; maxLines?: number; verticalAlign?: "top" | "middle"; maskTemplateRules?: boolean }) {
+function drawWrappedText(ctx: CanvasRenderingContext2D, text: string, box: { x: number; y: number; width: number; height: number }, options?: { fontSize?: number; lineHeight?: number; weight?: number; color?: string; maxLines?: number; verticalAlign?: "top" | "middle"; maskTemplateRules?: boolean; complete?: boolean }) {
   const safe = String(text || "").trim();
   if (!safe) return;
   const requestedSize = options?.fontSize ?? 19;
@@ -234,11 +234,15 @@ function drawWrappedText(ctx: CanvasRenderingContext2D, text: string, box: { x: 
     ctx.font = `${weight} ${fontSize}px Arial, sans-serif`;
     lines = wrappedLines(ctx, safe, box.width);
     const limit = Math.min(options?.maxLines ?? Infinity, Math.floor(box.height / lineHeight));
-    if (lines.length <= limit || fontSize <= Math.max(10, requestedSize * 0.74)) break;
+    if (lines.length <= limit || fontSize <= (options?.complete ? 12 : Math.max(10, requestedSize * 0.74))) break;
     fontSize -= 0.5;
   } while (true);
   const maxLinesByHeight = Math.max(1, Math.floor(box.height / lineHeight));
   const maxLines = Math.min(options?.maxLines ?? maxLinesByHeight, maxLinesByHeight);
+  if (options?.complete && (lines.length > maxLines || lines.some(line => ctx.measureText(line).width > box.width))) {
+    ctx.restore();
+    throw new Error("O conteúdo completo da consulta não cabe no modelo. Ajuste o texto antes de gerar a prévia; nenhuma informação foi cortada.");
+  }
   const visible = lines.slice(0, maxLines);
   if (lines.length > maxLines && visible.length) {
     let last = visible[visible.length - 1].replace(/\s+$/, "");
@@ -304,7 +308,7 @@ function drawIntegralStep(ctx: CanvasRenderingContext2D, step: PlanningStep, box
   }
   if (body) {
     const titleOffset = title ? (compact ? 29 : 34) : 0;
-    drawWrappedText(ctx, body, { x: safeBox.x, y: safeBox.y + titleOffset, width: safeBox.width, height: safeBox.height - titleOffset }, { fontSize: compact ? 24 : 25, lineHeight: compact ? 29 : 31, weight: 550, maxLines: compact ? 3 : 5, verticalAlign: "middle" });
+    drawWrappedText(ctx, body, { x: safeBox.x, y: safeBox.y + titleOffset, width: safeBox.width, height: safeBox.height - titleOffset }, { fontSize: compact ? 24 : 25, lineHeight: compact ? 29 : 31, weight: 550, maxLines: (step.content_template === "gestational-v2" || step.content_template === "ivf-v2") ? undefined : compact ? 3 : 5, complete: (step.content_template === "gestational-v2" || step.content_template === "ivf-v2"), verticalAlign: "middle" });
   }
 }
 
@@ -407,16 +411,18 @@ function drawDynamicIntegralBody(ctx: CanvasRenderingContext2D, kind: PlanningKi
     );
 
     const body = step.planned_text || step.description || "";
-    const textHeight = Math.max(42, rowHeight - 32);
+    const textPadding = (step.content_template === "gestational-v2" || step.content_template === "ivf-v2") ? 8 : 16;
+    const textHeight = Math.max(42, rowHeight - textPadding * 2);
     drawWrappedText(
       ctx,
       body,
-      { x: config.text.left, y: y + 16, width: config.text.right - config.text.left, height: textHeight },
+      { x: config.text.left, y: y + textPadding, width: config.text.right - config.text.left, height: textHeight },
       {
         fontSize: Math.max(22, Math.min(25, rowHeight * 0.22)),
         lineHeight: Math.max(28, Math.min(33, rowHeight * 0.27)),
         weight: 550,
-        maxLines: Math.max(2, Math.floor((rowHeight - 28) / 21)),
+        maxLines: (step.content_template === "gestational-v2" || step.content_template === "ivf-v2") ? undefined : Math.max(2, Math.floor((rowHeight - 28) / 21)),
+        complete: (step.content_template === "gestational-v2" || step.content_template === "ivf-v2"),
         verticalAlign: "middle",
       },
     );
@@ -551,7 +557,7 @@ export async function renderIndividualPlanningCanvas({ kind, patient, passport, 
   const plannedBox = insetBox(layout.planned, 18, 13);
   const evolutionBox = insetBox(layout.evolution, 18, 13);
   const examsBox = insetBox(layout.exams, 18, 13);
-  drawWrappedText(ctx, step.planned_text || step.description, plannedBox, { fontSize: 26, lineHeight: 31, weight: 600, maxLines: 4 });
+  drawWrappedText(ctx, step.planned_text || step.description, plannedBox, { fontSize: 26, lineHeight: 31, weight: 600, maxLines: step.content_template === "ivf-v2" ? undefined : 4, complete: step.content_template === "ivf-v2" });
   void observation; // observação médica interna permanece fora do PNG e do Portal.
   drawWrappedText(ctx, evolution, evolutionBox, { fontSize: 25, lineHeight: 30, weight: 600, maxLines: 4 });
   drawWrappedText(ctx, exams, examsBox, { fontSize: 25, lineHeight: 30, weight: 600, maxLines: 5 });

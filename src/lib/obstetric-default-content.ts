@@ -1,26 +1,27 @@
 /** Textos iniciais do RP, inspirados nos modelos oficiais enviados pelo hospital.
  * São sugestões EDITÁVEIS; não substituem o julgamento clínico do médico.
- * Nunca reaplicar sobre um planejamento já salvo ou personalizado.
+ * Preencher somente campos vazios no editor; nunca alterar publicações ou texto existente.
  */
 import type { PlanningKind } from "@/lib/obstetric-planning";
 
 export const DEFAULT_GESTATIONAL_CONTENT = [
-  "Confirmação da gestação, cálculo da data prevista para o parto e abertura da caderneta gestacional. Avaliação inicial e revisão dos exames e vacinas anteriores.",
-  "Avaliação inicial do crescimento fetal e atualização vacinal. Revisar resultados da consulta anterior e exames de acompanhamento indicados pela médica.",
-  "Avaliação anatômica fetal, batimentos cardíacos e condições uterinas. Considerar ultrassonografia morfológica e atualização da caderneta.",
-  "Acompanhamento materno e avaliação de rastreamento para diabetes gestacional. Revisar exames anteriores e orientar os próximos cuidados.",
-  "Avaliação do crescimento e movimentação fetal, resultados de exames e possível necessidade de suplementação, conforme avaliação médica.",
-  "Avaliação do líquido amniótico e bem-estar fetal. Revisar resultados anteriores, exames solicitados e recomendações de acompanhamento.",
-  "Planejamento do parto e orientações sobre sinais de alerta. Revisar exames de fim de gestação e condições para a internação.",
-  "Definição da via de parto e preparo para internação. Conferência dos exames finais e das orientações à paciente.",
+  "Confirmação da gestação, cálculo da DPP e abertura do cartão gestacional.\nHemograma completo; tipagem sanguínea; fator Rh; urina tipo I; sorologias: HIV, sífilis, hepatite B e C e toxoplasmose.\nVACINAS: NENHUMA.",
+  "Avaliação inicial do crescimento fetal e atualização vacinal.\nResultados da 1ª consulta; avaliação inicial do crescimento fetal e atualização vacinal; ultrassom obstétrico (1º trimestre).\nVACINAS: Hepatite B (1ª dose).",
+  "Avaliação anatômica fetal, escuta dos batimentos e análise uterina.\nUltrassom morfológico.\nVACINAS: Influenza e Hepatite B (2ª dose).",
+  "Rastreamento de diabetes gestacional e acompanhamento materno.\nUltrassom morfológico e vacinas anteriores; glicemia de jejum; urina tipo I; urocultura.\nVACINAS: NENHUMA.",
+  "Avaliação do crescimento fetal, movimentação e possível reforço de ferro.\nResultados de glicemia e urina; sorologias (repetição); teste de Coombs indireto (se Rh negativo); urina tipo I.\nVACINAS: NENHUMA.",
+  "Avaliação do líquido amniótico e bem-estar fetal.\nResultados da 5ª consulta; ultrassom obstétrico (3º trimestre).\nVACINAS: Hepatite B (3ª dose).",
+  "Planejamento do parto e orientação sobre sinais de alerta.\nUltrassom do 3º trimestre; cardiotocografia.\nVACINAS: dTpa (tríplice bacteriana).",
+  "Definição de via de parto e preparo para internação.\nExames para levar: cardiotocografia, hemograma final e glicemia.\nVACINAS: NENHUMA.",
+  "Avaliação final, liberação hospitalar e condução do parto.\nTodos os exames anteriores; exames adicionais: teste de Coombs indireto (se Rh negativo); urina tipo I na admissão para internação; parto.\nVACINAS: NENHUMA.",
 ] as const;
 
 export const DEFAULT_IVF_CONTENT = [
-  "Avaliação inicial e início da preparação hormonal. Anamnese, ultrassonografia transvaginal basal e exames laboratoriais indicados. Definir o protocolo individual.",
-  "Monitoramento da estimulação e do bloqueio ovulatório. Ultrassonografia para contagem e crescimento folicular e exames hormonais conforme o protocolo.",
-  "Gatilho e punção folicular. Avaliação dos folículos, coleta dos óvulos, fertilização em laboratório e acompanhamento embrionário inicial.",
-  "Preparo uterino e transferência embrionária, quando indicada. Avaliação do endométrio, orientações pós-procedimento e suporte conforme prescrição.",
-  "Avaliação posterior e exame de sangue β-hCG. Registrar o resultado e orientar o acompanhamento, sem presumir resultado positivo.",
+  "Avaliação inicial e início hormonal.\nAvaliação clínica da paciente gestante; ultrassonografia transvaginal basal; exames laboratoriais hormonais e sorológicos; definição do protocolo rápido de FIV.\nOrientação para autoaplicação subcutânea; 1ª injeção diária de cada.\nINJEÇÃO: Gonal-F / Puregon (FSH) - Menopur.",
+  "Monitoramento e bloqueio ovulatório.\nUltrassonografia para contagem e crescimento folicular; exames hormonais (estradiol e LH).\nMudar dosagem; bloqueio da ovulação precoce.\nINJEÇÃO: Gonal-F / Puregon - Menopur - Cetrotide / Orgalutran.",
+  "Gatilho e punção folicular.\nPunção folicular transvaginal; sedação leve; coleta dos óvulos; fertilização em laboratório (ICSI).\nObservação hospitalar breve; início do preparo uterino.\nINJEÇÃO: Ovidrel (hCG) - aplicada 36h antes.",
+  "Preparo uterino e transferência embrionária.\nAvaliação do endométrio por ultrassom; transferência embrionária guiada.\n1 aplicação diária e suporte endometrial; repouso relativo por 48h.\nINJEÇÃO: Progesterona - Estradiol.",
+  "Exame BETA-HCG e confirmação.\nExame de sangue BETA-HCG.\nConfirmação da gestação (após 1h), conforme resultado do exame.\nINJEÇÃO: NENHUM.",
 ] as const;
 
 export function defaultPlanningContent(kind: PlanningKind, index: number) {
