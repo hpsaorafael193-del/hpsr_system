@@ -1,5 +1,7 @@
 "use client";
 
+import { specialtyLabel } from "@/lib/specialty-label";
+
 import { useMemo, useState } from "react";
 import { ArrowRight, BellRing, CalendarClock, CheckCircle2, Clock3, HeartPulse, Loader2, RefreshCcw } from "lucide-react";
 
@@ -91,7 +93,7 @@ export function PatientFollowupSummaryPanel({
               const scheduled = item.nextOccurrence?.scheduleState === "scheduled";
               return (
                 <div key={item.planId} className="rounded-[14px] border border-hpsr-border bg-[#eee3d8] px-3.5 py-3">
-                  <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{item.specialty}</p>
+                  <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{specialtyLabel(item.specialty)}</p>
                   <p className="mt-1 text-sm font-black text-hpsr-text">{item.doctorName}</p>
                   <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">{item.frequency || "Acompanhamento ativo"}</p>
                   {scheduled && <p className="mt-2 flex items-center gap-1.5 text-[11px] font-black text-emerald-700"><CheckCircle2 size={13}/>{dateTimeText(item.nextOccurrence?.scheduledAt || "")}</p>}
@@ -206,7 +208,7 @@ export function PatientFollowupsPanel({
           return (
             <article key={item.planId} className="rounded-[17px] border border-hpsr-border bg-[#eee3d8] p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">{item.specialty}</p><h4 className="mt-1 text-base font-black text-hpsr-text">{item.doctorName}</h4></div>
+                <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">{specialtyLabel(item.specialty)}</p><h4 className="mt-1 text-base font-black text-hpsr-text">{item.doctorName}</h4></div>
                 <span className={`w-fit rounded-full border px-3 py-1 text-[10px] font-black ${state === "scheduled" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : state === "available" ? "border-blue-200 bg-blue-50 text-blue-700" : "border-hpsr-border bg-white text-hpsr-wine"}`}>{state === "scheduled" ? "Horário confirmado" : state === "available" ? "Horários disponíveis" : "Aguardando nova agenda"}</span>
               </div>
 
@@ -216,7 +218,7 @@ export function PatientFollowupsPanel({
                   <div className="min-w-0">
                     <p className="text-xs font-black text-emerald-900">Seu horário está confirmado</p>
                     <p className="mt-1 text-sm font-black text-emerald-950">{dateTimeText(next?.scheduledAt || "")}</p>
-                    <p className="mt-1 text-[11px] font-semibold leading-relaxed text-emerald-800">{item.specialty} · {item.doctorName}</p>
+                    <p className="mt-1 text-[11px] font-semibold leading-relaxed text-emerald-800">{specialtyLabel(item.specialty)} · {item.doctorName}</p>
                   </div>
                 </div>
                 <p className="mt-3 border-t border-emerald-200 pt-2.5 text-[11px] font-semibold leading-relaxed text-emerald-800">Se tiver atraso, imprevisto ou não puder comparecer, fale com o médico antes do atendimento para combinar o ajuste.</p>
@@ -235,7 +237,7 @@ export function PatientFollowupsPanel({
                   {selectedSlot && <div className="mt-3 rounded-[12px] border border-hpsr-border bg-white px-3 py-2.5">
                     <p className="text-[10px] font-black uppercase tracking-[.1em] text-hpsr-wineLight">Horário selecionado</p>
                     <p className="mt-1 text-sm font-black text-hpsr-text">{slotDay(selectedSlot.startsAt)} · {slotTime(selectedSlot.startsAt)}</p>
-                    <p className="mt-0.5 text-[11px] font-semibold text-hpsr-muted">{item.doctorName} · {item.specialty}</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-hpsr-muted">{item.doctorName} · {specialtyLabel(item.specialty)}</p>
                   </div>}
                   <button type="button" disabled={!selectedSlot || bookingPlanId === item.planId} onClick={() => void book(item.planId, item.linkType, item.doctorId, item.specialty)} className="mt-3 inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-[12px] bg-hpsr-wine px-4 text-sm font-black text-white disabled:opacity-50">{bookingPlanId === item.planId ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>}Confirmar {selectedSlot ? `${slotDay(selectedSlot.startsAt)} às ${slotTime(selectedSlot.startsAt)}` : "horário"}</button>
                 </div>

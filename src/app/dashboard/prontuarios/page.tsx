@@ -1,4 +1,6 @@
 "use client";
+
+import { specialtyLabel } from "@/lib/specialty-label";
 import { patientAgeGroup, patientAgeLabel } from "@/lib/patient-age-group";
 import {registerManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh";
 import { SavedClinicalSheet } from "@/components/dashboard/SavedClinicalSheet";
@@ -1613,7 +1615,7 @@ function OverviewTab({
               <div className="mt-2 flex flex-wrap gap-2">
                 {patient.doctorLinks.map((link) => (
                   <span key={`${link.doctor_id}-${link.specialty}`} className="rounded-full border border-hpsr-border bg-[#fffaf5] px-2.5 py-1 text-[10px] font-black text-hpsr-text">
-                    {link.doctor_name} · {link.specialty}
+                    {link.doctor_name} · {specialtyLabel(link.specialty)}
                   </span>
                 ))}
               </div>

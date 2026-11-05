@@ -1,4 +1,6 @@
 "use client";
+
+import { specialtyLabel } from "@/lib/specialty-label";
 import {registerManualRefresh} from "@/lib/manual-data-refresh";
 
 import { addBrazilDays, brazilDate } from "@/lib/brazil-datetime";
@@ -669,7 +671,7 @@ function AdmissionModal({
                   <StyledSelect name="specialty" className={admissionInputClass} defaultValue={editing ? bed.specialty ?? "Clínico Geral" : "Clínico Geral"}>
                     <option value="">Selecione...</option>
                     {specialties.map((specialty) => (
-                      <option key={specialty} value={specialty}>{specialty}</option>
+                      <option key={specialty} value={specialty}>{specialtyLabel(specialty)}</option>
                     ))}
                   </StyledSelect>
                 </AdmissionField>

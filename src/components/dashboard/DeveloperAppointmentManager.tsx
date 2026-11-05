@@ -1,4 +1,6 @@
 "use client";
+
+import { specialtyLabel } from "@/lib/specialty-label";
 import {useLocalRefreshControl} from "@/lib/manual-data-refresh";
 
 import { brazilIso } from "@/lib/brazil-datetime";
@@ -360,7 +362,7 @@ export function DeveloperAppointmentManager({
                 <article key={item.id} className="flex flex-col gap-3 rounded-[15px] border border-[#dac3ad] bg-[#f5e9dc] p-3.5 sm:flex-row sm:items-center">
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-[#fff2ea] text-hpsr-wine"><CalendarClock size={17} /></span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2"><p className="truncate text-sm font-black text-hpsr-text">{item.specialty}</p><span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-black", isCurrent ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-hpsr-border bg-[#f7f4f2] text-hpsr-muted")}>{isCurrent ? "Ativa" : "Encerrada"}</span></div>
+                    <div className="flex flex-wrap items-center gap-2"><p className="truncate text-sm font-black text-hpsr-text">{specialtyLabel(item.specialty)}</p><span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-black", isCurrent ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-hpsr-border bg-[#f7f4f2] text-hpsr-muted")}>{isCurrent ? "Ativa" : "Encerrada"}</span></div>
                     <p className="mt-1 text-xs font-semibold text-hpsr-muted">{displayDate(item.start_date)}{item.end_date !== item.start_date ? ` até ${displayDate(item.end_date)}` : ""} · {item.start_time.slice(0, 5)}–{item.end_time.slice(0, 5)} · {item.slot_duration_minutes} min</p>
                     {effectiveViewAll && <p className="mt-1 truncate text-[11px] font-semibold text-hpsr-muted">{item.doctor_name}</p>}
                   </div>
@@ -385,7 +387,7 @@ export function DeveloperAppointmentManager({
                       <p className="text-sm font-black text-hpsr-text">{displayDate(slot.starts_at)} · {displayTime(slot.starts_at)}</p>
                       <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-black", state === "Livre" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : state === "Ocupado" ? "border-blue-200 bg-blue-50 text-blue-700" : state === "Realizado" ? "border-violet-200 bg-violet-50 text-violet-700" : "border-amber-200 bg-amber-50 text-amber-700")}>{state}</span>
                     </div>
-                    <p className="mt-1 truncate text-xs font-semibold text-hpsr-muted">{slot.specialty}{effectiveViewAll ? ` · ${slot.doctor_name}` : ""}</p>
+                    <p className="mt-1 truncate text-xs font-semibold text-hpsr-muted">{specialtyLabel(slot.specialty)}{effectiveViewAll ? ` · ${slot.doctor_name}` : ""}</p>
                     <p className="mt-1 truncate text-xs font-bold text-hpsr-text">{patientName ? `${patientName}${passport ? ` · Passaporte ${passport}` : ""}` : "Nenhum paciente confirmou este horário"}</p>
                   </div>
                   {isFuture && <button disabled={Boolean(busyId)} onClick={() => void removeSlot(slot)} className="inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-[10px] border border-rose-100 bg-white px-3 text-xs font-black text-rose-700 transition hover:bg-rose-50 disabled:opacity-50">{busyId === `slot-${slot.id}` ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />} Remover</button>}

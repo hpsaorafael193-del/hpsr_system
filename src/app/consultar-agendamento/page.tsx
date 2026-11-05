@@ -1,5 +1,7 @@
 "use client";
 
+import { specialtyLabel } from "@/lib/specialty-label";
+
 import Link from "next/link";
 import { FormEvent, useState, type ReactNode } from "react";
 import { ArrowLeft, CalendarDays, CheckCircle2, Clock3, Search, Stethoscope, UserRound, XCircle } from "lucide-react";
@@ -136,7 +138,7 @@ export default function ConsultSchedulePage() {
                 </div>
 
                 <div className="grid gap-3 p-3.5 sm:grid-cols-2">
-                  <InfoBox icon={<Stethoscope size={16} />} label="Especialidade" value={result.specialty} />
+                  <InfoBox icon={<Stethoscope size={16} />} label="Especialidade" value={specialtyLabel(result.specialty)} />
                   <InfoBox icon={<CalendarDays size={16} />} label="Data preferencial" value={formatDate(result.preferredDate)} />
                   <InfoBox icon={<Clock3 size={16} />} label="Período" value={result.preferredPeriod} />
                   <InfoBox icon={<UserRound size={16} />} label="Médico responsável" value={result.doctor ?? "Aguardando definição"} />

@@ -1,4 +1,6 @@
 "use client";
+
+import { specialtyLabel } from "@/lib/specialty-label";
 import { imageDigest, optimizeClinicalImage } from "@/lib/clinical-image-optimization";
 import {useManualRefresh} from "@/lib/manual-data-refresh";
 
@@ -133,7 +135,7 @@ export default function PerfilPage() {
       { label: "Nome profissional", value: profile.characterName, icon: UserRound },
       { label: "Passaporte", value: profile.passport, icon: Hash },
       { label: "Cargo", value: currentUserProfile.role, icon: BadgeCheck },
-      { label: "Especialidades", value: currentUserProfile.specialty, icon: Stethoscope },
+      { label: "Especialidades", value: specialtyLabel(currentUserProfile.specialty), icon: Stethoscope },
       { label: "CRM-RP", value: profile.crm, icon: ClipboardCheck },
       { label: "Telefone na cidade", value: profile.cityPhone, icon: Phone },
       { label: "E-mail", value: profile.email, icon: Mail },
@@ -304,7 +306,7 @@ export default function PerfilPage() {
                   <h1>{profile.characterName}</h1>
                   <span className={`${styles.status} ${isInService ? styles.inService : ""}`}><Circle size={7} fill="currentColor" />{serviceStatus}</span>
                 </div>
-                <p className={styles.role}>{currentUserProfile.role} · {currentUserProfile.specialty}</p>
+                <p className={styles.role}>{currentUserProfile.role} · {specialtyLabel(currentUserProfile.specialty)}</p>
                 <p className={styles.passport}>Passaporte {profile.passport} · CRM-RP {profile.crm}</p>
               </div>
             </div>
@@ -327,7 +329,7 @@ export default function PerfilPage() {
               <ProfileInput label="Departamento" value={profile.department} onChange={(value) => updateField("department", value)} />
               <ProfileInput label="Nome da assinatura" value={profile.signatureName} onChange={(value) => updateField("signatureName", value)} />
               <div className={styles.readOnlyField}><p className={styles.eyebrow}>Cargo</p><strong>{currentUserProfile.role}</strong><small>Não editável pelo perfil.</small></div>
-              <div className={styles.readOnlyField}><p className={styles.eyebrow}>Especialidades</p><strong>{currentUserProfile.specialty}</strong><small>Não editável pelo perfil.</small></div>
+              <div className={styles.readOnlyField}><p className={styles.eyebrow}>Especialidades</p><strong>{specialtyLabel(currentUserProfile.specialty)}</strong><small>Não editável pelo perfil.</small></div>
             </section>
           ) : (
             <section aria-label="Dados profissionais" className={styles.profileGrid}>

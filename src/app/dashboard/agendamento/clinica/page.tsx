@@ -1,4 +1,6 @@
 "use client";
+
+import { specialtyLabel } from "@/lib/specialty-label";
 import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { brazilIso } from "@/lib/brazil-datetime";
@@ -664,7 +666,7 @@ export default function ClinicalSchedulePage() {
                   <tr key={appointment.id} className="border-t border-[#d8baaa] bg-[#f3e7dc] transition hover:bg-[#edd9cc]">
                     <td className="px-3.5 py-3 text-[1rem] font-black text-hpsr-text">{appointment.time}</td>
                     <td className="px-3.5 py-3 text-base font-semibold text-hpsr-text">{appointment.patient}</td>
-                    <td className="px-3.5 py-3 text-base text-hpsr-text">{appointment.specialty}</td>
+                    <td className="px-3.5 py-3 text-base text-hpsr-text">{specialtyLabel(appointment.specialty)}</td>
                     <td className="px-3.5 py-3"><span className={cn("inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-black", statusClasses(appointment.managementStatus || appointment.status))}><span className="h-2.5 w-2.5 rounded-full bg-current opacity-80" />{appointment.managementStatus || appointment.status}</span></td>
                     <td className="px-3.5 py-3">
                       <div className="flex flex-wrap items-center gap-2"><div className="flex items-center gap-0">
@@ -713,7 +715,7 @@ export default function ClinicalSchedulePage() {
                     <td className="px-3.5 py-3 text-sm font-black text-hpsr-text">{slot.dateKey.split("-").reverse().join("/")}</td>
                     <td className="px-3.5 py-3 text-sm font-black text-hpsr-text">{slot.timeRange}</td>
                     {viewingAllSchedules && <td className="px-3.5 py-3"><p className="text-sm font-black text-hpsr-text">{slot.doctorName}</p></td>}
-                    <td className="px-3.5 py-3 text-sm text-hpsr-text">{slot.specialty}</td>
+                    <td className="px-3.5 py-3 text-sm text-hpsr-text">{specialtyLabel(slot.specialty)}</td>
                     <td className="px-3.5 py-3"><p className="text-sm font-black text-hpsr-text">{slot.patientDisplay}</p>{slot.passportDisplay && <p className="mt-0.5 text-[11px] font-semibold text-hpsr-muted">Passaporte {slot.passportDisplay}</p>}</td>
                     <td className="px-3.5 py-3"><span className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-black", slot.visualState === 'Livre' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : slot.visualState === 'Ocupado' ? 'border-amber-200 bg-amber-50 text-amber-700' : slot.visualState === 'Concluído' ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-zinc-200 bg-zinc-50 text-zinc-700')}><span className="h-2 w-2 rounded-full bg-current opacity-80" />{slot.visualState}</span></td>
                     <td className="px-3.5 py-3">
@@ -733,7 +735,7 @@ export default function ClinicalSchedulePage() {
       </section>
 
 
-      {awaitingRescheduleAppointments.length > 0 && <section className="rounded-[18px] border border-blue-200 bg-blue-50 p-4"><h2 className="text-base font-black text-hpsr-text">Aguardando novo horário</h2><p className="mt-1 text-xs text-hpsr-muted">O compromisso anterior já está no histórico. Estes pacientes não ocupam uma data no calendário.</p><div className="mt-3 grid gap-2">{awaitingRescheduleAppointments.map(appointment=><article key={appointment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-hpsr-border bg-white p-3"><div><p className="text-sm font-black text-hpsr-text">{appointment.patient}</p><p className="text-xs text-hpsr-muted">{appointment.specialty} · {appointment.physician}</p></div><button type="button" onClick={()=>setModal({mode:"reschedule",appointment})} className="rounded-[10px] bg-hpsr-wine px-3 py-2 text-xs font-black text-white">Definir novo horário</button></article>)}</div></section>}
+      {awaitingRescheduleAppointments.length > 0 && <section className="rounded-[18px] border border-blue-200 bg-blue-50 p-4"><h2 className="text-base font-black text-hpsr-text">Aguardando novo horário</h2><p className="mt-1 text-xs text-hpsr-muted">O compromisso anterior já está no histórico. Estes pacientes não ocupam uma data no calendário.</p><div className="mt-3 grid gap-2">{awaitingRescheduleAppointments.map(appointment=><article key={appointment.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-hpsr-border bg-white p-3"><div><p className="text-sm font-black text-hpsr-text">{appointment.patient}</p><p className="text-xs text-hpsr-muted">{specialtyLabel(appointment.specialty)} · {appointment.physician}</p></div><button type="button" onClick={()=>setModal({mode:"reschedule",appointment})} className="rounded-[10px] bg-hpsr-wine px-3 py-2 text-xs font-black text-white">Definir novo horário</button></article>)}</div></section>}
 
       {showCompletedAppointments && (
         <section className="rounded-[18px] border border-[#d1b69e] bg-[#eaddcd] p-4 shadow-sm">
@@ -745,7 +747,7 @@ export default function ClinicalSchedulePage() {
           <div className="hpsr-touch-scroll max-h-[420px] space-y-2 overflow-y-auto pr-1">
             {filteredCompletedDoctorAppointments.length ? filteredCompletedDoctorAppointments.map((appointment) => (
               <article key={`completed-${appointment.id}`} className="flex flex-col gap-3 rounded-[15px] border border-[#d9c2ab] bg-[#f7eee4] p-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-black", statusClasses(appointment.managementStatus || appointment.status))}>{appointment.managementStatus || appointment.status}</span><span className="text-xs font-semibold text-hpsr-muted">{appointment.date.split("-").reverse().join("/")} às {appointment.time}</span></div><p className="mt-2 truncate text-sm font-black text-hpsr-text">{appointment.patient}</p><p className="mt-1 truncate text-xs font-semibold text-hpsr-muted">{appointment.specialty} · {appointment.physician} · Passaporte {appointment.passport}</p>{appointment.archivedReason && <p className="mt-1 text-xs text-hpsr-muted">{appointment.archivedReason}{appointment.managementNote ? ` · ${appointment.managementNote}` : ""} · Novo agendamento vinculado</p>}</div>
+                <div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><span className={cn("rounded-full border px-2.5 py-1 text-[11px] font-black", statusClasses(appointment.managementStatus || appointment.status))}>{appointment.managementStatus || appointment.status}</span><span className="text-xs font-semibold text-hpsr-muted">{appointment.date.split("-").reverse().join("/")} às {appointment.time}</span></div><p className="mt-2 truncate text-sm font-black text-hpsr-text">{appointment.patient}</p><p className="mt-1 truncate text-xs font-semibold text-hpsr-muted">{specialtyLabel(appointment.specialty)} · {appointment.physician} · Passaporte {appointment.passport}</p>{appointment.archivedReason && <p className="mt-1 text-xs text-hpsr-muted">{appointment.archivedReason}{appointment.managementNote ? ` · ${appointment.managementNote}` : ""} · Novo agendamento vinculado</p>}</div>
                 <div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => setModal({ mode: "patient", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Ver dados</button>{!appointment.scheduleArchived && !["Realizada","Concluída"].includes(appointment.status) && <button type="button" onClick={() => setModal({ mode: "reschedule", appointment })} className="rounded-[11px] border border-hpsr-border bg-white px-3 py-2 text-xs font-black text-hpsr-wine">Reagendar</button>}</div>
               </article>
             )) : <div className="rounded-[15px] border border-dashed border-[#d8c0aa] bg-[#f3e7da] p-6 text-center text-sm text-hpsr-muted">Nenhuma consulta finalizada encontrada.</div>}
@@ -1107,7 +1109,7 @@ function NewAppointmentForm({
         </Field>
         <Field label="Especialidade">
           <StyledSelect className={inputClass} value={specialty} disabled={!selectedDoctorSpecialties.length} onChange={(event) => setSpecialty(event.target.value)}>
-            {selectedDoctorSpecialties.length ? selectedDoctorSpecialties.map((item) => <option key={item}>{item}</option>) : <option value="">Sem especialidade clínica disponível</option>}
+            {selectedDoctorSpecialties.length ? selectedDoctorSpecialties.map((item) => <option key={item} value={item}>{specialtyLabel(item)}</option>) : <option value="">Sem especialidade clínica disponível</option>}
           </StyledSelect>
         </Field>
         <Field label="Data"><input className={inputClass} type="date" value={date} onChange={(event) => setDate(event.target.value)} /></Field>
@@ -1331,7 +1333,7 @@ function PatientDetails({ appointment }: { appointment: Appointment }) {
       <div className="grid gap-3 sm:grid-cols-2">
         <InfoBox label="Paciente" value={appointment.patient} />
         <InfoBox label="Passaporte" value={appointment.passport} />
-        <InfoBox label="Especialidade" value={appointment.specialty} />
+        <InfoBox label="Especialidade" value={specialtyLabel(appointment.specialty)} />
         <InfoBox label="Médico responsável" value={appointment.physician} />
         <InfoBox label="Data" value={appointment.date.split("-").reverse().join("/")} />
         <InfoBox label="Horário" value={`${appointment.time} · Brasília`} />
@@ -1409,7 +1411,7 @@ function AppointmentSummary({ appointment }: { appointment: Appointment }) {
 
       <h3 className="mt-3 text-lg font-semibold text-hpsr-text">{appointment.patient}</h3>
       <p className="mt-1 text-sm text-hpsr-muted">
-        Passaporte {appointment.passport} · {appointment.specialty} · {appointment.awaitingReschedule ? "Novo horário a definir" : `${appointment.date.split("-").reverse().join("/")} às ${appointment.time} Brasília`}
+        Passaporte {appointment.passport} · {specialtyLabel(appointment.specialty)} · {appointment.awaitingReschedule ? "Novo horário a definir" : `${appointment.date.split("-").reverse().join("/")} às ${appointment.time} Brasília`}
       </p>
     </div>
   );

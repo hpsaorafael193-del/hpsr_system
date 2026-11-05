@@ -1,4 +1,6 @@
 "use client";
+
+import { specialtyLabel } from "@/lib/specialty-label";
 import {useManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh";
 
 import styles from "./team-direction.module.css";
@@ -22,7 +24,6 @@ import {
   History,
   Trash2,
   CalendarClock,
-  MessageCircle,
   KeyRound,
   Plus,
   Radio,
@@ -1100,7 +1101,7 @@ export default function TeamPage() {
                   <button type="button" aria-expanded={selected} onClick={()=>setSelectedId(selected?"":member.id)} className={styles.memberButton}>
                     <span className={styles.avatar} data-tone={member.category==="Direção"?"rose":member.category==="Sistema"||member.category==="Formação"?"purple":index%2?"green":"blue"}>{member.name.trim().charAt(0).toLocaleUpperCase("pt-BR")}</span>
                     <span className={styles.identity}><span className={styles.identityTop}><strong>{member.name}</strong></span><span className={styles.meta}>{member.crm||"CRM não informado"} · Passaporte {member.passport}</span></span>
-                    <span className={styles.roleColumn}><strong>{member.systemRole?"Dev":member.hospitalRole}</strong><span>{member.specialty}</span></span>
+                    <span className={styles.roleColumn}><strong>{member.systemRole?"Dev":member.hospitalRole}</strong><span>{specialtyLabel(member.specialty)}</span></span>
                     <span className={styles.statusColumn}><span className={styles.serviceLabel} data-status={member.serviceStatus}><i aria-hidden="true"/>{member.serviceStatus}</span></span>
                     <span className={styles.rowActions}><span className={styles.open}>{selected?"Fechar":"Detalhes"}<ChevronDown size={15} className={selected?"rotate-180":""}/></span></span>
                   </button>
@@ -1236,7 +1237,7 @@ function RegistrationRequestsModal({
               return (
                 <article key={item.id} className={`rounded-[16px] border bg-white p-4 shadow-[0_8px_24px_rgba(74,31,18,.06)] ${item.status === "Pendente" ? "border-amber-300" : "border-hpsr-border"}`}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-start gap-3"><div className={`grid h-10 w-10 shrink-0 place-items-center rounded-[14px] ${item.status === "Pendente" ? "bg-amber-100 text-amber-800" : "bg-[#f6e8dc] text-hpsr-wine"}`}><UserRound size={19} /></div><div className="min-w-0"><h3 className="truncate font-black text-hpsr-text">{item.name}</h3><p className="mt-1 text-xs font-semibold text-hpsr-muted">Passaporte {item.passport}</p><p className="mt-1 text-xs text-hpsr-muted">{item.requestedRole} · {item.specialty}</p></div></div>
+                    <div className="flex min-w-0 items-start gap-3"><div className={`grid h-10 w-10 shrink-0 place-items-center rounded-[14px] ${item.status === "Pendente" ? "bg-amber-100 text-amber-800" : "bg-[#f6e8dc] text-hpsr-wine"}`}><UserRound size={19} /></div><div className="min-w-0"><h3 className="truncate font-black text-hpsr-text">{item.name}</h3><p className="mt-1 text-xs font-semibold text-hpsr-muted">Passaporte {item.passport}</p><p className="mt-1 text-xs text-hpsr-muted">{item.requestedRole} · {specialtyLabel(item.specialty)}</p></div></div>
                     <StatusBadge status={item.status} />
                   </div>
                   <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4"><Info label="E-mail" value={item.email} /><Info label="Telefone" value={item.cityPhone} /><Info label="Discord" value={item.discord} /><Info label="CRM" value={item.crm} /></div>
@@ -1407,11 +1408,10 @@ function PendingApplicationsModal({
 
 function ApplicationCard({ item, onOpenAnalysis, onDelete }: { item: PublicStaffApplication; onOpenAnalysis: (item: PublicStaffApplication) => void; onDelete: (item: PublicStaffApplication) => void; }) {
   const triageDone = item.triageDecision === "Aprovado" || item.status === "Recusado";
-  const interviewActive = item.triageDecision === "Aprovado" || ["entrevista", "Contratado", "Não contratado", "Sem resposta"].includes(item.status);
   return (
     <div className="rounded-[16px] border border-hpsr-border bg-[#fff8f0] p-3.5">
-      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-base font-black text-hpsr-text">{item.name}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">{item.protocol} · {item.desiredRole} · {item.interestArea || "Área não informada"}</p></div><StatusBadge status={item.status} /></div>
-      <div className="mt-4 grid gap-2 sm:grid-cols-3"><PendingStep title="1. Triagem" description="Ficha e respostas do candidato." active /><PendingStep title="2. Decisão" description={item.triageDecision || "Aguardando decisão"} active={triageDone} /><PendingStep title="3. Entrevista" description={item.interviewStatus || "Não agendada"} active={interviewActive} /></div>
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-base font-black text-hpsr-text">{item.name}</p><p className="mt-1 text-xs font-semibold text-hpsr-muted">{item.protocol} · {item.desiredRole} · {specialtyLabel(item.interestArea || "Área não informada")}</p></div><StatusBadge status={item.status} /></div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2"><PendingStep title="1. Triagem" description="Ficha e respostas do candidato." active /><PendingStep title="2. Decisão" description={item.triageDecision || "Aguardando decisão"} active={triageDone} /></div>
       <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => onOpenAnalysis(item)} className="rounded-2xl bg-hpsr-wineLight px-3 py-2 text-xs font-semibold text-white">Abrir análise</button>{item.status === "Recusado" && <button type="button" onClick={() => onDelete(item)} className="inline-flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700"><Trash2 size={14}/>Excluir formulário</button>}</div>
     </div>
   );
@@ -1438,7 +1438,6 @@ function ApplicationAnalysisModal({
       status: "Aprovado",
       triageDecision: "Aprovado" as const,
       decisionAt: brazilIso(),
-      interviewStatus: draft.interviewStatus || "Não agendada",
     };
     setDraft(next);
     onSave(next);
@@ -1450,24 +1449,11 @@ function ApplicationAnalysisModal({
       status: "Recusado",
       triageDecision: "Recusado" as const,
       decisionAt: brazilIso(),
-      interviewStatus: "Não agendada" as const,
-      interviewResult: "Pendente" as const,
     };
     setDraft(next);
     onSave(next);
   };
 
-  const saveInterview = () => {
-    let status = draft.status;
-    if (draft.interviewStatus === "Sem resposta") status = "Sem resposta";
-    else if (draft.interviewResult === "Contratado") status = "Contratado";
-    else if (draft.interviewResult === "Não contratado") status = "Não contratado";
-    else if (draft.interviewStatus === "Agendada" || draft.interviewStatus === "Realizada") status = "entrevista";
-
-    const next = { ...draft, status };
-    setDraft(next);
-    onSave(next);
-  };
 
   return (
     <div className="hpsr-modal-tone fixed inset-0 z-[100000] grid min-h-dvh place-items-center overflow-y-auto px-4 py-3">
@@ -1478,8 +1464,8 @@ function ApplicationAnalysisModal({
         className="fixed inset-0 bg-[#1f0805]/68"
       />
 
-      <div className="hpsr-modal-motion relative z-10 flex w-full max-w-7xl flex-col overflow-hidden rounded-[22px] border border-white/55 bg-[#fcf6ee] shadow-[0_32px_100px_rgba(27,10,7,.42)]">
-        <div className="border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f7eadc_55%,#f2e3d0_100%)] px-5 py-4 md:px-6 md:py-5">
+      <div className="hpsr-modal-motion relative z-10 flex max-h-[92dvh] w-full max-w-7xl flex-col overflow-hidden rounded-[22px] border border-white/55 bg-[#fcf6ee] shadow-[0_32px_100px_rgba(27,10,7,.42)]">
+        <div className="shrink-0 border-b border-hpsr-border bg-[linear-gradient(135deg,#fffaf4_0%,#f7eadc_55%,#f2e3d0_100%)] px-5 py-4 md:px-6 md:py-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-black uppercase tracking-[.18em] text-hpsr-wineLight">
@@ -1493,7 +1479,7 @@ function ApplicationAnalysisModal({
                 {draft.interestArea ? (
                   <>
                     <span className="text-hpsr-border">•</span>
-                    <span>{draft.interestArea}</span>
+                    <span>{specialtyLabel(draft.interestArea)}</span>
                   </>
                 ) : null}
               </div>
@@ -1512,23 +1498,7 @@ function ApplicationAnalysisModal({
           </div>
 
           <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <AnalysisQuickStat
-                label="Triagem"
-                value={draft.triageDecision || "Pendente"}
-                tone={draft.triageDecision === "Aprovado" ? "success" : draft.triageDecision === "Recusado" ? "danger" : "neutral"}
-              />
-              <AnalysisQuickStat
-                label="Entrevista"
-                value={draft.interviewStatus || "Não agendada"}
-                tone={draft.interviewStatus === "Sem resposta" ? "warning" : draft.interviewStatus === "Realizada" ? "success" : "neutral"}
-              />
-              <AnalysisQuickStat
-                label="Questionário"
-                value={draft.quizAnswers?.length ? `${correctAnswers}/${draft.quizAnswers.length} acertos` : "Sem registro"}
-                tone={draft.quizAnswers?.length ? "neutral" : "warning"}
-              />
-            </div>
+            <p className="text-xs font-semibold text-hpsr-muted">{draft.decisionAt ? `Decisão registrada em ${formatDateTime(draft.decisionAt)}` : "Leia a ficha e o questionário para avaliar a candidatura."}</p>
 
             <div className="flex flex-wrap items-center gap-2 xl:justify-end">
               <button
@@ -1545,7 +1515,7 @@ function ApplicationAnalysisModal({
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-700 px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-red-800"
               >
                 <X size={17} />
-                Recusar
+                Reprovar
               </button>
               {draft.status === "Recusado" && (
                 <button
@@ -1561,14 +1531,14 @@ function ApplicationAnalysisModal({
           </div>
         </div>
 
-        <div className="max-h-[82vh] overflow-y-auto p-4 md:p-5">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,.7fr)]">
-            <div className="grid gap-4">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-5">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="contents">
               <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-sm md:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b border-hpsr-border/80 pb-4">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Etapa 1</p>
-                    <h3 className="mt-1 text-lg font-black text-hpsr-text">Triagem — ficha preenchida</h3>
+                    <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Candidatura</p>
+                    <h3 className="mt-1 text-lg font-black text-hpsr-text">Ficha do candidato</h3>
                     <p className="mt-1 text-sm text-hpsr-muted">
                       Dados enviados pelo candidato no formulário público Trabalhe Conosco.
                     </p>
@@ -1622,28 +1592,7 @@ function ApplicationAnalysisModal({
                 </>)}
               </section>
 
-              <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-sm md:p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-hpsr-border/80 pb-4">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Etapa 2</p>
-                    <h3 className="mt-1 text-lg font-black text-hpsr-text">Decisão da triagem</h3>
-                    <p className="mt-1 text-sm text-hpsr-muted">
-                      A aprovação informa ao candidato que um médico entrará em contato pelo Discord para marcar a entrevista.
-                    </p>
-                  </div>
-                  <div className="rounded-[16px] border border-hpsr-border bg-[#fffaf4] px-4 py-3 text-right">
-                    <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Decisão registrada</p>
-                    <p className="mt-1 text-sm font-bold text-hpsr-text">{draft.triageDecision || "Pendente"}</p>
-                    <p className="mt-1 text-xs text-hpsr-muted">{draft.decisionAt ? `Atualizado em ${formatDateTime(draft.decisionAt)}` : "Ainda sem decisão formal"}</p>
-                  </div>
-                </div>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <PendingStep title="1. Triagem" description="Ficha completa e questionário" active />
-                  <PendingStep title="2. Decisão" description={draft.triageDecision || "Aguardando decisão"} active={draft.triageDecision !== "Pendente"} />
-                  <PendingStep title="3. Entrevista" description={draft.interviewStatus || "Não agendada"} active={draft.triageDecision === "Aprovado" || ["entrevista", "Contratado", "Não contratado", "Sem resposta"].includes(draft.status)} />
-                </div>
-              </section>
 
               <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-sm md:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hpsr-border/80 pb-4">
@@ -1673,90 +1622,7 @@ function ApplicationAnalysisModal({
               </section>
             </div>
 
-            <aside className="grid content-start gap-4">
-              <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-sm md:p-5">
-                <div className="flex items-start justify-between gap-3 border-b border-hpsr-border/80 pb-4">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Resumo atual</p>
-                    <h3 className="mt-1 text-lg font-black text-hpsr-text">Situação administrativa</h3>
-                  </div>
-                  <MessageCircle className="text-hpsr-wineLight" size={18} />
-                </div>
 
-                <div className="mt-4 grid gap-3">
-                  <AsideInfo label="Status da candidatura" value={draft.status} />
-                  <AsideInfo label="Resultado da triagem" value={draft.triageDecision || "Pendente"} />
-                  <AsideInfo label="Situação da entrevista" value={draft.interviewStatus || "Não agendada"} />
-                  <AsideInfo label="Resultado da entrevista" value={draft.interviewResult || "Pendente"} />
-                  <AsideInfo label="Discord para contato" value={draft.discord || "Não informado"} />
-                </div>
-              </section>
-
-              <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-sm md:p-5">
-                <div className="flex items-start justify-between gap-3 border-b border-hpsr-border/80 pb-4">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Etapa 3</p>
-                    <h3 className="mt-1 text-lg font-black text-hpsr-text">Entrevista</h3>
-                    <p className="mt-1 text-sm text-hpsr-muted">Agendamento, retorno e conclusão administrativa.</p>
-                  </div>
-                  <CalendarClock className="text-hpsr-wineLight" size={18} />
-                </div>
-
-                <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                  <label className="text-xs font-black text-hpsr-text">
-                    Situação
-                    <StyledSelect
-                      className={modalInputClass}
-                      value={draft.interviewStatus || "Não agendada"}
-                      onChange={(e) => setDraft({ ...draft, interviewStatus: e.target.value as PublicStaffApplication["interviewStatus"] })}
-                    >
-                      <option>Não agendada</option>
-                      <option>Agendada</option>
-                      <option>Realizada</option>
-                      <option>Sem resposta</option>
-                    </StyledSelect>
-                  </label>
-                  <label className="text-xs font-black text-hpsr-text">
-                    Data e hora
-                    <input
-                      type="datetime-local"
-                      className={modalInputClass}
-                      value={draft.interviewAt || ""}
-                      onChange={(e) => setDraft({ ...draft, interviewAt: e.target.value })}
-                    />
-                  </label>
-                  <label className="text-xs font-black text-hpsr-text sm:col-span-2 lg:col-span-1 xl:col-span-2">
-                    Resultado
-                    <StyledSelect
-                      className={modalInputClass}
-                      value={draft.interviewResult || "Pendente"}
-                      onChange={(e) => setDraft({ ...draft, interviewResult: e.target.value as PublicStaffApplication["interviewResult"] })}
-                    >
-                      <option>Pendente</option>
-                      <option>Contratado</option>
-                      <option>Não contratado</option>
-                    </StyledSelect>
-                  </label>
-                  <label className="text-xs font-black text-hpsr-text sm:col-span-2 lg:col-span-1 xl:col-span-2">
-                    Observações
-                    <textarea
-                      className={`${modalInputClass} min-h-24`}
-                      value={draft.interviewNotes || ""}
-                      onChange={(e) => setDraft({ ...draft, interviewNotes: e.target.value })}
-                    />
-                  </label>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={saveInterview}
-                  className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-hpsr-wine px-4 py-3 text-sm font-black text-white shadow-sm transition hover:opacity-95"
-                >
-                  <CalendarClock size={16} />
-                  Salvar entrevista
-                </button>
-              </section>
-            </aside>
           </div>
         </div>
       </div>
@@ -1792,20 +1658,7 @@ function QuizAnswerCard({ index, answer }: { index: number; answer: NonNullable<
 function Info({ label, value }: { label: string; value?: string }) { return <div className="rounded-[14px] border border-hpsr-border bg-[#fffaf4] p-3"><p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{label}</p><p className="mt-1 font-semibold text-hpsr-text">{value || "Não informado"}</p></div>; }
 function LongInfo({ label, value }: { label: string; value?: string }) { return <div className="rounded-[14px] border border-hpsr-border bg-[#fffaf4] p-3"><p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{label}</p><p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-hpsr-muted">{value || "Não informado"}</p></div>; }
 
-function AnalysisQuickStat({ label, value, tone = "neutral" }: { label: string; value: string; tone?: "success" | "danger" | "warning" | "neutral"; }) {
-  const tones = {
-    success: "border-emerald-200 bg-emerald-50 text-emerald-900",
-    danger: "border-red-200 bg-red-50 text-red-800",
-    warning: "border-amber-200 bg-amber-50 text-amber-900",
-    neutral: "border-hpsr-border bg-white/80 text-hpsr-text",
-  } as const;
 
-  return <div className={`rounded-[16px] border px-3.5 py-3 ${tones[tone]}`}><p className="text-[10px] font-black uppercase tracking-[.12em] opacity-75">{label}</p><p className="mt-1 text-sm font-black leading-snug">{value}</p></div>;
-}
-
-function AsideInfo({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-[14px] border border-hpsr-border bg-[#fffaf4] px-3.5 py-3"><p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{label}</p><p className="mt-1 text-sm font-semibold text-hpsr-text">{value}</p></div>;
-}
 
 function PendingStep({ title, description, active = false }: { title: string; description: string; active?: boolean }) {
   return (
@@ -2007,7 +1860,7 @@ function TeamMemberExpandedContent({ member, onContractAction, onAdministrativeA
       <div className="grid gap-3">
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <InfoBlock icon={<BriefcaseMedical size={16} />} label="Departamento" value={member.department} />
-          <InfoBlock icon={<Stethoscope size={16} />} label="Especialidade" value={member.specialty} />
+          <InfoBlock icon={<Stethoscope size={16} />} label="Especialidade" value={specialtyLabel(member.specialty)} />
           <InfoBlock icon={<KeyRound size={16} />} label="CRM" value={member.crm} />
           <InfoBlock icon={<Radio size={16} />} label="Rádio" value={member.radio} />
           <InfoBlock icon={<BadgeCheck size={16} />} label="Entrada" value={formatDate(member.joinedAt)} />
@@ -2128,7 +1981,7 @@ function TeamMemberPanel({ member }: { member: TeamMember }) {
       <div className="grid gap-3 p-3.5">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <InfoBlock icon={<BriefcaseMedical size={16} />} label="Departamento" value={member.department} />
-          <InfoBlock icon={<Stethoscope size={16} />} label="Especialidade" value={member.specialty} />
+          <InfoBlock icon={<Stethoscope size={16} />} label="Especialidade" value={specialtyLabel(member.specialty)} />
           <InfoBlock icon={<KeyRound size={16} />} label="CRM" value={member.crm} />
           <InfoBlock icon={<Radio size={16} />} label="Rádio" value={member.radio} />
           <InfoBlock icon={<BadgeCheck size={16} />} label="Entrada" value={formatDate(member.joinedAt)} />
@@ -2413,7 +2266,7 @@ function ManageMemberModal({
                         <div className="rounded-[12px] border border-hpsr-border bg-[#fffaf4] p-3">
                           <label className="flex items-center gap-2 rounded-[10px] border border-hpsr-border bg-white px-3 py-2 text-sm font-black text-hpsr-text">
                             <input type="checkbox" checked readOnly className="accent-hpsr-wine" />
-                            Clínico Geral
+                            Clínica Geral
                           </label>
                           {canHaveAdditionalSpecialties && (
                             <div className="mt-2 flex max-h-52 flex-col gap-2 overflow-y-auto overflow-x-hidden pr-1">
@@ -2422,7 +2275,7 @@ function ManageMemberModal({
                                 return (
                                   <label key={item} className={`flex items-center gap-2 rounded-[10px] border px-3 py-2 text-sm font-bold ${checked ? "border-hpsr-wine bg-[#fff1e8] text-hpsr-wine" : "border-hpsr-border bg-white text-hpsr-text"} cursor-pointer`}>
                                     <input type="checkbox" checked={checked} onChange={() => toggleSpecialty(item)} className="accent-hpsr-wine" />
-                                    {item}
+                                    {specialtyLabel(item)}
                                   </label>
                                 );
                               })}
@@ -2430,7 +2283,7 @@ function ManageMemberModal({
                           )}
                         </div>
                         <div className="mt-1 flex items-center justify-between gap-3 text-[11px] font-semibold text-hpsr-muted">
-                          <p>{clinicalGeneralOnly ? "Médico Clínico recebe Clínico Geral automaticamente." : "Clínico Geral permanece como especialidade base."}</p>
+                          <p>{clinicalGeneralOnly ? "Médico Clínico recebe Clínica Geral automaticamente." : "Clínica Geral permanece como especialidade base."}</p>
                           {canHaveAdditionalSpecialties && (
                             <span className="shrink-0 rounded-full border border-hpsr-border bg-white px-2.5 py-1 font-black text-hpsr-wine">
                               {UNRESTRICTED_SPECIALTY_ROLES.has(form.hospitalRole) ? `${selectedAdditionalSpecialties.length} adicionais · sem limite` : `${selectedAdditionalSpecialties.length}/3 adicionais`}
@@ -2494,7 +2347,7 @@ function ManageMemberModal({
                   <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
                     <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Perfil</p>
                     <p className="mt-1 text-sm font-black text-hpsr-text">{form.hospitalRole}</p>
-                    <p className="mt-1 text-xs font-semibold text-hpsr-muted">{form.specialty || "Especialidade não informada"}</p>
+                    <p className="mt-1 text-xs font-semibold text-hpsr-muted">{specialtyLabel(form.specialty || "Especialidade não informada")}</p>
                   </div>
                   <div className="rounded-[16px] border border-hpsr-border bg-white p-3.5">
                     <p className="text-[10px] font-black uppercase tracking-[0.14em] text-hpsr-wineLight">Permissão prevista</p>

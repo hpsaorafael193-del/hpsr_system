@@ -1,4 +1,6 @@
 "use client";
+
+import { specialtyLabel } from "@/lib/specialty-label";
 import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { StyledSelect } from "@/components/ui/StyledSelect";
@@ -233,7 +235,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
                 <article key={appointment.id} className="rounded-[16px] border border-hpsr-border bg-[#eee2d6] p-3">
                   <button type="button" onClick={() => setExpanded(isExpanded ? null : appointment.id)} className="flex w-full items-center justify-between gap-3 text-left">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-black text-hpsr-text">{appointment.specialty}</p>
+                      <p className="truncate text-sm font-black text-hpsr-text">{specialtyLabel(appointment.specialty)}</p>
                       <p className="mt-1 text-xs font-semibold text-hpsr-muted">{formatDate(appointment.proposedDate || appointment.preferredDate)} · {(appointment.proposedTime || appointment.preferredTime) ? `às ${appointment.proposedTime || appointment.preferredTime}` : (appointment.preferredPeriod || "Horário a definir")}</p>
                       <p className="mt-1 text-[11px] font-semibold text-hpsr-muted">{appointment.physician || "Médico a definir"}</p>
                       <p className="mt-1 text-[11px] font-black uppercase tracking-[0.1em] text-hpsr-wineLight">{appointment.flowType || "Consulta comum"}</p>
@@ -344,7 +346,7 @@ export function PatientAppointmentsPanel({ onSessionExpired, onOpenRecords, view
           setPsychotechnicalNotice(/psico[\s-]*tecnic/.test(objective));
         }} className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="text-xs font-black text-hpsr-muted">Nome do paciente<input name="patient" required className={`${fieldClass} mt-1.5`} /></label>
-          <label className="text-xs font-black text-hpsr-muted">Especialidade<StyledSelect name="specialty" required value={requestSpecialty} onChange={(event) => setRequestSpecialty(event.target.value)} className={`${fieldClass} mt-1.5`}><option value="" disabled>Selecione</option>{specialties.map((item) => <option key={item}>{item}</option>)}</StyledSelect></label>
+          <label className="text-xs font-black text-hpsr-muted">Especialidade<StyledSelect name="specialty" required value={requestSpecialty} onChange={(event) => setRequestSpecialty(event.target.value)} className={`${fieldClass} mt-1.5`}><option value="" disabled>Selecione</option>{specialties.map((item) => <option key={item} value={item}>{specialtyLabel(item)}</option>)}</StyledSelect></label>
           <label className="text-xs font-black text-hpsr-muted sm:col-span-2">Tipo de consulta
             <StyledSelect name="flowType" required value={requestFlowType} onChange={(event) => setRequestFlowType(event.target.value)} className={`${fieldClass} mt-1.5`}>
               <option>Consulta comum</option>

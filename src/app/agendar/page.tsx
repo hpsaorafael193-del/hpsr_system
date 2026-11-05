@@ -1,5 +1,7 @@
 "use client";
 
+import { specialtyLabel } from "@/lib/specialty-label";
+
 import { brazilIso } from "@/lib/brazil-datetime";
 import { classifyPatientContact, formatCityPhoneNumber } from "@/lib/phone";
 
@@ -183,7 +185,7 @@ export default function SchedulePage() {
                   <StyledSelect name="specialty" className={inputClass} defaultValue="" required>
                     <option value="" disabled>Selecione a especialidade</option>
                     {specialties.map((specialty) => (
-                      <option key={specialty}>{specialty}</option>
+                      <option key={specialty} value={specialty}>{specialtyLabel(specialty)}</option>
                     ))}
                   </StyledSelect>
                 </FormField>

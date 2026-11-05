@@ -1,4 +1,6 @@
 "use client";
+
+import { specialtyLabel } from "@/lib/specialty-label";
 import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { brazilIso } from "@/lib/brazil-datetime";
@@ -706,7 +708,7 @@ function ConsultationOverview({ appointments, currentDoctorId, currentDoctorName
               <span className="grid place-items-center border-r border-[#dfcabd] bg-[#f0ded2] text-hpsr-wine"><Stethoscope size={19}/></span>
               <span className="grid gap-1 px-3 py-2">
                 <span className="text-[11px] font-black text-hpsr-text">Especialidade</span>
-                <select value={specialtyFilter} onChange={(event) => setSpecialtyFilter(event.target.value)} className="min-w-0 bg-transparent text-sm font-semibold text-hpsr-text outline-none"><option value="all">Todas as especialidades</option>{specialtyOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select>
+                <select value={specialtyFilter} onChange={(event) => setSpecialtyFilter(event.target.value)} className="min-w-0 bg-transparent text-sm font-semibold text-hpsr-text outline-none"><option value="all">Todas as especialidades</option>{specialtyOptions.map((item) => <option key={item} value={item}>{specialtyLabel(item)}</option>)}</select>
               </span>
             </label>
             <label className="grid grid-cols-[52px_1fr] overflow-hidden rounded-[15px] border border-[#d6bdad] bg-[#fbf4ee]">
@@ -731,7 +733,7 @@ function ConsultationOverview({ appointments, currentDoctorId, currentDoctorName
                 <td className="px-5 py-3.5 text-sm font-black text-hpsr-text">{item.patient}</td>
                 <td className="px-5 py-3.5 text-sm font-medium text-hpsr-text">{item.passport ? `Passaporte ${item.passport}` : '—'}</td>
                 <td className="px-5 py-3.5 text-sm font-medium text-hpsr-text">{item.doctor || 'A definir'}</td>
-                <td className="px-5 py-3.5 text-sm font-medium text-hpsr-text">{item.specialty}</td>
+                <td className="px-5 py-3.5 text-sm font-medium text-hpsr-text">{specialtyLabel(item.specialty)}</td>
                 <td className="px-5 py-3.5 text-sm font-medium text-hpsr-text">{item.date && item.date !== 'A definir' ? formatDate(item.date) : 'A definir'}</td>
                 <td className="px-5 py-3.5 text-sm font-medium text-hpsr-text">{item.time && item.time !== 'A definir' ? item.time : 'A definir'}</td>
                 <td className="px-5 py-3.5"><span className={`inline-flex min-w-[92px] justify-center rounded-full border px-3 py-1.5 text-[11px] font-black ${consultationStatusClass(item.status)}`}>{item.status}</span></td>
@@ -750,7 +752,7 @@ function ConsultationOverview({ appointments, currentDoctorId, currentDoctorName
               <div>
                 <p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Check-up do agendamento</p>
                 <h3 className="mt-1 text-xl font-black text-hpsr-text">{selectedAppointment.patient}</h3>
-                <p className="mt-1 text-sm font-semibold text-hpsr-muted">Passaporte {selectedAppointment.passport} · {selectedAppointment.specialty}</p>
+                <p className="mt-1 text-sm font-semibold text-hpsr-muted">Passaporte {selectedAppointment.passport} · {specialtyLabel(selectedAppointment.specialty)}</p>
               </div>
               <button type="button" onClick={() => setSelectedAppointment(null)} className="rounded-[12px] border border-hpsr-border bg-white p-2.5 text-hpsr-wine"><X size={18}/></button>
             </div>
@@ -976,7 +978,7 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-base font-black text-hpsr-text">{item.patient}</h3>
               <StatusBadge status={alreadyScheduled ? item.status : "Aceita"} />
-              <span className="rounded-full border border-hpsr-border bg-[#fffaf5] px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-hpsr-wine">{item.specialty}</span>
+              <span className="rounded-full border border-hpsr-border bg-[#fffaf5] px-2.5 py-1 text-[9px] font-black uppercase tracking-[.1em] text-hpsr-wine">{specialtyLabel(item.specialty)}</span>
               <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[9px] font-black text-hpsr-muted">{isExam ? "Exame" : "Consulta"}</span>
             </div>
             <p className="mt-2 text-xs font-semibold text-hpsr-muted">
@@ -1033,7 +1035,7 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
             <div className="flex items-center justify-between gap-3 border-b border-hpsr-border bg-[linear-gradient(135deg,#f9ece6_0%,#fff9f4_100%)] px-5 py-4">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Especialidade</p>
-                <h4 className="mt-0.5 text-sm font-black text-hpsr-text">{specialty}</h4>
+                <h4 className="mt-0.5 text-sm font-black text-hpsr-text">{specialtyLabel(specialty)}</h4>
               </div>
               <span className="rounded-full bg-hpsr-wine px-2.5 py-1 text-[10px] font-black text-white">{items.length}</span>
             </div>
@@ -1052,7 +1054,7 @@ function MyAcceptedRequestsTab({ requests }: { requests: PublicAppointmentReques
             <div className="flex items-center justify-between gap-3 border-b border-[#d7bda5] bg-[linear-gradient(135deg,#ebd8c5_0%,#f2e5d8_100%)] px-5 py-4">
               <div>
                 <p className="text-[9px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Especialidade</p>
-                <h4 className="mt-0.5 text-sm font-black text-hpsr-text">{specialty}</h4>
+                <h4 className="mt-0.5 text-sm font-black text-hpsr-text">{specialtyLabel(specialty)}</h4>
               </div>
               <span className="rounded-full border border-hpsr-border bg-white px-2.5 py-1 text-[10px] font-black text-hpsr-wine">{items.length}</span>
             </div>
@@ -1163,7 +1165,7 @@ function RequestTypeSection({
         {grouped.map(({ specialty, items }) => (
           <div key={normalizeSpecialty(specialty)} className="overflow-hidden rounded-[16px] border border-[#d9bfaa] bg-[#f5ebe0]">
             <div className="flex items-center justify-between gap-2 border-b border-hpsr-border bg-[#fff9f5] px-4 py-2.5">
-              <h5 className="text-sm font-black text-hpsr-text">{specialty}</h5>
+              <h5 className="text-sm font-black text-hpsr-text">{specialtyLabel(specialty)}</h5>
               <span className="text-xs font-bold text-hpsr-muted">{items.length}</span>
             </div>
             <div className="grid gap-3 p-3">{items.map((item) => (
@@ -1207,7 +1209,7 @@ function ClinicalRequestCard({
               </span>
             </div>
             <h5 className="mt-2 text-base font-black text-hpsr-text">{item.patient}</h5>
-            <p className="mt-1 text-xs font-semibold text-hpsr-muted">Passaporte {item.passport} · {item.specialty || "Sem especialidade"}</p>
+            <p className="mt-1 text-xs font-semibold text-hpsr-muted">Passaporte {item.passport} · {specialtyLabel(item.specialty || "Sem especialidade")}</p>
           </div>
           {created && <span className="shrink-0 text-[11px] font-bold text-hpsr-muted">
             {new Date(created).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}

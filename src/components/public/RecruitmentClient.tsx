@@ -817,9 +817,9 @@ function ConsultApplicationModal({ open, onClose }: { open: boolean; onClose: ()
                       : result.status === "Sem resposta"
                         ? "A equipe tentou contato pelo Discord, mas ainda não recebeu retorno."
                         : result.triageDecision === "Aprovado" || ["Aprovado", "entrevista"].includes(result.status)
-                          ? "Você foi aprovado na triagem. Um médico entrará em contato pelo Discord para marcar a entrevista."
+                          ? "Sua candidatura foi aprovada. A equipe entrará em contato pelo Discord."
                           : "Sua candidatura permanece em análise pela equipe administrativa."}
-                {result.interviewAt && <p className="mt-2">Entrevista agendada: {new Date(result.interviewAt).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}</p>}
+
               </div>
             </div>
           )}

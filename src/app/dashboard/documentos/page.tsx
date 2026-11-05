@@ -1,4 +1,6 @@
 "use client";
+
+import { specialtyLabel } from "@/lib/specialty-label";
 import { persistClinicalImages, clinicalSaveError } from "@/lib/clinical-image-assets";
 import { normalizeClinicalPasteHtml } from "@/lib/clinical-paste";
 import { clinicalEditorGuideTops } from "@/lib/clinical-editor-guides";
@@ -1381,7 +1383,7 @@ export default function DocumentsPage() {
                       </SelectInput>
                       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-semibold text-hpsr-muted">
                         <span className="font-black text-hpsr-text">{doctor.name || "Médico não selecionado"}</span>
-                        <span>{doctor.specialty || "Especialidade não informada"}</span>
+                        <span>{specialtyLabel(doctor.specialty || "Especialidade não informada")}</span>
                         <span>CRM {doctor.crm || "-"}</span>
                       </div>
                     </div>

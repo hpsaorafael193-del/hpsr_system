@@ -1,5 +1,7 @@
 "use client";
 
+import { specialtyLabel } from "@/lib/specialty-label";
+
 import { useEffect, useMemo, useState } from "react";
 import { Stethoscope, Loader2, Save } from "lucide-react";
 import styles from "./ClinicalCapacitySettings.module.css";
@@ -68,7 +70,7 @@ export function ClinicalCapacitySettings() {
           const used = Number(snapshot?.used || 0);
           const available = Math.max(configuredLimit - used, 0);
           return <label key={specialty} className={styles.card}>
-            <span className="flex items-center gap-2 text-sm font-black text-hpsr-text"><span className={styles.icon}><Stethoscope size={19}/></span>{specialty}</span>
+            <span className="flex items-center gap-2 text-sm font-black text-hpsr-text"><span className={styles.icon}><Stethoscope size={19}/></span>{specialtyLabel(specialty)}</span>
             <span className={styles.inputRow}><input type="number" min="0" max="99" value={values[specialty] ?? 5} onChange={(event) => setValues((current) => ({ ...current, [specialty]: Number(event.target.value) }))} className={styles.input}/><span className="text-xs font-semibold text-hpsr-muted">limite de pacientes vinculados</span></span>
             <span className={`mt-2 block text-xs font-black ${available > 0 ? "text-emerald-700" : "text-rose-700"}`}>{used}/{configuredLimit} · {available > 0 ? `${available} vaga${available === 1 ? "" : "s"}` : "Sem vagas"}</span>
           </label>;

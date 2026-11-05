@@ -1,0 +1,20 @@
+const fs=require('fs'),vm=require('vm'),ts=require('typescript'),assert=require('node:assert/strict');
+const React=require('react'),{act}=React,{createRoot}=require('react-dom/client'),{JSDOM}=require('jsdom');
+const dom=new JSDOM('<div id="root"></div>');global.window=dom.window;global.document=dom.window.document;global.IS_REACT_ACT_ENVIRONMENT=true;
+function compile(code,ctx={}){const m={exports:{}};vm.runInNewContext(ts.transpileModule(code,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.React}}).outputText,{module:m,exports:m.exports,React,...ctx});return m.exports;}
+const {specialtyLabel}=compile(fs.readFileSync('src/lib/specialty-label.ts','utf8'));
+for(const [raw,label] of [['Psicóloga','Psicologia'],['Psicólogo','Psicologia'],['Pediatra','Pediatria'],['Obstetra','Obstetrícia'],['Psiquiatra','Psiquiatria'],['Cirurgião','Cirurgia'],['Nutricionista','Nutrição'],['Clínico Geral','Clínica Geral']])assert.equal(specialtyLabel(raw),label);
+assert.equal(specialtyLabel('Clínico Geral, Psicóloga'),'Clínica Geral, Psicologia');assert.equal(specialtyLabel('Médico Cirurgião'),'Médico Cirurgião');assert.equal(specialtyLabel('Área personalizada'),'Área personalizada');
+const raw=fs.readFileSync('src/app/dashboard/direcao/page.tsx','utf8');const ast=ts.createSourceFile('page.tsx',raw,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);
+const wanted=['ApplicationAnalysisModal','ApplicationCard','Info','LongInfo','QuizAnswerCard','PendingStep','EditableApplicationField','EditableApplicationArea'];
+const code=ast.statements.filter(n=>ts.isFunctionDeclaration(n)&&wanted.includes(n.name?.text)).map(n=>n.getText(ast)).join('\n')+'\nexports.Modal=ApplicationAnalysisModal;';
+const icon=()=>null;const {Modal}=compile(code,{useState:React.useState,brazilIso:()=> '2026-11-05T12:00:00Z',formatDateTime:x=>x,specialtyLabel,StatusBadge:({status})=>React.createElement('span',null,status),X:icon,CheckCircle2:icon,Trash2:icon});
+const item={id:'test',protocol:'TEST',name:'Candidata teste',status:'Pendente',triageDecision:'Pendente',desiredRole:'Médico Clínico',interestArea:'Psicóloga',passport:'TEST',discord:'discord-teste',availability:'À noite',experience:'Experiência de teste',motivation:'Motivação de teste',quizAnswers:[{question:'Situação de teste',answer:'Resposta preservada',correct:true}],interviewAt:'2026-11-10T18:00',interviewStatus:'Agendada',interviewResult:'Pendente',interviewNotes:'Histórico preservado'};
+(async()=>{let saved;const root=createRoot(document.getElementById('root'));await act(async()=>root.render(React.createElement(Modal,{item,onClose:()=>{},onSave:x=>saved=x,onDelete:()=>{}})));
+assert(document.body.textContent.includes('Resposta preservada'));assert(document.body.textContent.includes('Psicologia'));assert(!document.body.textContent.includes('Resumo atual'));assert(!document.body.textContent.includes('Salvar entrevista'));assert(!document.querySelector('input[type="datetime-local"]'));
+await act(async()=>[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Aprovar').click());assert.equal(saved.status,'Aprovado');assert.equal(saved.interviewAt,item.interviewAt);assert.equal(saved.interviewNotes,item.interviewNotes);
+await act(async()=>[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Reprovar').click());assert.equal(saved.status,'Recusado');assert.equal(saved.interviewStatus,item.interviewStatus);assert.equal(saved.interviewResult,item.interviewResult);
+await act(async()=>root.unmount());dom.window.close();
+const pediatric=fs.readFileSync('src/components/pediatrics/PediatricWorkspace.tsx','utf8');assert(pediatric.includes('Intervalo entre consultas'));assert(!pediatric.includes('Periodicidade combinada'));
+const old=require('node:zlib');void old;
+console.log('PASS specialty display aliases, raw role preservation; real application modal approval/rejection, complete questionnaire, no summary/scheduling, legacy interview data preserved; simple pediatric interval label');})().catch(e=>{console.error(e);process.exit(1)});

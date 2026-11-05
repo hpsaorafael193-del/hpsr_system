@@ -1,4 +1,6 @@
 "use client";
+
+import { specialtyLabel } from "@/lib/specialty-label";
 import {useManualRefresh} from "@/lib/manual-data-refresh";
 
 import Link from "next/link";
@@ -618,14 +620,14 @@ export default function MyPatientsPage() {
             <div className="min-w-0">
               <StyledSelect className={fieldClass} value={mineSpecialtyFilter} onChange={(event) => setMineSpecialtyFilter(event.target.value)} searchable>
                 <option value="">Todas as especialidades</option>
-                {mySpecialties.map((specialty) => <option key={specialty} value={specialty}>{specialty}</option>)}
+                {mySpecialties.map((specialty) => <option key={specialty} value={specialty}>{specialtyLabel(specialty)}</option>)}
               </StyledSelect>
             </div>
           )}
 
           {view !== "mine" && isAdmin && <>
             <StyledSelect className={fieldClass} value={adminDoctorFilter} onChange={(event) => setAdminDoctorFilter(event.target.value)} searchable><option value="">Todos os médicos</option>{doctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name}</option>)}</StyledSelect>
-            <StyledSelect className={fieldClass} value={adminSpecialtyFilter} onChange={(event) => setAdminSpecialtyFilter(event.target.value)} searchable><option value="">Todas as especialidades</option>{allAdminSpecialties.map((specialty) => <option key={specialty} value={specialty}>{specialty}</option>)}</StyledSelect>
+            <StyledSelect className={fieldClass} value={adminSpecialtyFilter} onChange={(event) => setAdminSpecialtyFilter(event.target.value)} searchable><option value="">Todas as especialidades</option>{allAdminSpecialties.map((specialty) => <option key={specialty} value={specialty}>{specialtyLabel(specialty)}</option>)}</StyledSelect>
             <button type="button" onClick={clearAdminFilters} disabled={!hasAdminFilters} className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-[12px] border border-[#c6a58f] bg-[#e7d5c7] px-3 text-xs font-black text-[#78503f] transition hover:bg-[#dfc9b9] disabled:opacity-40"><RotateCcw size={14}/> Limpar</button>
           </>}
         </div>
@@ -641,7 +643,7 @@ export default function MyPatientsPage() {
               const collapsed=collapsedSpecialties.has(key);
               return <section key={key} className="overflow-hidden rounded-[16px] border border-[#c9a991] bg-[#e6d5c7]">
                 <button type="button" onClick={() => toggleSpecialty(key)} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-[#dec8b8] sm:px-5">
-                  <div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[#ead9cd] text-[#6a281b]"><Stethoscope size={17}/></span><div className="min-w-0"><p className="truncate text-sm font-black text-[#3f2119]">{group.specialty}</p><p className="mt-0.5 text-[11px] font-semibold text-[#7d6456]">{group.rows.length} paciente{group.rows.length === 1 ? "" : "s"} vinculado{group.rows.length === 1 ? "" : "s"}</p></div></div>
+                  <div className="flex min-w-0 items-center gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[#ead9cd] text-[#6a281b]"><Stethoscope size={17}/></span><div className="min-w-0"><p className="truncate text-sm font-black text-[#3f2119]">{specialtyLabel(group.specialty)}</p><p className="mt-0.5 text-[11px] font-semibold text-[#7d6456]">{group.rows.length} paciente{group.rows.length === 1 ? "" : "s"} vinculado{group.rows.length === 1 ? "" : "s"}</p></div></div>
                   {collapsed ? <ChevronDown size={16} className="text-[#6d3b2c]"/> : <ChevronUp size={16} className="text-[#6d3b2c]"/>}
                 </button>
                 {!collapsed && <div className="border-t border-[#c7a78f]">{group.rows.map((row) => <PatientLinkCard key={row.id} row={row} patient={patientByPassport.get(row.patient_passport)} doctor={doctorById.get(row.doctor_id)} expanded={expanded.has(row.id)} onToggle={() => toggleExpanded(row.id)} onEdit={() => openEdit(row)} onEnd={() => openEnd(row)} showDoctor={false} intakeStatus={intakeStatus}/>)}</div>}
@@ -663,7 +665,7 @@ export default function MyPatientsPage() {
               {!doctorCollapsed && <div className="space-y-2.5 border-t border-[#c7a78f] p-2.5">{doctorGroup.specialties.map((group) => {
                 const specialtyKey=`${doctorKey}:${group.specialty}`;
                 const specialtyCollapsed=collapsedSpecialties.has(specialtyKey);
-                return <section key={specialtyKey} className="overflow-hidden rounded-[14px] border border-[#c9ad99] bg-[#e9d9cc]"><button type="button" onClick={() => toggleSpecialty(specialtyKey)} className="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left hover:bg-[#dfcabb]"><div className="flex items-center gap-2.5"><Stethoscope size={14} className="text-[#6b2a1c]"/><span className="text-xs font-black text-[#3f2119]">{group.specialty}</span><span className="rounded-full bg-[#d9c0ae] px-2 py-0.5 text-[9px] font-black text-[#684333]">{group.rows.length}</span></div>{specialtyCollapsed ? <ChevronDown size={14}/> : <ChevronUp size={14}/>}</button>{!specialtyCollapsed && <div className="border-t border-[#c9ad99]">{group.rows.map((row) => <PatientLinkCard key={row.id} row={row} patient={patientByPassport.get(row.patient_passport)} doctor={doctorGroup.doctor} expanded={expanded.has(row.id)} onToggle={() => toggleExpanded(row.id)} onEdit={() => openEdit(row)} onEnd={() => openEnd(row)} showDoctor={false} intakeStatus={intakeStatus}/>)}</div>}</section>;
+                return <section key={specialtyKey} className="overflow-hidden rounded-[14px] border border-[#c9ad99] bg-[#e9d9cc]"><button type="button" onClick={() => toggleSpecialty(specialtyKey)} className="flex w-full items-center justify-between gap-3 px-3.5 py-2.5 text-left hover:bg-[#dfcabb]"><div className="flex items-center gap-2.5"><Stethoscope size={14} className="text-[#6b2a1c]"/><span className="text-xs font-black text-[#3f2119]">{specialtyLabel(group.specialty)}</span><span className="rounded-full bg-[#d9c0ae] px-2 py-0.5 text-[9px] font-black text-[#684333]">{group.rows.length}</span></div>{specialtyCollapsed ? <ChevronDown size={14}/> : <ChevronUp size={14}/>}</button>{!specialtyCollapsed && <div className="border-t border-[#c9ad99]">{group.rows.map((row) => <PatientLinkCard key={row.id} row={row} patient={patientByPassport.get(row.patient_passport)} doctor={doctorGroup.doctor} expanded={expanded.has(row.id)} onToggle={() => toggleExpanded(row.id)} onEdit={() => openEdit(row)} onEnd={() => openEnd(row)} showDoctor={false} intakeStatus={intakeStatus}/>)}</div>}</section>;
               })}</div>}
             </section>;
           })}</div> : <EmptyState title="Nenhum vínculo encontrado" text="Ajuste os filtros ou a busca para localizar outros vínculos."/>
@@ -808,7 +810,7 @@ function HistoryLinkCard({ row, patient, doctor }: { row: HistoryRow; patient?: 
           <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold text-hpsr-muted">
             <span className="inline-flex items-center gap-1"><IdCard size={11} /> {row.patient_passport}</span>
             <span>{doctor?.name || "Médico não localizado"}</span>
-            <span className="text-hpsr-wine">{row.specialty}</span>
+            <span className="text-hpsr-wine">{specialtyLabel(row.specialty)}</span>
           </div>
         </div>
         <div className="grid gap-2 sm:grid-cols-3 xl:min-w-[520px]">
@@ -875,7 +877,7 @@ function EndLinkModal({
             <div className="min-w-0">
               <p className="text-[10px] font-black uppercase tracking-[0.12em] text-hpsr-muted">Encerramento de vínculo</p>
               <h2 className="mt-0.5 truncate text-lg font-black text-hpsr-text">{patient?.name || `Paciente ${state.row.patient_passport}`}</h2>
-              <p className="mt-1 text-sm font-medium text-hpsr-muted">{doctor?.name || "Médico"} · {state.row.specialty}</p>
+              <p className="mt-1 text-sm font-medium text-hpsr-muted">{doctor?.name || "Médico"} · {specialtyLabel(state.row.specialty)}</p>
             </div>
           </div>
           <button type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-hpsr-border bg-[#eadacd] text-hpsr-muted"><X size={17}/></button>
@@ -977,7 +979,7 @@ function LinkModal({
               <label className={labelClass}>Especialidade</label>
               <StyledSelect className={fieldClass} value={form.specialty} onChange={(event) => setForm({ ...form, specialty: event.target.value })} searchable>
                 <option value="">Selecione a especialidade</option>
-                {specialties.map((specialty) => <option key={specialty} value={specialty}>{specialty}</option>)}
+                {specialties.map((specialty) => <option key={specialty} value={specialty}>{specialtyLabel(specialty)}</option>)}
               </StyledSelect>
             </div>
           </div>

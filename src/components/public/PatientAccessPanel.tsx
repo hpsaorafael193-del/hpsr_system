@@ -1,4 +1,6 @@
 "use client";
+
+import { specialtyLabel } from "@/lib/specialty-label";
 import {ManualRefreshButton,useManualRefresh} from "@/lib/manual-data-refresh";
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
@@ -567,7 +569,7 @@ export function PatientAccessPanel() {
                         </div>
                         {nextAppointment && nextAppointmentDate && nextAppointmentValid ? <div className="mt-5 flex flex-col gap-5 border-t border-[#ddcfc2] pt-5 sm:flex-row sm:items-center">
                           <div className="min-w-[88px] border-b border-[#ddcfc2] pb-4 sm:border-b-0 sm:border-r sm:pb-0 sm:pr-5"><strong className="block text-4xl leading-none text-[#4e291c]">{nextAppointmentDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit" })}</strong><span className="mt-1 block text-sm font-black uppercase text-[#6d4435]">{nextAppointmentDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", month: "short" }).replace(".", "")}</span></div>
-                          <div className="min-w-0 flex-1"><p className="text-lg font-bold text-[#4e291c]">{nextAppointment.doctorName}</p><p className="mt-1 text-sm text-[#82736a]">{nextAppointment.specialty}</p><p className="mt-2 text-xs font-semibold text-[#672614]">{nextAppointmentDate.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", hour: "2-digit", minute: "2-digit" })}</p></div>
+                          <div className="min-w-0 flex-1"><p className="text-lg font-bold text-[#4e291c]">{nextAppointment.doctorName}</p><p className="mt-1 text-sm text-[#82736a]">{specialtyLabel(nextAppointment.specialty)}</p><p className="mt-2 text-xs font-semibold text-[#672614]">{nextAppointmentDate.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", weekday: "long", hour: "2-digit", minute: "2-digit" })}</p></div>
                           <button type="button" onClick={() => openPortalSection("appointments")} className="inline-flex min-h-[42px] items-center justify-center gap-2 rounded-[8px] border border-[#672614] px-4 text-xs font-black text-[#672614]">Ver detalhes <ArrowRight size={15}/></button>
                         </div> : <div className="mt-5 flex items-center justify-between gap-4 border-t border-[#ddcfc2] pt-5"><p className="text-sm text-[#82736a]">Quando uma consulta for confirmada, ela aparece aqui.</p><button type="button" onClick={() => openPortalSection("consultations")} className="text-xs font-black text-[#672614] underline underline-offset-4">Ver consultas</button></div>}
                       </section>

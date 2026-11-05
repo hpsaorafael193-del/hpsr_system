@@ -1,0 +1,427 @@
+{
+  "base": "1.1.16-test.188",
+  "active_files": [
+    "public/calculadora/Icones/hpsr/cirurgia.png",
+    "public/calculadora/Icones/hpsr/consulta-especialista.png",
+    "public/calculadora/Icones/hpsr/consulta-psicologica.png",
+    "public/calculadora/Icones/hpsr/deslocamento-ilha.png",
+    "public/calculadora/Icones/hpsr/deslocamento.png",
+    "public/calculadora/Icones/hpsr/exames.png",
+    "public/calculadora/Icones/hpsr/gesso.png",
+    "public/calculadora/Icones/hpsr/internacao.png",
+    "public/calculadora/Icones/hpsr/raio-x.png",
+    "public/calculadora/Icones/hpsr/ressonancia.png",
+    "public/calculadora/Icones/hpsr/tratamento.png",
+    "public/calculadora/Icones/produtos/Adrenalina.png",
+    "public/calculadora/Icones/produtos/Analgesico.png",
+    "public/calculadora/Icones/produtos/Atadura.png",
+    "public/calculadora/Icones/produtos/Bandagem.png",
+    "public/calculadora/Icones/produtos/Kit medico.png",
+    "public/calculadora/Icones/produtos/Remedios.webp",
+    "public/calculadora/Icones/produtos/Ritmoneary.png",
+    "public/calculadora/Icones/produtos/Sinkalmy.png"
+  ],
+  "removed": [
+    {
+      "path": "public/calculadora/Icones/farmacia/Alergicor.png",
+      "bytes": 131540,
+      "sha256": "3e58d84862c2ff24417385884e113537f67967754df583d18949a1bb8f0afa2f"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Alergix.png",
+      "bytes": 146759,
+      "sha256": "55c54551bd22f8ac1d61d4caa4887910bbe95ffb1edb0dc9e60dc67347d299d0"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Analgex.png",
+      "bytes": 115000,
+      "sha256": "9dc1ab9eb91e69dd43e73d6ef87feb4f7adcc4e6744344a0bd3e58b07b223bf8"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Bacteron.png",
+      "bytes": 78014,
+      "sha256": "f10edeeb710f3ccf2c437ea5743c46b652949e45ebec57ae670b18703f931f20"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Bactrimed.png",
+      "bytes": 73460,
+      "sha256": "419a6d60ba11b214ef0283bb48c75ac85a9736dfff254c797d738a0f10b35f98"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/CalciFort.png",
+      "bytes": 249234,
+      "sha256": "3f31cb54d1bface8f3e5eb73a35eaaa4db145020a55b23716f5ef441c714e537"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/CalciFort.webp",
+      "bytes": 200000,
+      "sha256": "7fac0c7a1841d4f783ee255f602aa354d534a7f600661b06e2dc55d3670aeaa8"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Calmivita.png",
+      "bytes": 103251,
+      "sha256": "4d249892e8a3e56f715976ee61c21b75c8864548dd912e7e0ce436dd7ab44c19"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Cefaliv.png",
+      "bytes": 144524,
+      "sha256": "441eedd7cada55a556cb9a2a011512fae2c93c12fc2b34c967734e3cc3999227"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/ColicaCalm.png",
+      "bytes": 166312,
+      "sha256": "b8794bc4b725f054013d2a00f10f21674697f083ef5e7839ac7ccd00f99c7909"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/DorMax.png",
+      "bytes": 157103,
+      "sha256": "33c4aabdfb4ab7cd9a59184d3e6aa8dfdfd4eb5f51e4e425b24b2a998464463d"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/FertiPlus.png",
+      "bytes": 101043,
+      "sha256": "4086a7de8ad5e22e7f63ae2d8211e99aa4f9c7d76285a9e376db43eb4f870ba8"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Gasiliv.png",
+      "bytes": 189153,
+      "sha256": "6b3d0cedd18c85d21b1058f17f4b8a9173b97ce7ec0d99658a55728dbf74334b"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Gastrix.png",
+      "bytes": 91559,
+      "sha256": "3a6c28ebcbb5076ddcebba746552700c7dbc162b1d6f0c3570a37bdfcffb4e9f"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/GestaVida.png",
+      "bytes": 152615,
+      "sha256": "e4e00ab7303b55e655b4f1a1eb80f275712046dc64103034d0e1591dd5f2b738"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/GlicoVida.png",
+      "bytes": 99330,
+      "sha256": "3319ee44ec97778f457e17701fee7275e0d34e8372141bda36316665cd6ee030"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Gripex.png",
+      "bytes": 196307,
+      "sha256": "7344e7dee9f81ef2079492afa42781a4050d378a92ee94588ce4a941f371e7ec"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/HepaVida.png",
+      "bytes": 53535,
+      "sha256": "bc40255565e590d8ec04c936f33cdb5c0348d83d9b2f22ab350d9cd26457a4f4"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Inflamax.png",
+      "bytes": 82562,
+      "sha256": "0dc3cd1f6ec55afd0148394898687344f39e007b52c88105199e0a5ef2be6648"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Inflamol.png",
+      "bytes": 75949,
+      "sha256": "28477271212f6bb1285f52b8648f84227a1e4905bc748a1e1a99f4b5544d29c9"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/MaterPlus.png",
+      "bytes": 187423,
+      "sha256": "b7c528533ee7a2e5593d1799bcecff98473bc197c9d66eca7ffeaa4c0cb9a850"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Musculiv.png",
+      "bytes": 192605,
+      "sha256": "da1bd87c082aea30ce9ce68798bd8643f6592d69bbb3fdfea4ef1b35c9eed4c7"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/NauseaZero.png",
+      "bytes": 197397,
+      "sha256": "a42faddc6d135a54f70dc4e8b76bcd8fc693dbdbef041e29f241ee4518578a97"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/OrgaBloq.png",
+      "bytes": 174979,
+      "sha256": "f5702f050efd5640e6337772b3d995ca935b14af66d443747f2314d58555906d"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Parador.png",
+      "bytes": 186125,
+      "sha256": "68d6150182569b9959a48ffd9aaed1cc6489917cbdec763b8de62f3ebf71cd2b"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Respimax.png",
+      "bytes": 104062,
+      "sha256": "c1f0f3424d5a393bfdcf34458d6bc06aa8540d3403085351f68e5770470a2a49"
+    },
+    {
+      "path": "public/calculadora/Icones/farmacia/Ressak.png",
+      "bytes": 161266,
+      "sha256": "1d2490e2e88e86925ecaca88e70d3aecc891de6555893b13e7c149d77b6b1d8d"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Consultas.png",
+      "bytes": 186162,
+      "sha256": "115ccd97966ddc9c791ace301948de64a14e5547504ff0fc41da73c3a640decb"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Exames_basicos.png",
+      "bytes": 271197,
+      "sha256": "083ab01cb856c295dcf3972e4134ec48f99a4a09172cc3b7ff8a99f57fe6b175"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Exames_basicos.webp",
+      "bytes": 203230,
+      "sha256": "366a36205f1848143c3cf5173d268a1f12ce8c060927953046ffef9628617f9b"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Exames_imagem.png",
+      "bytes": 256760,
+      "sha256": "af1e2834e21aa4397bae2021b62a99392c921f1fff3577ed87890ab2aa908954"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Exames_imagem.webp",
+      "bytes": 186852,
+      "sha256": "75e81bbc145ca89958457ea82cf65facea353d3f203292ed401bfbe0eedc19d0"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Fiv.png",
+      "bytes": 192059,
+      "sha256": "de08261906f3f7a5623a584ea6af15263237afffb713e35aeba2682ff3aef7ee"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Gesso.png",
+      "bytes": 330757,
+      "sha256": "b45bd6dccc95a5b988eddcaa39694f59484d8a136c99a3f829b83292b0356658"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Gesso.webp",
+      "bytes": 223276,
+      "sha256": "90afbf7c73d8af54a3b88273912cdcd75c61b7fd19e492b69686e7fddbd5dc19"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Partos.png",
+      "bytes": 259281,
+      "sha256": "49aa0a6018dbe118485d44124d2b961a5cbbbae29eced2adacee09f94c7f2dd3"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Partos.webp",
+      "bytes": 169226,
+      "sha256": "41982a21f517878913b6ddeefea50fc348f9c89392f7bb96c6f257146112d411"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Partos_H.png",
+      "bytes": 316737,
+      "sha256": "b63194656628fec3ff4f2f41c0c31c813a3a724a65db5172eef446e566765538"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Partos_H.webp",
+      "bytes": 201206,
+      "sha256": "382721c82374f98e454fb69f3f5c01c4e2de6e014c0bb0ac479b037e3dd5e012"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Procedimentos.png",
+      "bytes": 251841,
+      "sha256": "c559ad99d53a0f8844b1daacc3243b13c7528b8753c8ebbf039d5d901299a3f2"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Procedimentos.webp",
+      "bytes": 169766,
+      "sha256": "baa3319ea0e6a93928bba8770129494fd4c118841bf87860b00c0c56f8ca342a"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Tratamento.png",
+      "bytes": 262119,
+      "sha256": "9c2dec4df4afb7228b8b7a1246f56dedbc2ffbdf9790d2d06fd2a3c802b278b1"
+    },
+    {
+      "path": "public/calculadora/Icones/procedimentos/Tratamento.webp",
+      "bytes": 192238,
+      "sha256": "dde3f912b5acd6bd408e1a0e8c6f3e290f07d61cddff54d4b27b444c9d322b31"
+    },
+    {
+      "path": "public/calculadora/Icones/produtos/Bandagem.webp",
+      "bytes": 881832,
+      "sha256": "5a7f649bf5fd4b2524bd841d4e98dd12d0bed5464593432518f5d1b304213b10"
+    },
+    {
+      "path": "public/calculadora/Icones/produtos/Kit medico.webp",
+      "bytes": 189638,
+      "sha256": "a377e42ef82736600d00fa8fd4f1bdd97729905333f48f4ff5f9dff1f0752226"
+    },
+    {
+      "path": "public/calculadora/Icones/produtos/Remedios.png",
+      "bytes": 1986309,
+      "sha256": "53bba9301be9e64bfcfe1fed97957ec6a83810698129e68a93b161f04fcb8ed6"
+    },
+    {
+      "path": "public/calculadora/Icones/produtos/UrsinhosHP.png",
+      "bytes": 1576738,
+      "sha256": "ecbec526be7c0af6b046bee9c24a10c1aad3f5f4207ef9679d9d1cb49ddc9e1a"
+    },
+    {
+      "path": "public/calculadora/Icones/produtos/UrsinhosHP.webp",
+      "bytes": 1119856,
+      "sha256": "ae6c5f564c394eb57bef010288da3838b4c923f73c1b7b9026bc86104b8f54b4"
+    },
+    {
+      "path": "public/calculadora/Icones/ursos/CapZinha.png",
+      "bytes": 150650,
+      "sha256": "9bc844e1936af0f32b223c5e7bd8352249602048bfd761a9917666b2ee0112a0"
+    },
+    {
+      "path": "public/calculadora/Icones/ursos/CatZinha.png",
+      "bytes": 189975,
+      "sha256": "e488d7031664912b2801cfd99475ff9a5c0345d02a9626d02c5b36f70daf9536"
+    },
+    {
+      "path": "public/calculadora/Icones/ursos/PanDinho.png",
+      "bytes": 209750,
+      "sha256": "e06cf07317f9c2b27d9774f266de21313a194bc6c5de41bef280d5b56c2c1e41"
+    },
+    {
+      "path": "public/calculadora/Icones/ursos/PanDinho.webp",
+      "bytes": 152454,
+      "sha256": "d873e1bc578b2b10ae829e94165b2be8f8f4f358337e7c90cbcdbe550344ec60"
+    }
+  ],
+  "kept": [
+    {
+      "path": "public/calculadora/Icones/hpsr/cirurgia.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/hpsr/consulta-especialista.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/hpsr/consulta-psicologica.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/hpsr/deslocamento-ilha.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/hpsr/deslocamento.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/hpsr/exames.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/hpsr/gesso.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/hpsr/internacao.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/hpsr/raio-x.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/hpsr/ressonancia.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/hpsr/tratamento.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/produtos/Adrenalina.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/produtos/Analgesico.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/produtos/Atadura.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/produtos/Bandagem.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/produtos/Kit medico.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/produtos/Remedios.webp",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/produtos/Ritmoneary.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    },
+    {
+      "path": "public/calculadora/Icones/produtos/Sinkalmy.png",
+      "refs": [
+        "src/app/dashboard/calculadora/page.tsx"
+      ]
+    }
+  ],
+  "runtime_icon_users": [
+    "src/app/dashboard/calculadora/page.tsx"
+  ],
+  "receipt_items_include_icon_paths": false,
+  "active_sha256": {
+    "public/calculadora/Icones/hpsr/cirurgia.png": "131531712b498b7b21be1045dec1e2cc634a2c9a9c655caa959d5611b16a812f",
+    "public/calculadora/Icones/hpsr/consulta-especialista.png": "c4d84d10716ab41bb8cf6748a751082de5daa4407caf18adf2ee043be1c51579",
+    "public/calculadora/Icones/hpsr/consulta-psicologica.png": "a2bff828eb1c745be7dd650cf48afa37f9540ee3165a5a8cc98f0976636e64a4",
+    "public/calculadora/Icones/hpsr/deslocamento-ilha.png": "7cca3414c9d742a77000ea511e5e024c773b41704d323c81ca0f57b242b43ce2",
+    "public/calculadora/Icones/hpsr/deslocamento.png": "10e1e47918d2e36e1a6052754c887042e4e77f26576a740fc5029a46df7e01ee",
+    "public/calculadora/Icones/hpsr/exames.png": "10a9b0c62b6bc16eaa268b51cb18c4d83d6d12b74c4bf5307daf61cc3de89421",
+    "public/calculadora/Icones/hpsr/gesso.png": "be0e9a051a1a77a80e16c6374cc7c9eeb87186fed886ca7ffe51f0f03dc1a299",
+    "public/calculadora/Icones/hpsr/internacao.png": "99e9748581a8b9b699f554b51a71f8d052a73375c2fbb3cf0e26ea290415c623",
+    "public/calculadora/Icones/hpsr/raio-x.png": "81201e969d1123346b59d40595d3da964675e30e8c92093b7070fe562fad922c",
+    "public/calculadora/Icones/hpsr/ressonancia.png": "2e25c182e84c74e4cab677c807224ffd7199c3aed08a8525c3bc91fd92366fe8",
+    "public/calculadora/Icones/hpsr/tratamento.png": "e5d6419a5ab3595e66333ed26f8e088228ff20ccbda5ce0e5b2c74a4585ae5e8",
+    "public/calculadora/Icones/produtos/Adrenalina.png": "12f980cb1a8828b81118b291736781db670d2e55499c455a1f2c4710a7cf713e",
+    "public/calculadora/Icones/produtos/Analgesico.png": "2eb4688085f435a8f58bf8801764ca1d5882de92b3c52c2a215c4a0bdd45182b",
+    "public/calculadora/Icones/produtos/Atadura.png": "f33dfa084a06a9a45646d3ffc4d9ee5fba44c6c02652fa932288aab8b8afef0b",
+    "public/calculadora/Icones/produtos/Bandagem.png": "d62b0153cc49f19402cc55fe2e13b3e6275820cc9e44b3cf3e598702748029c6",
+    "public/calculadora/Icones/produtos/Kit medico.png": "434e7a7c57e85128ee1e98f2dbf6ebea3f572a75eb9d18fdbdc0f75c14a4368a",
+    "public/calculadora/Icones/produtos/Remedios.webp": "7427586d187a8479d0e87bdd8169b2e58492bfeaee627ef60a7187165b6658b3",
+    "public/calculadora/Icones/produtos/Ritmoneary.png": "459669d0ed7f0332b7b86af31e4f1bf081f8eb67bc8b906298dfba74efe9916a",
+    "public/calculadora/Icones/produtos/Sinkalmy.png": "e98535e3bb7c499960912526d64a84c0caf65b76f482479c7a1f0b7bce4c0090"
+  }
+}
