@@ -1532,7 +1532,7 @@ function ApplicationAnalysisModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-5">
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-4">
             <div className="contents">
               <section className="rounded-[18px] border border-hpsr-border bg-white p-4 shadow-sm md:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3 border-b border-hpsr-border/80 pb-4">
@@ -1603,9 +1603,7 @@ function ApplicationAnalysisModal({
                       Perguntas e respostas registradas exatamente no envio da candidatura.
                     </p>
                   </div>
-                  <span className={`rounded-full px-3 py-1 text-xs font-black ${draft.declarationAccepted ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
-                    {draft.declarationAccepted ? "Declaração aceita" : "Declaração não registrada"}
-                  </span>
+
                 </div>
 
                 <div className="mt-4 grid gap-3">
@@ -1618,6 +1616,12 @@ function ApplicationAnalysisModal({
                       Esta candidatura foi registrada em uma versão anterior e não possui as respostas detalhadas do questionário salvas.
                     </div>
                   )}
+                </div>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-hpsr-border/80 pt-4" aria-label="Aceite das normas">
+                  <p className="text-sm font-bold text-hpsr-text">Aceite das normas</p>
+                  <span className={`rounded-full px-3 py-1 text-xs font-black ${draft.declarationAccepted ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                    {draft.declarationAccepted ? "Normas aceitas" : "Aceite não registrado"}
+                  </span>
                 </div>
               </section>
             </div>
