@@ -49,7 +49,7 @@ type HistoryRow = LinkRow & {
   end_reason: string;
 };
 
-type IntakeFormStatus = { patient_passport: string; form_type: "gestational" | "ivf_ropa"; status: string; requested_at: string };
+type IntakeFormStatus = { patient_passport: string; form_type: "gestational" | "ivf_ropa" | "pediatric"; status: string; requested_at: string };
 
 type Doctor = {
   id: string;
@@ -733,9 +733,9 @@ function PatientLinkCard({
     .map((part) => part[0]?.toUpperCase())
     .join("") || "P";
   const normalizedSpecialty = normalizeSpecialty(row.specialty);
-  const formType = normalizedSpecialty === "ginecologia" ? "ivf_ropa" : normalizedSpecialty === "obstetra" ? "gestational" : null;
+  const formType = normalizedSpecialty === "ginecologia" ? "ivf_ropa" : normalizedSpecialty === "obstetra" ? "gestational" : ["pediatra","pediatria"].includes(normalizedSpecialty) ? "pediatric" : null;
   const form = formType ? intakeStatus.get(`${row.patient_passport}|${formType}`) : undefined;
-  const formStatusLabel = !form ? "Não solicitada" : form.status === "requested" ? "Aguardando paciente" : form.status === "draft" ? "Em preenchimento" : form.status === "submitted" ? "Enviada ao médico" : form.status === "reviewed" ? "Analisada" : "Encerrada";
+  const formStatusLabel = !form ? "Não solicitada" : form.status === "requested" ? (formType === "pediatric" ? "Aguardando responsável" : "Aguardando paciente") : form.status === "draft" ? "Em preenchimento" : form.status === "submitted" ? "Enviada ao médico" : form.status === "reviewed" ? "Analisada" : "Encerrada";
   const formStatusClass = !form ? "bg-[#f2e9e3] text-hpsr-muted" : form.status === "submitted" ? "bg-[#f5dfd7] text-hpsr-wine" : form.status === "reviewed" ? "bg-[#eadfd7] text-[#573126]" : "bg-[#f7eee8] text-hpsr-wine";
 
   return (

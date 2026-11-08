@@ -1,4 +1,5 @@
 "use client";
+import { pediatricIntakeQuestions, type FollowupFormType } from "@/lib/pediatric-intake-form";
 import { formatFollowupBirthType } from "@/lib/followup-birth-options";
 import {useManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh";
 
@@ -8,7 +9,7 @@ import { createClient } from "@/lib/supabase";
 
 type Row = {
   id: string;
-  form_type: "gestational" | "ivf_ropa";
+  form_type: FollowupFormType;
   status: string;
   answers: Record<string, unknown>;
   requested_at: string;
@@ -42,12 +43,14 @@ function formatDateTime(value?: string | null) {
   });
 }
 
-export function FollowupIntakeFormManager({ patientPassport, patientName, doctorId, doctorName, planType }: {
+export function FollowupIntakeFormManager({ patientPassport, patientName, doctorId, doctorName, planType, canManage = true, hasPortalGuardian = true }: {
   patientPassport: string;
   patientName: string;
   doctorId: string;
   doctorName: string;
-  planType: "gestacional" | "in_vitro";
+  planType: "gestacional" | "in_vitro" | "pediatria";
+  canManage?: boolean;
+  hasPortalGuardian?: boolean;
 }) {
   useLocalRefreshControl(Boolean(patientPassport));
   const [rows, setRows] = useState<Row[]>([]);
@@ -56,8 +59,9 @@ export function FollowupIntakeFormManager({ patientPassport, patientName, doctor
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState("");
   const [historyOpen, setHistoryOpen] = useState(false);
-  const formType = planType === "in_vitro" ? "ivf_ropa" : "gestational";
-  const label = formType === "ivf_ropa" ? "Ficha FIV · Método ROPA" : "Ficha de acompanhamento obstétrico";
+  const pediatric = planType === "pediatria";
+  const formType = pediatric ? "pediatric" : planType === "in_vitro" ? "ivf_ropa" : "gestational";
+  const label = pediatric ? "Ficha técnica — Acompanhamento pediátrico" : formType === "ivf_ropa" ? "Ficha FIV · Método ROPA" : "Ficha de acompanhamento obstétrico";
 
   const load = useCallback(async () => {
     if (!patientPassport) return;
@@ -82,19 +86,22 @@ export function FollowupIntakeFormManager({ patientPassport, patientName, doctor
   useEffect(() => { void load(); }, [load]);
 
   const latest = rows[0];
-  const latestMeta = latest ? (statusMeta[latest.status] || statusMeta.cancelled) : null;
+  const getStatus = (status: string) => pediatric && status === "requested"
+    ? { ...statusMeta.requested, label: "Aguardando responsável" } : statusMeta[status] || statusMeta.cancelled;
+  const latestMeta = latest ? getStatus(latest.status) : null;
+  const visible = pediatric ? rows.find(row => row.id === open) : latest?.id === open ? latest : undefined;
   const hasPendingRequest = latest && ["requested", "draft"].includes(latest.status);
-  const primaryLabel = hasPendingRequest ? "Aguardando paciente" : latest ? "Solicitar atualização" : "Solicitar ficha";
+  const primaryLabel = hasPendingRequest ? getStatus(latest.status).label : latest ? "Solicitar atualização" : "Solicitar ficha";
 
   async function requestForm() {
-    if (!patientPassport || !doctorId || hasPendingRequest) return;
+    if (!patientPassport || !doctorId || !canManage || !hasPortalGuardian || hasPendingRequest) return;
     setBusy(true);
     setError("");
     setMessage("");
     try {
       const client = createClient();
       if (!client) throw new Error("Supabase indisponível.");
-      const specialty = formType === "ivf_ropa" ? "Ginecologia" : "Obstetra";
+      const specialty = pediatric ? "Pediatria" : formType === "ivf_ropa" ? "Ginecologia" : "Obstetra";
       const { error: insertError } = await client.from("followup_intake_forms").insert({
         patient_passport: patientPassport,
         doctor_id: doctorId,
@@ -104,8 +111,8 @@ export function FollowupIntakeFormManager({ patientPassport, patientName, doctor
         status: "requested",
         answers: {},
       });
-      if (insertError) throw insertError;
-      setMessage(latest ? "Atualização solicitada. O paciente receberá a nova ficha no Portal." : "Ficha solicitada. O paciente receberá uma notificação no Portal.");
+      if (insertError) throw new Error(insertError.code === "23505" && pediatric ? "Já existe uma ficha pediátrica pendente para esta criança." : insertError.message);
+      setMessage(pediatric ? "Ficha solicitada. O responsável poderá respondê-la pelo portal." : latest ? "Atualização solicitada. O paciente receberá a nova ficha no Portal." : "Ficha solicitada. O paciente receberá uma notificação no Portal.");
       await load();
     } catch (value) {
       setError(value instanceof Error ? value.message : "Não foi possível solicitar a ficha.");
@@ -115,16 +122,18 @@ export function FollowupIntakeFormManager({ patientPassport, patientName, doctor
   }
 
   async function markReviewed(id: string) {
+    if (!canManage) return;
     setBusy(true);
     setError("");
     try {
       const client = createClient();
       if (!client) throw new Error("Supabase indisponível.");
-      const { error: updateError } = await client
+      const { data: updated, error: updateError } = await client
         .from("followup_intake_forms")
         .update({ status: "reviewed", reviewed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-        .eq("id", id);
-      if (updateError) throw updateError;
+        .eq("id", id).eq("status", "submitted").select("id").maybeSingle();
+      if (updateError) throw new Error(updateError.message);
+      if (!updated) throw new Error("A ficha não está disponível para análise. Atualize e tente novamente.");
       await load();
     } catch (value) {
       setError(value instanceof Error ? value.message : "Não foi possível concluir a análise.");
@@ -153,7 +162,7 @@ export function FollowupIntakeFormManager({ patientPassport, patientName, doctor
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            disabled={busy || Boolean(hasPendingRequest)}
+            disabled={busy || !canManage || !hasPortalGuardian || Boolean(hasPendingRequest)}
             onClick={() => void requestForm()}
             className="inline-flex min-h-[36px] items-center justify-center gap-2 rounded-[10px] border border-hpsr-wine bg-hpsr-wine px-3.5 text-[10px] font-black text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -169,6 +178,7 @@ export function FollowupIntakeFormManager({ patientPassport, patientName, doctor
         </div>
       </div>
 
+      {pediatric && !hasPortalGuardian && <p className="mt-3 text-xs text-hpsr-muted">Para solicitar a ficha, a criança precisa ter um responsável autorizado a acessar o portal.</p>}
       <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.35fr)_minmax(165px,.8fr)_minmax(185px,.9fr)_minmax(185px,.9fr)]">
         <div>
           <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Ficha ativa</p>
@@ -201,21 +211,22 @@ export function FollowupIntakeFormManager({ patientPassport, patientName, doctor
           <div className="px-3 py-3 text-[10px] text-hpsr-muted">Nenhuma ficha foi solicitada para este acompanhamento.</div>
         )}
 
-        {latest && open === latest.id && (
+        {visible && (
           <div className="border-t border-[#e4d0c3] bg-white px-3 py-3">
-            {Object.keys(latest.answers || {}).length > 0 ? (
+            {pediatric && visible.id !== latest?.id && <p className="pb-2 text-xs font-semibold text-hpsr-muted">Solicitação de {formatDateTime(visible.requested_at)}</p>}
+            {Object.keys(visible.answers || {}).length > 0 ? (
               <div className="divide-y divide-[#ead9ce]">
-                {Object.entries(latest.answers || {}).filter(([, value]) => Array.isArray(value) ? value.length : String(value ?? "").trim()).map(([key, value]) => (
+                {(pediatric ? pediatricIntakeQuestions.map(({key}) => [key, visible.answers?.[key]] as const) : Object.entries(visible.answers || {})).filter(([, value]) => Array.isArray(value) ? value.length : String(value ?? "").trim()).map(([key, value]) => (
                   <div key={key} className="grid gap-1 py-2.5 sm:grid-cols-[minmax(150px,220px)_1fr] sm:gap-4">
-                    <p className="text-[8px] font-black uppercase tracking-[.08em] text-hpsr-wineLight">{prettyKey(key)}</p>
+                    <p className="text-[8px] font-black uppercase tracking-[.08em] text-hpsr-wineLight">{pediatric ? pediatricIntakeQuestions.find(q => q.key === key)?.label : prettyKey(key)}</p>
                     <p className="break-words text-[11px] font-semibold leading-relaxed text-hpsr-text">{Array.isArray(value) ? value.join(", ") : String(key === "birthType" ? formatFollowupBirthType(value) : value)}</p>
                   </div>
                 ))}
               </div>
-            ) : <p className="text-[10px] text-hpsr-muted">O paciente ainda não enviou respostas para esta ficha.</p>}
-            {latest.status === "submitted" && (
+            ) : <p className="text-[10px] text-hpsr-muted">{pediatric ? "O responsável ainda não enviou respostas para esta ficha." : "O paciente ainda não enviou respostas para esta ficha."}</p>}
+            {canManage && visible.status === "submitted" && (
               <div className="mt-3 flex justify-end border-t border-[#ead9ce] pt-3">
-                <button disabled={busy} onClick={() => void markReviewed(latest.id)} className="inline-flex min-h-[34px] items-center gap-2 rounded-[9px] border border-hpsr-wine bg-white px-3 text-[10px] font-black text-hpsr-wine"><CheckCircle2 size={13} />Marcar como analisada</button>
+                <button disabled={busy} onClick={() => void markReviewed(visible.id)} className="inline-flex min-h-[34px] items-center gap-2 rounded-[9px] border border-hpsr-wine bg-white px-3 text-[10px] font-black text-hpsr-wine"><CheckCircle2 size={13} />Marcar como analisada</button>
               </div>
             )}
           </div>
@@ -227,10 +238,11 @@ export function FollowupIntakeFormManager({ patientPassport, patientName, doctor
           <p className="text-[9px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Histórico de solicitações</p>
           <div className="mt-2 divide-y divide-[#dfc9bb] border-y border-[#dfc9bb]">
             {rows.map((row, index) => {
-              const meta = statusMeta[row.status] || statusMeta.cancelled;
+              const meta = getStatus(row.status);
               return <div key={row.id} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                 <div><p className="text-[10px] font-black text-hpsr-text">{index === 0 ? "Ficha atual" : `Solicitação ${rows.length - index}`}</p><p className="mt-0.5 text-[9px] text-hpsr-muted">Solicitada em {formatDateTime(row.requested_at)}{row.submitted_at ? ` · enviada em ${formatDateTime(row.submitted_at)}` : ""}</p></div>
                 <span className={`inline-flex w-fit min-h-[24px] items-center rounded-full border px-2.5 text-[9px] font-black ${meta.className}`}>{meta.label}</span>
+                {pediatric && index > 0 && <button type="button" aria-expanded={open === row.id} onClick={() => setOpen(open === row.id ? "" : row.id)} className="text-xs font-bold text-hpsr-wine">{open === row.id ? "Fechar ficha" : "Ver ficha"}</button>}
               </div>;
             })}
           </div>

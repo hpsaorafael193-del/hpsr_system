@@ -1,12 +1,13 @@
 'use client';
 import { useCallback,useEffect,useMemo,useRef,useState } from 'react';
+import { FollowupIntakeFormManager } from '@/components/dashboard/FollowupIntakeFormManager';
 import {PediatricDocumentViewer} from './PediatricDocumentViewer';
 import {pediatricSnapshot,type PediatricSnapshot} from '@/lib/pediatric-document';
 import {pediatricNextDate,type PediatricFrequency} from '@/lib/pediatric-planning';
 import { StyledSelect } from '@/components/ui/StyledSelect';
 import { FollowupNavigation } from '@/components/followup/FollowupNavigation';
 import type {FollowupTab} from '@/lib/followup-navigation';
-import { Baby,Stethoscope,Plus,History,RefreshCcw,Syringe,Pencil,List,X,Save,CalendarDays } from 'lucide-react';
+import { Baby,Stethoscope,Plus,History,ClipboardList,RefreshCcw,Syringe,Pencil,List,X,Save,CalendarDays } from 'lucide-react';
 import { useCurrentUserProfile } from '@/components/auth/CurrentUserProfileProvider';
 import { usePatientSelection } from '@/components/patients/PatientSelectionProvider';
 import { VaccinationWorkspace } from '@/components/vaccination/VaccinationWorkspace';
@@ -18,7 +19,7 @@ import { canAccessPediatrics,pediatricVisit,pediatricGuardianReturn,nextPediatri
 import styles from './pediatrics.module.css';
 import {filterPediatricPatients,patientAgeLabel} from '@/lib/patient-age-group';
 
-type Guardian={id:string;child_passport:string;guardian_passport:string;guardian_name:string|null;access_status:string};
+type Guardian={id:string;child_passport:string;guardian_passport:string|null;guardian_user_id:string|null;guardian_name:string|null;portal_access:boolean;access_status:string};
 type PatientLink={doctor_id:string;patient_passport:string;specialty:string};
 const format=(date:string|null|undefined)=>date?date.slice(0,10).split('-').reverse().join('/'):'—';
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -32,6 +33,8 @@ export function PediatricWorkspace({activeTab='pediatria',onNavigate}:{activeTab
  const [draft,setDraft]=useState<PediatricPlan>(blank),[dirty,setDirty]=useState(false),[ready,setReady]=useState(false);
  const [busy,setBusy]=useState(false),[loading,setLoading]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
  const [history,setHistory]=useState(false),[search,setSearch]=useState(''),[view,setView]=useState<'planning'|'vaccination'>('planning');
+ const [intakePassport,setIntakePassport]=useState('');
+ const intakeDialog=useRef<HTMLDialogElement>(null);
  const [editor,setEditor]=useState<PediatricVisit|null>(null),[vaccines,setVaccines]=useState<string[]>([]);
  const [documentReady,setDocumentReady]=useState(false);
  const [quantity,setQuantity]=useState(1),[preview,setPreview]=useState<{snapshot:PediatricSnapshot;visitId?:string;version:string}|null>(null);
@@ -46,13 +49,20 @@ export function PediatricWorkspace({activeTab='pediatria',onNavigate}:{activeTab
  const guardian=guardians.find(g=>g.id===draft.guardian_link_id);
  const guardianLabel=guardian?(guardian.guardian_name||patients.find(p=>p.passport===guardian.guardian_passport)?.name||`Passaporte ${guardian.guardian_passport}`):'Responsável não informado';
  const eligible=useMemo(()=>filterPediatricPatients(patients,'children'),[patients]);
+ const intakeCandidates=eligible.filter(p=>profile.role==='Vice Diretor / Dev'||links.some(l=>l.doctor_id===profile.id&&l.patient_passport===p.passport&&matches(l.specialty)));
+ const intakePatient=intakeCandidates.find(p=>p.passport===intakePassport);
+ const intakeGuardian=Boolean(intakePatient&&guardians.some(g=>g.child_passport===intakePatient.passport&&g.portal_access&&g.guardian_passport!==g.child_passport&&(g.guardian_user_id||g.guardian_passport)));
+ function openIntake(){
+  setIntakePassport(intakeCandidates.some(p=>p.passport===draft.patient_passport)?draft.patient_passport:'');
+  intakeDialog.current?.showModal();
+ }
  const pending=useMemo(()=>pediatricVaccineGuidance(patient?.age||'',vaccines),[patient?.age,vaccines]);
  const load=useCallback(async()=>{
   if(!profile.id||!allowed)return;const c=createClient();if(!c)return;setLoading(true);setError('');
   try{const [p,l,g]=await Promise.all([
    c.from('pediatric_followups').select('*').order('updated_at',{ascending:false}),
    c.from('patient_doctor_links').select('doctor_id,patient_passport,specialty'),
-   c.from('patient_guardian_links').select('id,child_passport,guardian_passport,guardian_name,access_status').eq('access_status','authorized')
+   c.from('patient_guardian_links').select('id,child_passport,guardian_passport,guardian_user_id,guardian_name,portal_access,access_status').eq('access_status','authorized')
   ]);if(p.error||l.error||g.error)throw new Error(p.error?.message||l.error?.message||g.error?.message);setPlans((p.data||[]) as PediatricPlan[]);setLinks(l.data||[]);setGuardians(g.data||[]);}catch(e){setError(e instanceof Error?e.message:'Não foi possível carregar os acompanhamentos.');}finally{setLoading(false);}
  },[profile.id,allowed]);
  useEffect(()=>{void load()},[load]);
@@ -124,7 +134,7 @@ export function PediatricWorkspace({activeTab='pediatria',onNavigate}:{activeTab
   <header className={styles.header}><div className={styles.heading}><div className={styles.badge}><Stethoscope size={28}/></div><div><p className={styles.eyebrow}>Acompanhamento médico</p><h1>{view==='vaccination'?'Vacinação infantil':'Acompanhamento pediátrico'}</h1><p className={styles.muted}>{view==='vaccination'?'Consulte a caderneta e registre as vacinas da criança.':'Organize as consultas e acompanhe o desenvolvimento da criança.'}</p></div></div>{navigation}</header>
   {error&&<p role="alert" className={styles.error}>{error}</p>}{message&&<p role="status" className={styles.notice}>{message}</p>}
   {view==='vaccination'?<><button className={styles.button} onClick={()=>setView('planning')}>Voltar ao acompanhamento</button><VaccinationWorkspace key={draft.patient_passport} mode="childhood"/></>:<div className={styles.columns}>
-   <section className={styles.panel}><div className={styles.sectionHeading}><div><h2>Dados do acompanhamento</h2><p className={styles.muted}>Cadastre e gerencie o acompanhamento pediátrico da criança.</p></div><div className={styles.actions}><button disabled={busy} onClick={()=>void newPlan()} className={styles.primary}><Plus size={15}/>Novo acompanhamento</button><button onClick={()=>setHistory(true)} className={styles.button}><History size={15}/>Histórico</button><button disabled={busy||loading} onClick={()=>void load()} className={styles.button}><RefreshCcw size={15}/>Atualizar</button></div></div>
+   <section className={styles.panel}><div className={styles.sectionHeading}><div><h2>Dados do acompanhamento</h2><p className={styles.muted}>Cadastre e gerencie o acompanhamento pediátrico da criança.</p></div><div className={styles.actions}><button disabled={busy} onClick={()=>void newPlan()} className={styles.primary}><Plus size={15}/>Novo acompanhamento</button><button onClick={()=>setHistory(true)} className={styles.button}><History size={15}/>Histórico</button><button type="button" disabled={loading||patientsLoading} className={styles.button} onClick={openIntake}><ClipboardList size={15}/>Fichas</button><button disabled={busy||loading} onClick={()=>void load()} className={styles.button}><RefreshCcw size={15}/>Atualizar</button></div></div>
    <div className={styles.form}><Field label="Acompanhamento ativo" full><select value={draft.id} disabled={busy} onChange={e=>{const p=plans.find(p=>p.id===e.target.value);if(p)void open(p);else void newPlan()}}><option value="">Novo acompanhamento</option>{draft.id&&!active.some(p=>p.id===draft.id)&&<option value={draft.id}>{draft.patient_name} · histórico</option>}{active.map(p=><option key={p.id} value={p.id}>{p.patient_name} · {p.doctor_name}</option>)}</select></Field>
    <Field label="Paciente" full><StyledSelect aria-label="Selecionar paciente" searchable disabled={busy||patientsLoading||Boolean(draft.id)} value={draft.patient_passport} onChange={e=>void newPlan(e.target.value)}><option value="">{patientsLoading?'Carregando…':'Selecione o paciente'}</option>{draft.patient_passport&&!eligible.some(p=>p.passport===draft.patient_passport)&&<option value={draft.patient_passport}>{patient?.name||draft.patient_name} · {draft.patient_passport}</option>}{eligible.map(p=><option key={p.passport} value={p.passport}>{p.name} · {p.passport} · {patientAgeLabel(p.age)}</option>)}</StyledSelect></Field>
    <Field label="Responsável"><select value={draft.guardian_link_id||''} disabled={!canEdit||busy} onChange={e=>change({guardian_link_id:e.target.value||null})}><option value="">Responsável não informado</option>{childGuardians.map(g=><option key={g.id} value={g.id}>{g.guardian_name||patients.find(p=>p.passport===g.guardian_passport)?.name||g.guardian_passport}</option>)}</select></Field>
@@ -158,5 +168,16 @@ export function PediatricWorkspace({activeTab='pediatria',onNavigate}:{activeTab
   {preview&&<div className={styles.overlay}><section role="dialog" aria-modal="true" aria-label="Prévia do planejamento pediátrico" className={styles.modal}><div className={styles.sectionHeading}><h3>{preview.visitId?'Planejamento individual':'Planejamento integral'}</h3><button aria-label="Fechar prévia" disabled={busy} className={styles.button} onClick={()=>setPreview(null)}>Fechar</button></div><p className={styles.notice}>Confira todas as páginas antes de publicar. As datas são previstas e não confirmam um agendamento. Apenas os dados desta ficha serão liberados no portal.</p><PediatricDocumentViewer snapshot={preview.snapshot} onReady={setDocumentReady}/>{error&&<p role="alert" className={styles.error}>{error}</p>}<button disabled={busy||!canEdit||dirty||!documentReady} className={styles.primary} onClick={()=>void publishDocument()}>{busy?'Publicando…':'Publicar esta versão no portal'}</button></section></div>}
   {history&&<div className={styles.overlay}><section role="dialog" aria-modal="true" aria-label="Histórico pediátrico" className={styles.modal}><div className={styles.sectionHeading}><h3>Histórico pediátrico</h3><button aria-label="Fechar histórico" className={styles.button} onClick={()=>setHistory(false)}><X size={18}/></button></div><input className={`${styles.search} mb-3`} aria-label="Buscar histórico" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Buscar criança, passaporte ou médico"/><div className={styles.history}>{plans.filter(p=>`${p.patient_name} ${p.patient_passport} ${p.doctor_name}`.toLowerCase().includes(search.toLowerCase())).map(p=><article key={p.id} className={styles.card}><strong>{p.patient_name} · {p.patient_passport}</strong><p className={styles.muted}>{p.doctor_name} · {active.some(a=>a.id===p.id)?'Ativo':p.status==='concluido'?'Concluído':'Vínculo encerrado'} · {format(p.start_date)}</p><button className={styles.button} onClick={()=>void open(p)}>Abrir acompanhamento</button></article>)}{!plans.length&&<p className={styles.muted}>Nenhum acompanhamento pediátrico registrado.</p>}</div></section></div>}
 
+  <dialog ref={intakeDialog} onClose={()=>setIntakePassport('')} aria-labelledby="pediatric-intake-title" className={`hpsr-modal-tone ${styles.modal} ${styles.intakeDialog}`}>
+   <div className={styles.sectionHeading}>
+    <div><h3 id="pediatric-intake-title">Fichas do acompanhamento pediátrico</h3><p className={styles.muted}>Solicite a ficha ao responsável e consulte as respostas enviadas pelo portal.</p></div>
+    <button type="button" className={styles.button} aria-label="Fechar fichas" onClick={()=>intakeDialog.current?.close()}><X size={16}/></button>
+   </div>
+   <Field label="Criança"><StyledSelect searchable aria-label="Selecionar criança para a ficha" value={intakePassport} onChange={e=>setIntakePassport(e.target.value)}>
+    <option value="">Selecione a criança</option>{intakeCandidates.map(p=><option key={p.passport} value={p.passport}>{p.name} · {p.passport}</option>)}
+   </StyledSelect></Field>
+   {intakePatient&&<div className="mt-4"><FollowupIntakeFormManager key={intakePatient.passport} patientPassport={intakePatient.passport} patientName={intakePatient.name} doctorId={profile.id} doctorName={profile.characterName} planType="pediatria" hasPortalGuardian={intakeGuardian}/></div>}
+   {!intakeCandidates.length&&<p className={`mt-3 ${styles.muted}`}>Nenhuma criança disponível para solicitar a ficha. Confira os vínculos pediátricos.</p>}
+  </dialog>
  </div>;
 }

@@ -1,5 +1,6 @@
+import { followupFormLabels, type FollowupFormType } from "@/lib/pediatric-intake-form";
 import { NextRequest, NextResponse } from "next/server";
-import { getValidPatientSession, normalizePassport } from "@/lib/patient-portal/server";
+import { getValidPatientSession, normalizePassport, pediatricIntakeGuardianPassports } from "@/lib/patient-portal/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -96,8 +97,12 @@ export async function GET(request: NextRequest) {
         description: "Confira a atualização da equipe médica.", at, section: isExamRequest ? "exam-request" : "appointments",
       });
     }
+    const pediatricGuardians = (forms.data || []).some(f => f.form_type === "pediatric")
+      ? await pediatricIntakeGuardianPassports(valid) : new Set<string>();
     for (const f of forms.data || []) {
-      const typeLabel = f.form_type === "ivf_ropa" ? "FIV (Método ROPA)" : "acompanhamento obstétrico";
+      if (f.form_type === "pediatric" && !pediatricGuardians.has(normalizePassport(f.patient_passport))) continue;
+      const label = followupFormLabels[f.form_type as FollowupFormType];
+      const typeLabel = f.form_type === "ivf_ropa" ? label : label.toLocaleLowerCase("pt-BR");
       notices.push({ id: `followup-form:${f.id}:${f.requested_at}`, passport: f.patient_passport,
         kind: "followup_form", title: "Ficha para preencher",
         description: `${f.doctor_name || "Sua equipe médica"} solicitou o preenchimento da ficha de ${typeLabel}. Acesse Acompanhamento para responder.`,

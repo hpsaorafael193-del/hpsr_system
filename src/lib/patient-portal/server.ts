@@ -151,3 +151,18 @@ export async function resolvePortalPatientPassport(request: Request, patientSess
     || (direct.data || []).some((row: any) => normalizePassport(row.child_passport) === requested);
   return allowed ? requested : null;
 }
+
+/** Pediatric intake is visible to authorized guardians only, never to the child's own account. */
+export async function pediatricIntakeGuardianPassports(valid: NonNullable<Awaited<ReturnType<typeof getValidPatientSession>>>) {
+  const own = normalizePassport(valid.access.patient_passport);
+  const userId = valid.access.user_id;
+  const authorized = () => valid.supabase.from("patient_guardian_links").select("child_passport")
+    .eq("access_status", "authorized").eq("portal_access", true);
+  const [direct, legacy] = await Promise.all([
+    userId ? authorized().eq("guardian_user_id", userId) : Promise.resolve({ data: [], error: null }),
+    own ? authorized().eq("guardian_passport", own).is("guardian_user_id", null) : Promise.resolve({ data: [], error: null }),
+  ]);
+  if (direct.error || legacy.error) throw direct.error || legacy.error;
+  return new Set([...(direct.data || []), ...(legacy.data || [])]
+    .map(row => normalizePassport(row.child_passport)).filter(passport => passport && passport !== own));
+}

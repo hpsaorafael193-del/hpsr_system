@@ -263,7 +263,7 @@ export function StyledSelect({
         <span className="relative z-10 flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] bg-[#fff7ef] text-hpsr-wine"><ChevronDown size={16} className={cn("transition-transform", open && "rotate-180")} /></span>
       </button>
 
-      {mounted && menu ? createPortal(menu, document.body) : null}
+      {mounted && menu ? createPortal(menu, rootRef.current?.closest("dialog[open]") || document.body) : null}
 
       <select
         value={selectedValue}
