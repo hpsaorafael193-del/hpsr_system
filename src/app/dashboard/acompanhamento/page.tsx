@@ -1,6 +1,7 @@
 "use client";
 
 import {followupNavigation,initialFollowupTab,type FollowupTab} from "@/lib/followup-navigation";
+import { PlanningDefinition, PlanningOverview, PlanningSectionHeading, PlanningSummary, PlanningField as Field, planningInputClass as inputClass, planningTextAreaClass as textAreaClass, planningButtonClass, planningPrimaryButtonClass, planningMainActionClass } from "@/components/followup/PlanningLayout";
 import { FollowupNavigation } from "@/components/followup/FollowupNavigation";
 import { canAccessPediatrics } from "@/lib/pediatric-planning";
 import { PediatricWorkspace } from "@/components/pediatrics/PediatricWorkspace";
@@ -41,9 +42,6 @@ import { obstetricDraftKey, parseObstetricDraft, type ObstetricPlanningDraft } f
 import { normalizeStaffSpecialtyName } from "@/lib/staff-specialties";
 import { createClient } from "@/lib/supabase";
 import { hpsrConfirm } from "@/components/ui/HpsrDialogProvider";
-
-const inputClass = "hpsr-planning-input h-11 w-full rounded-[14px] border border-hpsr-border bg-white px-3.5 text-sm font-semibold text-hpsr-text outline-none transition focus:border-hpsr-wine";
-const textAreaClass = `${inputClass} min-h-[112px] resize-y py-3 leading-relaxed`;
 
 type PlanningDocumentVersion = {
   path?: string;
@@ -121,11 +119,6 @@ type PreviewState = { canvas: HTMLCanvasElement; donorCanvas?: HTMLCanvasElement
 type HistoryTimelineEvent = { at: string; title: string; detail?: string };
 type PendingIndividualAction = { type: "switch"; occurrenceId: string } | { type: "close" } | null;
 type AccompanimentWorkspaceView = "planning" | "vaccination";
-
-type FieldProps = { label: string; children: React.ReactNode; hint?: string };
-function Field({ label, children, hint }: FieldProps) {
-  return <label className="hpsr-planning-field grid min-w-0 gap-1.5"><span className="hpsr-planning-field-label text-[10px] font-black uppercase tracking-[.15em] text-hpsr-wineLight">{label}</span>{children}{hint && <span className="text-[11px] leading-relaxed text-hpsr-muted">{hint}</span>}</label>;
-}
 
 function CanvasPreviewSurface({ source, label }: { source: HTMLCanvasElement; label: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -1130,31 +1123,58 @@ function ObstetricianWorkspace({activeTab,onNavigate}:{activeTab:FollowupTab;onN
     </div>}
 
 
-    <section className="hpsr-obstetric-overview rounded-[22px] border border-[#e1c9b8] bg-[linear-gradient(120deg,#f8ecdf_0%,#f4e3d7_100%)] p-5 shadow-sm">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="hpsr-obstetric-icon hpsr-obstetric-icon-hero grid h-12 w-12 shrink-0 place-items-center rounded-[16px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white">
-            {workspaceView === "vaccination" ? <Syringe size={22} /> : planType === "in_vitro" ? <Sparkles size={22} /> : <HeartPulse size={22} />}
-          </div>
-          <div>
-            <p className="hpsr-obstetric-accent-label text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Planejamento médico</p>
-            <h2 className="mt-1 text-2xl font-black leading-tight text-hpsr-text">{workspaceView === "vaccination" ? "Vacinação gestacional" : planType === "in_vitro" ? "Fertilização in vitro" : "Planejamento gestacional"}</h2>
-            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-hpsr-muted">{workspaceView === "vaccination" ? "Registre e acompanhe a vacinação gestacional dentro do mesmo espaço de acompanhamento." : "As semanas são marcadores do RP. O cálculo usa apenas o calendário real e nunca converte esses marcadores em semanas reais."}</p>
-          </div>
-        </div>
-        <FollowupNavigation role={profile.role} specialty={profile.specialty} active={workspaceView === "vaccination" ? "vacina_gestacional" : planType} onSelect={tab => { onNavigate(tab);if(tab === "gestacional" || tab === "in_vitro") {changePlanType(tab);return true;} if(tab === "vacina_gestacional") {showVaccinationView();return true;} return true;}} />
-      </div>
-    </section>
+    <PlanningOverview
+      icon={workspaceView === "vaccination" ? <Syringe size={22} /> : planType === "in_vitro" ? <Sparkles size={22} /> : <HeartPulse size={22} />}
+      title={workspaceView === "vaccination" ? "Vacinação gestacional" : planType === "in_vitro" ? "Fertilização in vitro" : "Planejamento gestacional"}
+      description={workspaceView === "vaccination" ? "Registre e acompanhe a vacinação gestacional dentro do mesmo espaço de acompanhamento." : "As semanas são marcadores do RP. O cálculo usa apenas o calendário real e nunca converte esses marcadores em semanas reais."}
+      navigation={<FollowupNavigation role={profile.role} specialty={profile.specialty} active={workspaceView === "vaccination" ? "vacina_gestacional" : planType} onSelect={tab => { onNavigate(tab);if(tab === "gestacional" || tab === "in_vitro") {changePlanType(tab);return true;} if(tab === "vacina_gestacional") {showVaccinationView();return true;} return true;}} />}
+    />
 
     {planType === "gestacional" && workspaceView === "vaccination" && canManageGestationalVaccination(profile.role, profile.specialty) && <section id="vacinacao-gestacional" className="rounded-[22px] border border-[#dcbac4] bg-[#f5e7e5] p-3 shadow-sm sm:p-5"><VaccinationWorkspace mode="gestational" /></section>}
 
     {workspaceView === "planning" && <>
     <div className="hpsr-obstetric-editor-list grid min-w-0 gap-4">
-      <section id="acompanhamento-dados" className="hpsr-planning-panel hpsr-gestational-form min-w-0 rounded-[24px] border border-[#ad7665] p-4 shadow-[0_14px_34px_rgba(125,35,29,0.08)] sm:p-5">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div className="flex items-center gap-3"><div className="hpsr-obstetric-icon grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><Baby size={20} /></div><div><p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Dados do planejamento</p><h3 className="text-lg font-black text-hpsr-text">Definição médica</h3><p className="text-sm text-hpsr-muted">Defina o planejamento do acompanhamento e gerencie as consultas previstas para a paciente.</p></div></div><div className="flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={openNewPlanningModal} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[12px] border border-hpsr-wine bg-hpsr-wine px-3.5 text-xs font-black text-white transition hover:opacity-90 disabled:opacity-50"><Plus size={15} />Novo planejamento</button><button type="button" onClick={openFormManagerModal} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[12px] border border-[#c8a992] bg-[#fff8f3] px-3.5 text-xs font-black text-hpsr-wine transition hover:bg-[#f6e5da]"><ClipboardList size={15} />Formulário</button><button type="button" onClick={goToPlanningHistory} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-[12px] border border-[#c8a992] bg-[#fff8f3] px-3.5 text-xs font-black text-hpsr-wine transition hover:bg-[#f6e5da]"><History size={15} />Histórico</button></div></div>
-
-        <div className="mt-5 grid gap-6 xl:grid-cols-[minmax(0,1040px)_minmax(240px,320px)] xl:items-stretch xl:justify-between">
-          <div className="grid min-w-0 gap-5">
+      <PlanningDefinition id="acompanhamento-dados"
+        heading={<PlanningSectionHeading icon={<Baby size={20} />} eyebrow="Dados do planejamento" title="Definição médica"
+          description="Defina o planejamento do acompanhamento e gerencie as consultas previstas para a paciente."
+          actions={<><button type="button" disabled={busy} onClick={openNewPlanningModal} className={planningPrimaryButtonClass}><Plus size={15} />Novo planejamento</button><button type="button" onClick={openFormManagerModal} className={planningButtonClass}><ClipboardList size={15} />Formulário</button><button type="button" onClick={goToPlanningHistory} className={planningButtonClass}><History size={15} />Histórico</button></>} />}
+        summary={<PlanningSummary title={editingPlan ? "Planejamento atual" : "Novo planejamento"} milestone={<>
+          <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{planType === "in_vitro" ? "Próxima etapa" : "Próxima consulta"}</p>
+                {summaryNextStep ? <>
+                  <p className="mt-2 text-[28px] font-black leading-none text-hpsr-text">{formatDate(summaryNextStep.date)}</p>
+                  <p className="mt-2 text-sm font-black text-hpsr-wine">{summaryNextStep.marker || (planType === "in_vitro" ? `Etapa ${summaryNextStep.number}` : `Consulta ${summaryNextStep.number}`)}</p>
+                </> : <>
+                  <p className="mt-2 text-lg font-black leading-tight text-hpsr-text">{scheduleConfirmed ? "Cronograma concluído" : "Cronograma não definido"}</p>
+                  <p className="mt-2 max-w-[280px] text-xs leading-relaxed text-hpsr-muted">{scheduleConfirmed ? "Não há outro marco pendente neste cronograma." : "Defina o período e confirme o cronograma para visualizar o próximo marco."}</p>
+                </>}
+        </>} facts={<>
+          <div className="min-w-0">
+                  <dt className="text-[9px] font-black uppercase tracking-[.10em] text-hpsr-wineLight">{planType === "in_vitro" ? "Confirmação β-hCG" : "Parto previsto"}</dt>
+                  <dd className="mt-1.5 text-base font-black text-hpsr-text">{summaryFinalReference ? formatDate(summaryFinalReference) : "Ainda não definido"}</dd>
+                </div>
+                <div className="min-w-0 2xl:border-l 2xl:border-[#dfc4cd] 2xl:pl-4">
+                  <dt className="text-[9px] font-black uppercase tracking-[.10em] text-hpsr-wineLight">Planejamento integral</dt>
+                  <dd className="mt-1.5">
+                    {editingPlan ? (
+                      <button
+                        type="button"
+                        disabled={busy || Boolean(editingPlan.portal_released_at)}
+                        onClick={() => void releaseCurrentIntegral(editingPlan)}
+                        className={`inline-flex min-h-[34px] items-center justify-center rounded-[10px] border px-3 text-xs font-black transition ${editingPlan.portal_released_at ? "cursor-default border-[#c7b7ad] bg-[#eee3dc] text-[#5f443a]" : "border-hpsr-wine bg-hpsr-wine text-white hover:opacity-90"} disabled:opacity-70`}
+                      >
+                        {editingPlan.portal_released_at ? "Liberado" : "Não liberado"}
+                      </button>
+                    ) : (
+                      <span className="inline-flex min-h-[34px] items-center rounded-[10px] border border-[#d8c5ba] bg-[#f2e8e1] px-3 text-xs font-black text-hpsr-muted">Não salvo</span>
+                    )}
+                  </dd>
+                </div>
+        </>} />}
+        footer={<>
+          <button type="button" disabled={busy || !scheduleConfirmed || !selectedPatient} onClick={() => void generateIntegralPreview()} className={planningMainActionClass}>{busy ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}{busy ? "Preparando..." : "Gerar prévia integral"}</button>
+          <p className="mt-2 text-center text-xs text-hpsr-muted">Confirme o cronograma e revise os dados acima antes de gerar a prévia do planejamento.</p>
+        </>}
+      >
           <div className={`grid max-w-[1080px] gap-3 ${planType === "in_vitro" ? "md:grid-cols-2" : "xl:grid-cols-[minmax(320px,560px)_minmax(260px,400px)]"} items-end`}>
             <div className={planType === "in_vitro" ? "md:col-span-2" : ""}>
             <Field label="Planejamento ativo" hint={editingPlanId ? "Troque rapidamente entre acompanhamentos já salvos." : "Comece um novo planejamento ou carregue um registro existente."}>
@@ -1193,59 +1213,7 @@ function ObstetricianWorkspace({activeTab,onNavigate}:{activeTab:FollowupTab;onN
           {scheduleConfirmed && <div className="border-t border-emerald-200 pt-3 text-sm font-bold text-emerald-800"><CheckCircle2 size={16} className="mr-2 inline" />Cronograma confirmado pela médica. Nenhuma consulta foi criada no Agendamento.{confirmedAdvisories.length > 0 && <p className="mt-2 text-xs font-semibold leading-relaxed text-amber-800">{confirmedAdvisories.join(" ")} São apenas orientações: você pode salvar exatamente o cronograma definido.</p>}</div>}
 
           <div className="max-w-[760px]"><Field label="Observações gerais" hint="Registro interno do planejamento; não substitui os campos individuais."><textarea className={`${textAreaClass} min-h-[120px]`} maxLength={4000} value={planningNotes} onChange={(event) => { setPlanningNotes(event.target.value); setIntegralPreview(null); }} placeholder="Observações gerais da médica sobre o planejamento" /></Field></div>
-          </div>
-
-          <aside className="flex h-full min-h-[360px] w-full max-w-[320px] justify-self-end flex-col bg-transparent px-5 py-5 xl:min-h-0" aria-label="Resumo do acompanhamento">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[.16em] text-[#9e5a72]">Resumo do acompanhamento</p>
-              <h4 className="mt-1 text-lg font-black text-hpsr-text">{editingPlan ? "Planejamento atual" : "Novo planejamento"}</h4>
-              <p className="mt-1 text-sm leading-relaxed text-hpsr-muted">Visão rápida dos principais marcos deste acompanhamento.</p>
-            </div>
-
-            <div className="mt-5 flex flex-1 flex-col justify-between border-t border-[#dfc4cd] pt-5">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">{planType === "in_vitro" ? "Próxima etapa" : "Próxima consulta"}</p>
-                {summaryNextStep ? <>
-                  <p className="mt-2 text-[28px] font-black leading-none text-hpsr-text">{formatDate(summaryNextStep.date)}</p>
-                  <p className="mt-2 text-sm font-black text-hpsr-wine">{summaryNextStep.marker || (planType === "in_vitro" ? `Etapa ${summaryNextStep.number}` : `Consulta ${summaryNextStep.number}`)}</p>
-                </> : <>
-                  <p className="mt-2 text-lg font-black leading-tight text-hpsr-text">{scheduleConfirmed ? "Cronograma concluído" : "Cronograma não definido"}</p>
-                  <p className="mt-2 max-w-[280px] text-xs leading-relaxed text-hpsr-muted">{scheduleConfirmed ? "Não há outro marco pendente neste cronograma." : "Defina o período e confirme o cronograma para visualizar o próximo marco."}</p>
-                </>}
-              </div>
-
-              <dl className="mt-6 grid gap-4 border-t border-[#dfc4cd] py-5 text-sm sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                <div className="min-w-0">
-                  <dt className="text-[9px] font-black uppercase tracking-[.10em] text-hpsr-wineLight">{planType === "in_vitro" ? "Confirmação β-hCG" : "Parto previsto"}</dt>
-                  <dd className="mt-1.5 text-base font-black text-hpsr-text">{summaryFinalReference ? formatDate(summaryFinalReference) : "Ainda não definido"}</dd>
-                </div>
-                <div className="min-w-0 2xl:border-l 2xl:border-[#dfc4cd] 2xl:pl-4">
-                  <dt className="text-[9px] font-black uppercase tracking-[.10em] text-hpsr-wineLight">Planejamento integral</dt>
-                  <dd className="mt-1.5">
-                    {editingPlan ? (
-                      <button
-                        type="button"
-                        disabled={busy || Boolean(editingPlan.portal_released_at)}
-                        onClick={() => void releaseCurrentIntegral(editingPlan)}
-                        className={`inline-flex min-h-[34px] items-center justify-center rounded-[10px] border px-3 text-xs font-black transition ${editingPlan.portal_released_at ? "cursor-default border-[#c7b7ad] bg-[#eee3dc] text-[#5f443a]" : "border-hpsr-wine bg-hpsr-wine text-white hover:opacity-90"} disabled:opacity-70`}
-                      >
-                        {editingPlan.portal_released_at ? "Liberado" : "Não liberado"}
-                      </button>
-                    ) : (
-                      <span className="inline-flex min-h-[34px] items-center rounded-[10px] border border-[#d8c5ba] bg-[#f2e8e1] px-3 text-xs font-black text-hpsr-muted">Não salvo</span>
-                    )}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-          </aside>
-        </div>
-
-        <div className="mt-6 flex flex-col items-center border-t border-[#d9c1b4] pt-5">
-          <button type="button" disabled={busy || !scheduleConfirmed || !selectedPatient} onClick={() => void generateIntegralPreview()} className="hpsr-obstetric-primary-action inline-flex min-h-[52px] w-full max-w-[390px] items-center justify-center gap-2 rounded-[17px] bg-hpsr-wine px-5 text-sm font-black text-white transition hover:opacity-90 disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}{busy ? "Preparando..." : "Gerar prévia integral"}</button>
-          <p className="mt-2 text-center text-xs text-hpsr-muted">Confirme o cronograma e revise os dados acima antes de gerar a prévia do planejamento.</p>
-        </div>
-      </section>
+      </PlanningDefinition>
 
       <div className="min-w-0">
       <section id="acompanhamento-conteudo" className={`hpsr-planning-panel hpsr-gestational-form hpsr-obstetric-stage-preview ${planningStyles.workspace}`}>
