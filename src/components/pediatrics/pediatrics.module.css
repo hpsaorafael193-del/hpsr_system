@@ -1,12 +1,14 @@
 /* HPSR MANUAL DARK PALETTE */
 .workspace {
-  --ped-accent: #426b56;
+  --ped-accent: #672614;
+  --ped-reference-label: #426b56;
+  --ped-header-line: #91b8a0;
   --ped-text: #44271c;
   --ped-muted: #745648;
-  --ped-border: #b9d8c5;
+  --ped-border: #d9c1b2;
   --ped-surface: #fbf3eb;
   --ped-input: #fff9f3;
-  --ped-focus: #62957a;
+  --ped-focus: #97644b;
   min-width: 0;
 }
 
@@ -16,7 +18,8 @@
 }
 
 .workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-overview)::before {
-  background: linear-gradient(90deg, var(--ped-border), var(--ped-border) 58%, transparent);
+  background: linear-gradient(90deg, var(--ped-header-line), transparent);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
 }
 
 .workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-icon),
@@ -34,8 +37,13 @@
   box-shadow: inset 0 0 0 2px var(--ped-border);
 }
 
-.workspace[data-planning-kind][data-pediatric-workspace] :is(:global(.hpsr-obstetric-accent-label), :global(.hpsr-planning-field-label), :global(.hpsr-followup-summary-label), :global(.text-hpsr-wineLight), :global(.text-hpsr-wine)) {
+.workspace[data-planning-kind][data-pediatric-workspace] :is(:global(.text-hpsr-wineLight), :global(.text-hpsr-wine)) {
   color: var(--ped-accent);
+}
+
+/* Only the labels that carry the gestational pink accent use pediatric green. */
+.workspace[data-planning-kind][data-pediatric-workspace] :is(:global(.hpsr-obstetric-accent-label), :global(.hpsr-planning-field-label), :global(.hpsr-followup-summary-label)) {
+  color: var(--ped-reference-label);
 }
 
 .workspace[data-planning-kind][data-pediatric-workspace] :is(:global(.hpsr-planning-input), :global(.hpsr-planning-field) button[aria-haspopup="listbox"], input[type="date"]) {
@@ -111,13 +119,15 @@
 .intakeDialog::backdrop { background: #1d100bb0; }
 
 :global(html[data-theme="dark"]) .workspace {
-  --ped-accent: #bfead3;
+  --ped-accent: #efbfa1;
+  --ped-reference-label: #bfead3;
+  --ped-header-line: #8eb9a0;
   --ped-text: #fae7d7;
   --ped-muted: #dbc0ad;
-  --ped-border: #668674;
+  --ped-border: #594437;
   --ped-surface: #2b211b;
   --ped-input: #372a22;
-  --ped-focus: #a8dbbf;
+  --ped-focus: #cf9877;
 }
 
 :global(html[data-theme="dark"]) .error { border-color: #83515a; background: #43272a; color: #ffb4bf; }

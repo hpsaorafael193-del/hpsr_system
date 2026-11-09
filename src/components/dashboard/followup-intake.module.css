@@ -36,16 +36,6 @@
   --intake-error: #ffb4bf;
 }
 
-.manager[data-pediatric-intake] {
-  --intake-accent: #49735e;
-  --intake-ok: var(--intake-control);
-  --intake-ok-text: var(--intake-accent);
-}
-
-:global(html[data-theme="dark"]) .manager[data-pediatric-intake] {
-  --intake-accent: #bfead3;
-}
-
 .dialog {
   width: min(790px, calc(100% - 24px));
   max-width: none;
@@ -108,7 +98,6 @@
 .button:disabled { opacity: .55; cursor: not-allowed; }
 .button:focus-visible, .dialog .select:focus-visible { outline: 2px solid var(--intake-accent); outline-offset: 2px; }
 .primary, .primary:not(:disabled):hover { background: var(--intake-primary); color: var(--intake-on-primary); border-color: var(--intake-primary); }
-.manager[data-pediatric-intake] .primary { border-color: var(--intake-accent); }
 .primary:not(:disabled):hover { filter: brightness(.92); }
 
 .manager { min-width: 0; }
