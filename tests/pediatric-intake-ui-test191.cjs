@@ -4,6 +4,7 @@ const vm = require("node:vm");
 const ts = require("typescript");
 const React = require("react");
 const { createRoot } = require("react-dom/client");
+const { renderToStaticMarkup } = require("react-dom/server");
 const { createPortal } = require("react-dom");
 const { JSDOM } = require("jsdom");
 const { act } = React;
@@ -42,9 +43,12 @@ const modules = {
   react: React, "react-dom": { createPortal },
   "lucide-react": new Proxy({}, {get:()=>()=>null}),
   "@/lib/manual-data-refresh": {useManualRefresh:()=>{}, useLocalRefreshControl:()=>{}},
-  "@/lib/followup-birth-options": {formatFollowupBirthType:v=>v},
+  "@/lib/followup-birth-options": load("src/lib/followup-birth-options.ts"),
+  "./followup-intake.module.css": {default: {answerChoices:"choices",answerSection:"answer-section"}},
   "@/lib/pediatric-intake-form": load("src/lib/pediatric-intake-form.ts"),
 };
+modules["@/lib/followup-intake-questions"] = load("src/lib/followup-intake-questions.ts", modules);
+const { FollowupIntakeAnswers } = load("src/components/dashboard/FollowupIntakeAnswers.tsx", modules);
 const { PatientFollowupFormsPanel } = load("src/components/public/PatientFollowupFormsPanel.tsx", modules);
 const button = (label, container = document) => [...container.querySelectorAll("button")].find(b=>b.textContent.trim()===label);
 const section = title => [...document.querySelectorAll("h4")].find(h=>h.textContent===title).closest("section");
@@ -81,3 +85,32 @@ const section = title => [...document.querySelectorAll("h4")].find(h=>h.textCont
   dom.window.close();
   console.log("PASS React pediatric form: exact sections, conditional detail, availability, draft, submission, read-only response");
 })().catch(error=>{console.error(error);process.exitCode=1;});
+
+function renderAnswers(formType, answers) {
+  const markup = renderToStaticMarkup(React.createElement(FollowupIntakeAnswers, {formType, answers}));
+  return JSDOM.fragment(markup);
+}
+
+const gestation = renderAnswers("gestational", {
+  observations: "Primeira linha\nSegunda linha",
+  birthType: "Cesárea hospitalar",
+  pregnancyStarted: "Sim",
+  symptoms: ["Enjoos", "Azia"],
+  name: "Paciente teste",
+  oldField: "Resposta antiga",
+});
+assert.deepEqual([...gestation.querySelectorAll("h5")].map(h=>h.textContent), [
+  "Identificação no RP", "Dados da gestação", "Planejamento da gestação", "Planejamento do parto", "Pós-parto", "Respostas de versões anteriores",
+]);
+assert.deepEqual([...gestation.querySelectorAll("dt")].map(dt=>dt.textContent), [
+  "Nome", "A gestação já iniciou no RP?", "Sintomas que deseja interpretar durante a gestação",
+  "Tipo de parto desejado", "Observações, ideias, dúvidas ou pedidos específicos", "Resposta adicional 1",
+]);
+assert.deepEqual([...gestation.querySelectorAll(".choices li")].map(li=>li.textContent), ["Enjoos", "Azia"]);
+assert(gestation.textContent.includes("Primeira linha\nSegunda linha"));
+assert(gestation.textContent.includes("Resposta antiga"));
+assert(!gestation.textContent.includes("oldField"));
+assert(renderAnswers("ivf_ropa", {geneticRh:"Positivo"}).textContent.includes("Fator Rh"));
+assert(renderAnswers("pediatric", {childPassport:"643"}).textContent.includes("Passaporte da criança"));
+assert(renderAnswers("gestational", {}).textContent.includes("ainda não enviou respostas"));
+console.log("PASS leitura de fichas: títulos e perguntas em português, ordem original, respostas longas, seleção múltipla e dados antigos");

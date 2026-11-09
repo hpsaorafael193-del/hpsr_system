@@ -1,6 +1,6 @@
 "use client";
-import { pediatricIntakeQuestions, type FollowupFormType } from "@/lib/pediatric-intake-form";
-import { formatFollowupBirthType } from "@/lib/followup-birth-options";
+import type { FollowupFormType } from "@/lib/pediatric-intake-form";
+import { FollowupIntakeAnswers } from "./FollowupIntakeAnswers";
 import {useManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh";
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
@@ -25,10 +25,6 @@ const statusLabels: Record<string, string> = {
   reviewed: "Analisada",
   cancelled: "Encerrada",
 };
-
-function prettyKey(value: string) {
-  return value.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/_/g, " ").replace(/^./, char => char.toLocaleUpperCase("pt-BR"));
-}
 
 function formatDateTime(value?: string | null) {
   if (!value) return "—";
@@ -156,9 +152,6 @@ export function FollowupIntakeFormManager({ patientPassport, doctorId, doctorNam
     }
   }
 
-  const answers = (pediatric ? pediatricIntakeQuestions.map(({ key }) => [key, visible?.answers?.[key]] as const) : Object.entries(visible?.answers || {}))
-    .filter(([, value]) => Array.isArray(value) ? value.length > 0 : String(value ?? "").trim().length > 0);
-
   if (!patientPassport) return null;
 
   return (
@@ -199,12 +192,7 @@ export function FollowupIntakeFormManager({ patientPassport, doctorId, doctorNam
         <div id={answersId} className={styles.details}>
           <h4>Respostas da ficha</h4>
           {pediatric && visible.id !== latest?.id && <p className={styles.hint}>Solicitação de {formatDateTime(visible.requested_at)}</p>}
-          {answers.length > 0 ? <dl className={styles.answerList}>
-            {answers.map(([key, value]) => <div key={key} className={styles.answer}>
-              <dt>{pediatric ? pediatricIntakeQuestions.find(q => q.key === key)?.label : prettyKey(key)}</dt>
-              <dd>{Array.isArray(value) ? value.join(", ") : String(key === "birthType" ? formatFollowupBirthType(value) : value)}</dd>
-            </div>)}
-          </dl> : <p className={styles.hint}>{pediatric ? "O responsável ainda não enviou respostas para esta ficha." : "O paciente ainda não enviou respostas para esta ficha."}</p>}
+          <FollowupIntakeAnswers formType={visible.form_type} answers={visible.answers} />
           {canManage && visible.status === "submitted" && <div className={styles.review}>
             <button type="button" disabled={busy || loading || readFailed} onClick={() => void markReviewed(visible.id)} className={`${styles.button} ${styles.primary}`}><CheckCircle2 size={16} aria-hidden="true" />Marcar como analisada</button>
           </div>}
