@@ -1,129 +1,141 @@
+/* HPSR MANUAL DARK PALETTE */
 .workspace {
-  --ped-accent: #35644e;
-  --ped-accent-strong: #244d3a;
-  --ped-border: #a9c8b4;
-  --ped-halo: #d7ecdf;
-  --ped-surface: #f4faf5;
-  --ped-surface-soft: #eaf4ec;
-  --ped-input: #fbfdfb;
-  --ped-button-text: #fff;
-  --ped-focus: #5d8b72;
+  --ped-accent: #49735e;
+  --ped-title: #294538;
+  --ped-muted: #51695b;
+  --ped-border: #b9d8c5;
+  --ped-halo: #e4f5eb;
+  --ped-surface: #f7fcf8;
+  --ped-surface-soft: #edf8f0;
+  --ped-input: #fcfefc;
+  --ped-button-start: #dff4e8;
+  --ped-button-end: #c4e8d4;
+  --ped-button-text: #2b5440;
+  --ped-focus: #62957a;
   min-width: 0;
 }
 
-.workspace[data-planning-kind] :global(.hpsr-obstetric-overview),
-.workspace[data-planning-kind] :global(.hpsr-planning-panel) {
+.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-overview),
+.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-planning-panel) {
   background: linear-gradient(155deg, var(--ped-surface) 0%, var(--ped-surface-soft) 58%, var(--ped-surface) 100%);
   border-color: var(--ped-border);
   box-shadow: 0 11px 28px rgb(37 83 59 / .08);
 }
 
-.workspace[data-planning-kind] :global(.hpsr-obstetric-overview)::before {
-  background: linear-gradient(90deg, var(--ped-accent), var(--ped-border) 58%, transparent);
+.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-overview)::before {
+  background: linear-gradient(90deg, var(--ped-button-end), var(--ped-border) 58%, transparent);
 }
 
-.workspace[data-planning-kind] :global(.hpsr-obstetric-icon),
-.workspace[data-planning-kind] [data-pediatric-consultation-heading] > div > span:first-child {
-  background: linear-gradient(135deg, var(--ped-accent), var(--ped-accent-strong));
+.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-icon),
+.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultation-heading] > div > span:first-child {
+  background: linear-gradient(135deg, var(--ped-button-start), var(--ped-button-end));
   color: var(--ped-button-text);
   box-shadow: 0 0 0 3px var(--ped-halo), 0 5px 18px rgb(37 83 59 / .16);
 }
 
-.workspace[data-planning-kind] :global(.hpsr-obstetric-icon-hero)::after {
-  background: var(--ped-focus);
+.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-icon-hero)::after {
+  background: var(--ped-button-end);
   box-shadow: 0 0 0 3px var(--ped-halo);
 }
 
-.workspace[data-planning-kind] :global(.hpsr-obstetric-accent-label)::before {
-  background: var(--ped-focus);
+.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-accent-label)::before {
+  background: var(--ped-button-end);
   box-shadow: 0 0 0 3px var(--ped-halo);
 }
 
-.workspace[data-planning-kind] :is(:global(.hpsr-obstetric-accent-label), :global(.hpsr-planning-field-label), :global(.hpsr-followup-summary-label), :global(.text-hpsr-wineLight), :global(.text-hpsr-wine)) {
+.workspace[data-planning-kind][data-pediatric-workspace] :is(:global(.hpsr-obstetric-accent-label), :global(.hpsr-planning-field-label), :global(.hpsr-followup-summary-label), :global(.text-hpsr-wineLight), :global(.text-hpsr-wine)) {
   color: var(--ped-accent);
 }
 
-.workspace[data-planning-kind] :is(:global(.hpsr-planning-input), :global(.hpsr-planning-field) button[aria-haspopup="listbox"], input[type="date"]) {
+.workspace[data-planning-kind][data-pediatric-workspace] :is(:global(.text-hpsr-text), [data-pediatric-consultation-heading] h3) {
+  color: var(--ped-title);
+}
+
+.workspace[data-planning-kind][data-pediatric-workspace] :is(:global(.text-hpsr-muted), [data-pediatric-consultation-heading] > div > div > span) {
+  color: var(--ped-muted);
+}
+
+.workspace[data-planning-kind][data-pediatric-workspace] :is(:global(.hpsr-planning-input), :global(.hpsr-planning-field) button[aria-haspopup="listbox"], input[type="date"]) {
   background-color: var(--ped-input);
   border-color: var(--ped-border);
 }
 
-.workspace[data-planning-kind] :global(.hpsr-planning-input)[readonly] {
+.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-planning-input)[readonly] {
   background-color: var(--ped-surface-soft);
   color: var(--ped-accent);
 }
 
-.workspace[data-planning-kind] :global(.hpsr-planning-field) button[aria-haspopup="listbox"] > span:last-child {
+.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-planning-field) button[aria-haspopup="listbox"] > span:last-child {
   background: var(--ped-surface-soft);
   color: var(--ped-accent);
 }
 
-.workspace[data-planning-kind] :is(button, a, input, textarea):focus-visible {
+.workspace[data-planning-kind][data-pediatric-workspace] :is(button, a, input, textarea):focus-visible {
   outline: 2px solid var(--ped-focus);
   outline-offset: 2px;
 }
 
-.workspace[data-planning-kind] :global(.hpsr-followup-divider),
-.workspace[data-planning-kind] [data-pediatric-consultation-heading],
-.workspace[data-planning-kind] [data-pediatric-consultations] table :is(th,td) {
+.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-followup-divider),
+.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultation-heading],
+.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] table :is(th,td) {
   border-color: var(--ped-border);
 }
 
-.workspace[data-planning-kind] [data-pediatric-consultations] table :is(th,td) {
+.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] table :is(th,td) {
   background-color: var(--ped-surface);
 }
 
-.workspace[data-planning-kind] [data-pediatric-consultations] table th,
-.workspace[data-planning-kind] [data-pediatric-consultations] table tr:nth-child(even) td {
+.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] table th,
+.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] table tr:nth-child(even) td {
   background-color: var(--ped-surface-soft);
 }
 
-.workspace[data-planning-kind] [data-pediatric-consultations] table th,
-.workspace[data-planning-kind] [data-pediatric-consultation-heading] p {
+.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] table th,
+.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultation-heading] p {
   color: var(--ped-accent);
 }
 
-.workspace[data-planning-kind] [data-pediatric-consultations] :is(.tableFrame, button),
-.workspace[data-planning-kind] :global(.hpsr-followup-button) {
+.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] :is(.tableFrame, button),
+.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-followup-button) {
   border-color: var(--ped-border);
 }
 
-.workspace[data-planning-kind] [data-pediatric-consultations] button,
-.workspace[data-planning-kind] :global(.hpsr-followup-button) {
+.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] button,
+.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-followup-button) {
   background: var(--ped-input);
   color: var(--ped-accent);
 }
 
-.workspace[data-planning-kind] [data-pediatric-consultations] button:hover:not(:disabled),
-.workspace[data-planning-kind] :global(.hpsr-followup-button):hover:not(:disabled) {
+.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] button:hover:not(:disabled),
+.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-followup-button):hover:not(:disabled) {
   background: var(--ped-halo);
 }
 
-.workspace[data-planning-kind] :is(:global(.hpsr-followup-button-primary), :global(.hpsr-obstetric-primary-action), [data-pediatric-consultations] .tablePrimary) {
-  background: linear-gradient(112deg, var(--ped-accent), var(--ped-accent-strong));
-  border-color: var(--ped-accent-strong);
+.workspace[data-planning-kind][data-pediatric-workspace] :is(:global(.hpsr-followup-button-primary), :global(.hpsr-obstetric-primary-action), [data-pediatric-consultations] .tablePrimary) {
+  background: linear-gradient(112deg, var(--ped-button-start), var(--ped-button-end));
+  border-color: var(--ped-border);
   color: var(--ped-button-text);
 }
 
-.workspace[data-planning-kind] [data-pediatric-consultations] .tablePrimary:hover:not(:disabled) {
-  background: var(--ped-accent-strong);
+.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] .tablePrimary:hover:not(:disabled) {
+  background: var(--ped-button-end);
 }
 
-.workspace[data-planning-kind] :global(.hpsr-obstetric-primary-action) {
+.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-primary-action) {
   box-shadow: 0 10px 24px rgb(37 83 59 / .16), 0 0 0 2px var(--ped-halo);
 }
 
 .badge { background: var(--ped-halo); border-color: var(--ped-border); color: var(--ped-accent); }
-.muted { font-size: 13px; line-height: 1.6; color: var(--hpsr-muted); }
+.muted { font-size: 13px; line-height: 1.6; color: var(--ped-muted); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .button,.primary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; padding: 8px 14px; border: 1px solid var(--ped-border); border-radius: 11px; font-size: 12px; font-weight: 800; background: var(--ped-input); color: var(--ped-accent); cursor: pointer; }
 .primary { background: var(--ped-halo); }
 .button:disabled,.primary:disabled { opacity: .5; cursor: not-allowed; }
 .sectionHeading { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
-.field { display: grid; gap: 6px; min-width: 0; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.field { color: var(--ped-accent); display: grid; gap: 6px; min-width: 0; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .full { grid-column: 1/-1; }
-.field input,.field select,.field textarea { width: 100%; min-width: 0; border: 1px solid var(--ped-border); border-radius: 12px; padding: 11px 13px; background: var(--ped-input); color: inherit; font-size: 13px; font-weight: 400; letter-spacing: normal; text-transform: none; }
+.field input,.field select,.field textarea { width: 100%; min-width: 0; border: 1px solid var(--ped-border); border-radius: 12px; padding: 11px 13px; background: var(--ped-input); color: var(--ped-title); font-size: 13px; font-weight: 400; letter-spacing: normal; text-transform: none; }
 .field textarea { min-height: 90px; resize: vertical; }
 .notice,.error { padding: 12px 14px; border-radius: 12px; font-size: 13px; }
 .notice { border: 1px solid var(--ped-border); background: var(--ped-halo); color: var(--ped-accent); }
@@ -139,19 +151,17 @@
 .intakeDialog::backdrop { background: #1d100bb0; }
 
 :global(html[data-theme="dark"]) .workspace {
-  --ped-accent: #a3d7bd;
-  --ped-accent-strong: #294737;
-  --ped-border: #405d4b;
-  --ped-halo: #2a4537;
-  --ped-surface: #1b2921;
-  --ped-surface-soft: #23342a;
-  --ped-input: #1b2a22;
-  --ped-button-text: #f2fff7;
-  --ped-focus: #8bc7a8;
-}
-
-:global(html[data-theme="dark"]) .workspace[data-planning-kind] :is(:global(.hpsr-obstetric-icon), :global(.hpsr-followup-button-primary), :global(.hpsr-obstetric-primary-action), [data-pediatric-consultations] .tablePrimary, [data-pediatric-consultation-heading] > div > span:first-child) {
-  background: linear-gradient(135deg, #365d48, var(--ped-accent-strong));
+  --ped-accent: #bfead3;
+  --ped-title: #e2f3e9;
+  --ped-muted: #bdd1c4;
+  --ped-border: #587765;
+  --ped-halo: #344c40;
+  --ped-surface: #26382f;
+  --ped-surface-soft: #30443a;
+  --ped-input: #293e34;
+  --ped-button-start: #ddf3e7;
+  --ped-button-end: #b9e0cc;
+  --ped-focus: #a8dbbf;
 }
 
 :global(html[data-theme="dark"]) .error { border-color: #83515a; background: #43272a; color: #ffb4bf; }
@@ -160,52 +170,4 @@
   .form { grid-template-columns: 1fr; }
   .sectionHeading { align-items: flex-start; flex-wrap: wrap; }
   .modal { padding: 16px; }
-}
-
-/* HPSR DARK MODULE PALETTE */
-@media screen {
-:global(html[data-theme="dark"]) .workspace {
-  --ped-accent: #15382c;
-  --ped-accent-strong: #15382c;
-  --ped-border: #15382c;
-  --ped-halo: #231c17;
-  --ped-surface: #231c17;
-  --ped-surface-soft: #231c17;
-  --ped-input: #231c17;
-  --ped-button-text: #f3ede7;
-  --ped-focus: #15382c
-}
-:global(html[data-theme="dark"]) .workspace[data-planning-kind] :global(.hpsr-obstetric-overview),:global(html[data-theme="dark"]) .workspace[data-planning-kind] :global(.hpsr-planning-panel) {
-  box-shadow: 0 11px 28px rgb(21 56 44 / .08)
-}
-:global(html[data-theme="dark"]) .workspace[data-planning-kind] :global(.hpsr-obstetric-icon),:global(html[data-theme="dark"]) .workspace[data-planning-kind] [data-pediatric-consultation-heading] > div > span:first-child {
-  box-shadow: 0 0 0 3px var(--ped-halo), 0 5px 18px rgb(21 56 44 / .16)
-}
-:global(html[data-theme="dark"]) .workspace[data-planning-kind] :global(.hpsr-obstetric-primary-action) {
-  box-shadow: 0 10px 24px rgb(21 56 44 / .16), 0 0 0 2px var(--ped-halo)
-}
-:global(html[data-theme="dark"]) .error { background: #231c17; color: #e9b495
-}
-:global(html[data-theme="dark"]) .overlay { background: #1d1611b0
-}
-:global(html[data-theme="dark"]) .status::before { background: #38291f
-}
-:global(html[data-theme="dark"]) .intakeDialog::backdrop { background: #1d1611b0
-}
-:global(html[data-theme="dark"]) :global(html[data-theme="dark"]) .workspace {
-  --ped-accent: #15382c;
-  --ped-accent-strong: #15382c;
-  --ped-border: #15382c;
-  --ped-halo: #15382c;
-  --ped-surface: #15382c;
-  --ped-surface-soft: #15382c;
-  --ped-input: #15382c;
-  --ped-button-text: #f3ede7;
-  --ped-focus: #15382c
-}
-:global(html[data-theme="dark"]) :global(html[data-theme="dark"]) .workspace[data-planning-kind] :is(:global(.hpsr-obstetric-icon), :global(.hpsr-followup-button-primary), :global(.hpsr-obstetric-primary-action), [data-pediatric-consultations] .tablePrimary, [data-pediatric-consultation-heading] > div > span:first-child) {
-  background: linear-gradient(135deg, #15382c, var(--ped-accent-strong))
-}
-:global(html[data-theme="dark"]) :global(html[data-theme="dark"]) .error { border-color: #463326; background: #302016
-}
 }

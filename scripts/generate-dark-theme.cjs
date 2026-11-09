@@ -43,7 +43,10 @@ async function main(){
  fs.writeFileSync('src/app/dark-generated.css','/* Generated native dark palette. Do not edit: run npm run theme:generate. */\n@media screen {\n'+output.toString()+'\n}\n');console.log(`Dark palette: ${count} scoped rules`);
  const marker='/* HPSR DARK MODULE PALETTE */';
  function modules(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){const file=require('node:path').join(dir,entry.name);if(entry.isDirectory())modules(file);else if(file.endsWith('.module.css')){
- const original=fs.readFileSync(file,'utf8').split(marker)[0].trimEnd();const dark=postcss.root();
+ const original=fs.readFileSync(file,'utf8').split(marker)[0].trimEnd();
+ // Modules with their own light and dark tokens must not be recolored a second time.
+ if(original.startsWith('/* HPSR MANUAL DARK PALETTE */')){fs.writeFileSync(file,original+'\n');continue;}
+ const dark=postcss.root();
  postcss.parse(original).walkRules(rule=>{
  if(rule.parent.type==='atrule'&&/keyframes|print/.test(rule.parent.name+' '+rule.parent.params))return;
  const ds=[];rule.walkDecls(d=>{const value=/\.(header|hero)\b/.test(rule.selector)&&/^background/.test(d.prop)&&/gradient\(/.test(d.value)?(d.prop==='background-image'?'linear-gradient(110deg,#672614,#48160c 65%,#2a0700)':'linear-gradient(110deg,#672614,#48160c 65%,#2a0700)'):transform(d.value,d.prop);if(value!==d.value)ds.push(d.clone({value}));});

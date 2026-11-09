@@ -282,7 +282,7 @@ export function PediatricWorkspace({activeTab='pediatria',onNavigate}:{activeTab
    <Field label="Criança"><StyledSelect searchable aria-label="Selecionar criança para a ficha" value={intakePassport} onChange={e=>setIntakePassport(e.target.value)}>
     <option value="">Selecione a criança</option>{intakeCandidates.map(p=><option key={p.passport} value={p.passport}>{p.name} · {p.passport}</option>)}
    </StyledSelect></Field>
-   {intakePatient&&<div className="mt-4"><FollowupIntakeFormManager key={intakePatient.passport} patientPassport={intakePatient.passport} patientName={intakePatient.name} doctorId={profile.id} doctorName={profile.characterName} planType="pediatria" hasPortalGuardian={intakeGuardian}/></div>}
+   {intakePatient&&<div className="mt-4"><FollowupIntakeFormManager key={intakePatient.passport} patientPassport={intakePatient.passport} doctorId={profile.id} doctorName={profile.characterName} planType="pediatria" hasPortalGuardian={intakeGuardian}/></div>}
    {!intakeCandidates.length&&<p className={`mt-3 ${styles.muted}`}>Nenhuma criança disponível para solicitar a ficha. Confira os vínculos pediátricos.</p>}
   </dialog>
  </div>;

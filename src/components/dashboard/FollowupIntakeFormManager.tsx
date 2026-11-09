@@ -3,9 +3,10 @@ import { pediatricIntakeQuestions, type FollowupFormType } from "@/lib/pediatric
 import { formatFollowupBirthType } from "@/lib/followup-birth-options";
 import {useManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ChevronDown, ClipboardList, Eye, History, Loader2, RefreshCcw, Send } from "lucide-react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { CheckCircle2, ChevronDown, History, Loader2, RefreshCcw, Send } from "lucide-react";
 import { createClient } from "@/lib/supabase";
+import styles from "./followup-intake.module.css";
 
 type Row = {
   id: string;
@@ -17,16 +18,16 @@ type Row = {
   request_note?: string | null;
 };
 
-const statusMeta: Record<string, { label: string; className: string }> = {
-  requested: { label: "Aguardando paciente", className: "border-[#d9b7a7] bg-[#f4e3d9] text-hpsr-wine" },
-  draft: { label: "Em preenchimento", className: "border-[#d7b9aa] bg-[#f5e7de] text-[#6f3c2d]" },
-  submitted: { label: "Enviada ao médico", className: "border-[#cfa28e] bg-[#efd8cc] text-hpsr-wine" },
-  reviewed: { label: "Analisada", className: "border-[#cfbcae] bg-[#eee4dc] text-[#5b382d]" },
-  cancelled: { label: "Encerrada", className: "border-[#d8cbc1] bg-[#f2ece7] text-hpsr-muted" },
+const statusLabels: Record<string, string> = {
+  requested: "Aguardando paciente",
+  draft: "Em preenchimento",
+  submitted: "Enviada ao médico",
+  reviewed: "Analisada",
+  cancelled: "Encerrada",
 };
 
 function prettyKey(value: string) {
-  return value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toLocaleUpperCase("pt-BR"));
+  return value.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/_/g, " ").replace(/^./, char => char.toLocaleUpperCase("pt-BR"));
 }
 
 function formatDateTime(value?: string | null) {
@@ -43,16 +44,21 @@ function formatDateTime(value?: string | null) {
   });
 }
 
-export function FollowupIntakeFormManager({ patientPassport, patientName, doctorId, doctorName, planType, canManage = true, hasPortalGuardian = true }: {
+export function FollowupIntakeFormManager({ patientPassport, doctorId, doctorName, planType, canManage = true, hasPortalGuardian = true, refreshVersion = 0 }: {
   patientPassport: string;
-  patientName: string;
   doctorId: string;
   doctorName: string;
   planType: "gestacional" | "in_vitro" | "pediatria";
   canManage?: boolean;
   hasPortalGuardian?: boolean;
+  refreshVersion?: number;
 }) {
   useLocalRefreshControl(Boolean(patientPassport));
+  const [loading, setLoading] = useState(true);
+  const [readFailed, setReadFailed] = useState(false);
+  const readSequence = useRef(0);
+  const answersId = useId();
+  const historyId = useId();
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -65,36 +71,44 @@ export function FollowupIntakeFormManager({ patientPassport, patientName, doctor
 
   const load = useCallback(async () => {
     if (!patientPassport) return;
-    const client = createClient();
-    if (!client) return;
-    const { data, error: readError } = await client
-      .from("followup_intake_forms")
-      .select("id,form_type,status,answers,requested_at,submitted_at,request_note")
-      .eq("patient_passport", patientPassport)
-      .eq("form_type", formType)
-      .order("requested_at", { ascending: false })
-      .limit(10);
-    if (readError) {
-      setError(readError.message);
-      return;
+    const sequence = ++readSequence.current;
+    setLoading(true);
+    try {
+      const client = createClient();
+      if (!client) throw new Error("Supabase indisponível.");
+      const { data, error: readError } = await client
+        .from("followup_intake_forms")
+        .select("id,form_type,status,answers,requested_at,submitted_at,request_note")
+        .eq("patient_passport", patientPassport)
+        .eq("form_type", formType)
+        .order("requested_at", { ascending: false })
+        .limit(10);
+      if (sequence !== readSequence.current) return;
+      if (readError) throw new Error(readError.message);
+      setRows((data || []) as Row[]);
+      setReadFailed(false);
+      setError("");
+    } catch (value) {
+      if (sequence !== readSequence.current) return;
+      setReadFailed(true);
+      setError(value instanceof Error ? value.message : "Não foi possível carregar a ficha.");
+    } finally {
+      if (sequence === readSequence.current) setLoading(false);
     }
-    setRows((data || []) as Row[]);
-    setError("");
   }, [patientPassport, formType]);
 
-  useManualRefresh("followup-forms",load);
-  useEffect(() => { void load(); }, [load]);
+  useManualRefresh("followup-forms", load, busy || loading);
+  useEffect(() => { void load(); }, [load, refreshVersion]);
 
   const latest = rows[0];
   const getStatus = (status: string) => pediatric && status === "requested"
-    ? { ...statusMeta.requested, label: "Aguardando responsável" } : statusMeta[status] || statusMeta.cancelled;
-  const latestMeta = latest ? getStatus(latest.status) : null;
+    ? "Aguardando responsável" : statusLabels[status] || statusLabels.cancelled;
   const visible = pediatric ? rows.find(row => row.id === open) : latest?.id === open ? latest : undefined;
   const hasPendingRequest = latest && ["requested", "draft"].includes(latest.status);
-  const primaryLabel = hasPendingRequest ? getStatus(latest.status).label : latest ? "Solicitar atualização" : "Solicitar ficha";
+  const primaryLabel = latest ? "Solicitar atualização" : "Solicitar ficha";
 
   async function requestForm() {
-    if (!patientPassport || !doctorId || !canManage || !hasPortalGuardian || hasPendingRequest) return;
+    if (!patientPassport || !doctorId || !canManage || !hasPortalGuardian || hasPendingRequest || loading || readFailed) return;
     setBusy(true);
     setError("");
     setMessage("");
@@ -122,7 +136,7 @@ export function FollowupIntakeFormManager({ patientPassport, patientName, doctor
   }
 
   async function markReviewed(id: string) {
-    if (!canManage) return;
+    if (!canManage || busy || loading || readFailed) return;
     setBusy(true);
     setError("");
     try {
@@ -142,119 +156,74 @@ export function FollowupIntakeFormManager({ patientPassport, patientName, doctor
     }
   }
 
-  const answeredCount = useMemo(() => {
-    if (!latest) return 0;
-    return Object.values(latest.answers || {}).filter((value) => Array.isArray(value) ? value.length > 0 : String(value ?? "").trim().length > 0).length;
-  }, [latest]);
+  const answers = (pediatric ? pediatricIntakeQuestions.map(({ key }) => [key, visible?.answers?.[key]] as const) : Object.entries(visible?.answers || {}))
+    .filter(([, value]) => Array.isArray(value) ? value.length > 0 : String(value ?? "").trim().length > 0);
 
   if (!patientPassport) return null;
 
   return (
-    <div className="border-t border-[#d9c1b4] pt-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-[linear-gradient(135deg,#672614,#2a0700)] text-white"><ClipboardList size={15} /></span>
-          <div className="min-w-0">
-            <p className="text-[9px] font-black uppercase tracking-[.16em] text-hpsr-wineLight">Ficha do acompanhamento</p>
-            <h4 className="mt-0.5 text-sm font-black text-hpsr-text">Preparação do caso</h4>
-          </div>
+    <section className={styles.manager} data-pediatric-intake={pediatric || undefined} aria-label="Ficha do acompanhamento" aria-busy={loading}>
+      <div className={styles.managerHeading}>
+        <div>
+          <p className={styles.eyebrow}>Ficha do acompanhamento</p>
+          <h3>{label}</h3>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={busy || !canManage || !hasPortalGuardian || Boolean(hasPendingRequest)}
-            onClick={() => void requestForm()}
-            className="inline-flex min-h-[36px] items-center justify-center gap-2 rounded-[10px] border border-hpsr-wine bg-hpsr-wine px-3.5 text-[10px] font-black text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}{primaryLabel}
+        {!hasPendingRequest && <button type="button" className={`${styles.button} ${styles.primary}`}
+          disabled={busy || loading || readFailed || !canManage || !hasPortalGuardian} onClick={() => void requestForm()}>
+          {busy || loading ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Send size={16} aria-hidden="true" />}{primaryLabel}
+        </button>}
+      </div>
+
+      <dl className={styles.metadata}>
+        <div><dt>Status</dt><dd><span className={styles.status} data-status={latest?.status}>{latest ? getStatus(latest.status) : loading ? "Carregando…" : error ? "Indisponível" : "Não solicitada"}</span></dd></div>
+        <div><dt>Solicitada em</dt><dd>{formatDateTime(latest?.requested_at)}</dd></div>
+        <div><dt>Enviada em</dt><dd>{formatDateTime(latest?.submitted_at)}</dd></div>
+      </dl>
+
+      {pediatric && !hasPortalGuardian && <p className={styles.hint}>Para solicitar a ficha, a criança precisa ter um responsável autorizado a acessar o portal.</p>}
+
+      {latest ? <div className={styles.toolbar}>
+        <p className={styles.hint}>{hasPendingRequest ? "Disponível no Portal do Paciente para preenchimento." : latest.status === "cancelled" ? "Esta solicitação foi encerrada." : "Consulte as respostas e as solicitações anteriores."}</p>
+        <div className={styles.actions}>
+          <button type="button" className={styles.button} aria-expanded={open === latest.id} aria-controls={visible && open === latest.id ? answersId : undefined}
+            onClick={() => setOpen(open === latest.id ? "" : latest.id)}>
+            {open === latest.id ? "Ocultar ficha" : "Ver ficha"}<ChevronDown size={16} className={open === latest.id ? "rotate-180" : undefined} aria-hidden="true" />
           </button>
-          <button
-            type="button"
-            onClick={() => setHistoryOpen((value) => !value)}
-            className="inline-flex min-h-[36px] items-center justify-center gap-2 rounded-[10px] border border-[#c8a992] bg-[#fff8f3] px-3.5 text-[10px] font-black text-hpsr-wine transition hover:bg-[#f6e5da]"
-          >
-            <History size={13} />Histórico{rows.length > 0 ? ` (${rows.length})` : ""}
+          <button type="button" className={styles.button} aria-expanded={historyOpen} aria-controls={historyOpen ? historyId : undefined} onClick={() => setHistoryOpen(value => !value)}>
+            <History size={16} aria-hidden="true" />Histórico ({rows.length})
           </button>
         </div>
-      </div>
+      </div> : !loading && !error && <p className={styles.hint}>Nenhuma ficha foi solicitada para este acompanhamento.</p>}
 
-      {pediatric && !hasPortalGuardian && <p className="mt-3 text-xs text-hpsr-muted">Para solicitar a ficha, a criança precisa ter um responsável autorizado a acessar o portal.</p>}
-      <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(220px,1.35fr)_minmax(165px,.8fr)_minmax(185px,.9fr)_minmax(185px,.9fr)]">
-        <div>
-          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Ficha ativa</p>
-          <div className="mt-1 flex min-h-[42px] items-center rounded-[10px] border border-[#dec8bb] bg-[#f8efe5] px-3 text-[11px] font-bold text-hpsr-text">{label}</div>
-        </div>
-        <div>
-          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Status</p>
-          <div className="mt-1 flex min-h-[42px] items-center rounded-[10px] border border-[#dec8bb] bg-[#f8efe5] px-3">{latestMeta ? <span className={`inline-flex min-h-[25px] items-center rounded-full border px-2.5 text-[9px] font-black ${latestMeta.className}`}>{latestMeta.label}</span> : <span className="text-[11px] font-bold text-hpsr-muted">Não solicitada</span>}</div>
-        </div>
-        <div>
-          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Solicitada em</p>
-          <div className="mt-1 flex min-h-[42px] items-center rounded-[10px] border border-[#dec8bb] bg-[#f8efe5] px-3 text-[11px] font-bold text-hpsr-text">{formatDateTime(latest?.requested_at)}</div>
-        </div>
-        <div>
-          <p className="text-[9px] font-black uppercase tracking-[.12em] text-hpsr-wineLight">Enviada em</p>
-          <div className="mt-1 flex min-h-[42px] items-center rounded-[10px] border border-[#dec8bb] bg-[#f8efe5] px-3 text-[11px] font-bold text-hpsr-text">{formatDateTime(latest?.submitted_at)}</div>
-        </div>
-      </div>
-
-      <div className="mt-3 overflow-hidden rounded-[10px] border border-[#dec8bb] bg-[#fff8f3]">
-        {latest ? (
-          <div className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-[10px] font-black text-hpsr-text">{patientName} · {patientPassport}</p>
-              <p className="mt-0.5 text-[10px] text-hpsr-muted">{latest.status === "submitted" || latest.status === "reviewed" ? `${answeredCount} campo${answeredCount === 1 ? "" : "s"} respondido${answeredCount === 1 ? "" : "s"}.` : "A ficha ficará disponível no Portal do Paciente enquanto estiver pendente."}</p>
-            </div>
-            <button type="button" onClick={() => setOpen(open === latest.id ? "" : latest.id)} className="inline-flex min-h-[32px] shrink-0 items-center justify-center gap-1.5 rounded-[8px] border border-[#d8b9a7] bg-white px-3 text-[10px] font-black text-hpsr-wine"><Eye size={12} />Ver ficha<ChevronDown size={12} className={`transition ${open === latest.id ? "rotate-180" : ""}`} /></button>
-          </div>
-        ) : (
-          <div className="px-3 py-3 text-[10px] text-hpsr-muted">Nenhuma ficha foi solicitada para este acompanhamento.</div>
-        )}
-
-        {visible && (
-          <div className="border-t border-[#e4d0c3] bg-white px-3 py-3">
-            {pediatric && visible.id !== latest?.id && <p className="pb-2 text-xs font-semibold text-hpsr-muted">Solicitação de {formatDateTime(visible.requested_at)}</p>}
-            {Object.keys(visible.answers || {}).length > 0 ? (
-              <div className="divide-y divide-[#ead9ce]">
-                {(pediatric ? pediatricIntakeQuestions.map(({key}) => [key, visible.answers?.[key]] as const) : Object.entries(visible.answers || {})).filter(([, value]) => Array.isArray(value) ? value.length : String(value ?? "").trim()).map(([key, value]) => (
-                  <div key={key} className="grid gap-1 py-2.5 sm:grid-cols-[minmax(150px,220px)_1fr] sm:gap-4">
-                    <p className="text-[8px] font-black uppercase tracking-[.08em] text-hpsr-wineLight">{pediatric ? pediatricIntakeQuestions.find(q => q.key === key)?.label : prettyKey(key)}</p>
-                    <p className="break-words text-[11px] font-semibold leading-relaxed text-hpsr-text">{Array.isArray(value) ? value.join(", ") : String(key === "birthType" ? formatFollowupBirthType(value) : value)}</p>
-                  </div>
-                ))}
-              </div>
-            ) : <p className="text-[10px] text-hpsr-muted">{pediatric ? "O responsável ainda não enviou respostas para esta ficha." : "O paciente ainda não enviou respostas para esta ficha."}</p>}
-            {canManage && visible.status === "submitted" && (
-              <div className="mt-3 flex justify-end border-t border-[#ead9ce] pt-3">
-                <button disabled={busy} onClick={() => void markReviewed(visible.id)} className="inline-flex min-h-[34px] items-center gap-2 rounded-[9px] border border-hpsr-wine bg-white px-3 text-[10px] font-black text-hpsr-wine"><CheckCircle2 size={13} />Marcar como analisada</button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {historyOpen && rows.length > 0 && (
-        <div className="mt-3 border-t border-[#d9c1b4] pt-3">
-          <p className="text-[9px] font-black uppercase tracking-[.14em] text-hpsr-wineLight">Histórico de solicitações</p>
-          <div className="mt-2 divide-y divide-[#dfc9bb] border-y border-[#dfc9bb]">
-            {rows.map((row, index) => {
-              const meta = getStatus(row.status);
-              return <div key={row.id} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-                <div><p className="text-[10px] font-black text-hpsr-text">{index === 0 ? "Ficha atual" : `Solicitação ${rows.length - index}`}</p><p className="mt-0.5 text-[9px] text-hpsr-muted">Solicitada em {formatDateTime(row.requested_at)}{row.submitted_at ? ` · enviada em ${formatDateTime(row.submitted_at)}` : ""}</p></div>
-                <span className={`inline-flex w-fit min-h-[24px] items-center rounded-full border px-2.5 text-[9px] font-black ${meta.className}`}>{meta.label}</span>
-                {pediatric && index > 0 && <button type="button" aria-expanded={open === row.id} onClick={() => setOpen(open === row.id ? "" : row.id)} className="text-xs font-bold text-hpsr-wine">{open === row.id ? "Fechar ficha" : "Ver ficha"}</button>}
-              </div>;
-            })}
-          </div>
+      {visible && (
+        <div id={answersId} className={styles.details}>
+          <h4>Respostas da ficha</h4>
+          {pediatric && visible.id !== latest?.id && <p className={styles.hint}>Solicitação de {formatDateTime(visible.requested_at)}</p>}
+          {answers.length > 0 ? <dl className={styles.answerList}>
+            {answers.map(([key, value]) => <div key={key} className={styles.answer}>
+              <dt>{pediatric ? pediatricIntakeQuestions.find(q => q.key === key)?.label : prettyKey(key)}</dt>
+              <dd>{Array.isArray(value) ? value.join(", ") : String(key === "birthType" ? formatFollowupBirthType(value) : value)}</dd>
+            </div>)}
+          </dl> : <p className={styles.hint}>{pediatric ? "O responsável ainda não enviou respostas para esta ficha." : "O paciente ainda não enviou respostas para esta ficha."}</p>}
+          {canManage && visible.status === "submitted" && <div className={styles.review}>
+            <button type="button" disabled={busy || loading || readFailed} onClick={() => void markReviewed(visible.id)} className={`${styles.button} ${styles.primary}`}><CheckCircle2 size={16} aria-hidden="true" />Marcar como analisada</button>
+          </div>}
         </div>
       )}
 
-      {(message || error) && (
-        <div className="mt-3 flex items-start justify-between gap-3 border-t border-[#d9c1b4] pt-3">
-          <p className={`text-[10px] font-bold ${error ? "text-rose-800" : "text-[#644035]"}`}>{error || message}</p>
-          <button type="button" onClick={() => void load()} className="inline-flex shrink-0 items-center gap-1.5 text-[10px] font-black text-hpsr-wine"><RefreshCcw size={11} />Atualizar</button>
-        </div>
-      )}
-    </div>
+      {historyOpen && rows.length > 0 && <section id={historyId} className={styles.details} aria-label="Histórico de solicitações">
+        <h4>Histórico de solicitações</h4>
+        <ul className={styles.history}>{rows.map((row, index) => <li key={row.id}>
+          <div><strong>{index === 0 ? "Ficha atual" : `Solicitação ${rows.length - index}`}</strong><p className={styles.hint}>Solicitada em {formatDateTime(row.requested_at)}{row.submitted_at ? ` · enviada em ${formatDateTime(row.submitted_at)}` : ""}</p></div>
+          <span className={styles.status} data-status={row.status}>{getStatus(row.status)}</span>
+          {pediatric && index > 0 && <button type="button" className={styles.button} aria-expanded={open === row.id} onClick={() => setOpen(open === row.id ? "" : row.id)}>{open === row.id ? "Ocultar ficha" : "Ver ficha"}</button>}
+        </li>)}</ul>
+      </section>}
+
+      {(message || error) && <div className={styles.feedback}>
+        <p role={error ? "alert" : "status"} className={error ? styles.error : styles.hint}>{error || message}</p>
+        {error && <button type="button" className={styles.button} disabled={loading} onClick={() => void load()}><RefreshCcw size={15} aria-hidden="true" />Tentar novamente</button>}
+      </div>}
+    </section>
   );
 }
