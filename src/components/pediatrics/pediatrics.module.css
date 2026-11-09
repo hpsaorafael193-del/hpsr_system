@@ -1,72 +1,48 @@
 /* HPSR MANUAL DARK PALETTE */
 .workspace {
-  --ped-accent: #49735e;
-  --ped-title: #294538;
-  --ped-muted: #51695b;
+  --ped-accent: #426b56;
+  --ped-text: #44271c;
+  --ped-muted: #745648;
   --ped-border: #b9d8c5;
-  --ped-halo: #e4f5eb;
-  --ped-surface: #f7fcf8;
-  --ped-surface-soft: #edf8f0;
-  --ped-input: #fcfefc;
-  --ped-button-start: #dff4e8;
-  --ped-button-end: #c4e8d4;
-  --ped-button-text: #2b5440;
+  --ped-surface: #fbf3eb;
+  --ped-input: #fff9f3;
   --ped-focus: #62957a;
   min-width: 0;
 }
 
 .workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-overview),
 .workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-planning-panel) {
-  background: linear-gradient(155deg, var(--ped-surface) 0%, var(--ped-surface-soft) 58%, var(--ped-surface) 100%);
   border-color: var(--ped-border);
-  box-shadow: 0 11px 28px rgb(37 83 59 / .08);
 }
 
 .workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-overview)::before {
-  background: linear-gradient(90deg, var(--ped-button-end), var(--ped-border) 58%, transparent);
+  background: linear-gradient(90deg, var(--ped-border), var(--ped-border) 58%, transparent);
 }
 
 .workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-icon),
 .workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultation-heading] > div > span:first-child {
-  background: linear-gradient(135deg, var(--ped-button-start), var(--ped-button-end));
-  color: var(--ped-button-text);
-  box-shadow: 0 0 0 3px var(--ped-halo), 0 5px 18px rgb(37 83 59 / .16);
+  box-shadow: 0 0 0 1px var(--ped-border), 0 5px 18px rgb(62 35 22 / .12);
 }
 
 .workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-icon-hero)::after {
-  background: var(--ped-button-end);
-  box-shadow: 0 0 0 3px var(--ped-halo);
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--ped-border);
 }
 
 .workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-accent-label)::before {
-  background: var(--ped-button-end);
-  box-shadow: 0 0 0 3px var(--ped-halo);
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--ped-border);
 }
 
 .workspace[data-planning-kind][data-pediatric-workspace] :is(:global(.hpsr-obstetric-accent-label), :global(.hpsr-planning-field-label), :global(.hpsr-followup-summary-label), :global(.text-hpsr-wineLight), :global(.text-hpsr-wine)) {
   color: var(--ped-accent);
 }
 
-.workspace[data-planning-kind][data-pediatric-workspace] :is(:global(.text-hpsr-text), [data-pediatric-consultation-heading] h3) {
-  color: var(--ped-title);
-}
-
-.workspace[data-planning-kind][data-pediatric-workspace] :is(:global(.text-hpsr-muted), [data-pediatric-consultation-heading] > div > div > span) {
-  color: var(--ped-muted);
-}
-
 .workspace[data-planning-kind][data-pediatric-workspace] :is(:global(.hpsr-planning-input), :global(.hpsr-planning-field) button[aria-haspopup="listbox"], input[type="date"]) {
-  background-color: var(--ped-input);
   border-color: var(--ped-border);
 }
 
-.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-planning-input)[readonly] {
-  background-color: var(--ped-surface-soft);
-  color: var(--ped-accent);
-}
-
 .workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-planning-field) button[aria-haspopup="listbox"] > span:last-child {
-  background: var(--ped-surface-soft);
   color: var(--ped-accent);
 }
 
@@ -81,15 +57,6 @@
   border-color: var(--ped-border);
 }
 
-.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] table :is(th,td) {
-  background-color: var(--ped-surface);
-}
-
-.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] table th,
-.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] table tr:nth-child(even) td {
-  background-color: var(--ped-surface-soft);
-}
-
 .workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] table th,
 .workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultation-heading] p {
   color: var(--ped-accent);
@@ -100,45 +67,38 @@
   border-color: var(--ped-border);
 }
 
-.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] button,
+.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] button:not(.tablePrimary),
 .workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-followup-button) {
-  background: var(--ped-input);
   color: var(--ped-accent);
 }
 
-.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] button:hover:not(:disabled),
-.workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-followup-button):hover:not(:disabled) {
-  background: var(--ped-halo);
-}
-
 .workspace[data-planning-kind][data-pediatric-workspace] :is(:global(.hpsr-followup-button-primary), :global(.hpsr-obstetric-primary-action), [data-pediatric-consultations] .tablePrimary) {
-  background: linear-gradient(112deg, var(--ped-button-start), var(--ped-button-end));
-  border-color: var(--ped-border);
-  color: var(--ped-button-text);
-}
-
-.workspace[data-planning-kind][data-pediatric-workspace] [data-pediatric-consultations] .tablePrimary:hover:not(:disabled) {
-  background: var(--ped-button-end);
+  border: 1px solid var(--ped-border);
 }
 
 .workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-primary-action) {
-  box-shadow: 0 10px 24px rgb(37 83 59 / .16), 0 0 0 2px var(--ped-halo);
+  background: linear-gradient(112deg, #672614, #502014);
+  box-shadow: 0 10px 24px rgb(62 35 22 / .16);
 }
 
-.badge { background: var(--ped-halo); border-color: var(--ped-border); color: var(--ped-accent); }
+:global(html[data-theme="dark"]) .workspace[data-planning-kind][data-pediatric-workspace] :global(.hpsr-obstetric-primary-action) {
+  background: linear-gradient(112deg, #402b20, #302016);
+}
+
+.badge { background: transparent; border-color: var(--ped-border); color: var(--ped-accent); }
 .muted { font-size: 13px; line-height: 1.6; color: var(--ped-muted); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .button,.primary { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 38px; padding: 8px 14px; border: 1px solid var(--ped-border); border-radius: 11px; font-size: 12px; font-weight: 800; background: var(--ped-input); color: var(--ped-accent); cursor: pointer; }
-.primary { background: var(--ped-halo); }
+.primary { background: var(--ped-surface); }
 .button:disabled,.primary:disabled { opacity: .5; cursor: not-allowed; }
 .sectionHeading { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .form { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
 .field { color: var(--ped-accent); display: grid; gap: 6px; min-width: 0; font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .full { grid-column: 1/-1; }
-.field input,.field select,.field textarea { width: 100%; min-width: 0; border: 1px solid var(--ped-border); border-radius: 12px; padding: 11px 13px; background: var(--ped-input); color: var(--ped-title); font-size: 13px; font-weight: 400; letter-spacing: normal; text-transform: none; }
+.field input,.field select,.field textarea { width: 100%; min-width: 0; border: 1px solid var(--ped-border); border-radius: 12px; padding: 11px 13px; background: var(--ped-input); color: var(--ped-text); font-size: 13px; font-weight: 400; letter-spacing: normal; text-transform: none; }
 .field textarea { min-height: 90px; resize: vertical; }
 .notice,.error { padding: 12px 14px; border-radius: 12px; font-size: 13px; }
-.notice { border: 1px solid var(--ped-border); background: var(--ped-halo); color: var(--ped-accent); }
+.notice { border: 1px solid var(--ped-border); background: var(--ped-surface); color: var(--ped-accent); }
 .error { border: 1px solid #e7a5a5; background: #fff0ee; color: #8a2525; }
 .overlay { position: fixed; inset: 0; z-index: 100; background: #1d100bb0; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .modal { background: var(--ped-surface); border: 1px solid var(--ped-border); border-radius: 22px; width: min(960px,100%); max-height: 90dvh; overflow-y: auto; padding: 24px; }
@@ -146,21 +106,17 @@
 .readOnly { color: var(--ped-accent); font-size: 12px; }
 .status { display: inline-flex; align-items: center; gap: 7px; }
 .status::before { content: ""; width: 8px; height: 8px; flex-shrink: 0; background: #aaa; border-radius: 50%; }
-.status[data-done="true"]::before { background: var(--ped-focus); }
+.status[data-done="true"]::before { background: transparent; border: 2px solid var(--ped-focus); }
 .intakeDialog { margin: auto; width: min(960px,calc(100% - 32px)); color: var(--hpsr-text,inherit); }
 .intakeDialog::backdrop { background: #1d100bb0; }
 
 :global(html[data-theme="dark"]) .workspace {
   --ped-accent: #bfead3;
-  --ped-title: #e2f3e9;
-  --ped-muted: #bdd1c4;
-  --ped-border: #587765;
-  --ped-halo: #344c40;
-  --ped-surface: #26382f;
-  --ped-surface-soft: #30443a;
-  --ped-input: #293e34;
-  --ped-button-start: #ddf3e7;
-  --ped-button-end: #b9e0cc;
+  --ped-text: #fae7d7;
+  --ped-muted: #dbc0ad;
+  --ped-border: #668674;
+  --ped-surface: #2b211b;
+  --ped-input: #372a22;
   --ped-focus: #a8dbbf;
 }
 
