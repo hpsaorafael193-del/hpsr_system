@@ -39,6 +39,7 @@ type Product = {
   preco: number;
   semDescontoPm?: boolean;
   semDescontoConvenio?: boolean;
+  repasseHpUnitario?: number;
   imagem: string;
 };
 
@@ -130,7 +131,6 @@ const procedimentos: Product[] = [
   {
     id: "p2",
     nome: "RESSONÂNCIA MAGNÉTICA",
-    semDescontoPm: true,
     descricao: "Exame de ressonância magnética.",
     preco: 480000,
     imagem: "Icones/hpsr/ressonancia.png",
@@ -165,11 +165,13 @@ const procedimentos: Product[] = [
     imagem: "Icones/hpsr/consulta-especialista.png",
   },
   {
-    id: "p7",
-    nome: "CONSULTA COM PSICÓLOGO",
+    id: "p12",
+    nome: "PSICOTÉCNICO",
     semDescontoPm: true,
-    descricao: "Consulta e acompanhamento psicológico e psiquiátrico.",
-    preco: servicePricing.psychologyConsultation,
+    semDescontoConvenio: true,
+    descricao: "Avaliação psicotécnica com valor fixo.",
+    preco: 4000000,
+    repasseHpUnitario: 1500000,
     imagem: "Icones/hpsr/consulta-psicologica.png",
   },
   {
@@ -177,10 +179,40 @@ const procedimentos: Product[] = [
     nome: "INTERNAÇÃO",
     semDescontoPm: true,
     descricao: "Serviço de internação hospitalar.",
-    preco: 3980000,
+    preco: 4000000,
     imagem: "Icones/hpsr/internacao.png",
   },
-  { id: "p11", nome: "CIRURGIA", semDescontoPm: true, descricao: "Procedimento cirúrgico hospitalar.", preco: 24980000, imagem: "Icones/hpsr/cirurgia.png" },
+  { id: "p11", nome: "CIRURGIA", semDescontoPm: true, descricao: "Procedimento cirúrgico hospitalar.", preco: 25000000, imagem: "Icones/hpsr/cirurgia.png" },
+  {
+    id: "p13",
+    nome: "PARTO NORMAL",
+    semDescontoPm: true,
+    semDescontoConvenio: true,
+    descricao: "Parto normal com internação inclusa.",
+    preco: 25000000,
+    repasseHpUnitario: 22500000,
+    imagem: "Icones/hpsr/parto-normal.png",
+  },
+  {
+    id: "p14",
+    nome: "PARTO CESÁREA",
+    semDescontoPm: true,
+    semDescontoConvenio: true,
+    descricao: "Parto cesárea com internação inclusa.",
+    preco: 30000000,
+    repasseHpUnitario: 27500000,
+    imagem: "Icones/hpsr/parto-cesarea.png",
+  },
+  {
+    id: "p15",
+    nome: "PARTO HUMANIZADO",
+    semDescontoPm: true,
+    semDescontoConvenio: true,
+    descricao: "Parto humanizado com internação inclusa.",
+    preco: 32000000,
+    repasseHpUnitario: 29500000,
+    imagem: "Icones/hpsr/parto-humanizado.png",
+  },
 ];
 
 
@@ -280,7 +312,8 @@ export default function CalculatorPage() {
   const tabletHpSubtotal = selectedItems
     .filter((item) => tabletHpProductIds.has(item.product.id))
     .reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-  const tabletHpTotal = Math.round(tabletHpSubtotal * (1 - selectedConvenio.discount));
+  const repassesFixosHp = selectedItems.reduce((sum, item) => sum + (item.product.repasseHpUnitario ?? 0) * item.quantity, 0);
+  const tabletHpTotal = Math.round(tabletHpSubtotal * (1 - selectedConvenio.discount)) + repassesFixosHp;
   const doctorTotal = Math.max(0, total - tabletHpTotal);
   const totalUnits = selectedItems.reduce((totalItems, item) => totalItems + item.quantity, 0);
 
@@ -713,6 +746,12 @@ export default function CalculatorPage() {
                             <div className="min-w-0">
                               <p className="truncate font-black text-hpsr-text">{item.product.nome}</p>
                               <p className="text-[11px] font-semibold text-hpsr-muted">{item.quantity} × {formatCurrency(getEffectivePrice(item.product))}</p>
+                              {item.product.repasseHpUnitario !== undefined && (
+                                <dl className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-hpsr-muted" aria-label={`Divisão: ${item.product.nome}`}>
+                                  <div className="flex gap-1"><dt>Médico:</dt><dd className="font-bold text-hpsr-text">{formatCurrency((item.unitPrice - item.product.repasseHpUnitario) * item.quantity)}</dd></div>
+                                  <div className="flex gap-1"><dt>HP:</dt><dd className="font-bold text-hpsr-text">{formatCurrency(item.product.repasseHpUnitario * item.quantity)}</dd></div>
+                                </dl>
+                              )}
                             </div>
                             <p className="font-black text-hpsr-text">{formatCurrency(item.quantity * getEffectivePrice(item.product))}</p>
                           </div>
