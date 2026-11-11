@@ -147,6 +147,7 @@ function usefulTechnicalVariable(model: IntelligentExamModel, variable: Intellig
   const modelSemantic = normalizedFieldKey(`${model.id} ${model.nome} ${model.categoria}`);
   const gestationalOnly = new Set(["idade_gestacional", "numero_fetos", "fiv", "risco"]);
   if (gestationalOnly.has(variableId) && !/obst|monitorizacao_folicular/.test(modelSemantic)) return false;
+  if (model.id === "lab_beta_hcg_completo" && variableId === "contexto_clinico") return false;
   if (variableId === "idade_gestacional_referida" && model.id !== "lab_beta_hcg_completo") return false;
   if (variableId === normalizedFieldKey(model.adapter.id)) return false;
   if (variableId === "contraste") return false;
@@ -210,7 +211,8 @@ function clinicalVariableFields(model: IntelligentExamModel, configuration: Adap
   const contextKey = normalizedFieldKey(configuration.clinicalContext || "");
   const specialContextOwner = model.adapter.kind === "bond-type"
     || model.variables.some((variable) => variable.id === "finalidade_avaliacao")
-    || model.id === "gineco_usg_monitorizacao_folicular";
+    || model.id === "gineco_usg_monitorizacao_folicular"
+    || model.id === "lab_beta_hcg_completo";
   if (!hasContextDetail && !specialContextOwner && contextKey && contextKey !== "rotina") {
     fields.push({
       id: "contexto_clinico",
@@ -283,6 +285,7 @@ function profileForClinicalContext(model: IntelligentExamModel, configuration: A
   const profileId = model.id === "genetico_sexagem_fetal" ? legacySexProfile[configuration.profileId] || configuration.profileId : configuration.profileId;
   const selected = model.profiles.find((item) => item.id === profileId);
   const defaultId = model.editorModel.defaultProfileId;
+  if (model.id === "lab_beta_hcg_completo" && selected) return selected;
   if (selected && selected.id !== defaultId && selected.id !== "normal") return selected;
 
   const contextKey = normalizedFieldKey(clinicalContext);
@@ -317,6 +320,8 @@ export function resolveAdaptiveExam(
     }
   });
   for (const parameter of contextualParameters(model, resolvedVariables)) {
+    // Guided beta-hCG uses only the visible controls; old manual values cannot override the selected result.
+    if (model.id === "lab_beta_hcg_completo" && safeConfiguration.profileId !== "personalizado") continue;
     const supplied = safeConfiguration.variables[parameter.id];
     if (supplied !== undefined && String(supplied).trim() !== "") resolvedVariables[parameter.id] = supplied;
   }
@@ -987,22 +992,25 @@ function betaHcgNumber(value: unknown) {
   return Number(normalized);
 }
 
-function betaHcgGeneratedValue(profileId: string, referredWeeks: unknown, generationSeed: number) {
-  if (profileId === "indeterminado") return Math.round(deterministicBetween(`beta:borderline:${generationSeed}`, 6, 24));
-  if (profileId === "negativo") {
-    return Number(deterministicBetween(`beta:negative:${generationSeed}`, 0.4, 4.6).toFixed(1));
-  }
+// Stable synthetic RP examples, never a random draw or a measurement inferred from the indication.
+const betaHcgContexts: Record<string, { positive: number; reading: string }> = {
+  rotina: { positive: 82, reading: "Triagem laboratorial: interpretar a concentração conforme os limites do método." },
+  gestacao: { positive: 1840, reading: "Na avaliação gestacional, correlacionar com a idade informada e a ultrassonografia quando disponível." },
+  fiv: { positive: 286, reading: "Na reprodução assistida, considerar o intervalo desde a transferência e eventual uso de hCG exógeno." },
+  abortamento: { positive: 82, reading: "Na investigação ou no controle após abortamento, uma dosagem isolada não confirma a perda nem distingue hCG residual de outras causas de positividade." },
+  seguimento: { positive: 286, reading: "No seguimento, comparar dosagens anteriores e datas de coleta antes de descrever elevação ou queda." },
+  personalizado: { positive: 82, reading: "Avaliação individual: interpretar o resultado conforme os dados clínicos disponíveis." },
+};
 
-  const weeks = betaHcgNumber(referredWeeks);
-  if (String(referredWeeks ?? "").trim() && !betaHcgRange(weeks)) return Number.NaN;
-  const compatible = Number.isFinite(weeks) && weeks > 0
-    ? BETA_HCG_EARLY_GESTATIONAL_RANGES.filter((range) => weeks >= range.startWeek && weeks < range.endWeek)
-    : [];
-  const min = compatible.length ? Math.max(26, Math.min(...compatible.map((range) => range.min))) : 26;
-  const max = compatible.length ? Math.max(min + 1, Math.max(...compatible.map((range) => range.max))) : 120000;
-  const fraction = deterministicBetween(`beta:positive:${weeks || "unknown"}:${generationSeed}`, 0.18, 0.82);
-  const value = Math.exp(Math.log(min) + fraction * (Math.log(max) - Math.log(min)));
-  return Math.max(26, Math.round(value));
+function betaHcgGeneratedValue(profileId: string, referredWeeks: unknown, clinicalContext: string) {
+  if (profileId === "negativo") return 2.1;
+  if (profileId === "indeterminado") return 14;
+  const context = betaHcgContexts[normalizedFieldKey(clinicalContext)] ?? betaHcgContexts.rotina;
+  if (!String(referredWeeks ?? "").trim()) return context.positive;
+  const range = betaHcgRange(betaHcgNumber(referredWeeks));
+  if (!range) return Number.NaN;
+  // A stable representative concentration inside both the age band and positive threshold.
+  return Math.round(Math.sqrt(Math.max(26, range.min) * range.max));
 }
 
 function betaHcgGestationalEstimate(value: unknown) {
@@ -1055,6 +1063,23 @@ function guidedRuntimeOverride(
   const protocolRoleKey = normalizedFieldKey(protocolRole);
   const stimulationDay = String(runtimeVariables.dia_estimulacao ?? "").trim();
   const endometrialPrepDay = String(runtimeVariables.dia_preparo_endometrial ?? "").trim();
+  if (model.id === "lab_beta_hcg_completo" && profile.status !== "personalizado") {
+    const referred = String(runtimeVariables.idade_gestacional_referida ?? "").trim();
+    const value = betaHcgGeneratedValue(profile.id, referred, clinicalContext);
+    const state = value < 5 ? "Negativo" : value <= 25 ? "Inconclusivo" : "Positivo";
+    if (!Number.isFinite(value)) return parameter.id === "idade_gestacional_referida" ? `${referred} semanas` : "Não informado: idade gestacional fora da faixa de geração; informar resultado medido";
+    const values: Record<string, string> = {
+      tipo_exame: "Quantitativo",
+      resultado_qualitativo: state,
+      beta_hcg_quantitativo: `${formatPtNumber(value, value < 5 ? "0.0" : "0", "mUI/mL")} mUI/mL`,
+      idade_gestacional_referida: referred ? `${referred} semanas` : "Não informada",
+      correspondencia_gestacional: referred ? betaHcgGestationalCompatibility(value, referred) : betaHcgGestationalEstimate(value),
+      evolucao_seriada: "Sem comparação seriada disponível; não é possível afirmar elevação ou queda nesta amostra isolada",
+      impressao: `β-hCG ${state.toLowerCase()}`,
+    };
+    return values[parameter.id] || null;
+  }
+
   if (model.id === "lab_beta_hcg_completo" && String(runtimeVariables.beta_hcg_quantitativo ?? "").trim()) {
     const value = betaHcgNumber(runtimeVariables.beta_hcg_quantitativo);
     const state = value < 5 ? "Negativo" : value <= 25 ? "Inconclusivo" : "Positivo";
@@ -1153,22 +1178,6 @@ function guidedRuntimeOverride(
     return adapterValue;
   }
 
-  if (model.id === "lab_beta_hcg_completo") {
-    const referred = String(runtimeVariables.idade_gestacional_referida ?? "").trim();
-    const value = betaHcgGeneratedValue(profile.id, referred, generationSeed);
-    const state = value < 5 ? "Negativo" : value <= 25 ? "Inconclusivo" : "Positivo";
-    if (!Number.isFinite(value)) return parameter.id === "idade_gestacional_referida" ? `${referred} semanas` : "Não informado: idade gestacional fora da faixa de geração; informar resultado medido";
-    const values: Record<string, string> = {
-      tipo_exame: "Quantitativo",
-      resultado_qualitativo: state,
-      beta_hcg_quantitativo: `${formatPtNumber(value, value < 5 ? "0.0" : "0", "mUI/mL")} mUI/mL`,
-      idade_gestacional_referida: referred ? `${referred} semanas` : "Não informada",
-      correspondencia_gestacional: referred ? betaHcgGestationalCompatibility(value, referred) : betaHcgGestationalEstimate(value),
-      evolucao_seriada: "Sem comparação seriada disponível; não é possível afirmar elevação ou queda nesta amostra isolada",
-      impressao: `β-hCG ${state.toLowerCase()}`,
-    };
-    return values[parameter.id] || null;
-  }
 
   if (model.id === "lab_urocultura") {
     const values: Record<string, Record<string, string>> = {
@@ -1883,10 +1892,7 @@ function betaHcgNarrative(resolved: AdaptiveResolvedExam, rows: string[][], conc
     : "Resultado acima do limite de positividade; não determina sozinho localização, viabilidade ou evolução da gestação.";
   const compatibility = String(resolved.variables.idade_gestacional_referida ?? "").trim()
     ? betaHcgGestationalCompatibility(value, resolved.variables.idade_gestacional_referida) : "Idade gestacional não informada; não é possível datar a gestação pelo valor isolado.";
-  const context = `${resolved.clinicalContext} ${clinicalDetail(resolved)}`;
-  const caution = /fiv|fertiliza|gatilho|ovidrel|inje.*hcg/i.test(context)
-    ? "No contexto de reprodução assistida, considerar o intervalo desde transferência e eventual uso de hCG exógeno; não presumir sucesso do tratamento por uma dosagem isolada."
-    : /abortamento|sangramento|dor/i.test(context) ? "A queixa clínica não define por si só abortamento ou gestação ectópica; correlacionar com avaliação clínica, ultrassonografia e dosagens anteriores quando disponíveis." : "";
+  const caution = betaHcgContexts[normalizedFieldKey(resolved.clinicalContext)]?.reading || "";
   return [`β-hCG ${state}.`, meaning, compatibility, conclusion ? "" : caution, note].filter(Boolean).join(" ");
 }
 

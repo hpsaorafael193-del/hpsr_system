@@ -31,11 +31,11 @@ for(let seed=0;seed<40;seed++) for(const [w,min,max] of ranges) for(const profil
  assert(x.reading.includes('reprodução assistida'));count++;
 }
 for(const [v,state] of [['4,9','negativo'],['5','inconclusivo'],['25','inconclusivo'],['25,1','positivo'],['82','positivo'],['1.840','positivo']]){
- const x=run('indeterminado',{beta_hcg_quantitativo:v,idade_gestacional_referida:'32',resultado_qualitativo:'Inconclusivo'});
+ const x=run('personalizado',{beta_hcg_quantitativo:v,idade_gestacional_referida:'32',resultado_qualitativo:'Inconclusivo'});
  assert(x.conclusion.includes('β-hCG '+state));assert(x.rows.find(r=>r[0]==='Resultado Qualitativo')[1].toLowerCase()===state);
  if(v!=='1.840') assert(x.reading.includes('fora da faixa'));
 }
-assert(run('positivo',{idade_gestacional_referida:'32',beta_hcg_quantitativo:'82'}).conclusion.includes('fora da faixa'));
+assert(run('personalizado',{idade_gestacional_referida:'32',beta_hcg_quantitativo:'82'}).conclusion.includes('fora da faixa'));
 assert(run('positivo',{idade_gestacional_referida:'2'}).conclusion.includes('não é possível classificar'));
 assert(run('personalizado',{}).conclusion.includes('não é possível classificar'));
 console.log('PASS beta-HCG:',count,'generated cases, thresholds, manual conflicts and missing data');

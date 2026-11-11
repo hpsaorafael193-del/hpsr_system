@@ -368,7 +368,7 @@ function updateTableValuesOnly(currentNode: HTMLElement, generatedHtml: string) 
   return changed;
 }
 
-function mergeAutomaticBlocks(currentHtml: string, generatedHtml: string) {
+function mergeAutomaticBlocks(currentHtml: string, generatedHtml: string, replaceClinicalBlocks = false) {
   if (typeof window === "undefined") return generatedHtml;
   if (!currentHtml.trim()) return generatedHtml;
 
@@ -384,6 +384,11 @@ function mergeAutomaticBlocks(currentHtml: string, generatedHtml: string) {
     const next = generatedBlocks.get(id);
     if (!next) return;
 
+    if (replaceClinicalBlocks && ["tecnica", "resultados", "interpretacao", "conclusao"].includes(id)) {
+      node.outerHTML = next;
+      changed = true;
+      return;
+    }
     const wasEditedByUser = node.dataset.hpsrUserEdited === "true";
 
     const containsTable = Boolean(node.querySelector("table")) && /<table[\s>]/i.test(next);
@@ -1473,6 +1478,21 @@ export default function ExamesPage() {
     if (!selectedExam || !adaptiveConfig) return;
 
     const current = editorRef.current?.innerHTML || editorHtmlRef.current;
+    if (selectedExam.id === "lab_beta_hcg_completo") {
+      const config = {
+        ...adaptiveConfig,
+        profileId: visibleExamProfiles.some(profile => profile.id === adaptiveConfig.profileId)
+          ? adaptiveConfig.profileId : adaptiveConfig.profileId === "seguimento" ? "positivo" : "negativo",
+        variables: { idade_gestacional_referida: adaptiveConfig.variables.idade_gestacional_referida ?? "" },
+      };
+      const exam = resolveAdaptiveExam(selectedExam, config, { age: patient.age, bloodType: patient.bloodType });
+      const generated = renderAdaptiveExamReport(exam);
+      const onlyBase = !textFromHtml(current).trim() || textFromHtml(current).trim() === selectedExam.nome;
+      setAdaptiveConfig(config);
+      setEditorContent(onlyBase ? generated : mergeAutomaticBlocks(current, generated, true), { moveCaretToEnd: true });
+      return;
+    }
+
     let generationSeed = nextAdaptiveGenerationSeed(adaptiveConfig.generationSeed);
     let nextConfig: AdaptiveExamConfiguration = { ...adaptiveConfig, generationSeed };
     let merged = current;
@@ -2154,7 +2174,7 @@ export default function ExamesPage() {
                       <SelectInput
                         value={visibleExamProfiles.some((profile) => profile.id === (resolvedExam?.profile.id || adaptiveConfig.profileId))
                           ? (resolvedExam?.profile.id || adaptiveConfig.profileId)
-                          : visibleExamProfiles[0]?.id || ""}
+                          : resolvedExam?.profile.id === "seguimento" && activeExamModel?.id === "lab_beta_hcg_completo" ? "positivo" : visibleExamProfiles[0]?.id || ""}
                         onChange={(profileId) => updateConfig({ profileId })}
                       >
                         {visibleExamProfiles.map((profile) => (

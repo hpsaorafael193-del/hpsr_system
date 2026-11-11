@@ -76,3 +76,46 @@ for(const model of models){
  }
 }
 console.log(`PASS ${variableChecks} active-variable mutation checks and ${contextModels} context-aware catalogue readings, including models without a custom profile`);
+
+// Beta-HCG Apply replaces the clinical sections together, even when a draft
+// has a legacy amount and the editor has marked its old conclusion as edited.
+const beta=models.find(m=>m.id==='lab_beta_hcg_completo');
+const betaStates={negativo:'negativo',positivo:'positivo',indeterminado:'inconclusivo'};
+for(const clinicalContext of beta.clinicalContexts) for(const [profileId,state] of Object.entries(betaStates)){
+ const config={profileId,clinicalContext,variables:{idade_gestacional_referida:'8',beta_hcg_quantitativo:'14',contexto_clinico:'DETALHE ANTIGO'}};
+ const generated=render(beta,config), rerendered=render(beta,{...config,generationSeed:871});
+ assert.equal(generated.html,rerendered.html);
+ assert(!generated.resolved.dynamicFields.some(f=>f.id==='contexto_clinico'));
+ assert(!generated.html.includes('DETALHE ANTIGO'));
+ const old=render(beta,{profileId:profileId==='positivo'?'indeterminado':'positivo'}).html;
+ const edited=old.replaceAll('data-hpsr-auto-block="true"','data-hpsr-user-edited="true" data-hpsr-auto-block="true"')+'<p>Nota independente do laudo</p>';
+ const merged=sandbox.mergeAutomaticBlocks(edited,generated.html,true);
+ const node=parse(merged);
+ const row=[...node.querySelectorAll('tbody tr')].find(row=>row.cells[0].textContent==='β-hCG Quantitativo');
+ const amount=Number(row.cells[1].textContent.split(' ')[0].replaceAll('.','').replace(',','.'));
+ assert(profileId==='positivo'?amount>25:profileId==='negativo'?amount<5:amount>=5&&amount<=25);
+ for(const block of ['interpretacao','conclusao']) assert(node.querySelector('[data-hpsr-block="'+block+'"]').textContent.includes('β-hCG '+state));
+ assert(merged.includes('Nota independente do laudo'));
+}
+console.log('PASS beta-HCG: all contexts and result profiles, stale draft values, stable generation and coherent reapply');
+
+const refresh=ast.statements.flatMap(function visit(node){
+ return ts.isFunctionDeclaration(node)&&node.name?.text==='refreshFindings'
+  ? [node] : node.getChildren(ast).flatMap(visit);
+})[0];
+assert(refresh,'Exam page Apply handler exists');
+let appliedHtml='', appliedConfig=null;
+Object.assign(sandbox,{
+ selectedExam:beta, visibleExamProfiles:beta.profiles.filter(p=>Object.hasOwn(betaStates,p.id)),
+ adaptiveConfig:{...engine.createInitialAdaptiveConfiguration(beta),profileId:'positivo',clinicalContext:'Seguimento',variables:{idade_gestacional_referida:'8',beta_hcg_quantitativo:'14',contexto_clinico:'DETALHE ANTIGO'}},
+ editorRef:{current:{innerHTML:render(beta,{profileId:'indeterminado'}).html}},
+ editorHtmlRef:{current:''},patient:{},textFromHtml:html=>parse(html).textContent,
+ resolveAdaptiveExam:engine.resolveAdaptiveExam,renderAdaptiveExamReport:engine.renderAdaptiveExamReport,
+ setAdaptiveConfig:config=>{appliedConfig=config;},setEditorContent:html=>{appliedHtml=html;}
+});
+vm.runInContext(ts.transpileModule(refresh.getText(ast),{compilerOptions:{target:ts.ScriptTarget.ES2020}}).outputText+'\nrefreshFindings();',sandbox);
+assert.equal(appliedConfig.profileId,'positivo');
+assert.deepEqual(Object.keys(appliedConfig.variables),['idade_gestacional_referida']);
+assert(!appliedHtml.includes('14 mUI/mL'));
+assert(appliedHtml.includes('β-hCG positivo')&&appliedHtml.includes('No seguimento'));
+console.log('PASS actual beta-HCG Apply handler refreshes stale draft with the selected inputs');
