@@ -248,9 +248,7 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "label": "Idade gestacional referida (semanas)",
       "tipo": "number",
       "required": false,
-      "appliesTo": [
-        "positivo"
-      ]
+      "appliesTo": ["positivo", "negativo", "indeterminado", "seguimento", "personalizado"]
     }
   ],
   "editorModel": {
@@ -395,7 +393,7 @@ export const lab_beta_hcg_completoModel: IntelligentExamModel = {
       "id": "beta_hcg_quantitativo",
       "label": "β-hCG Quantitativo",
       "unidade": "mUI/mL",
-      "referencia": "< 5",
+      "referencia": "Negativo: < 5; inconclusivo: 5–25; positivo: > 25 mUI/mL",
       "resultPlaceholder": "A preencher",
       "interpretationHint": "Interpretar β-hCG Quantitativo conforme referência, contexto clínico e método utilizado."
     },

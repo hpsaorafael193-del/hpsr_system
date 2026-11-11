@@ -246,9 +246,6 @@ function contextualParameters(model: IntelligentExamModel, variables: Record<str
     });
   }
 
-  if (model.id === "lab_beta_hcg_completo" && profileId === "negativo") {
-    return model.parameters.filter((parameter) => parameter.id !== "idade_gestacional_referida");
-  }
 
   return model.parameters;
 }
@@ -962,68 +959,72 @@ type BetaHcgGestationalRange = {
   endWeek: number;
 };
 
+// Approximate ranges since LMP (OHSU laboratory); half-open week intervals.
 const BETA_HCG_EARLY_GESTATIONAL_RANGES: BetaHcgGestationalRange[] = [
-  { min: 5, max: 50, startWeek: 3, endWeek: 3 },
-  { min: 5, max: 426, startWeek: 4, endWeek: 4 },
-  { min: 18, max: 7340, startWeek: 5, endWeek: 5 },
-  { min: 1080, max: 56500, startWeek: 6, endWeek: 6 },
-  { min: 7650, max: 229000, startWeek: 7, endWeek: 8 },
-  { min: 25700, max: 288000, startWeek: 9, endWeek: 12 },
+  { min: 9, max: 130, startWeek: 3, endWeek: 4 },
+  { min: 75, max: 2600, startWeek: 4, endWeek: 5 },
+  { min: 850, max: 20800, startWeek: 5, endWeek: 6 },
+  { min: 4000, max: 100200, startWeek: 6, endWeek: 7 },
+  { min: 11500, max: 289000, startWeek: 7, endWeek: 12 },
+  { min: 18300, max: 137000, startWeek: 12, endWeek: 16 },
+  { min: 1400, max: 53000, startWeek: 16, endWeek: 29 },
+  { min: 940, max: 60000, startWeek: 29, endWeek: 41 },
 ];
+const BETA_HCG_REFERENCE = "Negativo: < 5; inconclusivo: 5–25; positivo: > 25 mUI/mL";
+function betaHcgRange(weeks: number) {
+  return BETA_HCG_EARLY_GESTATIONAL_RANGES.find(range => weeks >= range.startWeek && weeks < range.endWeek);
+}
 
 function betaHcgNumber(value: unknown) {
+  if (typeof value === "number") return value;
   const raw = String(value ?? "").trim();
   if (!raw) return Number.NaN;
-  const token = raw.match(/[0-9][0-9.,]*/)?.[0] || "";
-  return token ? parsePtNumber(token) : Number.NaN;
+  const token = raw.match(/-?[0-9][0-9.,]*/)?.[0] || "";
+  if (!token) return Number.NaN;
+  // Reports use pt-BR thousands separators; do not read 1.840 as 1.84.
+  const normalized = token.includes(",") ? token.replace(/\./g, "").replace(",", ".")
+    : /^-?\d{1,3}(\.\d{3})+$/.test(token) ? token.replace(/\./g, "") : token;
+  return Number(normalized);
 }
 
 function betaHcgGeneratedValue(profileId: string, referredWeeks: unknown, generationSeed: number) {
+  if (profileId === "indeterminado") return Math.round(deterministicBetween(`beta:borderline:${generationSeed}`, 6, 24));
   if (profileId === "negativo") {
     return Number(deterministicBetween(`beta:negative:${generationSeed}`, 0.4, 4.6).toFixed(1));
   }
 
   const weeks = betaHcgNumber(referredWeeks);
+  if (String(referredWeeks ?? "").trim() && !betaHcgRange(weeks)) return Number.NaN;
   const compatible = Number.isFinite(weeks) && weeks > 0
-    ? BETA_HCG_EARLY_GESTATIONAL_RANGES.filter((range) => weeks >= range.startWeek && weeks <= range.endWeek)
+    ? BETA_HCG_EARLY_GESTATIONAL_RANGES.filter((range) => weeks >= range.startWeek && weeks < range.endWeek)
     : [];
-  const min = compatible.length ? Math.max(25, Math.min(...compatible.map((range) => range.min))) : 25;
+  const min = compatible.length ? Math.max(26, Math.min(...compatible.map((range) => range.min))) : 26;
   const max = compatible.length ? Math.max(min + 1, Math.max(...compatible.map((range) => range.max))) : 120000;
   const fraction = deterministicBetween(`beta:positive:${weeks || "unknown"}:${generationSeed}`, 0.18, 0.82);
   const value = Math.exp(Math.log(min) + fraction * (Math.log(max) - Math.log(min)));
-  return Math.max(25, Math.round(value));
+  return Math.max(26, Math.round(value));
 }
 
 function betaHcgGestationalEstimate(value: unknown) {
   const numeric = betaHcgNumber(value);
-  if (!Number.isFinite(numeric) || numeric <= 0) {
+  if (!Number.isFinite(numeric) || numeric < 0) {
     return "Informe o valor quantitativo do β-hCG para calcular a estimativa gestacional.";
   }
-  if (numeric < 25) {
+  if (numeric < 5) return "Resultado negativo; sem estimativa gestacional pelo β-hCG isolado.";
+  if (numeric <= 25) {
     return "Valor baixo/limítrofe para estimativa gestacional isolada; correlacionar clinicamente e considerar controle seriado.";
   }
 
-  const compatible = BETA_HCG_EARLY_GESTATIONAL_RANGES.filter((range) => numeric >= range.min && numeric <= range.max);
-  if (!compatible.length) {
-    if (numeric > 288000) {
-      return "Valor acima da faixa usada pelo motor para estimativa inicial; confirmar idade gestacional por DUM e/ou ultrassonografia.";
-    }
-    return "Sem correspondência gestacional segura pelo valor isolado informado.";
-  }
-
-  const startWeek = Math.min(...compatible.map((range) => range.startWeek));
-  const endWeek = Math.max(...compatible.map((range) => range.endWeek));
-  const weekText = startWeek === endWeek ? `${startWeek} semanas` : `${startWeek}–${endWeek} semanas`;
-  return `Compatível aproximadamente com ${weekText}; estimativa laboratorial com faixas sobrepostas, confirmar por DUM e/ou ultrassonografia.`;
+  return "β-hCG positivo; uma dosagem isolada não determina idade, localização ou viabilidade gestacional. Correlacionar com DUM e/ou ultrassonografia.";
 }
 
 function betaHcgGestationalCompatibility(value: unknown, referredWeeks: unknown) {
   const numeric = betaHcgNumber(value);
   const weeks = betaHcgNumber(referredWeeks);
   if (!Number.isFinite(weeks) || weeks <= 0) return betaHcgGestationalEstimate(value);
-  if (!Number.isFinite(numeric) || numeric <= 0) return `Idade gestacional referida: ${weeks} semanas; informe o valor quantitativo para correlação.`;
+  if (!Number.isFinite(numeric) || numeric < 0) return `Idade gestacional referida: ${weeks} semanas; informe o valor quantitativo para correlação.`;
 
-  const ranges = BETA_HCG_EARLY_GESTATIONAL_RANGES.filter((range) => weeks >= range.startWeek && weeks <= range.endWeek);
+  const ranges = BETA_HCG_EARLY_GESTATIONAL_RANGES.filter((range) => weeks >= range.startWeek && weeks < range.endWeek);
   if (!ranges.length) {
     return `Idade gestacional referida: ${weeks} semanas. O β-hCG isolado não é adequado para datar com precisão essa etapa; correlacionar com DUM e ultrassonografia.`;
   }
@@ -1054,6 +1055,15 @@ function guidedRuntimeOverride(
   const protocolRoleKey = normalizedFieldKey(protocolRole);
   const stimulationDay = String(runtimeVariables.dia_estimulacao ?? "").trim();
   const endometrialPrepDay = String(runtimeVariables.dia_preparo_endometrial ?? "").trim();
+  if (model.id === "lab_beta_hcg_completo" && String(runtimeVariables.beta_hcg_quantitativo ?? "").trim()) {
+    const value = betaHcgNumber(runtimeVariables.beta_hcg_quantitativo);
+    const state = value < 5 ? "Negativo" : value <= 25 ? "Inconclusivo" : "Positivo";
+    if (Number.isFinite(value) && value >= 0) {
+      if (parameter.id === "resultado_qualitativo" || parameter.id === "impressao") return state;
+      if (parameter.id === "correspondencia_gestacional") return betaHcgGestationalCompatibility(value, runtimeVariables.idade_gestacional_referida);
+      if (parameter.id === "evolucao_seriada") return "Sem comparação seriada disponível nesta amostra isolada";
+    }
+  }
   const directVariable = runtimeVariables[parameter.id];
   if (profile.status === "personalizado") return directVariable !== undefined && String(directVariable).trim() !== "" ? String(directVariable) : "Não informado";
 
@@ -1144,53 +1154,20 @@ function guidedRuntimeOverride(
   }
 
   if (model.id === "lab_beta_hcg_completo") {
-    const referredWeeks = String(runtimeVariables.idade_gestacional_referida ?? "").trim();
-
-    if (profile.id === "negativo" || profile.id === "positivo") {
-      const isPositive = profile.id === "positivo";
-      const generatedBeta = betaHcgGeneratedValue(profile.id, referredWeeks, generationSeed);
-      const generatedBetaText = isPositive
-        ? `${formatPtNumber(generatedBeta, "0", "mUI/mL")} mUI/mL`
-        : `${formatPtNumber(generatedBeta, "0.0", "mUI/mL")} mUI/mL`;
-      if (parameter.id === "tipo_exame") return "Quantitativo";
-      if (parameter.id === "resultado_qualitativo") return isPositive ? "Positivo" : "Negativo";
-      if (parameter.id === "beta_hcg_quantitativo") return generatedBetaText;
-      if (parameter.id === "idade_gestacional_referida") return isPositive ? (referredWeeks ? `${referredWeeks} semanas` : "Não informada") : null;
-      if (parameter.id === "correspondencia_gestacional") {
-        if (!isPositive) return "Sem estimativa gestacional para resultado negativo.";
-        return referredWeeks
-          ? betaHcgGestationalCompatibility(generatedBeta, referredWeeks)
-          : betaHcgGestationalEstimate(generatedBeta);
-      }
-      if (parameter.id === "evolucao_seriada") {
-        return isPositive
-          ? "Avaliar tendência apenas quando houver dosagens seriadas e indicação clínica"
-          : "Sem curva seriada definida neste resultado isolado";
-      }
-      if (parameter.id === "impressao") return isPositive ? "β-hCG positivo" : "β-hCG negativo";
-      return null;
-    }
-
-    // Compatibilidade com rascunhos/configurações anteriores do Beta-hCG.
-    const legacyValues: Record<string, Record<string, string>> = {
-      indeterminado: {
-        tipo_exame: "Quantitativo",
-        resultado_qualitativo: "Inconclusivo",
-        beta_hcg_quantitativo: `${formatPtNumber(deterministicBetween(`beta:indeterminado:${generationSeed}`, 6, 24), "0", "mUI/mL")} mUI/mL`,
-        correspondencia_gestacional: "Faixa limítrofe, sem definição isolada",
-        evolucao_seriada: "Repetir em 48–72 horas conforme avaliação clínica",
-        impressao: "β-hCG em faixa indeterminada",
-      },
-      seguimento: {
-        tipo_exame: "Quantitativo",
-        resultado_qualitativo: "Detectável",
-        beta_hcg_quantitativo: `${formatPtNumber(deterministicBetween(`beta:seguimento:${generationSeed}`, 70, 480), "0", "mUI/mL")} mUI/mL`,
-        correspondencia_gestacional: "Compatível com gestação muito inicial; interpretar pela tendência",
-        evolucao_seriada: "Comparar com dosagem anterior em 48–72 horas",
-        impressao: "β-hCG em seguimento seriado",
-      },
+    const referred = String(runtimeVariables.idade_gestacional_referida ?? "").trim();
+    const value = betaHcgGeneratedValue(profile.id, referred, generationSeed);
+    const state = value < 5 ? "Negativo" : value <= 25 ? "Inconclusivo" : "Positivo";
+    if (!Number.isFinite(value)) return parameter.id === "idade_gestacional_referida" ? `${referred} semanas` : "Não informado: idade gestacional fora da faixa de geração; informar resultado medido";
+    const values: Record<string, string> = {
+      tipo_exame: "Quantitativo",
+      resultado_qualitativo: state,
+      beta_hcg_quantitativo: `${formatPtNumber(value, value < 5 ? "0.0" : "0", "mUI/mL")} mUI/mL`,
+      idade_gestacional_referida: referred ? `${referred} semanas` : "Não informada",
+      correspondencia_gestacional: referred ? betaHcgGestationalCompatibility(value, referred) : betaHcgGestationalEstimate(value),
+      evolucao_seriada: "Sem comparação seriada disponível; não é possível afirmar elevação ou queda nesta amostra isolada",
+      impressao: `β-hCG ${state.toLowerCase()}`,
     };
-    return legacyValues[profile.id]?.[parameter.id] || null;
+    return values[parameter.id] || null;
   }
 
   if (model.id === "lab_urocultura") {
@@ -1349,6 +1326,10 @@ function tableHtml(headers: string[], rows: string[][], rowGroups?: Record<strin
 
 function contextualReference(resolved: AdaptiveResolvedExam, parameter: IntelligentExamParameter) {
   const fallback = parameter.referencia || "Conforme método / contexto clínico";
+  if (resolved.model.id === "lab_beta_hcg_completo" && parameter.id === "beta_hcg_quantitativo") {
+    const range = betaHcgRange(betaHcgNumber(resolved.variables.idade_gestacional_referida));
+    return BETA_HCG_REFERENCE + (range ? `; faixa gestacional aproximada: ${range.min}–${range.max} mUI/mL (varia conforme método)` : "");
+  }
   if (resolved.model.id !== "hormonal_painel_hormonal_completo") return fallback;
 
   const role = normalizedFieldKey(String(resolved.variables.papel_no_protocolo ?? ""));
@@ -1890,7 +1871,27 @@ function contextualProtocolNarrative(resolved: AdaptiveResolvedExam, kind: "inte
   return "";
 }
 
+function betaHcgNarrative(resolved: AdaptiveResolvedExam, rows: string[][], conclusion = false) {
+  const row = rows.find(row => row[0] === "β-hCG Quantitativo");
+  const value = betaHcgNumber(row?.[1]);
+  const manualNote = String(resolved.variables[conclusion ? "conclusao" : "impressao"] ?? "").trim();
+  const note = manualNote ? `Observação registrada pelo profissional: ${manualNote}` : "";
+  if (!Number.isFinite(value) || value < 0) return ["Valor quantitativo não informado ou inválido; não é possível classificar o β-hCG.", note].filter(Boolean).join(" ");
+  const state = value < 5 ? "negativo" : value <= 25 ? "inconclusivo" : "positivo";
+  const meaning = state === "negativo" ? "Não confirma gestação nesta amostra; coleta muito precoce pode preceder a elevação hormonal."
+    : state === "inconclusivo" ? "Faixa indeterminada, sem confirmação ou exclusão de gestação; considerar nova dosagem em 48–72 horas conforme avaliação clínica."
+    : "Resultado acima do limite de positividade; não determina sozinho localização, viabilidade ou evolução da gestação.";
+  const compatibility = String(resolved.variables.idade_gestacional_referida ?? "").trim()
+    ? betaHcgGestationalCompatibility(value, resolved.variables.idade_gestacional_referida) : "Idade gestacional não informada; não é possível datar a gestação pelo valor isolado.";
+  const context = `${resolved.clinicalContext} ${clinicalDetail(resolved)}`;
+  const caution = /fiv|fertiliza|gatilho|ovidrel|inje.*hcg/i.test(context)
+    ? "No contexto de reprodução assistida, considerar o intervalo desde transferência e eventual uso de hCG exógeno; não presumir sucesso do tratamento por uma dosagem isolada."
+    : /abortamento|sangramento|dor/i.test(context) ? "A queixa clínica não define por si só abortamento ou gestação ectópica; correlacionar com avaliação clínica, ultrassonografia e dosagens anteriores quando disponíveis." : "";
+  return [`β-hCG ${state}.`, meaning, compatibility, conclusion ? "" : caution, note].filter(Boolean).join(" ");
+}
+
 function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][]) {
+  if (resolved.model.id === "lab_beta_hcg_completo") return betaHcgNarrative(resolved, rows);
   const focusRows = resolved.profile.status === "normal" ? rows : profileChangedRows(resolved, rows);
   const age = ultrasoundGestationalAge(resolved.model, resolved.variables);
   const develop = (base: string) => [age ? `Leitura para a idade gestacional informada de ${age.text}, no ${age.trimester} trimestre.` : "", developClinicalInterpretation(resolved, rows, base, focusRows.length ? focusRows : rows), inputContextInterpretation(resolved, rows)].filter(Boolean).join("\n");
@@ -1930,6 +1931,7 @@ function technicalInterpretation(resolved: AdaptiveResolvedExam, rows: string[][
 
 function technicalConclusion(resolved: AdaptiveResolvedExam, rows: string[][]) {
   const { model, profile } = resolved;
+  if (model.id === "lab_beta_hcg_completo") return betaHcgNarrative(resolved, rows, true);
   if (hasManualFindings(resolved) || profile.status === "personalizado") {
     const conclusionField = resolved.parameters.find(parameter => /conclus/i.test(parameter.id) && String(resolved.variables[parameter.id] ?? "").trim());
     const impression = conclusionField ? resolved.variables[conclusionField.id] : resolved.variables.impressao;
