@@ -975,7 +975,6 @@ const BETA_HCG_EARLY_GESTATIONAL_RANGES: BetaHcgGestationalRange[] = [
   { min: 1400, max: 53000, startWeek: 16, endWeek: 29 },
   { min: 940, max: 60000, startWeek: 29, endWeek: 41 },
 ];
-const BETA_HCG_REFERENCE = "Negativo: < 5; inconclusivo: 5–25; positivo: > 25 mUI/mL";
 function betaHcgRange(weeks: number) {
   return BETA_HCG_EARLY_GESTATIONAL_RANGES.find(range => weeks >= range.startWeek && weeks < range.endWeek);
 }
@@ -1335,10 +1334,6 @@ function tableHtml(headers: string[], rows: string[][], rowGroups?: Record<strin
 
 function contextualReference(resolved: AdaptiveResolvedExam, parameter: IntelligentExamParameter) {
   const fallback = parameter.referencia || "Conforme método / contexto clínico";
-  if (resolved.model.id === "lab_beta_hcg_completo" && parameter.id === "beta_hcg_quantitativo") {
-    const range = betaHcgRange(betaHcgNumber(resolved.variables.idade_gestacional_referida));
-    return BETA_HCG_REFERENCE + (range ? `; faixa gestacional aproximada: ${range.min}–${range.max} mUI/mL (varia conforme método)` : "");
-  }
   if (resolved.model.id !== "hormonal_painel_hormonal_completo") return fallback;
 
   const role = normalizedFieldKey(String(resolved.variables.papel_no_protocolo ?? ""));

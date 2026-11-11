@@ -24,7 +24,7 @@ let count=0;
 for(let seed=0;seed<40;seed++) for(const [w,min,max] of ranges) for(const profile of ['positivo','seguimento','indeterminado','negativo']){
  const x=run(profile,{idade_gestacional_referida:String(w)},seed,'FIV');
  assert(x.rows.find(r=>r[0]==='Idade Gestacional Informada')[1].includes(String(w)));
- assert(x.rows.find(r=>r[0]==='β-hCG Quantitativo')[2].includes('inconclusivo: 5–25'));
+ assert(x.rows.find(r=>r[0]==='β-hCG Quantitativo')[2] === '< 5 mUI/mL (negativo)');
  if(profile==='positivo'||profile==='seguimento'){assert(x.val>=min&&x.val<=max,`${profile} ${w}: ${x.val}`);assert(x.val>25);assert(x.conclusion.includes('β-hCG positivo'),JSON.stringify(x));}
  if(profile==='indeterminado'){assert(x.val>=5&&x.val<=25);assert(x.conclusion.includes('β-hCG inconclusivo'));}
  if(profile==='negativo'){assert(x.val<5);assert(x.conclusion.includes('β-hCG negativo'));}
