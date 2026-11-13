@@ -1,4 +1,5 @@
 "use client";
+import { ClosureEntry } from "@/components/public/ClosureNotice";
 
 import { specialtyLabel } from "@/lib/specialty-label";
 
@@ -32,7 +33,7 @@ type PublicAppointment = {
   updatedAt: string;
 };
 
-export default function SchedulePage() {
+function SchedulePage() {
   const [submitted, setSubmitted] = useState<PublicAppointment | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -224,3 +225,5 @@ export default function SchedulePage() {
     </PublicShell>
   );
 }
+
+export default function Page() { return <ClosureEntry><SchedulePage /></ClosureEntry>; }

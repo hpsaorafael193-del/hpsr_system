@@ -4,6 +4,7 @@ import {useManualRefresh,useLocalRefreshControl} from "@/lib/manual-data-refresh
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BellRing, ClipboardCheck, Eye, EyeOff, FilePenLine, FileText, History, RefreshCw, Search, ShieldCheck, TriangleAlert, UsersRound } from "lucide-react";
+import { ClosureControl } from "@/components/dashboard/ClosureControl";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { InternalNoticesPanel } from "@/components/dashboard/InternalNoticesPanel";
 import { GuardianApprovalPanel } from "@/components/dashboard/GuardianApprovalPanel";
@@ -138,6 +139,7 @@ export default function InternalPage(){
   if(!permitted)return <div className="hpsr-page"><PageHeader eyebrow="Administração" title="Acesso restrito" description="Área reservada às identidades administrativas autorizadas."/><section className="rounded-xl border border-hpsr-border bg-[#f7eee5] p-5"><p className="font-semibold">O Interno está disponível exclusivamente para a Diretora e o Vice-Diretor / Dev autorizados.</p><Link className="mt-3 inline-block text-sm font-bold text-hpsr-wine underline" href="/dashboard">Voltar ao início</Link></section></div>;
   return <div className="hpsr-page gap-4 pb-5">
     <PageHeader eyebrow="Administração interna" title="Interno" description="Conferência, validação e correção de dados do Hospital São Rafael."/>
+    <ClosureControl />
     <section className="rounded-[18px] border border-[#d7c2b0] bg-[#f1e4d5] px-4 py-4 sm:px-5">
       <div className="flex items-center gap-3"><span className="rounded-xl border border-[#d0b39d] bg-[#fff8f0] p-2"><ShieldCheck className="text-hpsr-wine" size={23}/></span><div><p className="text-[10px] font-black uppercase tracking-[.16em] text-hpsr-wine">Gestão interna</p><h1 className="text-xl font-black text-hpsr-text">Central Interno</h1><p className="text-xs font-semibold text-hpsr-muted">{profile.characterName} · {profile.role} · uso administrativo com auditoria</p></div></div>
     </section>

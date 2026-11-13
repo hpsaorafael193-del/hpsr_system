@@ -1,10 +1,13 @@
+import { ClosureEntry } from "@/components/public/ClosureNotice";
 import { PublicShell } from "@/components/public/PublicShell";
 import { RecruitmentClient } from "@/components/public/RecruitmentClient";
 
-export default function WorkWithUsPage() {
+function WorkWithUsPage() {
   return (
     <PublicShell compactTypography={false}>
       <RecruitmentClient />
     </PublicShell>
   );
 }
+
+export default function Page() { return <ClosureEntry><WorkWithUsPage /></ClosureEntry>; }

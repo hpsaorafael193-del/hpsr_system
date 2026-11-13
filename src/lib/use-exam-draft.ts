@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { persistClinicalImages, compactKnownClinicalImages } from "@/lib/clinical-image-assets";
 import { createClient } from "@/lib/supabase";
 
+import { useHospitalClosure } from "@/components/public/ClosureState";
+
 const departingSaves = new Map<string, Promise<void>>();
 
 /** One private workspace per authenticated author. Publication remains explicit. */
@@ -11,6 +13,9 @@ export function useExamDraft<T extends Record<string, unknown>>(
   profileId: string, payload: T, restore: (value: T) => void,
   table: "exam_editor_drafts" | "document_editor_drafts" = "exam_editor_drafts",
 ) {
+  const closed = useHospitalClosure();
+  const closureRef = useRef(closed);
+  closureRef.current = closed;
   const [loadAttempt, setLoadAttempt] = useState(0);
   const loaded = useRef(false);
   const [ready, setReady] = useState(false);
@@ -37,13 +42,13 @@ export function useExamDraft<T extends Record<string, unknown>>(
   }
 
   async function performFlush() {
-    if (running.current || !ownerRef.current || !pending.current) return;
+    if (closureRef.current !== false || running.current || !ownerRef.current || !pending.current) return;
     const client = createClient();
     if (!client) return;
     const owner = ownerRef.current;
     running.current = true;
     try {
-      while (pending.current && ownerRef.current === owner) {
+      while (closureRef.current === false && pending.current && ownerRef.current === owner) {
         const snapshot: { json: string; time: string } = pending.current;
         if (mounted.current) setStatus("Salvando rascunho…");
         const prepared = await persistClinicalImages(JSON.parse(snapshot.json), { draft: table === "exam_editor_drafts" ? "exam" : "document", owner });
@@ -62,7 +67,7 @@ export function useExamDraft<T extends Record<string, unknown>>(
   }
 
   function queue() {
-    if (!loaded.current || !ownerRef.current) return;
+    if (closureRef.current !== false || !loaded.current || !ownerRef.current) return;
     const json = JSON.stringify(payloadRef.current);
     if (json === acknowledged.current && !pending.current) return;
     clock.current = Math.max(Date.now(), clock.current + 1);
@@ -131,11 +136,15 @@ export function useExamDraft<T extends Record<string, unknown>>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profileId, table, loadAttempt]);
 
-  useEffect(() => { if (ready) queue(); }, [ready, payload]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (closed) { pending.current = null; if (timer.current) clearTimeout(timer.current); }
+    else if (ready && closed === false) queue();
+  }, [ready, payload, closed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!ready || !loaded.current) return;
     const departure = () => {
+      if (closureRef.current !== false) return;
       const json = JSON.stringify(payloadRef.current);
       if (!pending.current && json === acknowledged.current) return;
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -166,5 +175,5 @@ export function useExamDraft<T extends Record<string, unknown>>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, table]);
 
-  return { ready, status, retry: () => loaded.current ? flush() : setLoadAttempt((attempt) => attempt + 1) };
+  return { ready, status: closed ? "Modo de encerramento · alterações não são salvas" : status, retry: () => loaded.current ? flush() : setLoadAttempt((attempt) => attempt + 1) };
 }

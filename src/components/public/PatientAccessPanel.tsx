@@ -1,4 +1,6 @@
 "use client";
+import { useHospitalClosure } from "./ClosureState";
+import { showClosureNotice } from "@/lib/hospital-closure";
 
 import { specialtyLabel } from "@/lib/specialty-label";
 import {ManualRefreshButton,useManualRefresh} from "@/lib/manual-data-refresh";
@@ -56,6 +58,8 @@ const EMPTY_REGISTER: RegisterForm = {
 };
 
 export function PatientAccessPanel() {
+  const closed = useHospitalClosure();
+  const openChildRegistration = () => { if (closed) showClosureNotice(); else setChildOpen(true); };
   const [stage, setStage] = useState<Stage>("checking");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -76,6 +80,12 @@ export function PatientAccessPanel() {
   const [error, setError] = useState("");
   const [portalSection, setPortalSection] = useState<PortalSection>("home");
   const [childOpen, setChildOpen] = useState(false);
+  useEffect(() => {
+    if (!closed) return;
+    setPortalSection(section => ["request","exam-request","followups"].includes(section) ? "home" : section);
+    setStage(stage => stage === "register" ? "login" : stage);
+    setChildOpen(false);
+  }, [closed]);
   const [childForm, setChildForm] = useState({ name: "", passport: "", age: "", ageUnit: "anos", relationship: "Responsável legal", additionalGuardianName: "" });
   const [followupData, setFollowupData] = useState<PatientFollowupData | null>(null);
   const [followupPassport, setFollowupPassport] = useState("");
@@ -98,13 +108,14 @@ export function PatientAccessPanel() {
   }, []);
 
   const openPortalSection = useCallback((section: PortalSection) => {
+    if (closed && ["request", "exam-request", "followups"].includes(section)) { showClosureNotice(); return; }
     if (section === portalSection) {
       window.requestAnimationFrame(focusPortalContent);
       return;
     }
     shouldFocusPortalSectionRef.current = true;
     setPortalSection(section);
-  }, [focusPortalContent, portalSection]);
+  }, [closed, focusPortalContent, portalSection]);
 
   useEffect(() => {
     if (stage !== "portal" || !shouldFocusPortalSectionRef.current) return;
@@ -190,12 +201,12 @@ export function PatientAccessPanel() {
       const match = accessiblePatients.find((item) => item.passport === passport);
       if (match) {
         setSelectedPassport(match.passport);
-        setPortalSection(section === "vaccination" && match.access_type === "self" ? "records" : (section || "home"));
+        openPortalSection(section === "vaccination" && match.access_type === "self" ? "records" : (section || "home"));
       } else if (!passport && section === "home") {
         setPortalSection("home");
       }
     };
-    const registerFromHeader = () => { if (stage === "portal") setChildOpen(true); };
+    const registerFromHeader = () => { if (stage === "portal") openChildRegistration(); };
     const openMyData = () => {
       if (stage !== "portal" || !hasOwnProfile) return;
       const self = accessiblePatients.find((item) => item.access_type === "self");
@@ -216,7 +227,7 @@ export function PatientAccessPanel() {
       window.removeEventListener("hpsr-patient-refresh-profiles", refreshProfiles);
       window.removeEventListener("hpsr-patient-session-expired", expireSession);
     };
-  }, [stage, accessiblePatients, hasOwnProfile, openPortalSection, checkSession]);
+  }, [stage, accessiblePatients, hasOwnProfile, openPortalSection, checkSession, closed]);
 
   useEffect(() => {
     if (stage !== "portal" || !selectedPassport) { setShowGestation(false); setShowIVF(false); setPediatricPassport(''); return; }
@@ -597,7 +608,7 @@ export function PatientAccessPanel() {
                       <section className="rounded-[18px] border border-[#ddcfc2] bg-[#f6efe7] p-5 sm:p-6">
                         <div className="flex items-center justify-between gap-3"><div><p className="text-[11px] font-black uppercase tracking-[.15em] text-[#927566]">Minha família</p><h2 className="mt-1 text-xl font-bold text-[#4e291c]">Crianças vinculadas</h2></div><Users size={24} className="text-[#672614]"/></div>
                         <div className="mt-4 flex flex-wrap gap-2">{accessiblePatients.filter((item) => item.access_type !== "self").slice(0, 3).map((item) => <button type="button" key={item.passport} onClick={() => goToProfile(item.passport)} className="rounded-full border border-[#ddcfc2] bg-[#fcf8f3] px-3 py-2 text-xs font-bold text-[#4e291c]">{item.name}</button>)}{!accessiblePatients.some((item) => item.access_type !== "self") && <span className="text-xs text-[#82736a]">Nenhuma criança vinculada.</span>}</div>
-                        <button type="button" onClick={() => setChildOpen(true)} className="mt-4 inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-[8px] bg-[#65331f] px-4 text-sm font-black text-white"><Plus size={16}/> Cadastrar criança</button>
+                        <button type="button" onClick={openChildRegistration} className="mt-4 inline-flex min-h-[42px] w-full items-center justify-center gap-2 rounded-[8px] bg-[#65331f] px-4 text-sm font-black text-white"><Plus size={16}/> Cadastrar criança</button>
                       </section>
                     </div>
                   </div>
@@ -633,7 +644,7 @@ export function PatientAccessPanel() {
                   </div>
                 </div>}
 
-                {portalSection === "family" && <div className="px-5 py-7 sm:px-8 lg:px-10"><div className="border-b border-[#ddcfc2] pb-5"><p className="text-[11px] font-black uppercase tracking-[.15em] text-[#927566]">Minha família</p><h2 className="mt-1 text-2xl font-bold text-[#4e291c]">Escolha quem você está cuidando</h2><p className="mt-2 text-sm text-[#82736a]">Cada pessoa tem suas próprias consultas, exames e documentos. Ao trocar aqui, todo o Portal passa a mostrar apenas os dados dela.</p></div><div className="mt-5 divide-y divide-[#ddcfc2] border-y border-[#ddcfc2]">{accessiblePatients.map((item) => <button key={item.passport} type="button" onClick={() => goToProfile(item.passport)} className="flex w-full items-center gap-4 py-4 text-left"><span className="grid h-11 w-11 place-items-center rounded-full bg-[#eee2d5] text-[#65331f]">{item.access_type === "self" ? <UserRound size={19}/> : <Baby size={19}/>}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-[#4e291c]">{item.name}</strong><span className="mt-1 block text-xs text-[#82736a]">{item.access_type === "self" ? "Minha conta" : "Criança vinculada"}</span></span>{item.passport === selectedPassport ? <span className="text-xs font-black text-[#672614]">Selecionado</span> : <ArrowRight size={17}/>}</button>)}</div><button type="button" onClick={() => setChildOpen(true)} className="mt-5 inline-flex min-h-[44px] items-center gap-2 rounded-[8px] bg-[#65331f] px-5 text-sm font-black text-white"><Plus size={16}/> Cadastrar criança</button></div>}
+                {portalSection === "family" && <div className="px-5 py-7 sm:px-8 lg:px-10"><div className="border-b border-[#ddcfc2] pb-5"><p className="text-[11px] font-black uppercase tracking-[.15em] text-[#927566]">Minha família</p><h2 className="mt-1 text-2xl font-bold text-[#4e291c]">Escolha quem você está cuidando</h2><p className="mt-2 text-sm text-[#82736a]">Cada pessoa tem suas próprias consultas, exames e documentos. Ao trocar aqui, todo o Portal passa a mostrar apenas os dados dela.</p></div><div className="mt-5 divide-y divide-[#ddcfc2] border-y border-[#ddcfc2]">{accessiblePatients.map((item) => <button key={item.passport} type="button" onClick={() => goToProfile(item.passport)} className="flex w-full items-center gap-4 py-4 text-left"><span className="grid h-11 w-11 place-items-center rounded-full bg-[#eee2d5] text-[#65331f]">{item.access_type === "self" ? <UserRound size={19}/> : <Baby size={19}/>}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-[#4e291c]">{item.name}</strong><span className="mt-1 block text-xs text-[#82736a]">{item.access_type === "self" ? "Minha conta" : "Criança vinculada"}</span></span>{item.passport === selectedPassport ? <span className="text-xs font-black text-[#672614]">Selecionado</span> : <ArrowRight size={17}/>}</button>)}</div><button type="button" onClick={openChildRegistration} className="mt-5 inline-flex min-h-[44px] items-center gap-2 rounded-[8px] bg-[#65331f] px-5 text-sm font-black text-white"><Plus size={16}/> Cadastrar criança</button></div>}
 
                 {portalSection === "appointments" && <div className="px-5 py-7 sm:px-8 lg:px-10"><SectionIntro eyebrow="Consultas" title="Minhas consultas" text="Veja o que já está confirmado. Para escolher um horário novo, use “Escolher um horário”."/><div className="space-y-4"><PatientFollowupSummaryPanel data={activeFollowups} loading={followupLoading} error={followupError} onOpenHours={() => openPortalSection("followups")} /><PatientAppointmentsPanel key={`${selectedPassport}:scheduled`} view="scheduled" passport={selectedPassport} onSessionExpired={handleSessionExpired} onOpenRecords={() => openPortalSection("documents")} /></div></div>}
                 {portalSection === "request" && <div className="px-5 py-7 sm:px-8 lg:px-10"><SectionIntro eyebrow="Consultas" title="Pedir nova consulta" text="Envie um pedido de atendimento. Isso não reserva nem confirma um horário; a equipe ainda precisa analisar sua solicitação."/><PatientAppointmentsPanel key={`${selectedPassport}:request`} view="request" passport={selectedPassport} hasClinicalContact={selectedProfile?.hasClinicalContact} onSessionExpired={handleSessionExpired} /></div>}
@@ -657,7 +668,7 @@ export function PatientAccessPanel() {
               <p className="text-[11px] font-black uppercase tracking-[.15em] text-[#927566]">Minha família</p>
               <h2 className="mt-1 text-2xl font-bold text-[#4e291c]">Cadastre a criança que você acompanha</h2>
               <p className="mt-2 max-w-2xl text-sm leading-relaxed text-[#82736a]">Depois da validação do Hospital São Rafael, você poderá acessar consultas, exames, documentos e vacinação da criança pela mesma conta.</p>
-              <button type="button" onClick={() => setChildOpen(true)} className="mt-5 inline-flex min-h-[46px] items-center gap-2 rounded-[8px] bg-[#65331f] px-5 text-sm font-black text-white"><Plus size={16}/> Cadastrar criança</button>
+              <button type="button" onClick={openChildRegistration} className="mt-5 inline-flex min-h-[46px] items-center gap-2 rounded-[8px] bg-[#65331f] px-5 text-sm font-black text-white"><Plus size={16}/> Cadastrar criança</button>
             </div>
           )}
         </div>
@@ -687,7 +698,7 @@ export function PatientAccessPanel() {
 
   return (
     <>
-    <PatientAuthCard stage={stage} onStage={next => { setStage(next); clearFeedback(); }}
+    <PatientAuthCard stage={stage} onStage={next => { if (closed && next === "register") { showClosureNotice(); return; } setStage(next); clearFeedback(); }}
       email={email} setEmail={setEmail} password={password} setPassword={setPassword}
       rememberConnected={rememberConnected} setRememberConnected={setRememberConnected}
       register={register} setRegister={setRegister} registrationType={registrationType}

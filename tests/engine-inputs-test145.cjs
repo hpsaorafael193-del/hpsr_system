@@ -83,8 +83,12 @@ const beta=models.find(m=>m.id==='lab_beta_hcg_completo');
 const betaStates={negativo:'negativo',positivo:'positivo',indeterminado:'inconclusivo'};
 for(const clinicalContext of beta.clinicalContexts) for(const [profileId,state] of Object.entries(betaStates)){
  const config={profileId,clinicalContext,variables:{idade_gestacional_referida:'8',beta_hcg_quantitativo:'14',contexto_clinico:'DETALHE ANTIGO'}};
- const generated=render(beta,config), rerendered=render(beta,{...config,generationSeed:871});
- assert.equal(generated.html,rerendered.html);
+ const generated=render(beta,config);
+ const quantities=new Set(Array.from({length:12},(_,generationSeed)=>{
+  const rows=[...parse(render(beta,{...config,generationSeed}).html).querySelectorAll('tbody tr')];
+  return rows.find(row=>row.cells[0].textContent==='β-hCG Quantitativo').cells[1].textContent;
+ }));
+ assert(quantities.size>1,`${clinicalContext}/${profileId} must vary`);
  assert(!generated.resolved.dynamicFields.some(f=>f.id==='contexto_clinico'));
  assert(!generated.html.includes('DETALHE ANTIGO'));
  const old=render(beta,{profileId:profileId==='positivo'?'indeterminado':'positivo'}).html;
@@ -97,7 +101,7 @@ for(const clinicalContext of beta.clinicalContexts) for(const [profileId,state] 
  for(const block of ['interpretacao','conclusao']) assert(node.querySelector('[data-hpsr-block="'+block+'"]').textContent.includes('β-hCG '+state));
  assert(merged.includes('Nota independente do laudo'));
 }
-console.log('PASS beta-HCG: all contexts and result profiles, stale draft values, stable generation and coherent reapply');
+console.log('PASS beta-HCG: all contexts and result profiles, stale draft values, bounded variation and coherent reapply');
 
 const refresh=ast.statements.flatMap(function visit(node){
  return ts.isFunctionDeclaration(node)&&node.name?.text==='refreshFindings'
@@ -111,10 +115,12 @@ Object.assign(sandbox,{
  editorRef:{current:{innerHTML:render(beta,{profileId:'indeterminado'}).html}},
  editorHtmlRef:{current:''},patient:{},textFromHtml:html=>parse(html).textContent,
  resolveAdaptiveExam:engine.resolveAdaptiveExam,renderAdaptiveExamReport:engine.renderAdaptiveExamReport,
+ nextAdaptiveGenerationSeed:engine.nextAdaptiveGenerationSeed,
  setAdaptiveConfig:config=>{appliedConfig=config;},setEditorContent:html=>{appliedHtml=html;}
 });
 vm.runInContext(ts.transpileModule(refresh.getText(ast),{compilerOptions:{target:ts.ScriptTarget.ES2020}}).outputText+'\nrefreshFindings();',sandbox);
 assert.equal(appliedConfig.profileId,'positivo');
+assert.equal(appliedConfig.generationSeed,1);
 assert.deepEqual(Object.keys(appliedConfig.variables),['idade_gestacional_referida']);
 assert(!appliedHtml.includes('14 mUI/mL'));
 assert(appliedHtml.includes('β-hCG positivo')&&appliedHtml.includes('No seguimento'));

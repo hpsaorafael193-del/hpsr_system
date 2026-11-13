@@ -1,4 +1,6 @@
 "use client";
+import { useHospitalClosure } from "@/components/public/ClosureState";
+import { showClosureNotice } from "@/lib/hospital-closure";
 
 import { specialtyLabel } from "@/lib/specialty-label";
 import { patientAgeGroup, patientAgeLabel } from "@/lib/patient-age-group";
@@ -172,7 +174,8 @@ export default function RecordsPage() {
   useLocalRefreshControl();
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const isInternalLinkManager = currentUserProfile.systemRole === "Administrador do Sistema";
-  const canDeleteClinicalData = isInternalLinkManager || ["Diretora", "Vice Diretor", "Vice Diretor / Dev"].includes(currentUserProfile.role);
+  const closed = useHospitalClosure();
+  const canDeleteClinicalData = !closed && (isInternalLinkManager || ["Diretora", "Vice Diretor", "Vice Diretor / Dev"].includes(currentUserProfile.role));
   const { patients: sharedPatients, loading: sharedPatientsLoading, selectedPassport: sharedSelectedPassport, selectPatient: selectSharedPatient } = usePatientSelection();
   const [patients, setPatients] = useState<PatientRecord[]>(initialPatients);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>(initialTimelineEvents);
@@ -663,6 +666,7 @@ export default function RecordsPage() {
   };
 
   async function toggleRecordPortalVisibility(event: TimelineEvent) {
+    if (closed && (event.type !== "Exame" || event.isConfidential !== true)) { showClosureNotice(); return; }
     if (!(["Exame", "Documento", "Vacina"] as TimelineEvent["type"][]).includes(event.type) || typeof event.isConfidential !== "boolean") return;
     const client = createClient();
     if (!client) {

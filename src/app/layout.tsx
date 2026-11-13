@@ -1,3 +1,4 @@
+import { ClosureState } from "@/components/public/ClosureState";
 import type { Metadata } from "next";
 import "./globals.css";
 import "./dark-generated.css";
@@ -23,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: themeBootstrap }} /></head>
-      <body><ThemeProvider><HpsrDialogProvider><HpsrToastProvider>{children}</HpsrToastProvider></HpsrDialogProvider></ThemeProvider></body>
+      <body><ThemeProvider><HpsrDialogProvider><HpsrToastProvider><ClosureState>{children}</ClosureState></HpsrToastProvider></HpsrDialogProvider></ThemeProvider></body>
     </html>
   );
 }

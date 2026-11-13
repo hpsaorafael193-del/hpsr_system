@@ -1,4 +1,6 @@
 "use client";
+import { useHospitalClosure } from "@/components/public/ClosureState";
+import { showClosureNotice } from "@/lib/hospital-closure";
 
 import { dnaParticipants, syncDnaParticipants } from "@/lib/dna-participants";
 import { AttachmentPasteArea } from "@/components/ui/AttachmentPasteArea";
@@ -719,6 +721,7 @@ function AppDialog({
 
 
 export default function ExamesPage() {
+  const hospitalClosed = useHospitalClosure();
   const examSaveLock = useRef(false);
   const [savingExam, setSavingExam] = useState(false);
   const { profile: currentUserProfile } = useCurrentUserProfile();
@@ -1481,6 +1484,7 @@ export default function ExamesPage() {
     if (selectedExam.id === "lab_beta_hcg_completo") {
       const config = {
         ...adaptiveConfig,
+        generationSeed: nextAdaptiveGenerationSeed(adaptiveConfig.generationSeed),
         profileId: visibleExamProfiles.some(profile => profile.id === adaptiveConfig.profileId)
           ? adaptiveConfig.profileId : adaptiveConfig.profileId === "seguimento" ? "positivo" : "negativo",
         variables: { idade_gestacional_referida: adaptiveConfig.variables.idade_gestacional_referida ?? "" },
@@ -1698,6 +1702,7 @@ export default function ExamesPage() {
   }
 
   async function saveExam() {
+    if (hospitalClosed) { showClosureNotice(); return; }
     if (examSaveLock.current) return;
     examSaveLock.current = true; setSavingExam(true);
     try {

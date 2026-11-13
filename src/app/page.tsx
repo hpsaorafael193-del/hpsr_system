@@ -1,3 +1,4 @@
+import { ClosureNotice } from "@/components/public/ClosureNotice";
 import Image from "next/image";
 import Link from "next/link";
 import { BriefcaseMedical, ClipboardList, Scale } from "lucide-react";
@@ -7,6 +8,7 @@ import { MedicalLoginButton } from "@/components/public/MedicalLoginButton";
 export default function HomePage() {
   return (
     <PublicShell showHeader={false}>
+      <ClosureNotice initial />
       <section
         className="relative flex min-h-screen items-center justify-center overflow-hidden px-[clamp(0.75rem,3vw,1.5rem)] py-[clamp(1rem,3vw,2rem)]"
         style={{

@@ -991,7 +991,7 @@ function betaHcgNumber(value: unknown) {
   return Number(normalized);
 }
 
-// Stable synthetic RP examples, never a random draw or a measurement inferred from the indication.
+// Contextual anchors for synthetic RP results without a reported gestational age.
 const betaHcgContexts: Record<string, { positive: number; reading: string }> = {
   rotina: { positive: 82, reading: "Triagem laboratorial: interpretar a concentração conforme os limites do método." },
   gestacao: { positive: 1840, reading: "Na avaliação gestacional, correlacionar com a idade informada e a ultrassonografia quando disponível." },
@@ -1001,15 +1001,20 @@ const betaHcgContexts: Record<string, { positive: number; reading: string }> = {
   personalizado: { positive: 82, reading: "Avaliação individual: interpretar o resultado conforme os dados clínicos disponíveis." },
 };
 
-function betaHcgGeneratedValue(profileId: string, referredWeeks: unknown, clinicalContext: string) {
-  if (profileId === "negativo") return 2.1;
-  if (profileId === "indeterminado") return 14;
-  const context = betaHcgContexts[normalizedFieldKey(clinicalContext)] ?? betaHcgContexts.rotina;
-  if (!String(referredWeeks ?? "").trim()) return context.positive;
+function betaHcgGeneratedValue(profileId: string, referredWeeks: unknown, clinicalContext: string, generationSeed: number) {
+  const contextKey = normalizedFieldKey(clinicalContext);
+  const seed = `beta-hcg:${contextKey}:${profileId}:${referredWeeks}:${generationSeed}`;
+  if (profileId === "negativo") return Math.round(deterministicBetween(seed, 0.4, 4.6) * 10) / 10;
+  if (profileId === "indeterminado") return Math.round(deterministicBetween(seed, 5, 25));
+  const context = betaHcgContexts[contextKey] ?? betaHcgContexts.rotina;
+  if (!String(referredWeeks ?? "").trim()) {
+    return Math.round(deterministicBetween(seed, Math.max(26, context.positive * 0.6), context.positive * 1.6));
+  }
   const range = betaHcgRange(betaHcgNumber(referredWeeks));
   if (!range) return Number.NaN;
-  // A stable representative concentration inside both the age band and positive threshold.
-  return Math.round(Math.sqrt(Math.max(26, range.min) * range.max));
+  // Sample within the intersection of the reported age band and the positive interval.
+  const lower = Math.max(26, range.min);
+  return Math.round(Math.exp(deterministicBetween(seed, Math.log(lower), Math.log(range.max))));
 }
 
 function betaHcgGestationalEstimate(value: unknown) {
@@ -1064,7 +1069,7 @@ function guidedRuntimeOverride(
   const endometrialPrepDay = String(runtimeVariables.dia_preparo_endometrial ?? "").trim();
   if (model.id === "lab_beta_hcg_completo" && profile.status !== "personalizado") {
     const referred = String(runtimeVariables.idade_gestacional_referida ?? "").trim();
-    const value = betaHcgGeneratedValue(profile.id, referred, clinicalContext);
+    const value = betaHcgGeneratedValue(profile.id, referred, clinicalContext, generationSeed);
     const state = value < 5 ? "Negativo" : value <= 25 ? "Inconclusivo" : "Positivo";
     if (!Number.isFinite(value)) return parameter.id === "idade_gestacional_referida" ? `${referred} semanas` : "Não informado: idade gestacional fora da faixa de geração; informar resultado medido";
     const values: Record<string, string> = {

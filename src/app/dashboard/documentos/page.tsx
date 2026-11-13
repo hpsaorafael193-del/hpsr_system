@@ -1,4 +1,6 @@
 "use client";
+import { useHospitalClosure } from "@/components/public/ClosureState";
+import { showClosureNotice } from "@/lib/hospital-closure";
 
 import { specialtyLabel } from "@/lib/specialty-label";
 import { persistClinicalImages, clinicalSaveError } from "@/lib/clinical-image-assets";
@@ -564,6 +566,7 @@ function DocumentVisualPreviewPage({
 }
 
 export default function DocumentsPage() {
+  const hospitalClosed = useHospitalClosure();
   const { profile: currentUserProfile } = useCurrentUserProfile();
   const { patients: sharedPatients, selectedPatient: sharedSelectedPatient, selectPatient: selectSharedPatient, upsertPatient: upsertSharedPatient, loading: patientsLoading } = usePatientSelection();
   const initialDoctor: DoctorDraft = {
@@ -1182,6 +1185,7 @@ export default function DocumentsPage() {
   }
 
   async function saveDocument(options?: { publishCurrent?: boolean }) {
+    if (hospitalClosed) { showClosureNotice(); return; }
     if (savingDocument) return;
     if (!patient.passport?.trim() || !patient.name?.trim()) {
       setAppDialog({ title: "Paciente obrigatório", message: "Selecione ou cadastre o paciente antes de salvar.", actions: [{ label: "Entendi", variant: "primary", onClick: () => setAppDialog(null) }] });

@@ -1,3 +1,4 @@
+import { closureFetch } from "./hospital-closure";
 import { loginCookieOptions, rememberCurrentSession, renewLoginPersistence } from "@/lib/auth-persistence";
 import { createBrowserClient, parseCookieHeader, serializeCookieHeader, type CookieOptions } from "@supabase/ssr";
 import { createClient as createSupabaseJsClient, type SupabaseClient } from "@supabase/supabase-js";
